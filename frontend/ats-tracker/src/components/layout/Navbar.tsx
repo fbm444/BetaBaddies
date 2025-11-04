@@ -9,6 +9,7 @@ import logo from '@/assets/logo.png'
 
 export function Navbar() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [displayName, setDisplayName] = useState<string>('User')
   const [userEmail, setUserEmail] = useState<string>('')
   const [profilePicture, setProfilePicture] = useState<string>('https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_640.png')
@@ -16,6 +17,7 @@ export function Navbar() {
   const [isCheckingAuth, setIsCheckingAuth] = useState<boolean>(true)
   const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const mobileMenuRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -86,16 +88,24 @@ export function Navbar() {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false)
       }
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target as Node)) {
+        setIsMobileMenuOpen(false)
+      }
     }
 
-    if (isDropdownOpen) {
+    if (isDropdownOpen || isMobileMenuOpen) {
       document.addEventListener('mousedown', handleClickOutside)
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [isDropdownOpen])
+  }, [isDropdownOpen, isMobileMenuOpen])
+
+  // Close mobile menu when route changes
+  useEffect(() => {
+    setIsMobileMenuOpen(false)
+  }, [location.pathname])
 
   // Listen for profile picture updates
   useEffect(() => {
@@ -114,19 +124,22 @@ export function Navbar() {
   }, [])
 
   return (
-    <nav className="bg-white sticky top-0 z-50">
-      <div className="max-w-[1600px] mx-auto px-10">
+    <nav className="bg-white sticky top-0 z-50 border-b border-slate-200">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-10">
         {/* Top Row: Logo, Navigation, Export Button, and User Profile */}
-        <div className="flex items-center py-4">
+        <div className="flex items-center justify-between py-3 md:py-4">
           {/* Logo/Brand */}
-          <div className="flex items-center gap-3">
-            <img src={logo} alt="ATS Logo" className="w-10 h-10" />
-            <h1 className="text-2xl font-bold text-slate-900 m-0 font-poppins">ATS For Candidates</h1>
+          <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
+            <img src={logo} alt="ATS Logo" className="w-8 h-8 md:w-10 md:h-10" />
+            <h1 className="text-lg md:text-2xl font-bold text-slate-900 m-0 font-poppins whitespace-nowrap">
+              <span className="hidden sm:inline">ATS For Candidates</span>
+              <span className="sm:hidden">ATS</span>
+            </h1>
           </div>
 
-          {/* Navigation Menu - Centered */}
+          {/* Desktop Navigation Menu - Centered */}
           {isLoggedIn && (
-            <div className="flex-1 flex justify-center">
+            <div className="hidden lg:flex flex-1 justify-center">
               <Menubar className="border-0 bg-transparent shadow-none p-0 h-auto space-x-1">
                 {navigationItems.map((item) => {
                   const isActive = location.pathname === item.path
@@ -150,20 +163,37 @@ export function Navbar() {
             </div>
           )}
 
-          {/* User Profile Area */}
-          <div className="flex items-center">
+          {/* Right Side: Mobile Menu Button + User Profile */}
+          <div className="flex items-center gap-2 md:gap-3">
+            {/* Mobile Menu Button */}
+            {isLoggedIn && (
+              <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="lg:hidden p-2 rounded-lg hover:bg-slate-100 transition-colors"
+                aria-label="Toggle menu"
+              >
+                <Icon 
+                  icon={isMobileMenuOpen ? "mingcute:close-line" : "mingcute:menu-line"} 
+                  width={24} 
+                  height={24}
+                  className="text-slate-700"
+                />
+              </button>
+            )}
+
+            {/* User Profile Area */}
             {isCheckingAuth || isLoggingOut ? (
               <div className="flex items-center gap-2 text-slate-600">
                 <Icon icon="mingcute:loading-line" width={20} height={20} className="animate-spin" />
-                <span className="text-sm">{isLoggingOut ? 'Logging out...' : 'Loading...'}</span>
+                <span className="hidden sm:inline text-sm">{isLoggingOut ? 'Logging out...' : 'Loading...'}</span>
               </div>
             ) : isLoggedIn ? (
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="flex items-center gap-3 px-4 py-2 bg-transparent border border-slate-200 rounded-lg cursor-pointer transition-all duration-200 hover:bg-slate-50"
+                className="flex items-center gap-2 md:gap-3 px-2 md:px-4 py-2 bg-transparent border border-slate-200 rounded-lg cursor-pointer transition-all duration-200 hover:bg-slate-50"
               >
-                <div className="w-9 h-9 rounded-full bg-blue-500 text-white flex items-center justify-center text-base font-semibold overflow-hidden">
+                <div className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm md:text-base font-semibold overflow-hidden flex-shrink-0">
                   {profilePicture && !profilePicture.includes('blank-profile-picture') ? (
                     <img 
                       src={profilePicture} 
@@ -186,12 +216,12 @@ export function Navbar() {
                     {displayName.charAt(0).toUpperCase()}
                   </span>
                 </div>
-                <span className="text-base font-medium text-slate-900">{displayName}</span>
+                <span className="hidden md:inline text-base font-medium text-slate-900 whitespace-nowrap">{displayName}</span>
                 <Icon 
                   icon={isDropdownOpen ? "mingcute:up-line" : "mingcute:down-line"} 
                   width={20} 
                   height={20}
-                  className="text-slate-600"
+                  className="text-slate-600 hidden md:block"
                 />
               </button>
 
@@ -281,16 +311,17 @@ export function Navbar() {
               )}
             </div>
           ) : (
-            <div className="flex gap-3">
+            <div className="flex gap-2 md:gap-3">
               <button 
                 onClick={() => navigate(ROUTES.LOGIN)}
-                className="px-6 py-2.5 bg-transparent border border-slate-200 rounded-lg text-sm font-medium text-slate-900 cursor-pointer transition-all duration-200 hover:bg-slate-50"
+                className="px-4 md:px-6 py-2 md:py-2.5 bg-transparent border border-slate-200 rounded-lg text-sm font-medium text-slate-900 cursor-pointer transition-all duration-200 hover:bg-slate-50 whitespace-nowrap"
               >
-                Login
+                <span className="hidden sm:inline">Login</span>
+                <span className="sm:hidden">Sign In</span>
               </button>
               <button 
                 onClick={() => navigate(ROUTES.LOGIN)}
-                className="px-6 py-2.5 bg-gradient-to-br from-blue-500 to-blue-700 border-none rounded-lg text-sm font-semibold text-white cursor-pointer transition-all duration-200 shadow-lg hover:shadow-xl"
+                className="px-4 md:px-6 py-2 md:py-2.5 bg-gradient-to-br from-blue-500 to-blue-700 border-none rounded-lg text-sm font-semibold text-white cursor-pointer transition-all duration-200 shadow-lg hover:shadow-xl whitespace-nowrap"
               >
                 Sign Up
               </button>
@@ -298,6 +329,43 @@ export function Navbar() {
             )}
           </div>
         </div>
+
+        {/* Mobile Navigation Menu */}
+        {isLoggedIn && isMobileMenuOpen && (
+          <div 
+            ref={mobileMenuRef}
+            className="lg:hidden border-t border-slate-200 py-4 animate-in slide-in-from-top-2 duration-200"
+          >
+            <nav className="flex flex-col gap-2">
+              {navigationItems.map((item) => {
+                const isActive = location.pathname === item.path
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      navigate(item.path)
+                      setIsMobileMenuOpen(false)
+                    }}
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors duration-200",
+                      isActive
+                        ? "bg-black text-white"
+                        : "text-slate-700 hover:bg-slate-100"
+                    )}
+                  >
+                    <Icon 
+                      icon={item.icon} 
+                      width={20} 
+                      height={20}
+                      className={isActive ? "text-white" : "text-slate-600"}
+                    />
+                    <span className="font-medium">{item.label}</span>
+                  </button>
+                )
+              })}
+            </nav>
+          </div>
+        )}
       </div>
     </nav>
   )

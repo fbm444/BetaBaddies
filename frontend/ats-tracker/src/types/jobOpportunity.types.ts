@@ -6,6 +6,12 @@ export type JobStatus =
   | "Offer"
   | "Rejected";
 
+export interface ApplicationHistoryEntry {
+  timestamp: string;
+  status: JobStatus;
+  notes?: string;
+}
+
 export interface JobOpportunityData {
   id: string;
   title: string;
@@ -19,6 +25,16 @@ export interface JobOpportunityData {
   industry?: string;
   jobType?: string;
   status: JobStatus;
+  notes?: string;
+  recruiterName?: string;
+  recruiterEmail?: string;
+  recruiterPhone?: string;
+  hiringManagerName?: string;
+  hiringManagerEmail?: string;
+  hiringManagerPhone?: string;
+  salaryNegotiationNotes?: string;
+  interviewNotes?: string;
+  applicationHistory?: ApplicationHistoryEntry[];
   statusUpdatedAt?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -36,6 +52,16 @@ export interface JobOpportunityInput {
   industry?: string;
   jobType?: string;
   status?: JobStatus;
+  notes?: string;
+  recruiterName?: string;
+  recruiterEmail?: string;
+  recruiterPhone?: string;
+  hiringManagerName?: string;
+  hiringManagerEmail?: string;
+  hiringManagerPhone?: string;
+  salaryNegotiationNotes?: string;
+  interviewNotes?: string;
+  applicationHistory?: ApplicationHistoryEntry[];
 }
 
 export interface StatusCounts {

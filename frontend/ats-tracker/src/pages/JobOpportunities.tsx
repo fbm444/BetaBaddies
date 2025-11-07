@@ -10,6 +10,7 @@ import type {
 import { INDUSTRIES, JOB_TYPES, JOB_STATUSES, STATUS_COLORS, STATUS_BG_COLORS } from "../types";
 import { isValidUrl, getUrlErrorMessage } from "../utils/urlValidation";
 import { JobPipeline } from "../components/JobPipeline";
+import { JobOpportunityDetailModal } from "../components/JobOpportunityDetailModal";
 
 export function JobOpportunities() {
   const [opportunities, setOpportunities] = useState<JobOpportunityData[]>([]);
@@ -33,10 +34,14 @@ export function JobOpportunities() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkActions, setShowBulkActions] = useState(false);
 
+  // Instructions visibility
+  const [showInstructions, setShowInstructions] = useState(true);
+
   // Modal states
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedOpportunity, setSelectedOpportunity] =
     useState<JobOpportunityData | null>(null);
 
@@ -49,6 +54,16 @@ export function JobOpportunities() {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter, viewMode]);
+
+  // Keep selected opportunity in sync with opportunities list
+  useEffect(() => {
+    if (selectedOpportunity && opportunities.length > 0) {
+      const updated = opportunities.find((o) => o.id === selectedOpportunity.id);
+      if (updated) {
+        setSelectedOpportunity(updated);
+      }
+    }
+  }, [opportunities]);
 
   // Reset filter and clear selection when switching to pipeline view
   useEffect(() => {
@@ -233,6 +248,34 @@ export function JobOpportunities() {
     setShowDeleteModal(true);
   };
 
+  const openDetailModal = (opportunity: JobOpportunityData) => {
+    setSelectedOpportunity(opportunity);
+    setShowDetailModal(true);
+  };
+
+  const handleDetailSave = async (data: JobOpportunityInput) => {
+    if (!selectedOpportunity) return;
+    try {
+      const response = await api.updateJobOpportunity(selectedOpportunity.id, data);
+      if (response.ok && response.data) {
+        // Update the selected opportunity with the response data
+        setSelectedOpportunity(response.data.jobOpportunity);
+        await fetchOpportunities();
+        await fetchStatusCounts();
+        showMessage("Job opportunity updated successfully!", "success");
+      }
+    } catch (err: any) {
+      showMessage(err.message || "Failed to update job opportunity", "error");
+      throw err;
+    }
+  };
+
+  const handleDetailDelete = async () => {
+    if (!selectedOpportunity) return;
+    setShowDetailModal(false);
+    await handleDeleteOpportunity();
+  };
+
   // Loading state
   if (isLoading) {
     return (
@@ -273,6 +316,47 @@ export function JobOpportunities() {
           Add Job Opportunity
         </button>
       </div>
+
+      {/* Instructions */}
+      {showInstructions && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+          <div className="flex items-start gap-3">
+            <Icon
+              icon="mingcute:information-line"
+              className="text-blue-600 mt-0.5 flex-shrink-0"
+              width={20}
+            />
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-semibold text-blue-900">
+                  How to View and Edit Job Details
+                </h3>
+                <button
+                  onClick={() => setShowInstructions(false)}
+                  className="text-blue-600 hover:text-blue-800 transition-colors"
+                  title="Dismiss instructions"
+                >
+                  <Icon icon="mingcute:close-line" width={18} />
+                </button>
+              </div>
+              <div className="text-sm text-blue-800 space-y-1">
+                <p>
+                  <strong>List View:</strong> Click on any job card to open the detailed view.
+                </p>
+                <p>
+                  <strong>Pipeline View:</strong> Double-click on a job card to open the detailed view.
+                  Single-click and drag to move jobs between stages.
+                </p>
+                <p className="mt-2">
+                  In the detail view, you can edit all job information, add notes, track contacts
+                  (recruiter and hiring manager), record interview feedback, manage salary negotiations,
+                  and maintain an application history log with timestamps.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* View Mode Toggle and Status Filter */}
       <div className="bg-slate-50 rounded-xl p-6 mb-6 border border-slate-200">
@@ -421,6 +505,7 @@ export function JobOpportunities() {
                 onStatusChange={handleStatusChange}
                 onEdit={openEditModal}
                 onDelete={openDeleteModal}
+                onView={openDetailModal}
               />
             )}
 
@@ -484,6 +569,7 @@ export function JobOpportunities() {
                 opportunity={opportunity}
                 onEdit={openEditModal}
                 onDelete={openDeleteModal}
+                onView={openDetailModal}
                 isSelected={selectedIds.has(opportunity.id)}
                 onToggleSelect={() => toggleSelection(opportunity.id)}
                 showCheckbox={true}
@@ -525,6 +611,19 @@ export function JobOpportunities() {
           }}
         />
       )}
+
+      {/* Detail Modal */}
+      {showDetailModal && selectedOpportunity && (
+        <JobOpportunityDetailModal
+          opportunity={selectedOpportunity}
+          onClose={() => {
+            setShowDetailModal(false);
+            setSelectedOpportunity(null);
+          }}
+          onSave={handleDetailSave}
+          onDelete={handleDetailDelete}
+        />
+      )}
     </div>
   );
 }
@@ -534,6 +633,7 @@ function OpportunityCard({
   opportunity,
   onEdit,
   onDelete,
+  onView,
   isSelected = false,
   onToggleSelect,
   showCheckbox = false,
@@ -541,6 +641,7 @@ function OpportunityCard({
   opportunity: JobOpportunityData;
   onEdit: (opportunity: JobOpportunityData) => void;
   onDelete: (opportunity: JobOpportunityData) => void;
+  onView?: (opportunity: JobOpportunityData) => void;
   isSelected?: boolean;
   onToggleSelect?: () => void;
   showCheckbox?: boolean;
@@ -577,7 +678,8 @@ function OpportunityCard({
         isSelected
           ? "border-blue-500 ring-2 ring-blue-200"
           : "border-slate-200 hover:shadow-md"
-      }`}
+      } ${onView ? "cursor-pointer" : ""}`}
+      onClick={() => onView && onView(opportunity)}
     >
       {/* Header */}
       <div className="flex justify-between items-start mb-3">
@@ -600,7 +702,7 @@ function OpportunityCard({
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
           <button
             onClick={() => onEdit(opportunity)}
             className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"

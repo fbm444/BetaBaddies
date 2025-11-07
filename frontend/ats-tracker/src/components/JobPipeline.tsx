@@ -31,6 +31,7 @@ interface JobPipelineProps {
   onStatusChange: (id: string, newStatus: JobStatus) => Promise<void>;
   onEdit: (opportunity: JobOpportunityData) => void;
   onDelete: (opportunity: JobOpportunityData) => void;
+  onView?: (opportunity: JobOpportunityData) => void;
 }
 
 interface PipelineColumnProps {
@@ -38,16 +39,18 @@ interface PipelineColumnProps {
   opportunities: JobOpportunityData[];
   onEdit: (opportunity: JobOpportunityData) => void;
   onDelete: (opportunity: JobOpportunityData) => void;
+  onView?: (opportunity: JobOpportunityData) => void;
 }
 
 interface PipelineCardProps {
   opportunity: JobOpportunityData;
   onEdit: (opportunity: JobOpportunityData) => void;
   onDelete: (opportunity: JobOpportunityData) => void;
+  onView?: (opportunity: JobOpportunityData) => void;
 }
 
 // Pipeline Card Component
-function PipelineCard({ opportunity, onEdit, onDelete }: PipelineCardProps) {
+function PipelineCard({ opportunity, onEdit, onDelete, onView }: PipelineCardProps) {
   const {
     attributes,
     listeners,
@@ -84,7 +87,14 @@ function PipelineCard({ opportunity, onEdit, onDelete }: PipelineCardProps) {
       {...listeners}
     >
       <div className="flex items-start justify-between mb-2">
-        <div className="flex-1 min-w-0">
+        <div 
+          className="flex-1 min-w-0"
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            onView && onView(opportunity);
+          }}
+          style={{ cursor: onView ? 'pointer' : 'default' }}
+        >
           <h4 className="font-semibold text-slate-900 truncate text-sm">
             {opportunity.title}
           </h4>
@@ -136,6 +146,7 @@ function PipelineColumn({
   opportunities,
   onEdit,
   onDelete,
+  onView,
 }: PipelineColumnProps) {
   const { setNodeRef } = useDroppable({
     id: status,
@@ -186,16 +197,17 @@ function PipelineColumn({
               />
               Drop jobs here
             </div>
-          ) : (
-            opportunities.map((opportunity) => (
-              <PipelineCard
-                key={opportunity.id}
-                opportunity={opportunity}
-                onEdit={onEdit}
-                onDelete={onDelete}
-              />
-            ))
-          )}
+                ) : (
+                  opportunities.map((opportunity) => (
+                    <PipelineCard
+                      key={opportunity.id}
+                      opportunity={opportunity}
+                      onEdit={onEdit}
+                      onDelete={onDelete}
+                      onView={onView}
+                    />
+                  ))
+                )}
         </div>
       </SortableContext>
     </div>
@@ -208,6 +220,7 @@ export function JobPipeline({
   onStatusChange,
   onEdit,
   onDelete,
+  onView,
 }: JobPipelineProps) {
   const [, setActiveId] = useState<string | null>(null);
   const sensors = useSensors(
@@ -308,13 +321,14 @@ export function JobPipeline({
           {JOB_STATUSES.map((status) => {
             const statusOpportunities = opportunitiesByStatus[status];
             return (
-              <PipelineColumn
-                key={status}
-                status={status}
-                opportunities={statusOpportunities}
-                onEdit={onEdit}
-                onDelete={onDelete}
-              />
+                  <PipelineColumn
+                    key={status}
+                    status={status}
+                    opportunities={statusOpportunities}
+                    onEdit={onEdit}
+                    onDelete={onDelete}
+                    onView={onView}
+                  />
             );
           })}
         </div>

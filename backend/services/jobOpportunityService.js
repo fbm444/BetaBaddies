@@ -145,6 +145,16 @@ class JobOpportunityService {
       industry,
       jobType,
       status = "Interested",
+      notes,
+      recruiterName,
+      recruiterEmail,
+      recruiterPhone,
+      hiringManagerName,
+      hiringManagerEmail,
+      hiringManagerPhone,
+      salaryNegotiationNotes,
+      interviewNotes,
+      applicationHistory,
     } = opportunityData;
 
     try {
@@ -175,15 +185,28 @@ class JobOpportunityService {
 
       const opportunityId = uuidv4();
 
+      // Validate application history if provided
+      if (applicationHistory !== undefined && applicationHistory !== null) {
+        if (!Array.isArray(applicationHistory)) {
+          throw new Error("Application history must be an array");
+        }
+      }
+
       // Create job opportunity in database
       const query = `
         INSERT INTO job_opportunities (
           id, user_id, title, company, location, salary_min, salary_max,
-          job_posting_url, application_deadline, job_description, industry, job_type, status
+          job_posting_url, application_deadline, job_description, industry, job_type, status,
+          notes, recruiter_name, recruiter_email, recruiter_phone,
+          hiring_manager_name, hiring_manager_email, hiring_manager_phone,
+          salary_negotiation_notes, interview_notes, application_history
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
         RETURNING id, title, company, location, salary_min, salary_max,
           job_posting_url, application_deadline, job_description, industry, job_type, status,
+          notes, recruiter_name, recruiter_email, recruiter_phone,
+          hiring_manager_name, hiring_manager_email, hiring_manager_phone,
+          salary_negotiation_notes, interview_notes, application_history,
           status_updated_at, created_at, updated_at
       `;
 
@@ -201,6 +224,16 @@ class JobOpportunityService {
         industry?.trim() || null,
         jobType?.trim() || null,
         status,
+        notes?.trim() || null,
+        recruiterName?.trim() || null,
+        recruiterEmail?.trim() || null,
+        recruiterPhone?.trim() || null,
+        hiringManagerName?.trim() || null,
+        hiringManagerEmail?.trim() || null,
+        hiringManagerPhone?.trim() || null,
+        salaryNegotiationNotes?.trim() || null,
+        interviewNotes?.trim() || null,
+        applicationHistory ? JSON.stringify(applicationHistory) : '[]',
       ]);
 
       const row = result.rows[0];
@@ -218,6 +251,16 @@ class JobOpportunityService {
         industry: row.industry,
         jobType: row.job_type,
         status: row.status,
+        notes: row.notes,
+        recruiterName: row.recruiter_name,
+        recruiterEmail: row.recruiter_email,
+        recruiterPhone: row.recruiter_phone,
+        hiringManagerName: row.hiring_manager_name,
+        hiringManagerEmail: row.hiring_manager_email,
+        hiringManagerPhone: row.hiring_manager_phone,
+        salaryNegotiationNotes: row.salary_negotiation_notes,
+        interviewNotes: row.interview_notes,
+        applicationHistory: row.application_history || [],
         statusUpdatedAt: row.status_updated_at,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
@@ -234,6 +277,9 @@ class JobOpportunityService {
       const query = `
         SELECT id, title, company, location, salary_min, salary_max,
           job_posting_url, application_deadline, job_description, industry, job_type, status,
+          notes, recruiter_name, recruiter_email, recruiter_phone,
+          hiring_manager_name, hiring_manager_email, hiring_manager_phone,
+          salary_negotiation_notes, interview_notes, application_history,
           status_updated_at, created_at, updated_at
         FROM job_opportunities
         WHERE id = $1 AND user_id = $2
@@ -259,6 +305,16 @@ class JobOpportunityService {
         industry: opportunity.industry,
         jobType: opportunity.job_type,
         status: opportunity.status,
+        notes: opportunity.notes,
+        recruiterName: opportunity.recruiter_name,
+        recruiterEmail: opportunity.recruiter_email,
+        recruiterPhone: opportunity.recruiter_phone,
+        hiringManagerName: opportunity.hiring_manager_name,
+        hiringManagerEmail: opportunity.hiring_manager_email,
+        hiringManagerPhone: opportunity.hiring_manager_phone,
+        salaryNegotiationNotes: opportunity.salary_negotiation_notes,
+        interviewNotes: opportunity.interview_notes,
+        applicationHistory: opportunity.application_history || [],
         statusUpdatedAt: opportunity.status_updated_at,
         createdAt: opportunity.created_at,
         updatedAt: opportunity.updated_at,
@@ -306,6 +362,9 @@ class JobOpportunityService {
       const query = `
         SELECT id, title, company, location, salary_min, salary_max,
           job_posting_url, application_deadline, job_description, industry, job_type, status,
+          notes, recruiter_name, recruiter_email, recruiter_phone,
+          hiring_manager_name, hiring_manager_email, hiring_manager_phone,
+          salary_negotiation_notes, interview_notes, application_history,
           status_updated_at, created_at, updated_at
         FROM job_opportunities
         ${whereClause}
@@ -330,6 +389,16 @@ class JobOpportunityService {
         industry: opportunity.industry,
         jobType: opportunity.job_type,
         status: opportunity.status,
+        notes: opportunity.notes,
+        recruiterName: opportunity.recruiter_name,
+        recruiterEmail: opportunity.recruiter_email,
+        recruiterPhone: opportunity.recruiter_phone,
+        hiringManagerName: opportunity.hiring_manager_name,
+        hiringManagerEmail: opportunity.hiring_manager_email,
+        hiringManagerPhone: opportunity.hiring_manager_phone,
+        salaryNegotiationNotes: opportunity.salary_negotiation_notes,
+        interviewNotes: opportunity.interview_notes,
+        applicationHistory: opportunity.application_history || [],
         statusUpdatedAt: opportunity.status_updated_at,
         createdAt: opportunity.created_at,
         updatedAt: opportunity.updated_at,
@@ -391,6 +460,13 @@ class JobOpportunityService {
       const values = [];
       let paramIndex = 1;
 
+      // Validate application history if provided
+      if (updateData.applicationHistory !== undefined && updateData.applicationHistory !== null) {
+        if (!Array.isArray(updateData.applicationHistory)) {
+          throw new Error("Application history must be an array");
+        }
+      }
+
       const fields = {
         title: "title",
         company: "company",
@@ -403,6 +479,16 @@ class JobOpportunityService {
         industry: "industry",
         jobType: "job_type",
         status: "status",
+        notes: "notes",
+        recruiterName: "recruiter_name",
+        recruiterEmail: "recruiter_email",
+        recruiterPhone: "recruiter_phone",
+        hiringManagerName: "hiring_manager_name",
+        hiringManagerEmail: "hiring_manager_email",
+        hiringManagerPhone: "hiring_manager_phone",
+        salaryNegotiationNotes: "salary_negotiation_notes",
+        interviewNotes: "interview_notes",
+        applicationHistory: "application_history",
       };
 
       for (const [key, column] of Object.entries(fields)) {
@@ -439,6 +525,31 @@ class JobOpportunityService {
             // Status field - will update the value
             updates.push(`${column} = $${paramIndex++}`);
             values.push(updateData[key]);
+          } else if (key === "notes" || key === "salaryNegotiationNotes" || key === "interviewNotes") {
+            // Text fields (unlimited length)
+            updates.push(`${column} = $${paramIndex++}`);
+            values.push(
+              updateData[key] && updateData[key].trim() !== ""
+                ? updateData[key].trim()
+                : null
+            );
+          } else if (key === "recruiterName" || key === "recruiterEmail" || key === "recruiterPhone" ||
+                     key === "hiringManagerName" || key === "hiringManagerEmail" || key === "hiringManagerPhone") {
+            // Contact information fields
+            updates.push(`${column} = $${paramIndex++}`);
+            values.push(
+              updateData[key] && updateData[key].trim() !== ""
+                ? updateData[key].trim()
+                : null
+            );
+          } else if (key === "applicationHistory") {
+            // JSONB field - store as JSON string
+            updates.push(`${column} = $${paramIndex++}`);
+            values.push(
+              updateData[key] && Array.isArray(updateData[key])
+                ? JSON.stringify(updateData[key])
+                : '[]'
+            );
           }
         }
       }
@@ -456,6 +567,9 @@ class JobOpportunityService {
         WHERE user_id = $${paramIndex++} AND id = $${paramIndex}
         RETURNING id, title, company, location, salary_min, salary_max,
           job_posting_url, application_deadline, job_description, industry, job_type, status,
+          notes, recruiter_name, recruiter_email, recruiter_phone,
+          hiring_manager_name, hiring_manager_email, hiring_manager_phone,
+          salary_negotiation_notes, interview_notes, application_history,
           status_updated_at, created_at, updated_at
       `;
 
@@ -475,6 +589,16 @@ class JobOpportunityService {
         industry: row.industry,
         jobType: row.job_type,
         status: row.status,
+        notes: row.notes,
+        recruiterName: row.recruiter_name,
+        recruiterEmail: row.recruiter_email,
+        recruiterPhone: row.recruiter_phone,
+        hiringManagerName: row.hiring_manager_name,
+        hiringManagerEmail: row.hiring_manager_email,
+        hiringManagerPhone: row.hiring_manager_phone,
+        salaryNegotiationNotes: row.salary_negotiation_notes,
+        interviewNotes: row.interview_notes,
+        applicationHistory: row.application_history || [],
         statusUpdatedAt: row.status_updated_at,
         createdAt: row.created_at,
         updatedAt: row.updated_at,

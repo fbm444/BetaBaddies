@@ -1,0 +1,842 @@
+import { useState, useEffect, FormEvent } from "react";
+import { Icon } from "@iconify/react";
+import type {
+  JobOpportunityData,
+  JobOpportunityInput,
+  JobStatus,
+  ApplicationHistoryEntry,
+} from "../types";
+import { JOB_STATUSES, STATUS_COLORS, STATUS_BG_COLORS, INDUSTRIES, JOB_TYPES } from "../types";
+
+interface JobOpportunityDetailModalProps {
+  opportunity: JobOpportunityData;
+  onClose: () => void;
+  onSave: (data: JobOpportunityInput) => Promise<void>;
+  onDelete: () => void;
+}
+
+export function JobOpportunityDetailModal({
+  opportunity,
+  onClose,
+  onSave,
+  onDelete,
+}: JobOpportunityDetailModalProps) {
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [formData, setFormData] = useState<JobOpportunityInput>({
+    title: opportunity.title,
+    company: opportunity.company,
+    location: opportunity.location,
+    salaryMin: opportunity.salaryMin,
+    salaryMax: opportunity.salaryMax,
+    jobPostingUrl: opportunity.jobPostingUrl || "",
+    applicationDeadline: opportunity.applicationDeadline
+      ? opportunity.applicationDeadline.split("T")[0]
+      : "",
+    description: opportunity.description || "",
+    industry: opportunity.industry || "",
+    jobType: opportunity.jobType || "",
+    status: opportunity.status,
+    notes: opportunity.notes || "",
+    recruiterName: opportunity.recruiterName || "",
+    recruiterEmail: opportunity.recruiterEmail || "",
+    recruiterPhone: opportunity.recruiterPhone || "",
+    hiringManagerName: opportunity.hiringManagerName || "",
+    hiringManagerEmail: opportunity.hiringManagerEmail || "",
+    hiringManagerPhone: opportunity.hiringManagerPhone || "",
+    salaryNegotiationNotes: opportunity.salaryNegotiationNotes || "",
+    interviewNotes: opportunity.interviewNotes || "",
+    applicationHistory: opportunity.applicationHistory || [],
+  });
+
+  const [newHistoryEntry, setNewHistoryEntry] = useState<{
+    status: JobStatus;
+    notes: string;
+  }>({
+    status: opportunity.status,
+    notes: "",
+  });
+
+  useEffect(() => {
+    // Reset form data when opportunity changes
+    setFormData({
+      title: opportunity.title,
+      company: opportunity.company,
+      location: opportunity.location,
+      salaryMin: opportunity.salaryMin,
+      salaryMax: opportunity.salaryMax,
+      jobPostingUrl: opportunity.jobPostingUrl || "",
+      applicationDeadline: opportunity.applicationDeadline
+        ? opportunity.applicationDeadline.split("T")[0]
+        : "",
+      description: opportunity.description || "",
+      industry: opportunity.industry || "",
+      jobType: opportunity.jobType || "",
+      status: opportunity.status,
+      notes: opportunity.notes || "",
+      recruiterName: opportunity.recruiterName || "",
+      recruiterEmail: opportunity.recruiterEmail || "",
+      recruiterPhone: opportunity.recruiterPhone || "",
+      hiringManagerName: opportunity.hiringManagerName || "",
+      hiringManagerEmail: opportunity.hiringManagerEmail || "",
+      hiringManagerPhone: opportunity.hiringManagerPhone || "",
+      salaryNegotiationNotes: opportunity.salaryNegotiationNotes || "",
+      interviewNotes: opportunity.interviewNotes || "",
+      applicationHistory: opportunity.applicationHistory || [],
+    });
+    setIsEditMode(false);
+  }, [opportunity]);
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    try {
+      await onSave(formData);
+      setIsEditMode(false);
+    } catch (error) {
+      console.error("Failed to save:", error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleAddHistoryEntry = () => {
+    if (!newHistoryEntry.status) return;
+
+    const entry: ApplicationHistoryEntry = {
+      timestamp: new Date().toISOString(),
+      status: newHistoryEntry.status,
+      notes: newHistoryEntry.notes.trim() || undefined,
+    };
+
+    setFormData({
+      ...formData,
+      applicationHistory: [...(formData.applicationHistory || []), entry],
+    });
+
+    setNewHistoryEntry({
+      status: opportunity.status,
+      notes: "",
+    });
+  };
+
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return null;
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const formatSalary = () => {
+    if (formData.salaryMin && formData.salaryMax) {
+      return `$${formData.salaryMin.toLocaleString()} - $${formData.salaryMax.toLocaleString()}`;
+    } else if (formData.salaryMin) {
+      return `$${formData.salaryMin.toLocaleString()}+`;
+    } else if (formData.salaryMax) {
+      return `Up to $${formData.salaryMax.toLocaleString()}`;
+    }
+    return null;
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="sticky top-0 bg-white border-b border-slate-200 px-8 py-6 flex justify-between items-start">
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-2">
+              {isEditMode ? (
+                <input
+                  type="text"
+                  value={formData.title}
+                  onChange={(e) =>
+                    setFormData({ ...formData, title: e.target.value })
+                  }
+                  className="text-2xl font-bold text-slate-900 border-b-2 border-blue-500 focus:outline-none flex-1"
+                  placeholder="Job Title"
+                />
+              ) : (
+                <h2 className="text-2xl font-bold text-slate-900">
+                  {opportunity.title}
+                </h2>
+              )}
+              <span
+                className="px-3 py-1 rounded-full text-sm font-medium"
+                style={{
+                  backgroundColor: STATUS_BG_COLORS[opportunity.status],
+                  color: STATUS_COLORS[opportunity.status],
+                }}
+              >
+                {opportunity.status}
+              </span>
+            </div>
+            {isEditMode ? (
+              <input
+                type="text"
+                value={formData.company}
+                onChange={(e) =>
+                  setFormData({ ...formData, company: e.target.value })
+                }
+                className="text-lg text-slate-600 border-b-2 border-blue-500 focus:outline-none mt-1"
+                placeholder="Company Name"
+              />
+            ) : (
+              <p className="text-lg text-slate-600">{opportunity.company}</p>
+            )}
+          </div>
+          <div className="flex gap-2">
+            {!isEditMode && (
+              <>
+                <button
+                  onClick={() => setIsEditMode(true)}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2"
+                >
+                  <Icon icon="mingcute:edit-line" width={18} />
+                  Edit
+                </button>
+                <button
+                  onClick={onDelete}
+                  className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors flex items-center gap-2"
+                >
+                  <Icon icon="mingcute:delete-line" width={18} />
+                  Delete
+                </button>
+              </>
+            )}
+            <button
+              onClick={onClose}
+              className="p-2 text-slate-400 hover:text-slate-600"
+            >
+              <Icon icon="mingcute:close-line" width={24} />
+            </button>
+          </div>
+        </div>
+
+        {/* Content */}
+        <form onSubmit={handleSubmit} className="px-8 py-6">
+          <div className="space-y-6">
+            {/* Basic Information */}
+            <section>
+              <h3 className="text-lg font-semibold text-slate-900 mb-4">
+                Basic Information
+              </h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Location
+                  </label>
+                  {isEditMode ? (
+                    <input
+                      type="text"
+                      value={formData.location}
+                      onChange={(e) =>
+                        setFormData({ ...formData, location: e.target.value })
+                      }
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                  ) : (
+                    <p className="text-slate-600">{opportunity.location}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Job Type
+                  </label>
+                  {isEditMode ? (
+                    <select
+                      value={formData.jobType || ""}
+                      onChange={(e) =>
+                        setFormData({ ...formData, jobType: e.target.value })
+                      }
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select Job Type</option>
+                      {JOB_TYPES.map((type) => (
+                        <option key={type} value={type}>
+                          {type}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <p className="text-slate-600">
+                      {opportunity.jobType || "Not specified"}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Industry
+                  </label>
+                  {isEditMode ? (
+                    <select
+                      value={formData.industry || ""}
+                      onChange={(e) =>
+                        setFormData({ ...formData, industry: e.target.value })
+                      }
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select Industry</option>
+                      {INDUSTRIES.map((industry) => (
+                        <option key={industry} value={industry}>
+                          {industry}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <p className="text-slate-600">
+                      {opportunity.industry || "Not specified"}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Status
+                  </label>
+                  {isEditMode ? (
+                    <select
+                      value={formData.status}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          status: e.target.value as JobStatus,
+                        })
+                      }
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    >
+                      {JOB_STATUSES.map((status) => (
+                        <option key={status} value={status}>
+                          {status}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <p className="text-slate-600">{opportunity.status}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Salary Range
+                  </label>
+                  {isEditMode ? (
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        value={formData.salaryMin || ""}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            salaryMin: e.target.value
+                              ? parseFloat(e.target.value)
+                              : undefined,
+                          })
+                        }
+                        placeholder="Min"
+                        className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      />
+                      <input
+                        type="number"
+                        value={formData.salaryMax || ""}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            salaryMax: e.target.value
+                              ? parseFloat(e.target.value)
+                              : undefined,
+                          })
+                        }
+                        placeholder="Max"
+                        className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  ) : (
+                    <p className="text-slate-600">
+                      {formatSalary() || "Not specified"}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Application Deadline
+                  </label>
+                  {isEditMode ? (
+                    <input
+                      type="date"
+                      value={formData.applicationDeadline || ""}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          applicationDeadline: e.target.value,
+                        })
+                      }
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                  ) : (
+                    <p className="text-slate-600">
+                      {opportunity.applicationDeadline
+                        ? formatDate(opportunity.applicationDeadline)
+                        : "Not specified"}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Job Posting URL
+                </label>
+                {isEditMode ? (
+                  <input
+                    type="url"
+                    value={formData.jobPostingUrl || ""}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        jobPostingUrl: e.target.value,
+                      })
+                    }
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                ) : (
+                  <p className="text-slate-600">
+                    {opportunity.jobPostingUrl ? (
+                      <a
+                        href={opportunity.jobPostingUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline"
+                      >
+                        {opportunity.jobPostingUrl}
+                      </a>
+                    ) : (
+                      "Not specified"
+                    )}
+                  </p>
+                )}
+              </div>
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Job Description
+                </label>
+                {isEditMode ? (
+                  <textarea
+                    value={formData.description || ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, description: e.target.value })
+                    }
+                    rows={4}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
+                    placeholder="Job description..."
+                  />
+                ) : (
+                  <p className="text-slate-600 whitespace-pre-wrap">
+                    {opportunity.description || "No description provided"}
+                  </p>
+                )}
+              </div>
+            </section>
+
+            {/* Contact Information */}
+            <section className="border-t border-slate-200 pt-6">
+              <h3 className="text-lg font-semibold text-slate-900 mb-4">
+                Contact Information
+              </h3>
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <h4 className="text-sm font-medium text-slate-700 mb-3">
+                    Recruiter
+                  </h4>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs text-slate-600 mb-1">
+                        Name
+                      </label>
+                      {isEditMode ? (
+                        <input
+                          type="text"
+                          value={formData.recruiterName || ""}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              recruiterName: e.target.value,
+                            })
+                          }
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                        />
+                      ) : (
+                        <p className="text-slate-600 text-sm">
+                          {opportunity.recruiterName || "Not specified"}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-600 mb-1">
+                        Email
+                      </label>
+                      {isEditMode ? (
+                        <input
+                          type="email"
+                          value={formData.recruiterEmail || ""}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              recruiterEmail: e.target.value,
+                            })
+                          }
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                        />
+                      ) : (
+                        <p className="text-slate-600 text-sm">
+                          {opportunity.recruiterEmail ? (
+                            <a
+                              href={`mailto:${opportunity.recruiterEmail}`}
+                              className="text-blue-600 hover:underline"
+                            >
+                              {opportunity.recruiterEmail}
+                            </a>
+                          ) : (
+                            "Not specified"
+                          )}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-600 mb-1">
+                        Phone
+                      </label>
+                      {isEditMode ? (
+                        <input
+                          type="tel"
+                          value={formData.recruiterPhone || ""}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              recruiterPhone: e.target.value,
+                            })
+                          }
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                        />
+                      ) : (
+                        <p className="text-slate-600 text-sm">
+                          {opportunity.recruiterPhone ? (
+                            <a
+                              href={`tel:${opportunity.recruiterPhone}`}
+                              className="text-blue-600 hover:underline"
+                            >
+                              {opportunity.recruiterPhone}
+                            </a>
+                          ) : (
+                            "Not specified"
+                          )}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <h4 className="text-sm font-medium text-slate-700 mb-3">
+                    Hiring Manager
+                  </h4>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs text-slate-600 mb-1">
+                        Name
+                      </label>
+                      {isEditMode ? (
+                        <input
+                          type="text"
+                          value={formData.hiringManagerName || ""}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              hiringManagerName: e.target.value,
+                            })
+                          }
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                        />
+                      ) : (
+                        <p className="text-slate-600 text-sm">
+                          {opportunity.hiringManagerName || "Not specified"}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-600 mb-1">
+                        Email
+                      </label>
+                      {isEditMode ? (
+                        <input
+                          type="email"
+                          value={formData.hiringManagerEmail || ""}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              hiringManagerEmail: e.target.value,
+                            })
+                          }
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                        />
+                      ) : (
+                        <p className="text-slate-600 text-sm">
+                          {opportunity.hiringManagerEmail ? (
+                            <a
+                              href={`mailto:${opportunity.hiringManagerEmail}`}
+                              className="text-blue-600 hover:underline"
+                            >
+                              {opportunity.hiringManagerEmail}
+                            </a>
+                          ) : (
+                            "Not specified"
+                          )}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-600 mb-1">
+                        Phone
+                      </label>
+                      {isEditMode ? (
+                        <input
+                          type="tel"
+                          value={formData.hiringManagerPhone || ""}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              hiringManagerPhone: e.target.value,
+                            })
+                          }
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                        />
+                      ) : (
+                        <p className="text-slate-600 text-sm">
+                          {opportunity.hiringManagerPhone ? (
+                            <a
+                              href={`tel:${opportunity.hiringManagerPhone}`}
+                              className="text-blue-600 hover:underline"
+                            >
+                              {opportunity.hiringManagerPhone}
+                            </a>
+                          ) : (
+                            "Not specified"
+                          )}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Notes */}
+            <section className="border-t border-slate-200 pt-6">
+              <h3 className="text-lg font-semibold text-slate-900 mb-4">
+                Notes
+              </h3>
+              {isEditMode ? (
+                <textarea
+                  value={formData.notes || ""}
+                  onChange={(e) =>
+                    setFormData({ ...formData, notes: e.target.value })
+                  }
+                  rows={6}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
+                  placeholder="Add your personal notes and observations..."
+                />
+              ) : (
+                <p className="text-slate-600 whitespace-pre-wrap">
+                  {opportunity.notes || "No notes added"}
+                </p>
+              )}
+            </section>
+
+            {/* Salary Negotiation Notes */}
+            <section className="border-t border-slate-200 pt-6">
+              <h3 className="text-lg font-semibold text-slate-900 mb-4">
+                Salary Negotiation Notes
+              </h3>
+              {isEditMode ? (
+                <textarea
+                  value={formData.salaryNegotiationNotes || ""}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      salaryNegotiationNotes: e.target.value,
+                    })
+                  }
+                  rows={4}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
+                  placeholder="Add notes about salary negotiations..."
+                />
+              ) : (
+                <p className="text-slate-600 whitespace-pre-wrap">
+                  {opportunity.salaryNegotiationNotes || "No notes added"}
+                </p>
+              )}
+            </section>
+
+            {/* Interview Notes */}
+            <section className="border-t border-slate-200 pt-6">
+              <h3 className="text-lg font-semibold text-slate-900 mb-4">
+                Interview Notes & Feedback
+              </h3>
+              {isEditMode ? (
+                <textarea
+                  value={formData.interviewNotes || ""}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      interviewNotes: e.target.value,
+                    })
+                  }
+                  rows={6}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
+                  placeholder="Add interview notes and feedback..."
+                />
+              ) : (
+                <p className="text-slate-600 whitespace-pre-wrap">
+                  {opportunity.interviewNotes || "No notes added"}
+                </p>
+              )}
+            </section>
+
+            {/* Application History */}
+            <section className="border-t border-slate-200 pt-6">
+              <h3 className="text-lg font-semibold text-slate-900 mb-4">
+                Application History
+              </h3>
+              {isEditMode && (
+                <div className="mb-4 p-4 bg-slate-50 rounded-lg">
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                      <label className="block text-xs text-slate-600 mb-1">
+                        Status
+                      </label>
+                      <select
+                        value={newHistoryEntry.status}
+                        onChange={(e) =>
+                          setNewHistoryEntry({
+                            ...newHistoryEntry,
+                            status: e.target.value as JobStatus,
+                          })
+                        }
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                      >
+                        {JOB_STATUSES.map((status) => (
+                          <option key={status} value={status}>
+                            {status}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-600 mb-1">
+                        Notes
+                      </label>
+                      <input
+                        type="text"
+                        value={newHistoryEntry.notes}
+                        onChange={(e) =>
+                          setNewHistoryEntry({
+                            ...newHistoryEntry,
+                            notes: e.target.value,
+                          })
+                        }
+                        placeholder="Optional notes..."
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAddHistoryEntry}
+                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
+                  >
+                    Add History Entry
+                  </button>
+                </div>
+              )}
+              <div className="space-y-3">
+                {formData.applicationHistory && formData.applicationHistory.length > 0 ? (
+                  [...formData.applicationHistory]
+                    .sort(
+                      (a, b) =>
+                        new Date(b.timestamp).getTime() -
+                        new Date(a.timestamp).getTime()
+                    )
+                    .map((entry, index) => (
+                      <div
+                        key={index}
+                        className="p-4 bg-slate-50 rounded-lg border border-slate-200"
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <span
+                            className="px-2 py-1 rounded text-xs font-medium"
+                            style={{
+                              backgroundColor: STATUS_BG_COLORS[entry.status],
+                              color: STATUS_COLORS[entry.status],
+                            }}
+                          >
+                            {entry.status}
+                          </span>
+                          <span className="text-xs text-slate-500">
+                            {formatDate(entry.timestamp)}
+                          </span>
+                        </div>
+                        {entry.notes && (
+                          <p className="text-sm text-slate-600 mt-2">
+                            {entry.notes}
+                          </p>
+                        )}
+                      </div>
+                    ))
+                ) : (
+                  <p className="text-slate-500 text-sm">No history entries</p>
+                )}
+              </div>
+            </section>
+          </div>
+
+          {/* Footer Actions */}
+          {isEditMode && (
+            <div className="sticky bottom-0 bg-white border-t border-slate-200 px-8 py-4 mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setIsEditMode(false)}
+                className="px-6 py-2 bg-slate-200 text-slate-800 rounded-lg hover:bg-slate-300 transition-colors"
+                disabled={isSaving}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2"
+                disabled={isSaving}
+              >
+                {isSaving ? (
+                  <>
+                    <Icon
+                      icon="mingcute:loading-line"
+                      className="animate-spin"
+                      width={18}
+                    />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Icon icon="mingcute:save-line" width={18} />
+                    Save Changes
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+        </form>
+      </div>
+    </div>
+  );
+}
+

@@ -1,0 +1,7153 @@
+import { useState, useEffect, Fragment } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { Icon } from "@iconify/react";
+import { ROUTES } from "../config/routes";
+import {
+  Resume,
+  SkillData,
+  CertificationData,
+  JobData,
+  EducationData,
+  ProjectData,
+  ProfileData,
+} from "../types";
+import { resumeService } from "../services/resumeService";
+import { api } from "../services/api";
+
+export function ResumeBuilder() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const resumeId = searchParams.get("id");
+  const templateId = searchParams.get("templateId");
+
+  const [resume, setResume] = useState<Resume | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [editingSection, setEditingSection] = useState<string | null>(null);
+  const [editingItem, setEditingItem] = useState<{
+    section: string;
+    itemId: string;
+  } | null>(null);
+  const [showCustomization, setShowCustomization] = useState(false);
+  const [showAIPanel, setShowAIPanel] = useState(false);
+  const [showValidationPanel, setShowValidationPanel] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [draggedSection, setDraggedSection] = useState<string | null>(null);
+  const [showPresetMenu, setShowPresetMenu] = useState(false);
+  const [sectionPresets, setSectionPresets] = useState<
+    Array<{ id: string; name: string; sectionConfig: any }>
+  >([]);
+  const [jobType, setJobType] = useState<string>("all"); // "all", "tech", "creative", "executive", "academic"
+  const [sectionFormatting, setSectionFormatting] = useState<
+    Record<string, any>
+  >({});
+  const [draggedDocumentSection, setDraggedDocumentSection] = useState<
+    string | null
+  >(null);
+  const [selectedSectionForFormatting, setSelectedSectionForFormatting] =
+    useState<string | null>(null);
+  const [showYourData, setShowYourData] = useState(true);
+
+  // Version management
+  const [versions, setVersions] = useState<Resume[]>([]);
+  const [versionHistory, setVersionHistory] = useState<
+    Array<{
+      id: string;
+      versionName: string;
+      versionNumber: number;
+      description?: string;
+      isMaster: boolean;
+      createdAt: string;
+      updatedAt: string;
+    }>
+  >([]);
+  const [showVersionModal, setShowVersionModal] = useState(false);
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
+  const [showVersionCompare, setShowVersionCompare] = useState(false);
+  const [newVersionName, setNewVersionName] = useState("");
+  const [newVersionDescription, setNewVersionDescription] = useState("");
+  const [selectedVersion1, setSelectedVersion1] = useState<string | null>(null);
+  const [selectedVersion2, setSelectedVersion2] = useState<string | null>(null);
+  const [versionComparison, setVersionComparison] = useState<any>(null);
+  const [resume1Data, setResume1Data] = useState<Resume | null>(null);
+  const [resume2Data, setResume2Data] = useState<Resume | null>(null);
+  const [loadingComparison, setLoadingComparison] = useState(false);
+
+  // Toast notifications
+  const [toast, setToast] = useState<{
+    message: string;
+    type: "success" | "error" | "info";
+  } | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
+
+  // Resume import
+  const [showImportResumeModal, setShowImportResumeModal] = useState(false);
+  const [importingResume, setImportingResume] = useState(false);
+  const [parsedResumeContent, setParsedResumeContent] = useState<any>(null);
+
+  // User data from database
+  const [userProfile, setUserProfile] = useState<ProfileData | null>(null);
+  const [userSkills, setUserSkills] = useState<SkillData[]>([]);
+  const [userCertifications, setUserCertifications] = useState<
+    CertificationData[]
+  >([]);
+  const [userJobs, setUserJobs] = useState<JobData[]>([]);
+  const [userEducation, setUserEducation] = useState<EducationData[]>([]);
+  const [userProjects, setUserProjects] = useState<ProjectData[]>([]);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importSection, setImportSection] = useState<string | null>(null);
+  const [selectedItems, setSelectedItems] = useState<{
+    skills: string[];
+    certifications: string[];
+    jobs: string[];
+    education: string[];
+    projects: string[];
+  }>({
+    skills: [],
+    certifications: [],
+    jobs: [],
+    education: [],
+    projects: [],
+  });
+
+  // Fetch user data from database
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const [profileRes, skillsRes, certsRes, jobsRes, eduRes, projectsRes] =
+          await Promise.allSettled([
+            api.getProfile(),
+            api.getSkills(),
+            api.getCertifications(),
+            api.getJobs(),
+            api.getEducation(),
+            api.getProjects(),
+          ]);
+
+        if (profileRes.status === "fulfilled" && profileRes.value.ok) {
+          setUserProfile(profileRes.value.data?.profile || null);
+        }
+        if (skillsRes.status === "fulfilled" && skillsRes.value.ok) {
+          setUserSkills(skillsRes.value.data?.skills || []);
+        }
+        if (certsRes.status === "fulfilled" && certsRes.value.ok) {
+          setUserCertifications(certsRes.value.data?.certifications || []);
+        }
+        if (jobsRes.status === "fulfilled" && jobsRes.value.ok) {
+          setUserJobs(jobsRes.value.data?.jobs || []);
+        }
+        if (eduRes.status === "fulfilled" && eduRes.value.ok) {
+          setUserEducation(eduRes.value.data?.educations || []);
+        }
+        if (projectsRes.status === "fulfilled" && projectsRes.value.ok) {
+          setUserProjects(projectsRes.value.data?.projects || []);
+        }
+      } catch (err) {
+        console.log(
+          "Failed to fetch user data (will work once authenticated):",
+          err
+        );
+      }
+    };
+
+    fetchUserData();
+  }, []);
+
+  // Fetch resume or use mock data
+  useEffect(() => {
+    const fetchResume = async () => {
+      try {
+        setIsLoading(true);
+        if (resumeId) {
+          const response = await resumeService.getResume(resumeId);
+          if (response.ok && response.data) {
+            const loadedResume = response.data.resume;
+            setResume(loadedResume);
+            // Load section formatting from resume customizations
+            if (loadedResume.customizations?.sectionFormatting) {
+              setSectionFormatting(
+                loadedResume.customizations.sectionFormatting
+              );
+            }
+          }
+        } else {
+          // New resume - use mock data for preview
+          setResume({
+            id: "new",
+            userId: "user1",
+            name: "New Resume",
+            description: "",
+            templateId: templateId || "default-chronological",
+            content: {
+              personalInfo: {
+                firstName: "John",
+                lastName: "Doe",
+                email: "john.doe@example.com",
+                phone: "+1 (555) 123-4567",
+                location: "San Francisco, CA",
+                linkedIn: "linkedin.com/in/johndoe",
+                portfolio: "johndoe.dev",
+              },
+              summary:
+                "Experienced software engineer with 5+ years of experience building scalable web applications using modern technologies.",
+              experience: [
+                {
+                  id: "1",
+                  title: "Senior Software Engineer",
+                  company: "Tech Company",
+                  location: "San Francisco, CA",
+                  startDate: "2020-01",
+                  endDate: undefined,
+                  isCurrent: true,
+                  description: [
+                    "Led development of scalable web applications serving 100K+ users",
+                    "Mentored junior developers and improved team productivity by 30%",
+                    "Implemented CI/CD pipelines reducing deployment time by 50%",
+                  ],
+                },
+              ],
+              education: [
+                {
+                  id: "1",
+                  school: "University Name",
+                  degree: "Bachelor of Science",
+                  field: "Computer Science",
+                  startDate: "2014-09",
+                  endDate: "2018-05",
+                  gpa: 3.8,
+                  honors: "Summa Cum Laude",
+                },
+              ],
+              skills: [
+                {
+                  id: "1",
+                  name: "JavaScript",
+                  category: "Technical",
+                  proficiency: "Expert",
+                },
+                {
+                  id: "2",
+                  name: "React",
+                  category: "Technical",
+                  proficiency: "Expert",
+                },
+                {
+                  id: "3",
+                  name: "Node.js",
+                  category: "Technical",
+                  proficiency: "Advanced",
+                },
+                {
+                  id: "4",
+                  name: "Python",
+                  category: "Technical",
+                  proficiency: "Advanced",
+                },
+                {
+                  id: "5",
+                  name: "AWS",
+                  category: "Technical",
+                  proficiency: "Intermediate",
+                },
+              ],
+              projects: [],
+              certifications: [],
+            },
+            sectionConfig: {
+              personal: { enabled: true, order: 0 },
+              summary: { enabled: true, order: 1 },
+              experience: { enabled: true, order: 2 },
+              education: { enabled: true, order: 3 },
+              skills: { enabled: true, order: 4 },
+              projects: { enabled: false, order: 5 },
+              certifications: { enabled: false, order: 6 },
+            },
+            customizations: {
+              colors: {
+                primary: "#3351FD",
+                secondary: "#000000",
+                text: "#000000",
+                background: "#FFFFFF",
+              },
+              fonts: { heading: "Inter", body: "Inter" },
+              spacing: { section: 24, item: 12 },
+            },
+            versionNumber: 1,
+            isMaster: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          });
+        }
+      } catch (err: any) {
+        // Use mock data if API fails
+        console.log("API not available, using mock data:", err.message);
+        setResume({
+          id: resumeId || "1",
+          userId: "user1",
+          name: "Software Engineer Resume",
+          description: "Tailored for tech positions",
+          templateId: templateId || "default-chronological",
+          content: {
+            personalInfo: {
+              firstName: "John",
+              lastName: "Doe",
+              email: "john.doe@example.com",
+              phone: "+1 (555) 123-4567",
+              location: "San Francisco, CA",
+              linkedIn: "linkedin.com/in/johndoe",
+              portfolio: "johndoe.dev",
+            },
+            summary:
+              "Experienced software engineer with 5+ years of experience building scalable web applications using modern technologies.",
+            experience: [
+              {
+                id: "1",
+                title: "Senior Software Engineer",
+                company: "Tech Company",
+                location: "San Francisco, CA",
+                startDate: "2020-01",
+                endDate: undefined,
+                isCurrent: true,
+                description: [
+                  "Led development of scalable web applications serving 100K+ users",
+                  "Mentored junior developers and improved team productivity by 30%",
+                  "Implemented CI/CD pipelines reducing deployment time by 50%",
+                ],
+              },
+            ],
+            education: [
+              {
+                id: "1",
+                school: "University Name",
+                degree: "Bachelor of Science",
+                field: "Computer Science",
+                startDate: "2014-09",
+                endDate: "2018-05",
+                gpa: 3.8,
+                honors: "Summa Cum Laude",
+              },
+            ],
+            skills: [
+              {
+                id: "1",
+                name: "JavaScript",
+                category: "Technical",
+                proficiency: "Expert",
+              },
+              {
+                id: "2",
+                name: "React",
+                category: "Technical",
+                proficiency: "Expert",
+              },
+              {
+                id: "3",
+                name: "Node.js",
+                category: "Technical",
+                proficiency: "Advanced",
+              },
+            ],
+            projects: [],
+            certifications: [],
+          },
+          sectionConfig: {
+            personal: { enabled: true, order: 0 },
+            summary: { enabled: true, order: 1 },
+            experience: { enabled: true, order: 2 },
+            education: { enabled: true, order: 3 },
+            skills: { enabled: true, order: 4 },
+            projects: { enabled: false, order: 5 },
+            certifications: { enabled: false, order: 6 },
+          },
+          customizations: {
+            colors: {
+              primary: "#3351FD",
+              secondary: "#000000",
+              text: "#000000",
+              background: "#FFFFFF",
+            },
+            fonts: { heading: "Inter", body: "Inter" },
+            spacing: { section: 24, item: 12 },
+          },
+          versionNumber: 1,
+          isMaster: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchResume();
+  }, [resumeId, templateId]);
+
+  // Fetch versions when resumeId changes
+  useEffect(() => {
+    const fetchVersions = async () => {
+      if (!resumeId || resumeId === "new") {
+        setVersions([]);
+        setVersionHistory([]);
+        return;
+      }
+
+      try {
+        const [versionsRes, historyRes] = await Promise.allSettled([
+          resumeService.getVersions(resumeId),
+          resumeService.getVersionHistory(resumeId),
+        ]);
+
+        if (versionsRes.status === "fulfilled" && versionsRes.value.ok) {
+          setVersions(versionsRes.value.data?.resumes || []);
+        }
+
+        if (historyRes.status === "fulfilled" && historyRes.value.ok) {
+          setVersionHistory(historyRes.value.data?.history || []);
+        }
+      } catch (err) {
+        console.log("Failed to fetch versions:", err);
+      }
+    };
+
+    fetchVersions();
+  }, [resumeId]);
+
+  const sections = [
+    { id: "personal", label: "Personal Info", icon: "mingcute:user-line" },
+    { id: "summary", label: "Summary", icon: "mingcute:file-text-line" },
+    { id: "experience", label: "Experience", icon: "mingcute:briefcase-line" },
+    { id: "education", label: "Education", icon: "mingcute:school-line" },
+    { id: "skills", label: "Skills", icon: "mingcute:star-line" },
+    { id: "projects", label: "Projects", icon: "mingcute:folder-line" },
+    {
+      id: "certifications",
+      label: "Certifications",
+      icon: "mingcute:award-line",
+    },
+  ];
+
+  const toggleSection = (sectionId: string) => {
+    if (!resume) return;
+    const currentConfig = resume.sectionConfig || {};
+    const currentEnabled = currentConfig[sectionId]?.enabled ?? true;
+    const newConfig = {
+      ...currentConfig,
+      [sectionId]: {
+        ...currentConfig[sectionId],
+        enabled: !currentEnabled,
+        order:
+          currentConfig[sectionId]?.order ??
+          sections.findIndex((s) => s.id === sectionId),
+      },
+    };
+    // Update resume state immediately so the document reflects changes
+    setResume({ ...resume, sectionConfig: newConfig });
+
+    // Auto-save section config changes (optional - can be removed if you want manual save only)
+    if (resumeId && resumeId !== "new") {
+      // Silently save section config changes
+      resumeService
+        .updateResume(resumeId, {
+          sectionConfig: newConfig,
+        })
+        .catch((err) => {
+          console.log(
+            "Auto-save failed (will work once database is set up):",
+            err
+          );
+        });
+    }
+  };
+
+  const handleDragStart = (sectionId: string) => {
+    setDraggedSection(sectionId);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDrop = (targetSectionId: string) => {
+    if (!resume || !draggedSection || draggedSection === targetSectionId) {
+      setDraggedSection(null);
+      return;
+    }
+
+    const currentConfig = resume.sectionConfig || {};
+    const sortedSections = [...sections].sort((a, b) => {
+      const orderA =
+        currentConfig[a.id]?.order ?? sections.findIndex((s) => s.id === a.id);
+      const orderB =
+        currentConfig[b.id]?.order ?? sections.findIndex((s) => s.id === b.id);
+      return orderA - orderB;
+    });
+
+    const newOrder = sortedSections.map((s) => s.id);
+    const draggedIndex = newOrder.indexOf(draggedSection);
+    const targetIndex = newOrder.indexOf(targetSectionId);
+
+    // Remove dragged section and insert at target position
+    newOrder.splice(draggedIndex, 1);
+    newOrder.splice(targetIndex, 0, draggedSection);
+
+    // Update section config with new order
+    const newConfig = { ...currentConfig };
+    newOrder.forEach((sectionId, index) => {
+      newConfig[sectionId] = {
+        ...newConfig[sectionId],
+        order: index,
+        enabled: newConfig[sectionId]?.enabled ?? true,
+      };
+    });
+
+    setResume({ ...resume, sectionConfig: newConfig });
+    setDraggedSection(null);
+
+    // Auto-save reorder changes
+    if (resumeId && resumeId !== "new") {
+      resumeService.reorderSections(resumeId, newOrder).catch((err) => {
+        console.log(
+          "Auto-save reorder failed (will work once database is set up):",
+          err
+        );
+      });
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedSection(null);
+  };
+
+  // Document drag handlers (for actual resume sections)
+  const handleDocumentDragStart = (sectionId: string) => {
+    setDraggedDocumentSection(sectionId);
+  };
+
+  const handleDocumentDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDocumentDrop = (targetSectionId: string) => {
+    if (
+      !resume ||
+      !draggedDocumentSection ||
+      draggedDocumentSection === targetSectionId
+    ) {
+      setDraggedDocumentSection(null);
+      return;
+    }
+
+    const currentConfig = resume.sectionConfig || {};
+    const enabledSectionsList = getEnabledSections();
+    const sortedSections = [...enabledSectionsList].sort((a, b) => {
+      const orderA =
+        currentConfig[a.id]?.order ??
+        enabledSectionsList.findIndex((s) => s.id === a.id);
+      const orderB =
+        currentConfig[b.id]?.order ??
+        enabledSectionsList.findIndex((s) => s.id === b.id);
+      return orderA - orderB;
+    });
+
+    const newOrder = sortedSections.map((s) => s.id);
+    const draggedIndex = newOrder.indexOf(draggedDocumentSection);
+    const targetIndex = newOrder.indexOf(targetSectionId);
+
+    newOrder.splice(draggedIndex, 1);
+    newOrder.splice(targetIndex, 0, draggedDocumentSection);
+
+    const newConfig = { ...currentConfig };
+    newOrder.forEach((sectionId, index) => {
+      newConfig[sectionId] = {
+        ...newConfig[sectionId],
+        order: index,
+        enabled: newConfig[sectionId]?.enabled ?? true,
+      };
+    });
+
+    setResume({ ...resume, sectionConfig: newConfig });
+    setDraggedDocumentSection(null);
+
+    if (resumeId && resumeId !== "new") {
+      resumeService.reorderSections(resumeId, newOrder).catch((err) => {
+        console.log("Auto-save reorder failed:", err);
+      });
+    }
+  };
+
+  const handleDocumentDragEnd = () => {
+    setDraggedDocumentSection(null);
+  };
+
+  // Preset management
+  const handleApplyPreset = async (presetId: string) => {
+    if (!resume || !resumeId) return;
+    try {
+      const response = await resumeService.applySectionPreset(
+        resumeId,
+        presetId
+      );
+      if (response.ok && response.data) {
+        setResume({ ...resume, sectionConfig: response.data.sectionConfig });
+        setShowPresetMenu(false);
+      }
+    } catch (err) {
+      console.log("Failed to apply preset:", err);
+      // Apply preset locally if API fails
+      const preset = sectionPresets.find((p) => p.id === presetId);
+      if (preset) {
+        setResume({ ...resume, sectionConfig: preset.sectionConfig });
+        setShowPresetMenu(false);
+      }
+    }
+  };
+
+  const handleSavePreset = async () => {
+    if (!resume) return;
+    const presetName = prompt("Enter preset name:");
+    if (!presetName) return;
+
+    try {
+      await resumeService.saveSectionPreset(presetName, resume.sectionConfig);
+      // Refresh presets
+      const response = await resumeService.getSectionPresets();
+      if (response.ok && response.data) {
+        setSectionPresets(response.data.presets);
+      }
+    } catch (err) {
+      console.log("Failed to save preset:", err);
+    }
+  };
+
+  // Section-specific formatting
+  const updateSectionFormatting = (sectionId: string, formatting: any) => {
+    if (!resume) return;
+    const newFormatting = {
+      ...sectionFormatting,
+      [sectionId]: { ...sectionFormatting[sectionId], ...formatting },
+    };
+    setSectionFormatting(newFormatting);
+
+    // Update resume customizations with section formatting
+    const currentCustomizations = ensureCustomizations();
+    const updatedResume = {
+      ...resume,
+      customizations: {
+        ...currentCustomizations,
+        sectionFormatting: newFormatting,
+      },
+    };
+    setResume(updatedResume);
+
+    // Auto-save to backend if resume exists
+    if (resumeId && resumeId !== "new") {
+      setIsAutoSaving(true);
+      resumeService
+        .updateResume(resumeId, {
+          customizations: updatedResume.customizations,
+        })
+        .then(() => {
+          setLastSaved(new Date());
+        })
+        .catch((err) => {
+          console.error("Auto-save failed:", err);
+        })
+        .finally(() => {
+          setTimeout(() => setIsAutoSaving(false), 500);
+        });
+    }
+  };
+
+  const getSectionFormatting = (sectionId: string) => {
+    // First check local state, then check resume customizations
+    if (sectionFormatting[sectionId]) {
+      return sectionFormatting[sectionId];
+    }
+    if (resume?.customizations?.sectionFormatting?.[sectionId]) {
+      return resume.customizations.sectionFormatting[sectionId];
+    }
+    return {};
+  };
+
+  // Apply section formatting to a section element
+  const getSectionStyle = (sectionId: string) => {
+    const formatting = getSectionFormatting(sectionId);
+    const style: React.CSSProperties = {};
+
+    if (formatting.fontSize) {
+      style.fontSize = formatting.fontSize;
+    }
+    if (formatting.fontWeight) {
+      style.fontWeight = formatting.fontWeight;
+    }
+    if (formatting.color) {
+      style.color = formatting.color;
+    }
+    if (formatting.backgroundColor) {
+      style.backgroundColor = formatting.backgroundColor;
+    }
+    if (formatting.textAlign) {
+      style.textAlign = formatting.textAlign as
+        | "left"
+        | "center"
+        | "right"
+        | "justify";
+    }
+    if (formatting.marginTop) {
+      style.marginTop = formatting.marginTop;
+    }
+    if (formatting.marginBottom) {
+      style.marginBottom = formatting.marginBottom;
+    }
+
+    return style;
+  };
+
+  // Toast notification helper
+  const showToast = (
+    message: string,
+    type: "success" | "error" | "info" = "info"
+  ) => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4000);
+  };
+
+  const handleSave = async () => {
+    if (!resume || !resumeId || resumeId === "new") {
+      showToast("Please create a resume first", "error");
+      return;
+    }
+    try {
+      setIsSaving(true);
+      await resumeService.updateResume(resumeId, {
+        name: resume.name,
+        description: resume.description,
+        sectionConfig: resume.sectionConfig,
+        customizations: resume.customizations,
+      });
+      setLastSaved(new Date());
+      showToast("Resume saved successfully!", "success");
+    } catch (err: any) {
+      showToast(
+        err.message || "Failed to save resume. Please try again.",
+        "error"
+      );
+      console.error("Save error:", err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleExport = async (format: "pdf" | "docx" | "txt" | "html") => {
+    if (!resumeId || resumeId === "new") {
+      showToast("Please save the resume before exporting", "error");
+      return;
+    }
+
+    try {
+      setExporting(true);
+      setShowExportMenu(false);
+      showToast(`Exporting as ${format.toUpperCase()}...`, "info");
+
+      const filename = resume?.name || `resume_${resumeId}`;
+
+      switch (format) {
+        case "pdf":
+          const pdfBlob = await resumeService.exportPDF(resumeId, {
+            filename: `${filename}.pdf`,
+          });
+          resumeService.downloadBlob(pdfBlob, `${filename}.pdf`);
+          break;
+        case "docx":
+          const docxBlob = await resumeService.exportDOCX(resumeId, {
+            filename: `${filename}.docx`,
+          });
+          resumeService.downloadBlob(docxBlob, `${filename}.docx`);
+          break;
+        case "txt":
+          const txtBlob = await resumeService.exportTXT(resumeId, {
+            filename: `${filename}.txt`,
+          });
+          resumeService.downloadBlob(txtBlob, `${filename}.txt`);
+          break;
+        case "html":
+          const htmlBlob = await resumeService.exportHTML(resumeId, {
+            filename: `${filename}.html`,
+          });
+          resumeService.downloadBlob(htmlBlob, `${filename}.html`);
+          break;
+      }
+      showToast(
+        `Resume exported as ${format.toUpperCase()} successfully!`,
+        "success"
+      );
+    } catch (err: any) {
+      showToast(
+        err.message ||
+          `Failed to export as ${format.toUpperCase()}. Please try again.`,
+        "error"
+      );
+      console.error("Export error:", err);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const updateContent = (
+    sectionId: string,
+    value: any,
+    closeEdit: boolean = false
+  ) => {
+    if (!resume) return;
+    const newContent = { ...resume.content };
+    if (sectionId === "personal") {
+      newContent.personalInfo = { ...newContent.personalInfo, ...value };
+    } else {
+      (newContent as any)[sectionId] = value;
+    }
+    setResume({ ...resume, content: newContent });
+    if (closeEdit) {
+      setEditingSection(null);
+    }
+  };
+
+  const updateItem = (
+    sectionId: string,
+    itemId: string,
+    updates: any,
+    closeEdit: boolean = false
+  ) => {
+    if (!resume) return;
+    const newContent = { ...resume.content };
+    const section = (newContent as any)[sectionId];
+    if (Array.isArray(section)) {
+      const index = section.findIndex((item: any) => item.id === itemId);
+      if (index !== -1) {
+        section[index] = { ...section[index], ...updates };
+        (newContent as any)[sectionId] = [...section];
+        setResume({ ...resume, content: newContent });
+      }
+    }
+    if (closeEdit) {
+      setEditingItem(null);
+    }
+  };
+
+  const addItem = (sectionId: string, newItem: any) => {
+    if (!resume) return;
+    const newContent = { ...resume.content };
+    const section = (newContent as any)[sectionId];
+    if (Array.isArray(section)) {
+      (newContent as any)[sectionId] = [...section, newItem];
+      setResume({ ...resume, content: newContent });
+    }
+    setEditingItem(null);
+  };
+
+  const deleteItem = (sectionId: string, itemId: string) => {
+    if (!resume) return;
+    if (!confirm("Are you sure you want to delete this item?")) return;
+    const newContent = { ...resume.content };
+    const section = (newContent as any)[sectionId];
+    if (Array.isArray(section)) {
+      (newContent as any)[sectionId] = section.filter(
+        (item: any) => item.id !== itemId
+      );
+      setResume({ ...resume, content: newContent });
+    }
+  };
+
+  // Import functions to add items from database
+  const handleImportFromDatabase = (sectionId: string) => {
+    setImportSection(sectionId);
+
+    // Auto-select items that aren't already in the resume
+    if (sectionId === "skills") {
+      const existingSkillIds = new Set(
+        (resume?.content.skills || []).map(
+          (s: any) => s.id || s.name || s.skillName
+        )
+      );
+      const availableIds = userSkills
+        .filter(
+          (skill) =>
+            !existingSkillIds.has(skill.id) &&
+            !existingSkillIds.has(skill.skillName)
+        )
+        .map((skill) => skill.id);
+      setSelectedItems((prev) => ({ ...prev, skills: availableIds }));
+    } else if (sectionId === "certifications") {
+      const existingCertIds = new Set(
+        (resume?.content.certifications || []).map((c: any) => c.id)
+      );
+      const availableIds = userCertifications
+        .filter((cert) => !existingCertIds.has(cert.id))
+        .map((cert) => cert.id);
+      setSelectedItems((prev) => ({ ...prev, certifications: availableIds }));
+    } else if (sectionId === "experience") {
+      const existingJobIds = new Set(
+        (resume?.content.experience || []).map((j: any) => j.id)
+      );
+      const availableIds = userJobs
+        .filter((job) => !existingJobIds.has(job.id))
+        .map((job) => job.id);
+      setSelectedItems((prev) => ({ ...prev, jobs: availableIds }));
+    } else if (sectionId === "education") {
+      const existingEduIds = new Set(
+        (resume?.content.education || []).map((e: any) => e.id)
+      );
+      const availableIds = userEducation
+        .filter((edu) => !existingEduIds.has(edu.id))
+        .map((edu) => edu.id);
+      setSelectedItems((prev) => ({ ...prev, education: availableIds }));
+    } else if (sectionId === "projects") {
+      const existingProjIds = new Set(
+        (resume?.content.projects || []).map((p: any) => p.id)
+      );
+      const availableIds = userProjects
+        .filter((proj) => !existingProjIds.has(proj.id))
+        .map((proj) => proj.id);
+      setSelectedItems((prev) => ({ ...prev, projects: availableIds }));
+    }
+
+    setShowImportModal(true);
+  };
+
+  const handleSelectAll = () => {
+    if (!importSection || !resume) return;
+
+    if (importSection === "skills") {
+      const existingSkillIds = new Set(
+        (resume.content.skills || []).map(
+          (s: any) => s.id || s.name || s.skillName
+        )
+      );
+      const availableIds = userSkills
+        .filter(
+          (skill) =>
+            !existingSkillIds.has(skill.id) &&
+            !existingSkillIds.has(skill.skillName)
+        )
+        .map((skill) => skill.id);
+      setSelectedItems((prev) => ({ ...prev, skills: availableIds }));
+    } else if (importSection === "certifications") {
+      const existingCertIds = new Set(
+        (resume.content.certifications || []).map((c: any) => c.id)
+      );
+      const availableIds = userCertifications
+        .filter((cert) => !existingCertIds.has(cert.id))
+        .map((cert) => cert.id);
+      setSelectedItems((prev) => ({ ...prev, certifications: availableIds }));
+    } else if (importSection === "experience") {
+      const existingJobIds = new Set(
+        (resume.content.experience || []).map((j: any) => j.id)
+      );
+      const availableIds = userJobs
+        .filter((job) => !existingJobIds.has(job.id))
+        .map((job) => job.id);
+      setSelectedItems((prev) => ({ ...prev, jobs: availableIds }));
+    } else if (importSection === "education") {
+      const existingEduIds = new Set(
+        (resume.content.education || []).map((e: any) => e.id)
+      );
+      const availableIds = userEducation
+        .filter((edu) => !existingEduIds.has(edu.id))
+        .map((edu) => edu.id);
+      setSelectedItems((prev) => ({ ...prev, education: availableIds }));
+    } else if (importSection === "projects") {
+      const existingProjIds = new Set(
+        (resume.content.projects || []).map((p: any) => p.id)
+      );
+      const availableIds = userProjects
+        .filter((proj) => !existingProjIds.has(proj.id))
+        .map((proj) => proj.id);
+      setSelectedItems((prev) => ({ ...prev, projects: availableIds }));
+    }
+  };
+
+  const handleDeselectAll = () => {
+    if (!importSection) return;
+    setSelectedItems((prev) => ({
+      ...prev,
+      [importSection]: [],
+    }));
+  };
+
+  const handleImportSelectedItems = () => {
+    if (!resume || !importSection) return;
+
+    const newContent = { ...resume.content };
+    const newSectionConfig = { ...resume.sectionConfig };
+
+    // Ensure section exists and is initialized as an array
+    if (!newContent[importSection as keyof typeof newContent]) {
+      (newContent as any)[importSection] = [];
+    }
+
+    // Ensure section is enabled in sectionConfig
+    if (!newSectionConfig[importSection]) {
+      const enabledSections = getEnabledSections();
+      const maxOrder = Math.max(
+        ...enabledSections.map((s) => newSectionConfig[s.id]?.order ?? 0),
+        -1
+      );
+      newSectionConfig[importSection] = {
+        enabled: true,
+        order: maxOrder + 1,
+      };
+    } else {
+      // Ensure section is enabled
+      newSectionConfig[importSection] = {
+        ...newSectionConfig[importSection],
+        enabled: true,
+      };
+    }
+
+    const section = (newContent as any)[importSection] || [];
+
+    if (importSection === "skills") {
+      const selectedSkills = userSkills.filter((skill) =>
+        selectedItems.skills.includes(skill.id)
+      );
+      const existingSkillIds = new Set(
+        section.map((s: any) => s.id || s.name || s.skillName)
+      );
+      const newSkills = selectedSkills
+        .filter(
+          (skill) =>
+            !existingSkillIds.has(skill.id) &&
+            !existingSkillIds.has(skill.skillName)
+        )
+        .map((skill) => ({
+          id: skill.id,
+          name: skill.skillName,
+          category: skill.category || "Technical",
+          proficiency: skill.proficiency || "",
+        }));
+      (newContent as any)[importSection] = [...section, ...newSkills];
+    } else if (importSection === "certifications") {
+      const selectedCerts = userCertifications.filter((cert) =>
+        selectedItems.certifications.includes(cert.id)
+      );
+      const existingCertIds = new Set(section.map((c: any) => c.id));
+      const newCerts = selectedCerts
+        .filter((cert) => !existingCertIds.has(cert.id))
+        .map((cert) => ({
+          id: cert.id,
+          name: cert.name,
+          organization: cert.org_name,
+          dateEarned: cert.date_earned,
+          expirationDate: cert.expiration_date || undefined,
+        }));
+      (newContent as any)[importSection] = [...section, ...newCerts];
+    } else if (importSection === "experience") {
+      const selectedJobs = userJobs.filter((job) =>
+        selectedItems.jobs.includes(job.id)
+      );
+      const existingJobIds = new Set(section.map((j: any) => j.id));
+      const newJobs = selectedJobs
+        .filter((job) => !existingJobIds.has(job.id))
+        .map((job) => ({
+          id: job.id,
+          title: job.title,
+          company: job.company,
+          location: job.location || undefined,
+          startDate: job.startDate || "",
+          endDate: job.endDate || undefined,
+          isCurrent: job.isCurrent || false,
+          description: job.description
+            ? typeof job.description === "string"
+              ? job.description.split("\n").filter((l) => l.trim())
+              : []
+            : [],
+        }));
+      (newContent as any)[importSection] = [...section, ...newJobs];
+    } else if (importSection === "education") {
+      const selectedEdu = userEducation.filter((edu) =>
+        selectedItems.education.includes(edu.id)
+      );
+      const existingEduIds = new Set(section.map((e: any) => e.id));
+      const newEdu = selectedEdu
+        .filter((edu) => !existingEduIds.has(edu.id))
+        .map((edu) => ({
+          id: edu.id,
+          degree: edu.degreeType,
+          school: edu.school,
+          field: edu.field || undefined,
+          startDate: edu.startDate || undefined,
+          endDate: edu.endDate || undefined,
+          gpa: edu.gpa || undefined,
+          honors: edu.honors || undefined,
+        }));
+      (newContent as any)[importSection] = [...section, ...newEdu];
+    } else if (importSection === "projects") {
+      const selectedProjs = userProjects.filter((proj) =>
+        selectedItems.projects.includes(proj.id)
+      );
+      const existingProjIds = new Set(section.map((p: any) => p.id));
+      const newProjs = selectedProjs
+        .filter((proj) => !existingProjIds.has(proj.id))
+        .map((proj) => ({
+          id: proj.id,
+          name: proj.name,
+          description: proj.description || "",
+          technologies: proj.technologies
+            ? proj.technologies
+                .split(",")
+                .map((t) => t.trim())
+                .filter((t) => t)
+            : undefined,
+          link: proj.link || undefined,
+        }));
+      (newContent as any)[importSection] = [...section, ...newProjs];
+    } else if (importSection === "personal" && userProfile) {
+      // Import personal info from profile
+      newContent.personalInfo = {
+        ...newContent.personalInfo,
+        firstName: userProfile.first_name || newContent.personalInfo.firstName,
+        lastName: userProfile.last_name || newContent.personalInfo.lastName,
+        email: userProfile.email || newContent.personalInfo.email,
+        phone: userProfile.phone || newContent.personalInfo.phone,
+        location:
+          userProfile.city && userProfile.state
+            ? `${userProfile.city}, ${userProfile.state}`
+            : newContent.personalInfo.location,
+      };
+      if (userProfile.bio && !newContent.summary) {
+        newContent.summary = userProfile.bio;
+      }
+    }
+
+    const updatedResume = {
+      ...resume,
+      content: newContent,
+      sectionConfig: newSectionConfig,
+    };
+    setResume(updatedResume);
+
+    // Auto-save to backend if resume exists
+    if (resumeId && resumeId !== "new") {
+      setIsAutoSaving(true);
+      resumeService
+        .updateResume(resumeId, {
+          content: newContent,
+          sectionConfig: newSectionConfig,
+        })
+        .then(() => {
+          setLastSaved(new Date());
+        })
+        .catch((err) => {
+          console.error("Auto-save failed:", err);
+        })
+        .finally(() => {
+          setTimeout(() => setIsAutoSaving(false), 500);
+        });
+    }
+
+    setShowImportModal(false);
+    setImportSection(null);
+    setSelectedItems({
+      skills: [],
+      certifications: [],
+      jobs: [],
+      education: [],
+      projects: [],
+    });
+  };
+
+  const toggleItemSelection = (itemId: string, section: string) => {
+    setSelectedItems((prev) => {
+      const sectionKey = section as keyof typeof prev;
+      const current = prev[sectionKey] || [];
+      if (current.includes(itemId)) {
+        return {
+          ...prev,
+          [sectionKey]: current.filter((id) => id !== itemId),
+        };
+      } else {
+        return {
+          ...prev,
+          [sectionKey]: [...current, itemId],
+        };
+      }
+    });
+  };
+
+  // Version management functions
+  const handleCreateVersion = async () => {
+    if (!resumeId || resumeId === "new") {
+      showToast("Please save the resume before creating a version", "error");
+      return;
+    }
+
+    if (!newVersionName.trim()) {
+      showToast("Please enter a version name", "error");
+      return;
+    }
+
+    try {
+      const response = await resumeService.createVersion(resumeId, {
+        versionName: newVersionName,
+        description: newVersionDescription || undefined,
+      });
+
+      if (response.ok && response.data) {
+        const newVersion = response.data.resume;
+        // Navigate to the new version
+        navigate(`${ROUTES.RESUME_BUILDER}?id=${newVersion.id}`);
+        setShowVersionModal(false);
+        setNewVersionName("");
+        setNewVersionDescription("");
+        showToast("Version created successfully!", "success");
+      }
+    } catch (err: any) {
+      console.error("Failed to create version:", err);
+      showToast(
+        err.message || "Failed to create version. Please try again.",
+        "error"
+      );
+    }
+  };
+
+  const handleSwitchVersion = (versionId: string) => {
+    navigate(`${ROUTES.RESUME_BUILDER}?id=${versionId}`);
+    setShowVersionHistory(false);
+  };
+
+  // Mock data for comparison demo
+  const getMockResume1 = (): Resume => ({
+    id: "mock-1",
+    userId: "user1",
+    name: "Software Engineer Resume v1",
+    description: "Original version",
+    templateId: "default-chronological",
+    versionNumber: 1,
+    isMaster: true,
+    parentResumeId: undefined,
+    content: {
+      personalInfo: {
+        firstName: "John",
+        lastName: "Doe",
+        email: "john.doe@example.com",
+        phone: "+1 (555) 123-4567",
+        location: "San Francisco, CA",
+        linkedIn: "linkedin.com/in/johndoe",
+        portfolio: "johndoe.dev",
+      },
+      summary:
+        "Experienced software engineer with 5+ years of experience building scalable web applications using modern technologies.",
+      experience: [
+        {
+          id: "1",
+          title: "Senior Software Engineer",
+          company: "Tech Company",
+          location: "San Francisco, CA",
+          startDate: "2020-01",
+          endDate: undefined,
+          isCurrent: true,
+          description: [
+            "Led development of scalable web applications serving 100K+ users",
+            "Mentored junior developers and improved team productivity by 30%",
+            "Implemented CI/CD pipelines reducing deployment time by 50%",
+          ],
+        },
+        {
+          id: "2",
+          title: "Software Engineer",
+          company: "Startup Inc",
+          location: "San Francisco, CA",
+          startDate: "2018-06",
+          endDate: "2019-12",
+          isCurrent: false,
+          description: [
+            "Developed RESTful APIs using Node.js and Express",
+            "Built responsive frontend components with React",
+          ],
+        },
+      ],
+      education: [
+        {
+          id: "1",
+          school: "University of California",
+          degree: "Bachelor of Science",
+          field: "Computer Science",
+          startDate: "2014-09",
+          endDate: "2018-05",
+          gpa: 3.8,
+          honors: "Summa Cum Laude",
+        },
+      ],
+      skills: [
+        {
+          id: "1",
+          name: "JavaScript",
+          category: "Technical",
+          proficiency: "Expert",
+        },
+        {
+          id: "2",
+          name: "React",
+          category: "Technical",
+          proficiency: "Expert",
+        },
+        {
+          id: "3",
+          name: "Node.js",
+          category: "Technical",
+          proficiency: "Advanced",
+        },
+        {
+          id: "4",
+          name: "Python",
+          category: "Technical",
+          proficiency: "Intermediate",
+        },
+      ],
+      projects: [],
+      certifications: [],
+    },
+    sectionConfig: {
+      personal: { enabled: true, order: 0 },
+      summary: { enabled: true, order: 1 },
+      experience: { enabled: true, order: 2 },
+      education: { enabled: true, order: 3 },
+      skills: { enabled: true, order: 4 },
+      projects: { enabled: false, order: 5 },
+      certifications: { enabled: false, order: 6 },
+    },
+    customizations: {
+      colors: {
+        primary: "#3351FD",
+        secondary: "#000000",
+        text: "#000000",
+        background: "#FFFFFF",
+      },
+      fonts: { heading: "Inter", body: "Inter" },
+      spacing: { section: 24, item: 12 },
+    },
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  });
+
+  const getMockResume2 = (): Resume => ({
+    id: "mock-2",
+    userId: "user1",
+    name: "Software Engineer Resume v2",
+    description: "Updated version with more experience",
+    templateId: "default-chronological",
+    versionNumber: 2,
+    isMaster: false,
+    parentResumeId: "mock-1",
+    content: {
+      personalInfo: {
+        firstName: "John",
+        lastName: "Doe",
+        email: "john.doe@example.com",
+        phone: "+1 (555) 123-4567",
+        location: "San Francisco, CA",
+        linkedIn: "linkedin.com/in/johndoe",
+        portfolio: "johndoe.dev",
+      },
+      summary:
+        "Senior software engineer with 7+ years of experience building scalable web applications and leading engineering teams. Specialized in full-stack development with expertise in React, Node.js, and cloud infrastructure.",
+      experience: [
+        {
+          id: "1",
+          title: "Senior Software Engineer",
+          company: "Tech Company",
+          location: "San Francisco, CA",
+          startDate: "2020-01",
+          endDate: undefined,
+          isCurrent: true,
+          description: [
+            "Led development of scalable web applications serving 500K+ users",
+            "Mentored team of 5 junior developers and improved team productivity by 40%",
+            "Implemented CI/CD pipelines reducing deployment time by 60%",
+            "Architected microservices infrastructure handling 1M+ requests/day",
+          ],
+        },
+        {
+          id: "2",
+          title: "Software Engineer",
+          company: "Startup Inc",
+          location: "San Francisco, CA",
+          startDate: "2018-06",
+          endDate: "2019-12",
+          isCurrent: false,
+          description: [
+            "Developed RESTful APIs using Node.js and Express serving 50K+ users",
+            "Built responsive frontend components with React and Redux",
+            "Optimized database queries reducing response time by 35%",
+          ],
+        },
+        {
+          id: "3",
+          title: "Junior Developer",
+          company: "Web Agency",
+          location: "San Francisco, CA",
+          startDate: "2017-01",
+          endDate: "2018-05",
+          isCurrent: false,
+          description: [
+            "Developed client websites using HTML, CSS, and JavaScript",
+            "Collaborated with designers to implement responsive layouts",
+          ],
+        },
+      ],
+      education: [
+        {
+          id: "1",
+          school: "University of California",
+          degree: "Bachelor of Science",
+          field: "Computer Science",
+          startDate: "2014-09",
+          endDate: "2018-05",
+          gpa: 3.8,
+          honors: "Summa Cum Laude",
+        },
+      ],
+      skills: [
+        {
+          id: "1",
+          name: "JavaScript",
+          category: "Technical",
+          proficiency: "Expert",
+        },
+        {
+          id: "2",
+          name: "React",
+          category: "Technical",
+          proficiency: "Expert",
+        },
+        {
+          id: "3",
+          name: "Node.js",
+          category: "Technical",
+          proficiency: "Expert",
+        },
+        {
+          id: "4",
+          name: "Python",
+          category: "Technical",
+          proficiency: "Advanced",
+        },
+        {
+          id: "5",
+          name: "AWS",
+          category: "Technical",
+          proficiency: "Advanced",
+        },
+        {
+          id: "6",
+          name: "Docker",
+          category: "Technical",
+          proficiency: "Advanced",
+        },
+        {
+          id: "7",
+          name: "Kubernetes",
+          category: "Technical",
+          proficiency: "Intermediate",
+        },
+      ],
+      projects: [
+        {
+          id: "1",
+          name: "E-commerce Platform",
+          description:
+            "Built a full-stack e-commerce platform with React and Node.js",
+          technologies: ["React", "Node.js", "MongoDB", "Stripe"],
+          link: "https://example.com/project",
+        },
+      ],
+      certifications: [
+        {
+          id: "1",
+          name: "AWS Certified Solutions Architect",
+          organization: "Amazon Web Services",
+          dateEarned: "2022-03",
+          expirationDate: undefined,
+        },
+      ],
+    },
+    sectionConfig: {
+      personal: { enabled: true, order: 0 },
+      summary: { enabled: true, order: 1 },
+      experience: { enabled: true, order: 2 },
+      education: { enabled: true, order: 3 },
+      skills: { enabled: true, order: 4 },
+      projects: { enabled: true, order: 5 },
+      certifications: { enabled: true, order: 6 },
+    },
+    customizations: {
+      colors: {
+        primary: "#2563EB",
+        secondary: "#000000",
+        text: "#000000",
+        background: "#FFFFFF",
+      },
+      fonts: { heading: "Roboto", body: "Roboto" },
+      spacing: { section: 28, item: 14 },
+    },
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  });
+
+  const handleCompareVersions = async (useMock: boolean = false) => {
+    if (useMock) {
+      // Use mock data for demo
+      setLoadingComparison(true);
+      setTimeout(() => {
+        setResume1Data(getMockResume1());
+        setResume2Data(getMockResume2());
+        setVersionComparison({
+          resume1: {
+            id: "mock-1",
+            versionName: "Software Engineer Resume v1",
+            versionNumber: 1,
+            updatedAt: new Date().toISOString(),
+          },
+          resume2: {
+            id: "mock-2",
+            versionName: "Software Engineer Resume v2",
+            versionNumber: 2,
+            updatedAt: new Date().toISOString(),
+          },
+          hasDifferences: true,
+        });
+        setShowVersionCompare(true);
+        setLoadingComparison(false);
+      }, 500);
+      return;
+    }
+
+    if (!selectedVersion1 || !selectedVersion2) {
+      showToast("Please select two versions to compare", "error");
+      return;
+    }
+
+    if (selectedVersion1 === selectedVersion2) {
+      showToast("Please select two different versions", "error");
+      return;
+    }
+
+    try {
+      setLoadingComparison(true);
+
+      // Fetch both resumes for side-by-side comparison
+      const [resume1Res, resume2Res, comparisonRes] = await Promise.allSettled([
+        resumeService.getResume(selectedVersion1),
+        resumeService.getResume(selectedVersion2),
+        resumeService.compareVersions(selectedVersion1, selectedVersion2),
+      ]);
+
+      if (resume1Res.status === "fulfilled" && resume1Res.value.ok) {
+        setResume1Data(resume1Res.value.data?.resume || null);
+      }
+
+      if (resume2Res.status === "fulfilled" && resume2Res.value.ok) {
+        setResume2Data(resume2Res.value.data?.resume || null);
+      }
+
+      if (comparisonRes.status === "fulfilled" && comparisonRes.value.ok) {
+        setVersionComparison(comparisonRes.value.data?.comparison || null);
+      }
+
+      setShowVersionCompare(true);
+    } catch (err: any) {
+      console.error("Failed to compare versions:", err);
+      // Fallback to mock data if API fails
+      setResume1Data(getMockResume1());
+      setResume2Data(getMockResume2());
+      setVersionComparison({
+        resume1: {
+          id: "mock-1",
+          versionName: "Software Engineer Resume v1",
+          versionNumber: 1,
+          updatedAt: new Date().toISOString(),
+        },
+        resume2: {
+          id: "mock-2",
+          versionName: "Software Engineer Resume v2",
+          versionNumber: 2,
+          updatedAt: new Date().toISOString(),
+        },
+        hasDifferences: true,
+      });
+      setShowVersionCompare(true);
+    } finally {
+      setLoadingComparison(false);
+    }
+  };
+
+  const handleSetMasterVersion = async (versionId: string) => {
+    try {
+      const response = await resumeService.setMasterVersion(versionId);
+      if (response.ok) {
+        // Refresh versions
+        if (resumeId) {
+          const versionsRes = await resumeService.getVersions(resumeId);
+          if (versionsRes.ok) {
+            setVersions(versionsRes.data?.resumes || []);
+          }
+          const historyRes = await resumeService.getVersionHistory(resumeId);
+          if (historyRes.ok) {
+            setVersionHistory(historyRes.data?.history || []);
+          }
+        }
+        showToast("Master version updated successfully!", "success");
+      }
+    } catch (err: any) {
+      console.error("Failed to set master version:", err);
+      showToast(
+        err.message || "Failed to set master version. Please try again.",
+        "error"
+      );
+    }
+  };
+
+  // Fetch section presets
+  useEffect(() => {
+    const fetchPresets = async () => {
+      try {
+        const response = await resumeService.getSectionPresets();
+        if (response.ok && response.data) {
+          setSectionPresets(response.data.presets);
+        }
+      } catch (err) {
+        // Use default presets if API fails
+        setSectionPresets([
+          { id: "default", name: "Default", sectionConfig: {} },
+          {
+            id: "minimal",
+            name: "Minimal",
+            sectionConfig: {
+              projects: { enabled: false },
+              certifications: { enabled: false },
+            },
+          },
+          { id: "comprehensive", name: "Comprehensive", sectionConfig: {} },
+        ]);
+      }
+    };
+    fetchPresets();
+  }, []);
+
+  // Get section completion status
+  const getSectionCompletion = (
+    sectionId: string
+  ): { completed: boolean; percentage: number } => {
+    if (!resume) return { completed: false, percentage: 0 };
+
+    const content = resume.content;
+    switch (sectionId) {
+      case "personal":
+        const personal = content.personalInfo;
+        const personalFields = [
+          personal.firstName,
+          personal.lastName,
+          personal.email,
+          personal.phone,
+          personal.location,
+        ];
+        const filledPersonal = personalFields.filter(
+          (f) => f && f.trim()
+        ).length;
+        return {
+          completed: filledPersonal >= 3,
+          percentage: (filledPersonal / personalFields.length) * 100,
+        };
+
+      case "summary":
+        return {
+          completed: !!content.summary && content.summary.trim().length > 50,
+          percentage: content.summary
+            ? Math.min(100, (content.summary.length / 200) * 100)
+            : 0,
+        };
+
+      case "experience":
+        const expCount = Array.isArray(content.experience)
+          ? content.experience.length
+          : 0;
+        return {
+          completed: expCount > 0,
+          percentage: Math.min(100, (expCount / 3) * 100),
+        };
+
+      case "education":
+        const eduCount = Array.isArray(content.education)
+          ? content.education.length
+          : 0;
+        return {
+          completed: eduCount > 0,
+          percentage: Math.min(100, (eduCount / 2) * 100),
+        };
+
+      case "skills":
+        const skillCount = Array.isArray(content.skills)
+          ? content.skills.length
+          : 0;
+        return {
+          completed: skillCount >= 5,
+          percentage: Math.min(100, (skillCount / 10) * 100),
+        };
+
+      case "projects":
+        const projCount = Array.isArray(content.projects)
+          ? content.projects.length
+          : 0;
+        return {
+          completed: projCount > 0,
+          percentage: Math.min(100, (projCount / 3) * 100),
+        };
+
+      case "certifications":
+        const certCount = Array.isArray(content.certifications)
+          ? content.certifications.length
+          : 0;
+        return {
+          completed: certCount > 0,
+          percentage: Math.min(100, (certCount / 3) * 100),
+        };
+
+      default:
+        return { completed: false, percentage: 0 };
+    }
+  };
+
+  // Get sections filtered by job type
+  const getJobTypeSections = (): string[] => {
+    const jobTypeMap: Record<string, string[]> = {
+      tech: [
+        "personal",
+        "summary",
+        "experience",
+        "education",
+        "skills",
+        "projects",
+        "certifications",
+      ],
+      creative: [
+        "personal",
+        "summary",
+        "experience",
+        "education",
+        "skills",
+        "projects",
+      ],
+      executive: [
+        "personal",
+        "summary",
+        "experience",
+        "education",
+        "skills",
+        "certifications",
+      ],
+      academic: [
+        "personal",
+        "summary",
+        "education",
+        "experience",
+        "skills",
+        "projects",
+        "certifications",
+      ],
+      all: sections.map((s) => s.id),
+    };
+    return jobTypeMap[jobType] || jobTypeMap.all;
+  };
+
+  // Get all sections filtered by job type (for sidebar display)
+  const getSidebarSections = () => {
+    if (!resume) return [];
+
+    // Filter by job type first
+    const jobTypeFiltered = sections.filter((section) => {
+      if (jobType === "all") return true;
+      return getJobTypeSections().includes(section.id);
+    });
+
+    // Sort by order (default to section index if not set)
+    return jobTypeFiltered.sort((a, b) => {
+      const orderA =
+        resume.sectionConfig?.[a.id]?.order ??
+        sections.findIndex((s) => s.id === a.id);
+      const orderB =
+        resume.sectionConfig?.[b.id]?.order ??
+        sections.findIndex((s) => s.id === b.id);
+      return orderA - orderB;
+    });
+  };
+
+  // Get enabled sections only (for document display)
+  const getEnabledSections = () => {
+    if (!resume) return [];
+
+    // Filter by job type first
+    const jobTypeFiltered = sections.filter((section) => {
+      if (jobType === "all") return true;
+      return getJobTypeSections().includes(section.id);
+    });
+
+    // Filter sections based on enabled state (default to true if not set)
+    const enabled = jobTypeFiltered.filter((section) => {
+      const config = resume.sectionConfig?.[section.id];
+      return config?.enabled !== false; // Default to enabled if not specified
+    });
+
+    // Sort by order (default to section index if not set)
+    return enabled.sort((a, b) => {
+      const orderA =
+        resume.sectionConfig?.[a.id]?.order ??
+        sections.findIndex((s) => s.id === a.id);
+      const orderB =
+        resume.sectionConfig?.[b.id]?.order ??
+        sections.findIndex((s) => s.id === b.id);
+      return orderA - orderB;
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Icon
+            icon="mingcute:loading-line"
+            className="w-12 h-12 animate-spin mx-auto text-[#3351FD]"
+          />
+          <p className="mt-4 text-gray-600">Loading resume builder...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!resume) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Icon
+            icon="mingcute:alert-line"
+            className="w-16 h-16 mx-auto text-gray-400 mb-4"
+          />
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            Resume not found
+          </h3>
+          <button
+            onClick={() => navigate(ROUTES.RESUMES)}
+            className="mt-4 px-6 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors"
+          >
+            Back to Resumes
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const enabledSections = getEnabledSections();
+
+  // Ensure customizations are always fully initialized
+  const ensureCustomizations = () => {
+    if (!resume) return null;
+    const defaultCustomizations = {
+      colors: {
+        primary: "#3351FD",
+        secondary: "#000000",
+        text: "#000000",
+        background: "#FFFFFF",
+      },
+      fonts: {
+        heading: "Inter",
+        body: "Inter",
+      },
+      spacing: {
+        section: 24,
+        item: 12,
+      },
+      alignment: "left",
+      headerStyle: "centered",
+    };
+    return {
+      ...defaultCustomizations,
+      ...resume.customizations,
+      colors: {
+        ...defaultCustomizations.colors,
+        ...resume.customizations?.colors,
+      },
+      fonts: {
+        ...defaultCustomizations.fonts,
+        ...resume.customizations?.fonts,
+      },
+      spacing: {
+        ...defaultCustomizations.spacing,
+        ...resume.customizations?.spacing,
+      },
+    };
+  };
+
+  const currentCustomizations = ensureCustomizations();
+
+  // Default customizations
+  const defaultCustomizations = {
+    colors: {
+      primary: "#3351FD",
+      secondary: "#000000",
+      text: "#000000",
+      background: "#FFFFFF",
+    },
+    fonts: {
+      heading: "Inter",
+      body: "Inter",
+    },
+    spacing: {
+      section: 24,
+      item: 12,
+    },
+    alignment: "left",
+    headerStyle: "centered",
+    sectionFormatting: {},
+  };
+
+  // Reset all formatting to defaults
+  const handleResetFormatting = async () => {
+    if (!resume) return;
+
+    if (
+      !window.confirm(
+        "Are you sure you want to reset all formatting to default? This will remove all custom colors, fonts, spacing, and section formatting."
+      )
+    ) {
+      return;
+    }
+
+    try {
+      // Reset section formatting
+      setSectionFormatting({});
+
+      // Reset customizations to defaults
+      const updatedResume = {
+        ...resume,
+        customizations: defaultCustomizations,
+      };
+      setResume(updatedResume);
+
+      // Auto-save to backend if resume exists
+      if (resumeId && resumeId !== "new") {
+        setIsAutoSaving(true);
+        resumeService
+          .updateResume(resumeId, {
+            customizations: defaultCustomizations,
+          })
+          .then(() => {
+            setLastSaved(new Date());
+            showToast("Formatting reset to default successfully!", "success");
+          })
+          .catch((err) => {
+            console.error("Auto-save failed:", err);
+            showToast("Failed to save reset. Please try again.", "error");
+          })
+          .finally(() => {
+            setTimeout(() => setIsAutoSaving(false), 500);
+          });
+      } else {
+        showToast("Formatting reset to default!", "success");
+      }
+    } catch (err: any) {
+      console.error("Failed to reset formatting:", err);
+      showToast("Failed to reset formatting. Please try again.", "error");
+    }
+  };
+
+  const colors = currentCustomizations?.colors || {
+    primary: "#3351FD",
+    secondary: "#000000",
+    text: "#000000",
+    background: "#FFFFFF",
+  };
+  const fonts = currentCustomizations?.fonts || {
+    heading: "Inter",
+    body: "Inter",
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* Top Bar */}
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => navigate(ROUTES.RESUMES)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <Icon
+                  icon="mingcute:arrow-left-line"
+                  className="w-5 h-5 text-gray-700"
+                />
+              </button>
+              <div className="flex items-center gap-3">
+                <div>
+                  <h1 className="text-lg font-semibold text-gray-900">
+                    {resume.name}
+                  </h1>
+                  <p className="text-xs text-gray-500">
+                    v{resume.versionNumber || 1}
+                    {resume.isMaster && (
+                      <span className="ml-2 px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+                        Master
+                      </span>
+                    )}
+                  </p>
+                </div>
+                {versions.length > 0 && (
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowVersionHistory(!showVersionHistory)}
+                      className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2"
+                    >
+                      <Icon
+                        icon="mingcute:git-branch-line"
+                        className="w-4 h-4"
+                      />
+                      Versions ({versions.length})
+                      <Icon
+                        icon={
+                          showVersionHistory
+                            ? "mingcute:up-line"
+                            : "mingcute:down-line"
+                        }
+                        className="w-3 h-3"
+                      />
+                    </button>
+                    {showVersionHistory && (
+                      <div className="absolute left-0 top-full mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-[280px] max-h-[400px] overflow-y-auto">
+                        <div className="p-3 border-b border-gray-200">
+                          <div className="flex items-center justify-between mb-2">
+                            <h3 className="text-sm font-semibold text-gray-900">
+                              Versions
+                            </h3>
+                            <button
+                              onClick={() => {
+                                setShowVersionModal(true);
+                                setShowVersionHistory(false);
+                              }}
+                              className="text-xs px-2 py-1 bg-[#3351FD] text-white rounded hover:bg-[#2a45d4] transition-colors flex items-center gap-1"
+                            >
+                              <Icon
+                                icon="mingcute:add-line"
+                                className="w-3 h-3"
+                              />
+                              New
+                            </button>
+                          </div>
+                        </div>
+                        <div className="p-2">
+                          {versions.map((version) => (
+                            <button
+                              key={version.id}
+                              onClick={() => handleSwitchVersion(version.id)}
+                              className={`w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors mb-1 ${
+                                version.id === resumeId
+                                  ? "bg-blue-50 border border-blue-200"
+                                  : ""
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-medium text-gray-900 truncate">
+                                      {version.name ||
+                                        `Version ${version.versionNumber}`}
+                                    </span>
+                                    {version.isMaster && (
+                                      <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium flex-shrink-0">
+                                        Master
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-gray-500 mt-0.5">
+                                    v{version.versionNumber || 1}
+                                  </p>
+                                </div>
+                                {version.id !== resumeId && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleSetMasterVersion(version.id);
+                                    }}
+                                    className="ml-2 p-1 hover:bg-gray-200 rounded transition-colors"
+                                    title="Set as Master"
+                                  >
+                                    <Icon
+                                      icon="mingcute:star-line"
+                                      className="w-4 h-4 text-gray-600"
+                                    />
+                                  </button>
+                                )}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                        <div className="p-3 border-t border-gray-200">
+                          <button
+                            onClick={() => {
+                              setSelectedVersion1(resumeId);
+                              setSelectedVersion2(null);
+                              setShowVersionCompare(true);
+                              setShowVersionHistory(false);
+                            }}
+                            className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors flex items-center gap-2"
+                          >
+                            <Icon
+                              icon="mingcute:git-compare-line"
+                              className="w-4 h-4"
+                            />
+                            Compare Versions
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {/* Auto-save indicator */}
+              {isAutoSaving && (
+                <div className="flex items-center gap-2 px-3 py-1.5 text-xs text-gray-600 bg-gray-50 rounded-lg">
+                  <Icon
+                    icon="mingcute:loading-line"
+                    className="w-3 h-3 animate-spin text-[#3351FD]"
+                  />
+                  <span>Saving...</span>
+                </div>
+              )}
+              {lastSaved && !isAutoSaving && (
+                <div className="flex items-center gap-2 px-3 py-1.5 text-xs text-gray-500 bg-gray-50 rounded-lg">
+                  <Icon
+                    icon="mingcute:check-circle-line"
+                    className="w-3 h-3 text-green-600"
+                  />
+                  <span>
+                    Saved{" "}
+                    {lastSaved.toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                </div>
+              )}
+              <button
+                onClick={() => setShowImportResumeModal(true)}
+                className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium flex items-center gap-2"
+                title="Import existing resume (PDF/DOCX)"
+              >
+                <Icon icon="mingcute:upload-line" className="w-4 h-4" />
+                Import Resume
+              </button>
+              {resumeId && resumeId !== "new" && (
+                <button
+                  onClick={() => setShowVersionModal(true)}
+                  className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium flex items-center gap-2"
+                >
+                  <Icon icon="mingcute:git-branch-line" className="w-4 h-4" />
+                  Create Version
+                </button>
+              )}
+              <button
+                onClick={() => setShowCustomization(!showCustomization)}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  showCustomization
+                    ? "bg-[#3351FD] text-white"
+                    : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                }`}
+              >
+                <Icon
+                  icon="mingcute:palette-line"
+                  className="w-4 h-4 inline mr-2"
+                />
+                Customize
+              </button>
+              <button
+                onClick={() => setShowValidationPanel(!showValidationPanel)}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  showValidationPanel
+                    ? "bg-[#3351FD] text-white"
+                    : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                }`}
+              >
+                <Icon
+                  icon="mingcute:check-line"
+                  className="w-4 h-4 inline mr-2"
+                />
+                Validate
+              </button>
+              <div className="relative">
+                <button
+                  onClick={() => setShowExportMenu(!showExportMenu)}
+                  disabled={exporting}
+                  className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium flex items-center gap-2"
+                >
+                  {exporting ? (
+                    <>
+                      <Icon
+                        icon="mingcute:loading-line"
+                        className="w-4 h-4 animate-spin"
+                      />
+                      Exporting...
+                    </>
+                  ) : (
+                    <>
+                      <Icon icon="mingcute:download-line" className="w-4 h-4" />
+                      Export
+                      <Icon
+                        icon="mingcute:arrow-down-line"
+                        className="w-3 h-3"
+                      />
+                    </>
+                  )}
+                </button>
+                {showExportMenu && !exporting && (
+                  <div className="absolute right-0 top-full mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[180px]">
+                    <button
+                      onClick={() => handleExport("pdf")}
+                      className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2 text-sm border-b border-gray-100"
+                    >
+                      <Icon
+                        icon="mingcute:file-pdf-line"
+                        className="w-4 h-4 text-red-600"
+                      />
+                      Export as PDF
+                    </button>
+                    <button
+                      onClick={() => handleExport("docx")}
+                      className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2 text-sm border-b border-gray-100"
+                    >
+                      <Icon
+                        icon="mingcute:file-word-line"
+                        className="w-4 h-4 text-blue-600"
+                      />
+                      Export as DOCX
+                    </button>
+                    <button
+                      onClick={() => handleExport("html")}
+                      className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2 text-sm border-b border-gray-100"
+                    >
+                      <Icon
+                        icon="mingcute:file-html-line"
+                        className="w-4 h-4 text-orange-600"
+                      />
+                      Export as HTML
+                    </button>
+                    <button
+                      onClick={() => handleExport("txt")}
+                      className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2 text-sm"
+                    >
+                      <Icon
+                        icon="mingcute:file-text-line"
+                        className="w-4 h-4 text-gray-600"
+                      />
+                      Export as TXT
+                    </button>
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="px-6 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {isSaving ? (
+                  <>
+                    <Icon
+                      icon="mingcute:loading-line"
+                      className="w-4 h-4 animate-spin"
+                    />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Icon icon="mingcute:save-line" className="w-4 h-4" />
+                    Save
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Toast Notifications */}
+      {toast && (
+        <div
+          className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 min-w-[300px] max-w-[500px] animate-slide-in ${
+            toast.type === "success"
+              ? "bg-green-50 border border-green-200 text-green-800"
+              : toast.type === "error"
+              ? "bg-red-50 border border-red-200 text-red-800"
+              : "bg-blue-50 border border-blue-200 text-blue-800"
+          }`}
+        >
+          <Icon
+            icon={
+              toast.type === "success"
+                ? "mingcute:check-circle-line"
+                : toast.type === "error"
+                ? "mingcute:alert-circle-line"
+                : "mingcute:information-line"
+            }
+            className={`w-5 h-5 flex-shrink-0 ${
+              toast.type === "success"
+                ? "text-green-600"
+                : toast.type === "error"
+                ? "text-red-600"
+                : "text-blue-600"
+            }`}
+          />
+          <p className="flex-1 text-sm font-medium">{toast.message}</p>
+          <button
+            onClick={() => setToast(null)}
+            className="flex-shrink-0 hover:opacity-70 transition-opacity"
+          >
+            <Icon
+              icon="mingcute:close-line"
+              className={`w-4 h-4 ${
+                toast.type === "success"
+                  ? "text-green-600"
+                  : toast.type === "error"
+                  ? "text-red-600"
+                  : "text-blue-600"
+              }`}
+            />
+          </button>
+        </div>
+      )}
+
+      {/* Main Content */}
+      <Fragment>
+        <div className="flex-1 flex overflow-hidden">
+          {/* Left Sidebar - Section Manager (Always Visible) */}
+          <div className="w-80 bg-white border-r border-gray-200 overflow-y-auto">
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-semibold text-gray-900">
+                  Sections
+                </h2>
+                <div className="relative">
+                  <button
+                    onClick={() => setShowPresetMenu(!showPresetMenu)}
+                    className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                    title="Section Presets"
+                  >
+                    <Icon
+                      icon="mingcute:bookmark-line"
+                      className="w-4 h-4 text-gray-600"
+                    />
+                  </button>
+                  {showPresetMenu && (
+                    <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                      <div className="p-2">
+                        <div className="text-xs font-semibold text-gray-700 mb-2 px-2">
+                          Apply Preset
+                        </div>
+                        {sectionPresets.map((preset) => (
+                          <button
+                            key={preset.id}
+                            onClick={() => handleApplyPreset(preset.id)}
+                            className="w-full text-left px-3 py-2 hover:bg-gray-50 rounded text-sm text-gray-700"
+                          >
+                            {preset.name}
+                          </button>
+                        ))}
+                        <div className="border-t border-gray-200 my-1"></div>
+                        <button
+                          onClick={handleSavePreset}
+                          className="w-full text-left px-3 py-2 hover:bg-gray-50 rounded text-sm text-[#3351FD]"
+                        >
+                          Save Current as Preset
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Job Type Selector */}
+              <div className="mb-4">
+                <label className="text-xs font-semibold text-gray-700 mb-2 block">
+                  Job Type
+                </label>
+                <select
+                  value={jobType}
+                  onChange={(e) => setJobType(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                >
+                  <option value="all">All Types</option>
+                  <option value="tech">Tech</option>
+                  <option value="creative">Creative</option>
+                  <option value="executive">Executive</option>
+                  <option value="academic">Academic</option>
+                </select>
+              </div>
+
+              <p className="text-xs text-gray-500 mb-4">
+                Toggle sections on/off to customize your resume
+              </p>
+              <div className="space-y-2">
+                {getSidebarSections().map((section) => {
+                  const isEnabled =
+                    resume.sectionConfig?.[section.id]?.enabled !== false;
+                  const isDragging = draggedSection === section.id;
+                  const completion = getSectionCompletion(section.id);
+                  return (
+                    <div
+                      key={section.id}
+                      draggable
+                      onDragStart={() => handleDragStart(section.id)}
+                      onDragOver={handleDragOver}
+                      onDrop={() => handleDrop(section.id)}
+                      onDragEnd={handleDragEnd}
+                      className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all cursor-move ${
+                        isDragging
+                          ? "opacity-50 bg-blue-50 border-2 border-[#3351FD]"
+                          : "bg-gray-50 hover:bg-gray-100 border border-transparent"
+                      }`}
+                    >
+                      <div title="Drag to reorder">
+                        <Icon
+                          icon="mingcute:menu-line"
+                          className="w-4 h-4 text-gray-400 cursor-move"
+                        />
+                      </div>
+                      <Icon
+                        icon={section.icon}
+                        className="w-5 h-5 text-gray-600"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-gray-700">
+                            {section.label}
+                          </span>
+                          {completion.percentage > 0 && (
+                            <div className="flex items-center gap-1 ml-2">
+                              <div className="w-12 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full transition-all ${
+                                    completion.completed
+                                      ? "bg-green-500"
+                                      : completion.percentage >= 50
+                                      ? "bg-yellow-500"
+                                      : "bg-red-500"
+                                  }`}
+                                  style={{ width: `${completion.percentage}%` }}
+                                />
+                              </div>
+                              {completion.completed && (
+                                <Icon
+                                  icon="mingcute:check-line"
+                                  className="w-3 h-3 text-green-500"
+                                />
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={isEnabled}
+                        onChange={() => toggleSection(section.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-4 h-4 text-[#3351FD] bg-gray-100 border-gray-300 rounded focus:ring-[#3351FD] focus:ring-2 cursor-pointer flex-shrink-0"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Your Data Section - Shows available data from database */}
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <button
+                  onClick={() => setShowYourData(!showYourData)}
+                  className="w-full flex items-center justify-between mb-3"
+                >
+                  <h3 className="text-xs font-semibold text-gray-700 flex items-center gap-2">
+                    <Icon
+                      icon="mingcute:database-line"
+                      className="w-4 h-4 text-green-600"
+                    />
+                    Your Data
+                  </h3>
+                  <Icon
+                    icon={
+                      showYourData ? "mingcute:up-line" : "mingcute:down-line"
+                    }
+                    className="w-4 h-4 text-gray-500"
+                  />
+                </button>
+                {showYourData && (
+                  <div className="space-y-3">
+                    <p className="text-xs text-gray-600 mb-3">
+                      Import your saved information directly into your resume
+                    </p>
+
+                    {/* Skills */}
+                    {userSkills.length > 0 && (
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Icon
+                              icon="mingcute:code-line"
+                              className="w-4 h-4 text-green-600"
+                            />
+                            <span className="text-sm font-medium text-gray-900">
+                              Skills
+                            </span>
+                            <span className="text-xs text-gray-500 bg-white px-2 py-0.5 rounded-full">
+                              {userSkills.length}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => handleImportFromDatabase("skills")}
+                            className="text-xs px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors flex items-center gap-1"
+                          >
+                            <Icon
+                              icon="mingcute:add-line"
+                              className="w-3 h-3"
+                            />
+                            Add
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {userSkills.slice(0, 5).map((skill) => (
+                            <span
+                              key={skill.id}
+                              className="text-xs px-2 py-0.5 bg-white border border-green-200 rounded text-gray-700"
+                            >
+                              {skill.skillName}
+                            </span>
+                          ))}
+                          {userSkills.length > 5 && (
+                            <span className="text-xs px-2 py-0.5 text-gray-500">
+                              +{userSkills.length - 5} more
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Experience/Jobs */}
+                    {userJobs.length > 0 && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Icon
+                              icon="mingcute:briefcase-line"
+                              className="w-4 h-4 text-blue-600"
+                            />
+                            <span className="text-sm font-medium text-gray-900">
+                              Experience
+                            </span>
+                            <span className="text-xs text-gray-500 bg-white px-2 py-0.5 rounded-full">
+                              {userJobs.length}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() =>
+                              handleImportFromDatabase("experience")
+                            }
+                            className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors flex items-center gap-1"
+                          >
+                            <Icon
+                              icon="mingcute:add-line"
+                              className="w-3 h-3"
+                            />
+                            Add
+                          </button>
+                        </div>
+                        <div className="space-y-1 mt-2">
+                          {userJobs.slice(0, 3).map((job) => (
+                            <div
+                              key={job.id}
+                              className="text-xs text-gray-700 bg-white border border-blue-200 rounded p-2"
+                            >
+                              <div className="font-medium">{job.title}</div>
+                              <div className="text-gray-500">{job.company}</div>
+                            </div>
+                          ))}
+                          {userJobs.length > 3 && (
+                            <div className="text-xs text-gray-500 text-center py-1">
+                              +{userJobs.length - 3} more positions
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Education */}
+                    {userEducation.length > 0 && (
+                      <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Icon
+                              icon="mingcute:graduation-line"
+                              className="w-4 h-4 text-purple-600"
+                            />
+                            <span className="text-sm font-medium text-gray-900">
+                              Education
+                            </span>
+                            <span className="text-xs text-gray-500 bg-white px-2 py-0.5 rounded-full">
+                              {userEducation.length}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() =>
+                              handleImportFromDatabase("education")
+                            }
+                            className="text-xs px-2 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors flex items-center gap-1"
+                          >
+                            <Icon
+                              icon="mingcute:add-line"
+                              className="w-3 h-3"
+                            />
+                            Add
+                          </button>
+                        </div>
+                        <div className="space-y-1 mt-2">
+                          {userEducation.slice(0, 3).map((edu) => (
+                            <div
+                              key={edu.id}
+                              className="text-xs text-gray-700 bg-white border border-purple-200 rounded p-2"
+                            >
+                              <div className="font-medium">
+                                {edu.degreeType}
+                              </div>
+                              <div className="text-gray-500">{edu.school}</div>
+                            </div>
+                          ))}
+                          {userEducation.length > 3 && (
+                            <div className="text-xs text-gray-500 text-center py-1">
+                              +{userEducation.length - 3} more
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Projects */}
+                    {userProjects.length > 0 && (
+                      <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Icon
+                              icon="mingcute:folder-line"
+                              className="w-4 h-4 text-orange-600"
+                            />
+                            <span className="text-sm font-medium text-gray-900">
+                              Projects
+                            </span>
+                            <span className="text-xs text-gray-500 bg-white px-2 py-0.5 rounded-full">
+                              {userProjects.length}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => handleImportFromDatabase("projects")}
+                            className="text-xs px-2 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 transition-colors flex items-center gap-1"
+                          >
+                            <Icon
+                              icon="mingcute:add-line"
+                              className="w-3 h-3"
+                            />
+                            Add
+                          </button>
+                        </div>
+                        <div className="space-y-1 mt-2">
+                          {userProjects.slice(0, 3).map((proj) => (
+                            <div
+                              key={proj.id}
+                              className="text-xs text-gray-700 bg-white border border-orange-200 rounded p-2"
+                            >
+                              <div className="font-medium">{proj.name}</div>
+                              {proj.description && (
+                                <div className="text-gray-500 truncate">
+                                  {proj.description.substring(0, 40)}...
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                          {userProjects.length > 3 && (
+                            <div className="text-xs text-gray-500 text-center py-1">
+                              +{userProjects.length - 3} more
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Certifications */}
+                    {userCertifications.length > 0 && (
+                      <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Icon
+                              icon="mingcute:certificate-line"
+                              className="w-4 h-4 text-indigo-600"
+                            />
+                            <span className="text-sm font-medium text-gray-900">
+                              Certifications
+                            </span>
+                            <span className="text-xs text-gray-500 bg-white px-2 py-0.5 rounded-full">
+                              {userCertifications.length}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() =>
+                              handleImportFromDatabase("certifications")
+                            }
+                            className="text-xs px-2 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors flex items-center gap-1"
+                          >
+                            <Icon
+                              icon="mingcute:add-line"
+                              className="w-3 h-3"
+                            />
+                            Add
+                          </button>
+                        </div>
+                        <div className="space-y-1 mt-2">
+                          {userCertifications.slice(0, 3).map((cert) => (
+                            <div
+                              key={cert.id}
+                              className="text-xs text-gray-700 bg-white border border-indigo-200 rounded p-2"
+                            >
+                              <div className="font-medium">{cert.name}</div>
+                              <div className="text-gray-500">
+                                {cert.org_name}
+                              </div>
+                            </div>
+                          ))}
+                          {userCertifications.length > 3 && (
+                            <div className="text-xs text-gray-500 text-center py-1">
+                              +{userCertifications.length - 3} more
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Profile Info */}
+                    {userProfile && (
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Icon
+                              icon="mingcute:user-line"
+                              className="w-4 h-4 text-gray-600"
+                            />
+                            <span className="text-sm font-medium text-gray-900">
+                              Profile Info
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => handleImportFromDatabase("personal")}
+                            className="text-xs px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors flex items-center gap-1"
+                          >
+                            <Icon
+                              icon="mingcute:add-line"
+                              className="w-3 h-3"
+                            />
+                            Add
+                          </button>
+                        </div>
+                        <div className="text-xs text-gray-700 mt-2">
+                          <div className="font-medium">
+                            {userProfile.first_name} {userProfile.last_name}
+                          </div>
+                          <div className="text-gray-500">
+                            {userProfile.email}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Empty State */}
+                    {userSkills.length === 0 &&
+                      userJobs.length === 0 &&
+                      userEducation.length === 0 &&
+                      userProjects.length === 0 &&
+                      userCertifications.length === 0 &&
+                      !userProfile && (
+                        <div className="text-center py-4 text-gray-500 text-xs">
+                          <Icon
+                            icon="mingcute:database-line"
+                            className="w-8 h-8 mx-auto mb-2 text-gray-400"
+                          />
+                          <p>No data found in your profile</p>
+                          <p className="mt-1 text-gray-400">
+                            Add information in your dashboard to import it here
+                          </p>
+                        </div>
+                      )}
+                  </div>
+                )}
+              </div>
+
+              {/* AI Tools Section */}
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <h3 className="text-xs font-semibold text-gray-700 mb-3">
+                  AI Tools
+                </h3>
+                <div className="space-y-2">
+                  <button
+                    onClick={() => setShowAIPanel(!showAIPanel)}
+                    className="w-full flex items-center gap-3 px-3 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-colors font-medium text-sm"
+                  >
+                    <Icon icon="mingcute:ai-fill" className="w-5 h-5" />
+                    <span>AI Content Generator</span>
+                  </button>
+                  <button className="w-full flex items-center gap-3 px-3 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700 font-medium text-sm">
+                    <Icon icon="mingcute:star-line" className="w-5 h-5" />
+                    <span>Optimize Skills</span>
+                  </button>
+                  <button className="w-full flex items-center gap-3 px-3 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700 font-medium text-sm">
+                    <Icon icon="mingcute:briefcase-line" className="w-5 h-5" />
+                    <span>Tailor Experience</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Center - Resume Document */}
+          <div className="flex-1 overflow-y-auto bg-gray-100 p-8">
+            <div
+              className="max-w-4xl mx-auto bg-white shadow-lg p-12 print:shadow-none print:p-8"
+              style={{
+                fontFamily: fonts.body,
+                backgroundColor: colors.background,
+              }}
+            >
+              {/* Render sections dynamically based on order */}
+              {enabledSections.map((section) => {
+                const sectionId = section.id;
+
+                // Personal Info Section
+                if (sectionId === "personal") {
+                  return (
+                    <div
+                      key={sectionId}
+                      draggable
+                      onDragStart={() => handleDocumentDragStart("personal")}
+                      onDragOver={handleDocumentDragOver}
+                      onDrop={() => handleDocumentDrop("personal")}
+                      onDragEnd={handleDocumentDragEnd}
+                      className={`relative group transition-all ${
+                        draggedDocumentSection === "personal"
+                          ? "opacity-50 border-2 border-dashed border-[#3351FD] rounded-lg p-2"
+                          : "hover:border-2 hover:border-dashed hover:border-gray-300 rounded-lg p-2"
+                      }`}
+                      style={{
+                        ...getSectionStyle("personal"),
+                        marginBottom:
+                          getSectionFormatting("personal").marginBottom ||
+                          `${resume.customizations?.spacing?.section || 24}px`,
+                        marginTop:
+                          getSectionFormatting("personal").marginTop ||
+                          undefined,
+                      }}
+                      onDoubleClick={() => setEditingSection("personal")}
+                    >
+                      <div
+                        className={`border-b pb-6 mb-6 ${
+                          resume.customizations?.headerStyle === "centered"
+                            ? "text-center"
+                            : resume.customizations?.headerStyle === "right"
+                            ? "text-right"
+                            : "text-left"
+                        }`}
+                        style={{
+                          borderColor: colors.primary,
+                          ...(getSectionFormatting("personal").textAlign && {
+                            textAlign: getSectionFormatting("personal")
+                              .textAlign as any,
+                          }),
+                          ...(getSectionFormatting("personal").color && {
+                            color: getSectionFormatting("personal").color,
+                          }),
+                          ...(getSectionFormatting("personal").fontSize && {
+                            fontSize: getSectionFormatting("personal").fontSize,
+                          }),
+                          ...(getSectionFormatting("personal").fontWeight && {
+                            fontWeight:
+                              getSectionFormatting("personal").fontWeight,
+                          }),
+                        }}
+                      >
+                        {editingSection === "personal" ? (
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                              <input
+                                type="text"
+                                value={resume.content.personalInfo.firstName}
+                                onChange={(e) =>
+                                  updateContent("personal", {
+                                    firstName: e.target.value,
+                                  })
+                                }
+                                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                                placeholder="First Name"
+                                autoFocus
+                              />
+                              <input
+                                type="text"
+                                value={resume.content.personalInfo.lastName}
+                                onChange={(e) =>
+                                  updateContent("personal", {
+                                    lastName: e.target.value,
+                                  })
+                                }
+                                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                                placeholder="Last Name"
+                              />
+                            </div>
+                            <input
+                              type="email"
+                              value={resume.content.personalInfo.email}
+                              onChange={(e) =>
+                                updateContent("personal", {
+                                  email: e.target.value,
+                                })
+                              }
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                              placeholder="Email"
+                            />
+                            <input
+                              type="tel"
+                              value={resume.content.personalInfo.phone}
+                              onChange={(e) =>
+                                updateContent("personal", {
+                                  phone: e.target.value,
+                                })
+                              }
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                              placeholder="Phone"
+                            />
+                            <input
+                              type="text"
+                              value={resume.content.personalInfo.location}
+                              onChange={(e) =>
+                                updateContent("personal", {
+                                  location: e.target.value,
+                                })
+                              }
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                              placeholder="Location"
+                            />
+                            <button
+                              onClick={() => setEditingSection(null)}
+                              className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors"
+                            >
+                              Done
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <h1
+                              className="text-4xl font-bold mb-2"
+                              style={{
+                                color: colors.primary,
+                                fontFamily: fonts.heading,
+                              }}
+                            >
+                              {resume.content.personalInfo.firstName}{" "}
+                              {resume.content.personalInfo.lastName}
+                            </h1>
+                            <div
+                              className="flex items-center justify-center gap-4 mt-3 text-sm flex-wrap"
+                              style={{ color: colors.secondary }}
+                            >
+                              {resume.content.personalInfo.email && (
+                                <span>{resume.content.personalInfo.email}</span>
+                              )}
+                              {resume.content.personalInfo.phone && (
+                                <span>
+                                  • {resume.content.personalInfo.phone}
+                                </span>
+                              )}
+                              {resume.content.personalInfo.location && (
+                                <span>
+                                  • {resume.content.personalInfo.location}
+                                </span>
+                              )}
+                              {resume.content.personalInfo.linkedIn && (
+                                <span>
+                                  • {resume.content.personalInfo.linkedIn}
+                                </span>
+                              )}
+                              {resume.content.personalInfo.portfolio && (
+                                <span>
+                                  • {resume.content.personalInfo.portfolio}
+                                </span>
+                              )}
+                            </div>
+                            <div className="absolute top-0 right-0 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              {userProfile && (
+                                <button
+                                  className="p-2 hover:bg-gray-100 rounded-lg"
+                                  onClick={() =>
+                                    handleImportFromDatabase("personal")
+                                  }
+                                  title="Import from Profile"
+                                >
+                                  <Icon
+                                    icon="mingcute:download-line"
+                                    className="w-4 h-4 text-green-600"
+                                  />
+                                </button>
+                              )}
+                              <button
+                                className="p-2 hover:bg-gray-100 rounded-lg"
+                                onClick={() => setEditingSection("personal")}
+                                title="Edit"
+                              >
+                                <Icon
+                                  icon="mingcute:edit-line"
+                                  className="w-4 h-4 text-gray-600"
+                                />
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Summary Section
+                if (sectionId === "summary" && resume.content.summary) {
+                  return (
+                    <div
+                      key={sectionId}
+                      draggable
+                      onDragStart={() => handleDocumentDragStart("summary")}
+                      onDragOver={handleDocumentDragOver}
+                      onDrop={() => handleDocumentDrop("summary")}
+                      onDragEnd={handleDocumentDragEnd}
+                      className={`relative group transition-all ${
+                        draggedDocumentSection === "summary"
+                          ? "opacity-50 border-2 border-dashed border-[#3351FD] rounded-lg p-2"
+                          : "hover:border-2 hover:border-dashed hover:border-gray-300 rounded-lg p-2"
+                      }`}
+                      style={{
+                        ...getSectionStyle("summary"),
+                        marginBottom:
+                          getSectionFormatting("summary").marginBottom ||
+                          `${resume.customizations?.spacing?.section || 24}px`,
+                        marginTop:
+                          getSectionFormatting("summary").marginTop ||
+                          undefined,
+                      }}
+                      onDoubleClick={() => setEditingSection("summary")}
+                    >
+                      {editingSection === "summary" ? (
+                        <div>
+                          <textarea
+                            value={resume.content.summary}
+                            onChange={(e) =>
+                              updateContent("summary", e.target.value)
+                            }
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent min-h-[100px]"
+                            placeholder="Professional summary"
+                            autoFocus
+                          />
+                          <button
+                            onClick={() => setEditingSection(null)}
+                            className="mt-2 px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors"
+                          >
+                            Done
+                          </button>
+                        </div>
+                      ) : (
+                        <div
+                          style={{
+                            ...(getSectionFormatting("summary").textAlign && {
+                              textAlign: getSectionFormatting("summary")
+                                .textAlign as any,
+                            }),
+                            ...(getSectionFormatting("summary").color && {
+                              color: getSectionFormatting("summary").color,
+                            }),
+                            ...(getSectionFormatting("summary").fontSize && {
+                              fontSize:
+                                getSectionFormatting("summary").fontSize,
+                            }),
+                            ...(getSectionFormatting("summary").fontWeight && {
+                              fontWeight:
+                                getSectionFormatting("summary").fontWeight,
+                            }),
+                            ...(getSectionFormatting("summary")
+                              .backgroundColor && {
+                              backgroundColor:
+                                getSectionFormatting("summary").backgroundColor,
+                              padding: "12px",
+                              borderRadius: "8px",
+                            }),
+                          }}
+                        >
+                          <h2
+                            className="text-2xl font-semibold mb-3"
+                            style={{
+                              color:
+                                getSectionFormatting("summary").color ||
+                                colors.primary,
+                              fontFamily: fonts.heading,
+                            }}
+                          >
+                            Summary
+                          </h2>
+                          <p className="leading-relaxed">
+                            {resume.content.summary}
+                          </p>
+                          <button
+                            className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-gray-100 rounded-lg"
+                            onClick={() => setEditingSection("summary")}
+                            title="Edit"
+                          >
+                            <Icon
+                              icon="mingcute:edit-line"
+                              className="w-4 h-4 text-gray-600"
+                            />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                // Experience Section
+                if (sectionId === "experience") {
+                  return (
+                    <div
+                      key={sectionId}
+                      draggable
+                      onDragStart={() => handleDocumentDragStart("experience")}
+                      onDragOver={handleDocumentDragOver}
+                      onDrop={() => handleDocumentDrop("experience")}
+                      onDragEnd={handleDocumentDragEnd}
+                      className={`relative group transition-all ${
+                        draggedDocumentSection === "experience"
+                          ? "opacity-50 border-2 border-dashed border-[#3351FD] rounded-lg p-2"
+                          : "hover:border-2 hover:border-dashed hover:border-gray-300 rounded-lg p-2"
+                      }`}
+                      style={{
+                        ...getSectionStyle("experience"),
+                        marginBottom:
+                          getSectionFormatting("experience").marginBottom ||
+                          `${resume.customizations?.spacing?.section || 24}px`,
+                        marginTop:
+                          getSectionFormatting("experience").marginTop ||
+                          undefined,
+                      }}
+                    >
+                      <div
+                        style={{
+                          ...(getSectionFormatting("experience").textAlign && {
+                            textAlign: getSectionFormatting("experience")
+                              .textAlign as any,
+                          }),
+                          ...(getSectionFormatting("experience").color && {
+                            color: getSectionFormatting("experience").color,
+                          }),
+                          ...(getSectionFormatting("experience").fontSize && {
+                            fontSize:
+                              getSectionFormatting("experience").fontSize,
+                          }),
+                          ...(getSectionFormatting("experience").fontWeight && {
+                            fontWeight:
+                              getSectionFormatting("experience").fontWeight,
+                          }),
+                          ...(getSectionFormatting("experience")
+                            .backgroundColor && {
+                            backgroundColor:
+                              getSectionFormatting("experience")
+                                .backgroundColor,
+                            padding: "12px",
+                            borderRadius: "8px",
+                          }),
+                        }}
+                      >
+                        <div className="flex items-center justify-between mb-4">
+                          <h2
+                            className="text-2xl font-semibold"
+                            style={{
+                              color:
+                                getSectionFormatting("experience").color ||
+                                colors.primary,
+                              fontFamily: fonts.heading,
+                            }}
+                          >
+                            Experience
+                          </h2>
+                          <div className="flex gap-2">
+                            {userJobs.length > 0 && (
+                              <button
+                                onClick={() =>
+                                  handleImportFromDatabase("experience")
+                                }
+                                className="opacity-0 group-hover:opacity-100 transition-opacity px-3 py-1 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700"
+                                title="Import from Database"
+                              >
+                                <Icon
+                                  icon="mingcute:download-line"
+                                  className="w-4 h-4 inline mr-1"
+                                />
+                                Import
+                              </button>
+                            )}
+                            <button
+                              onClick={() =>
+                                setEditingItem({
+                                  section: "experience",
+                                  itemId: "new",
+                                })
+                              }
+                              className="opacity-0 group-hover:opacity-100 transition-opacity px-3 py-1 text-sm bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4]"
+                            >
+                              <Icon
+                                icon="mingcute:add-line"
+                                className="w-4 h-4 inline mr-1"
+                              />
+                              Add
+                            </button>
+                          </div>
+                        </div>
+                        {resume.content.experience &&
+                        resume.content.experience.length > 0 ? (
+                          <div className="space-y-6">
+                            {resume.content.experience.map((exp) => (
+                              <div
+                                key={exp.id}
+                                className="border-l-2 pl-4 relative group/item"
+                                style={{ borderColor: colors.primary }}
+                              >
+                                {editingItem?.section === "experience" &&
+                                editingItem?.itemId === exp.id ? (
+                                  <div className="space-y-3 p-4 bg-gray-50 rounded-lg">
+                                    <div className="grid grid-cols-2 gap-3">
+                                      <input
+                                        type="text"
+                                        defaultValue={exp.title}
+                                        onBlur={(e) =>
+                                          updateItem(
+                                            "experience",
+                                            exp.id,
+                                            {
+                                              title: e.target.value,
+                                            },
+                                            false
+                                          )
+                                        }
+                                        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                                        placeholder="Job Title"
+                                      />
+                                      <input
+                                        type="text"
+                                        defaultValue={exp.company}
+                                        onBlur={(e) =>
+                                          updateItem(
+                                            "experience",
+                                            exp.id,
+                                            {
+                                              company: e.target.value,
+                                            },
+                                            false
+                                          )
+                                        }
+                                        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                                        placeholder="Company"
+                                      />
+                                    </div>
+                                    <input
+                                      type="text"
+                                      defaultValue={exp.location || ""}
+                                      onBlur={(e) =>
+                                        updateItem(
+                                          "experience",
+                                          exp.id,
+                                          {
+                                            location: e.target.value,
+                                          },
+                                          false
+                                        )
+                                      }
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                                      placeholder="Location"
+                                    />
+                                    <div className="grid grid-cols-2 gap-3">
+                                      <input
+                                        type="month"
+                                        defaultValue={exp.startDate}
+                                        onBlur={(e) =>
+                                          updateItem(
+                                            "experience",
+                                            exp.id,
+                                            {
+                                              startDate: e.target.value,
+                                            },
+                                            false
+                                          )
+                                        }
+                                        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                                      />
+                                      <div className="flex items-center gap-2">
+                                        <input
+                                          type="month"
+                                          defaultValue={exp.endDate || ""}
+                                          onBlur={(e) =>
+                                            updateItem(
+                                              "experience",
+                                              exp.id,
+                                              {
+                                                endDate: e.target.value,
+                                                isCurrent: false,
+                                              },
+                                              false
+                                            )
+                                          }
+                                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                                          disabled={exp.isCurrent}
+                                        />
+                                        <label className="flex items-center gap-2 text-sm">
+                                          <input
+                                            type="checkbox"
+                                            defaultChecked={exp.isCurrent}
+                                            onChange={(e) =>
+                                              updateItem(
+                                                "experience",
+                                                exp.id,
+                                                {
+                                                  isCurrent: e.target.checked,
+                                                  endDate: e.target.checked
+                                                    ? undefined
+                                                    : exp.endDate,
+                                                },
+                                                false
+                                              )
+                                            }
+                                            className="w-4 h-4"
+                                          />
+                                          Current
+                                        </label>
+                                      </div>
+                                    </div>
+                                    <textarea
+                                      defaultValue={
+                                        exp.description?.join("\n") || ""
+                                      }
+                                      onBlur={(e) =>
+                                        updateItem(
+                                          "experience",
+                                          exp.id,
+                                          {
+                                            description: e.target.value
+                                              .split("\n")
+                                              .filter((l) => l.trim()),
+                                          },
+                                          false
+                                        )
+                                      }
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent min-h-[100px]"
+                                      placeholder="Description (one per line)"
+                                    />
+                                    <div className="flex gap-2">
+                                      <button
+                                        onClick={() => setEditingItem(null)}
+                                        className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors"
+                                      >
+                                        Done
+                                      </button>
+                                      <button
+                                        onClick={() =>
+                                          deleteItem("experience", exp.id)
+                                        }
+                                        className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                                      >
+                                        Delete
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <div className="flex items-center justify-between mb-1">
+                                      <h3 className="text-lg font-semibold text-gray-900">
+                                        {exp.title}
+                                      </h3>
+                                      <span className="text-sm text-gray-600">
+                                        {exp.startDate} -{" "}
+                                        {exp.isCurrent
+                                          ? "Present"
+                                          : exp.endDate || ""}
+                                      </span>
+                                    </div>
+                                    <p className="text-gray-700 font-medium mb-2">
+                                      {exp.company}
+                                    </p>
+                                    {exp.location && (
+                                      <p className="text-sm text-gray-600 mb-2">
+                                        {exp.location}
+                                      </p>
+                                    )}
+                                    {exp.description &&
+                                      exp.description.length > 0 && (
+                                        <ul className="list-disc list-inside space-y-1 text-gray-700">
+                                          {exp.description.map((desc, idx) => (
+                                            <li key={idx}>{desc}</li>
+                                          ))}
+                                        </ul>
+                                      )}
+                                    <button
+                                      className="absolute top-0 right-0 opacity-0 group-hover/item:opacity-100 transition-opacity p-2 hover:bg-gray-100 rounded-lg"
+                                      onClick={() =>
+                                        setEditingItem({
+                                          section: "experience",
+                                          itemId: exp.id,
+                                        })
+                                      }
+                                      title="Edit"
+                                    >
+                                      <Icon
+                                        icon="mingcute:edit-line"
+                                        className="w-4 h-4 text-gray-600"
+                                      />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
+                            <p className="text-gray-500 text-sm mb-3">
+                              No experience entries yet
+                            </p>
+                            <button
+                              onClick={() =>
+                                setEditingItem({
+                                  section: "experience",
+                                  itemId: "new",
+                                })
+                              }
+                              className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors text-sm"
+                            >
+                              <Icon
+                                icon="mingcute:add-line"
+                                className="w-4 h-4 inline mr-1"
+                              />
+                              Add Experience
+                            </button>
+                          </div>
+                        )}
+                        {editingItem?.section === "experience" &&
+                          editingItem?.itemId === "new" && (
+                            <div className="mt-4 p-4 bg-gray-50 rounded-lg space-y-3">
+                              <div className="grid grid-cols-2 gap-3">
+                                <input
+                                  type="text"
+                                  id="new-exp-title"
+                                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                                  placeholder="Job Title"
+                                />
+                                <input
+                                  type="text"
+                                  id="new-exp-company"
+                                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                                  placeholder="Company"
+                                />
+                              </div>
+                              <input
+                                type="text"
+                                id="new-exp-location"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                                placeholder="Location"
+                              />
+                              <div className="grid grid-cols-2 gap-3">
+                                <input
+                                  type="month"
+                                  id="new-exp-start"
+                                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                                  placeholder="Start Date"
+                                />
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="month"
+                                    id="new-exp-end"
+                                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                                    placeholder="End Date"
+                                  />
+                                  <label className="flex items-center gap-2 text-sm">
+                                    <input
+                                      type="checkbox"
+                                      id="new-exp-current"
+                                      className="w-4 h-4"
+                                    />
+                                    Current
+                                  </label>
+                                </div>
+                              </div>
+                              <textarea
+                                id="new-exp-desc"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent min-h-[100px]"
+                                placeholder="Description (one per line)"
+                              />
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => {
+                                    const title = (
+                                      document.getElementById(
+                                        "new-exp-title"
+                                      ) as HTMLInputElement
+                                    )?.value;
+                                    const company = (
+                                      document.getElementById(
+                                        "new-exp-company"
+                                      ) as HTMLInputElement
+                                    )?.value;
+                                    const location = (
+                                      document.getElementById(
+                                        "new-exp-location"
+                                      ) as HTMLInputElement
+                                    )?.value;
+                                    const startDate = (
+                                      document.getElementById(
+                                        "new-exp-start"
+                                      ) as HTMLInputElement
+                                    )?.value;
+                                    const endDate = (
+                                      document.getElementById(
+                                        "new-exp-end"
+                                      ) as HTMLInputElement
+                                    )?.value;
+                                    const isCurrent = (
+                                      document.getElementById(
+                                        "new-exp-current"
+                                      ) as HTMLInputElement
+                                    )?.checked;
+                                    const desc = (
+                                      document.getElementById(
+                                        "new-exp-desc"
+                                      ) as HTMLTextAreaElement
+                                    )?.value;
+                                    if (title && company && startDate) {
+                                      addItem("experience", {
+                                        id: `exp-${Date.now()}`,
+                                        title,
+                                        company,
+                                        location: location || undefined,
+                                        startDate,
+                                        endDate: isCurrent
+                                          ? undefined
+                                          : endDate || undefined,
+                                        isCurrent: isCurrent || false,
+                                        description: desc
+                                          ? desc
+                                              .split("\n")
+                                              .filter((l) => l.trim())
+                                          : [],
+                                      });
+                                    }
+                                  }}
+                                  className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors"
+                                >
+                                  Add
+                                </button>
+                                <button
+                                  onClick={() => setEditingItem(null)}
+                                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Education Section
+                if (sectionId === "education") {
+                  return (
+                    <div
+                      key={sectionId}
+                      draggable
+                      onDragStart={() => handleDocumentDragStart("education")}
+                      onDragOver={handleDocumentDragOver}
+                      onDrop={() => handleDocumentDrop("education")}
+                      onDragEnd={handleDocumentDragEnd}
+                      className={`relative group transition-all ${
+                        draggedDocumentSection === "education"
+                          ? "opacity-50 border-2 border-dashed border-[#3351FD] rounded-lg p-2"
+                          : "hover:border-2 hover:border-dashed hover:border-gray-300 rounded-lg p-2"
+                      }`}
+                      style={{
+                        ...getSectionStyle("education"),
+                        marginBottom:
+                          getSectionFormatting("education").marginBottom ||
+                          `${resume.customizations?.spacing?.section || 24}px`,
+                        marginTop:
+                          getSectionFormatting("education").marginTop ||
+                          undefined,
+                      }}
+                    >
+                      <div
+                        style={{
+                          ...(getSectionFormatting("education").textAlign && {
+                            textAlign: getSectionFormatting("education")
+                              .textAlign as any,
+                          }),
+                          ...(getSectionFormatting("education").color && {
+                            color: getSectionFormatting("education").color,
+                          }),
+                          ...(getSectionFormatting("education").fontSize && {
+                            fontSize:
+                              getSectionFormatting("education").fontSize,
+                          }),
+                          ...(getSectionFormatting("education").fontWeight && {
+                            fontWeight:
+                              getSectionFormatting("education").fontWeight,
+                          }),
+                          ...(getSectionFormatting("education")
+                            .backgroundColor && {
+                            backgroundColor:
+                              getSectionFormatting("education").backgroundColor,
+                            padding: "12px",
+                            borderRadius: "8px",
+                          }),
+                        }}
+                      >
+                        <div className="flex items-center justify-between mb-4">
+                          <h2
+                            className="text-2xl font-semibold"
+                            style={{
+                              color:
+                                getSectionFormatting("education").color ||
+                                colors.primary,
+                              fontFamily: fonts.heading,
+                            }}
+                          >
+                            Education
+                          </h2>
+                          <div className="flex gap-2">
+                            {userEducation.length > 0 && (
+                              <button
+                                onClick={() =>
+                                  handleImportFromDatabase("education")
+                                }
+                                className="opacity-0 group-hover:opacity-100 transition-opacity px-3 py-1 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700"
+                                title="Import from Database"
+                              >
+                                <Icon
+                                  icon="mingcute:download-line"
+                                  className="w-4 h-4 inline mr-1"
+                                />
+                                Import
+                              </button>
+                            )}
+                            <button
+                              onClick={() =>
+                                setEditingItem({
+                                  section: "education",
+                                  itemId: "new",
+                                })
+                              }
+                              className="opacity-0 group-hover:opacity-100 transition-opacity px-3 py-1 text-sm bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4]"
+                            >
+                              <Icon
+                                icon="mingcute:add-line"
+                                className="w-4 h-4 inline mr-1"
+                              />
+                              Add
+                            </button>
+                          </div>
+                        </div>
+                        {resume.content.education &&
+                        resume.content.education.length > 0 ? (
+                          <div className="space-y-4">
+                            {resume.content.education.map((edu) => (
+                              <div key={edu.id} className="relative group/item">
+                                {editingItem?.section === "education" &&
+                                editingItem?.itemId === edu.id ? (
+                                  <div className="space-y-3 p-4 bg-gray-50 rounded-lg">
+                                    <input
+                                      type="text"
+                                      defaultValue={edu.degree}
+                                      onBlur={(e) =>
+                                        updateItem(
+                                          "education",
+                                          edu.id,
+                                          {
+                                            degree: e.target.value,
+                                          },
+                                          false
+                                        )
+                                      }
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                                      placeholder="Degree"
+                                    />
+                                    <input
+                                      type="text"
+                                      defaultValue={edu.school}
+                                      onBlur={(e) =>
+                                        updateItem(
+                                          "education",
+                                          edu.id,
+                                          {
+                                            school: e.target.value,
+                                          },
+                                          false
+                                        )
+                                      }
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                                      placeholder="School"
+                                    />
+                                    <input
+                                      type="text"
+                                      defaultValue={edu.field || ""}
+                                      onBlur={(e) =>
+                                        updateItem(
+                                          "education",
+                                          edu.id,
+                                          {
+                                            field: e.target.value || undefined,
+                                          },
+                                          false
+                                        )
+                                      }
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                                      placeholder="Field of Study"
+                                    />
+                                    <div className="grid grid-cols-2 gap-3">
+                                      <input
+                                        type="month"
+                                        defaultValue={edu.startDate || ""}
+                                        onBlur={(e) =>
+                                          updateItem(
+                                            "education",
+                                            edu.id,
+                                            {
+                                              startDate:
+                                                e.target.value || undefined,
+                                            },
+                                            false
+                                          )
+                                        }
+                                        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                                        placeholder="Start Date"
+                                      />
+                                      <input
+                                        type="month"
+                                        defaultValue={edu.endDate || ""}
+                                        onBlur={(e) =>
+                                          updateItem(
+                                            "education",
+                                            edu.id,
+                                            {
+                                              endDate:
+                                                e.target.value || undefined,
+                                            },
+                                            false
+                                          )
+                                        }
+                                        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                                        placeholder="End Date"
+                                      />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                      <input
+                                        type="number"
+                                        step="0.1"
+                                        defaultValue={edu.gpa || ""}
+                                        onBlur={(e) =>
+                                          updateItem(
+                                            "education",
+                                            edu.id,
+                                            {
+                                              gpa: e.target.value
+                                                ? parseFloat(e.target.value)
+                                                : undefined,
+                                            },
+                                            false
+                                          )
+                                        }
+                                        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                                        placeholder="GPA"
+                                      />
+                                      <input
+                                        type="text"
+                                        defaultValue={edu.honors || ""}
+                                        onBlur={(e) =>
+                                          updateItem(
+                                            "education",
+                                            edu.id,
+                                            {
+                                              honors:
+                                                e.target.value || undefined,
+                                            },
+                                            false
+                                          )
+                                        }
+                                        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                                        placeholder="Honors"
+                                      />
+                                    </div>
+                                    <div className="flex gap-2">
+                                      <button
+                                        onClick={() => setEditingItem(null)}
+                                        className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors"
+                                      >
+                                        Done
+                                      </button>
+                                      <button
+                                        onClick={() =>
+                                          deleteItem("education", edu.id)
+                                        }
+                                        className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                                      >
+                                        Delete
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <h3 className="text-lg font-semibold text-gray-900">
+                                      {edu.degree}
+                                    </h3>
+                                    <p className="text-gray-700">
+                                      {edu.school}
+                                    </p>
+                                    {edu.field && (
+                                      <p className="text-gray-600 text-sm">
+                                        {edu.field}
+                                      </p>
+                                    )}
+                                    {edu.endDate && (
+                                      <p className="text-sm text-gray-600">
+                                        Graduated: {edu.endDate}
+                                      </p>
+                                    )}
+                                    {edu.gpa && (
+                                      <p className="text-sm text-gray-600">
+                                        GPA: {edu.gpa}
+                                      </p>
+                                    )}
+                                    {edu.honors && (
+                                      <p className="text-sm text-gray-600">
+                                        {edu.honors}
+                                      </p>
+                                    )}
+                                    <button
+                                      className="absolute top-0 right-0 opacity-0 group-hover/item:opacity-100 transition-opacity p-2 hover:bg-gray-100 rounded-lg"
+                                      onClick={() =>
+                                        setEditingItem({
+                                          section: "education",
+                                          itemId: edu.id,
+                                        })
+                                      }
+                                      title="Edit"
+                                    >
+                                      <Icon
+                                        icon="mingcute:edit-line"
+                                        className="w-4 h-4 text-gray-600"
+                                      />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
+                            <p className="text-gray-500 text-sm mb-3">
+                              No education entries yet
+                            </p>
+                            <button
+                              onClick={() =>
+                                setEditingItem({
+                                  section: "education",
+                                  itemId: "new",
+                                })
+                              }
+                              className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors text-sm"
+                            >
+                              <Icon
+                                icon="mingcute:add-line"
+                                className="w-4 h-4 inline mr-1"
+                              />
+                              Add Education
+                            </button>
+                          </div>
+                        )}
+                        {editingItem?.section === "education" &&
+                          editingItem?.itemId === "new" && (
+                            <div className="mt-4 p-4 bg-gray-50 rounded-lg space-y-3">
+                              <input
+                                type="text"
+                                id="new-edu-degree"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                                placeholder="Degree"
+                              />
+                              <input
+                                type="text"
+                                id="new-edu-school"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                                placeholder="School"
+                              />
+                              <input
+                                type="text"
+                                id="new-edu-field"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                                placeholder="Field of Study"
+                              />
+                              <div className="grid grid-cols-2 gap-3">
+                                <input
+                                  type="month"
+                                  id="new-edu-start"
+                                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                                  placeholder="Start Date"
+                                />
+                                <input
+                                  type="month"
+                                  id="new-edu-end"
+                                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                                  placeholder="End Date"
+                                />
+                              </div>
+                              <div className="grid grid-cols-2 gap-3">
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  id="new-edu-gpa"
+                                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                                  placeholder="GPA"
+                                />
+                                <input
+                                  type="text"
+                                  id="new-edu-honors"
+                                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                                  placeholder="Honors"
+                                />
+                              </div>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => {
+                                    const degree = (
+                                      document.getElementById(
+                                        "new-edu-degree"
+                                      ) as HTMLInputElement
+                                    )?.value;
+                                    const school = (
+                                      document.getElementById(
+                                        "new-edu-school"
+                                      ) as HTMLInputElement
+                                    )?.value;
+                                    const field = (
+                                      document.getElementById(
+                                        "new-edu-field"
+                                      ) as HTMLInputElement
+                                    )?.value;
+                                    const startDate = (
+                                      document.getElementById(
+                                        "new-edu-start"
+                                      ) as HTMLInputElement
+                                    )?.value;
+                                    const endDate = (
+                                      document.getElementById(
+                                        "new-edu-end"
+                                      ) as HTMLInputElement
+                                    )?.value;
+                                    const gpa = (
+                                      document.getElementById(
+                                        "new-edu-gpa"
+                                      ) as HTMLInputElement
+                                    )?.value;
+                                    const honors = (
+                                      document.getElementById(
+                                        "new-edu-honors"
+                                      ) as HTMLInputElement
+                                    )?.value;
+                                    if (degree && school) {
+                                      addItem("education", {
+                                        id: `edu-${Date.now()}`,
+                                        degree,
+                                        school,
+                                        field: field || undefined,
+                                        startDate: startDate || undefined,
+                                        endDate: endDate || undefined,
+                                        gpa: gpa ? parseFloat(gpa) : undefined,
+                                        honors: honors || undefined,
+                                      });
+                                    }
+                                  }}
+                                  className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors"
+                                >
+                                  Add
+                                </button>
+                                <button
+                                  onClick={() => setEditingItem(null)}
+                                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Skills Section
+                if (sectionId === "skills") {
+                  return (
+                    <div
+                      key={sectionId}
+                      draggable
+                      onDragStart={() => handleDocumentDragStart("skills")}
+                      onDragOver={handleDocumentDragOver}
+                      onDrop={() => handleDocumentDrop("skills")}
+                      onDragEnd={handleDocumentDragEnd}
+                      className={`relative group transition-all ${
+                        draggedDocumentSection === "skills"
+                          ? "opacity-50 border-2 border-dashed border-[#3351FD] rounded-lg p-2"
+                          : "hover:border-2 hover:border-dashed hover:border-gray-300 rounded-lg p-2"
+                      }`}
+                      style={{
+                        ...getSectionStyle("skills"),
+                        marginBottom:
+                          getSectionFormatting("skills").marginBottom ||
+                          `${resume.customizations?.spacing?.section || 24}px`,
+                        marginTop:
+                          getSectionFormatting("skills").marginTop || undefined,
+                      }}
+                    >
+                      <div
+                        style={{
+                          ...(getSectionFormatting("skills").textAlign && {
+                            textAlign: getSectionFormatting("skills")
+                              .textAlign as any,
+                          }),
+                          ...(getSectionFormatting("skills").color && {
+                            color: getSectionFormatting("skills").color,
+                          }),
+                          ...(getSectionFormatting("skills").fontSize && {
+                            fontSize: getSectionFormatting("skills").fontSize,
+                          }),
+                          ...(getSectionFormatting("skills").fontWeight && {
+                            fontWeight:
+                              getSectionFormatting("skills").fontWeight,
+                          }),
+                          ...(getSectionFormatting("skills")
+                            .backgroundColor && {
+                            backgroundColor:
+                              getSectionFormatting("skills").backgroundColor,
+                            padding: "12px",
+                            borderRadius: "8px",
+                          }),
+                        }}
+                      >
+                        <div className="flex items-center justify-between mb-4">
+                          <h2
+                            className="text-2xl font-semibold"
+                            style={{
+                              color:
+                                getSectionFormatting("skills").color ||
+                                colors.primary,
+                              fontFamily: fonts.heading,
+                            }}
+                          >
+                            Skills
+                          </h2>
+                          {editingSection !== "skills" && (
+                            <div className="flex gap-2">
+                              {userSkills.length > 0 && (
+                                <button
+                                  onClick={() =>
+                                    handleImportFromDatabase("skills")
+                                  }
+                                  className="opacity-0 group-hover:opacity-100 transition-opacity px-3 py-1 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700"
+                                  title="Import from Database"
+                                >
+                                  <Icon
+                                    icon="mingcute:download-line"
+                                    className="w-4 h-4 inline mr-1"
+                                  />
+                                  Import
+                                </button>
+                              )}
+                              <button
+                                onClick={() => setEditingSection("skills")}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity px-3 py-1 text-sm bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4]"
+                              >
+                                <Icon
+                                  icon="mingcute:edit-line"
+                                  className="w-4 h-4 inline mr-1"
+                                />
+                                Edit
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                        {editingSection === "skills" ? (
+                          <div className="space-y-3 p-4 bg-gray-50 rounded-lg">
+                            <div className="flex flex-wrap gap-2 mb-3">
+                              {resume.content.skills &&
+                                resume.content.skills.map((skill) => (
+                                  <span
+                                    key={skill.id}
+                                    className="px-3 py-1 rounded-lg text-sm font-medium flex items-center gap-2"
+                                    style={{
+                                      backgroundColor: colors.primary,
+                                      color: "white",
+                                    }}
+                                  >
+                                    {skill.name}
+                                    <button
+                                      onClick={() =>
+                                        deleteItem("skills", skill.id)
+                                      }
+                                      className="hover:bg-white/20 rounded p-0.5"
+                                    >
+                                      <Icon
+                                        icon="mingcute:close-line"
+                                        className="w-3 h-3"
+                                      />
+                                    </button>
+                                  </span>
+                                ))}
+                            </div>
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                id="new-skill"
+                                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                                placeholder="Add skill"
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    const input = e.target as HTMLInputElement;
+                                    const skillName = input.value.trim();
+                                    if (skillName) {
+                                      addItem("skills", {
+                                        id: `skill-${Date.now()}`,
+                                        name: skillName,
+                                        category: "Technical",
+                                        proficiency: "",
+                                      });
+                                      input.value = "";
+                                    }
+                                  }
+                                }}
+                              />
+                              <button
+                                onClick={() => {
+                                  const input = document.getElementById(
+                                    "new-skill"
+                                  ) as HTMLInputElement;
+                                  const skillName = input.value.trim();
+                                  if (skillName) {
+                                    addItem("skills", {
+                                      id: `skill-${Date.now()}`,
+                                      name: skillName,
+                                      category: "Technical",
+                                      proficiency: "",
+                                    });
+                                    input.value = "";
+                                  }
+                                }}
+                                className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors"
+                              >
+                                Add
+                              </button>
+                            </div>
+                            <button
+                              onClick={() => setEditingSection(null)}
+                              className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors"
+                            >
+                              Done
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            {resume.content.skills &&
+                            resume.content.skills.length > 0 ? (
+                              <div className="flex flex-wrap gap-2">
+                                {resume.content.skills.map((skill) => (
+                                  <span
+                                    key={skill.id}
+                                    className="px-3 py-1 rounded-lg text-sm font-medium"
+                                    style={{
+                                      backgroundColor: colors.primary,
+                                      color: "white",
+                                    }}
+                                  >
+                                    {skill.name}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-gray-500 text-sm italic">
+                                No skills yet. Click Edit to add skills.
+                              </p>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Projects Section
+                if (sectionId === "projects") {
+                  return (
+                    <div
+                      key={sectionId}
+                      draggable
+                      onDragStart={() => handleDocumentDragStart("projects")}
+                      onDragOver={handleDocumentDragOver}
+                      onDrop={() => handleDocumentDrop("projects")}
+                      onDragEnd={handleDocumentDragEnd}
+                      className={`relative group transition-all ${
+                        draggedDocumentSection === "projects"
+                          ? "opacity-50 border-2 border-dashed border-[#3351FD] rounded-lg p-2"
+                          : "hover:border-2 hover:border-dashed hover:border-gray-300 rounded-lg p-2"
+                      }`}
+                      style={{
+                        ...getSectionStyle("projects"),
+                        marginBottom:
+                          getSectionFormatting("projects").marginBottom ||
+                          `${resume.customizations?.spacing?.section || 24}px`,
+                        marginTop:
+                          getSectionFormatting("projects").marginTop ||
+                          undefined,
+                      }}
+                    >
+                      <div
+                        style={{
+                          ...(getSectionFormatting("projects").textAlign && {
+                            textAlign: getSectionFormatting("projects")
+                              .textAlign as any,
+                          }),
+                          ...(getSectionFormatting("projects").color && {
+                            color: getSectionFormatting("projects").color,
+                          }),
+                          ...(getSectionFormatting("projects").fontSize && {
+                            fontSize: getSectionFormatting("projects").fontSize,
+                          }),
+                          ...(getSectionFormatting("projects").fontWeight && {
+                            fontWeight:
+                              getSectionFormatting("projects").fontWeight,
+                          }),
+                          ...(getSectionFormatting("projects")
+                            .backgroundColor && {
+                            backgroundColor:
+                              getSectionFormatting("projects").backgroundColor,
+                            padding: "12px",
+                            borderRadius: "8px",
+                          }),
+                        }}
+                      >
+                        <div className="flex items-center justify-between mb-4">
+                          <h2
+                            className="text-2xl font-semibold"
+                            style={{
+                              color:
+                                getSectionFormatting("projects").color ||
+                                colors.primary,
+                              fontFamily: fonts.heading,
+                            }}
+                          >
+                            Projects
+                          </h2>
+                          <div className="flex gap-2">
+                            {userProjects.length > 0 && (
+                              <button
+                                onClick={() =>
+                                  handleImportFromDatabase("projects")
+                                }
+                                className="opacity-0 group-hover:opacity-100 transition-opacity px-3 py-1 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700"
+                                title="Import from Database"
+                              >
+                                <Icon
+                                  icon="mingcute:download-line"
+                                  className="w-4 h-4 inline mr-1"
+                                />
+                                Import
+                              </button>
+                            )}
+                            <button
+                              onClick={() =>
+                                setEditingItem({
+                                  section: "projects",
+                                  itemId: "new",
+                                })
+                              }
+                              className="opacity-0 group-hover:opacity-100 transition-opacity px-3 py-1 text-sm bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4]"
+                            >
+                              <Icon
+                                icon="mingcute:add-line"
+                                className="w-4 h-4 inline mr-1"
+                              />
+                              Add
+                            </button>
+                          </div>
+                        </div>
+                        {resume.content.projects &&
+                        resume.content.projects.length > 0 ? (
+                          <div className="space-y-4">
+                            {resume.content.projects.map((project) => (
+                              <div
+                                key={project.id}
+                                className="relative group/item"
+                              >
+                                {editingItem?.section === "projects" &&
+                                editingItem?.itemId === project.id ? (
+                                  <div className="space-y-3 p-4 bg-gray-50 rounded-lg">
+                                    <input
+                                      type="text"
+                                      defaultValue={project.name}
+                                      onBlur={(e) =>
+                                        updateItem(
+                                          "projects",
+                                          project.id,
+                                          {
+                                            name: e.target.value,
+                                          },
+                                          false
+                                        )
+                                      }
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                                      placeholder="Project Name"
+                                    />
+                                    <textarea
+                                      defaultValue={project.description}
+                                      onBlur={(e) =>
+                                        updateItem(
+                                          "projects",
+                                          project.id,
+                                          {
+                                            description: e.target.value,
+                                          },
+                                          false
+                                        )
+                                      }
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent min-h-[80px]"
+                                      placeholder="Description"
+                                    />
+                                    <input
+                                      type="text"
+                                      defaultValue={
+                                        project.technologies?.join(", ") || ""
+                                      }
+                                      onBlur={(e) =>
+                                        updateItem(
+                                          "projects",
+                                          project.id,
+                                          {
+                                            technologies: e.target.value
+                                              .split(",")
+                                              .map((t) => t.trim())
+                                              .filter((t) => t),
+                                          },
+                                          false
+                                        )
+                                      }
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                                      placeholder="Technologies (comma-separated)"
+                                    />
+                                    <input
+                                      type="url"
+                                      defaultValue={project.link || ""}
+                                      onBlur={(e) =>
+                                        updateItem(
+                                          "projects",
+                                          project.id,
+                                          {
+                                            link: e.target.value || undefined,
+                                          },
+                                          false
+                                        )
+                                      }
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                                      placeholder="Project Link"
+                                    />
+                                    <div className="flex gap-2">
+                                      <button
+                                        onClick={() => setEditingItem(null)}
+                                        className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors"
+                                      >
+                                        Done
+                                      </button>
+                                      <button
+                                        onClick={() =>
+                                          deleteItem("projects", project.id)
+                                        }
+                                        className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                                      >
+                                        Delete
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <h3 className="text-lg font-semibold text-gray-900">
+                                      {project.name}
+                                    </h3>
+                                    <p className="text-gray-700">
+                                      {project.description}
+                                    </p>
+                                    {project.technologies &&
+                                      project.technologies.length > 0 && (
+                                        <p className="text-sm text-gray-600">
+                                          Technologies:{" "}
+                                          {project.technologies.join(", ")}
+                                        </p>
+                                      )}
+                                    {project.link && (
+                                      <a
+                                        href={project.link}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-sm text-[#3351FD] hover:underline"
+                                      >
+                                        View Project
+                                      </a>
+                                    )}
+                                    <button
+                                      className="absolute top-0 right-0 opacity-0 group-hover/item:opacity-100 transition-opacity p-2 hover:bg-gray-100 rounded-lg"
+                                      onClick={() =>
+                                        setEditingItem({
+                                          section: "projects",
+                                          itemId: project.id,
+                                        })
+                                      }
+                                      title="Edit"
+                                    >
+                                      <Icon
+                                        icon="mingcute:edit-line"
+                                        className="w-4 h-4 text-gray-600"
+                                      />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
+                            <p className="text-gray-500 text-sm mb-3">
+                              No projects yet
+                            </p>
+                            <button
+                              onClick={() =>
+                                setEditingItem({
+                                  section: "projects",
+                                  itemId: "new",
+                                })
+                              }
+                              className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors text-sm"
+                            >
+                              <Icon
+                                icon="mingcute:add-line"
+                                className="w-4 h-4 inline mr-1"
+                              />
+                              Add Project
+                            </button>
+                          </div>
+                        )}
+                        {editingItem?.section === "projects" &&
+                          editingItem?.itemId === "new" && (
+                            <div className="mt-4 p-4 bg-gray-50 rounded-lg space-y-3">
+                              <input
+                                type="text"
+                                id="new-proj-name"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                                placeholder="Project Name"
+                              />
+                              <textarea
+                                id="new-proj-desc"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent min-h-[80px]"
+                                placeholder="Description"
+                              />
+                              <input
+                                type="text"
+                                id="new-proj-tech"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                                placeholder="Technologies (comma-separated)"
+                              />
+                              <input
+                                type="url"
+                                id="new-proj-link"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                                placeholder="Project Link"
+                              />
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => {
+                                    const name = (
+                                      document.getElementById(
+                                        "new-proj-name"
+                                      ) as HTMLInputElement
+                                    )?.value;
+                                    const desc = (
+                                      document.getElementById(
+                                        "new-proj-desc"
+                                      ) as HTMLTextAreaElement
+                                    )?.value;
+                                    const tech = (
+                                      document.getElementById(
+                                        "new-proj-tech"
+                                      ) as HTMLInputElement
+                                    )?.value;
+                                    const link = (
+                                      document.getElementById(
+                                        "new-proj-link"
+                                      ) as HTMLInputElement
+                                    )?.value;
+                                    if (name && desc) {
+                                      addItem("projects", {
+                                        id: `proj-${Date.now()}`,
+                                        name,
+                                        description: desc,
+                                        technologies: tech
+                                          ? tech
+                                              .split(",")
+                                              .map((t) => t.trim())
+                                              .filter((t) => t)
+                                          : undefined,
+                                        link: link || undefined,
+                                      });
+                                    }
+                                  }}
+                                  className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors"
+                                >
+                                  Add
+                                </button>
+                                <button
+                                  onClick={() => setEditingItem(null)}
+                                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Certifications Section
+                if (sectionId === "certifications") {
+                  return (
+                    <div
+                      key={sectionId}
+                      draggable
+                      onDragStart={() =>
+                        handleDocumentDragStart("certifications")
+                      }
+                      onDragOver={handleDocumentDragOver}
+                      onDrop={() => handleDocumentDrop("certifications")}
+                      onDragEnd={handleDocumentDragEnd}
+                      className={`relative group transition-all ${
+                        draggedDocumentSection === "certifications"
+                          ? "opacity-50 border-2 border-dashed border-[#3351FD] rounded-lg p-2"
+                          : "hover:border-2 hover:border-dashed hover:border-gray-300 rounded-lg p-2"
+                      }`}
+                      style={{
+                        ...getSectionStyle("certifications"),
+                        marginBottom:
+                          getSectionFormatting("certifications").marginBottom ||
+                          `${resume.customizations?.spacing?.section || 24}px`,
+                        marginTop:
+                          getSectionFormatting("certifications").marginTop ||
+                          undefined,
+                      }}
+                    >
+                      <div
+                        style={{
+                          ...(getSectionFormatting("certifications")
+                            .textAlign && {
+                            textAlign: getSectionFormatting("certifications")
+                              .textAlign as any,
+                          }),
+                          ...(getSectionFormatting("certifications").color && {
+                            color: getSectionFormatting("certifications").color,
+                          }),
+                          ...(getSectionFormatting("certifications")
+                            .fontSize && {
+                            fontSize:
+                              getSectionFormatting("certifications").fontSize,
+                          }),
+                          ...(getSectionFormatting("certifications")
+                            .fontWeight && {
+                            fontWeight:
+                              getSectionFormatting("certifications").fontWeight,
+                          }),
+                          ...(getSectionFormatting("certifications")
+                            .backgroundColor && {
+                            backgroundColor:
+                              getSectionFormatting("certifications")
+                                .backgroundColor,
+                            padding: "12px",
+                            borderRadius: "8px",
+                          }),
+                        }}
+                      >
+                        <div className="flex items-center justify-between mb-4">
+                          <h2
+                            className="text-2xl font-semibold"
+                            style={{
+                              color:
+                                getSectionFormatting("certifications").color ||
+                                colors.primary,
+                              fontFamily: fonts.heading,
+                            }}
+                          >
+                            Certifications
+                          </h2>
+                          <div className="flex gap-2">
+                            {userCertifications.length > 0 && (
+                              <button
+                                onClick={() =>
+                                  handleImportFromDatabase("certifications")
+                                }
+                                className="opacity-0 group-hover:opacity-100 transition-opacity px-3 py-1 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700"
+                                title="Import from Database"
+                              >
+                                <Icon
+                                  icon="mingcute:download-line"
+                                  className="w-4 h-4 inline mr-1"
+                                />
+                                Import
+                              </button>
+                            )}
+                            <button
+                              onClick={() =>
+                                setEditingItem({
+                                  section: "certifications",
+                                  itemId: "new",
+                                })
+                              }
+                              className="opacity-0 group-hover:opacity-100 transition-opacity px-3 py-1 text-sm bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4]"
+                            >
+                              <Icon
+                                icon="mingcute:add-line"
+                                className="w-4 h-4 inline mr-1"
+                              />
+                              Add
+                            </button>
+                          </div>
+                        </div>
+                        {resume.content.certifications &&
+                        resume.content.certifications.length > 0 ? (
+                          <div className="space-y-2">
+                            {resume.content.certifications.map((cert) => (
+                              <div
+                                key={cert.id}
+                                className="relative group/item"
+                              >
+                                {editingItem?.section === "certifications" &&
+                                editingItem?.itemId === cert.id ? (
+                                  <div className="space-y-3 p-4 bg-gray-50 rounded-lg">
+                                    <input
+                                      type="text"
+                                      defaultValue={cert.name}
+                                      onBlur={(e) =>
+                                        updateItem(
+                                          "certifications",
+                                          cert.id,
+                                          {
+                                            name: e.target.value,
+                                          },
+                                          false
+                                        )
+                                      }
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                                      placeholder="Certification Name"
+                                    />
+                                    <input
+                                      type="text"
+                                      defaultValue={cert.organization}
+                                      onBlur={(e) =>
+                                        updateItem(
+                                          "certifications",
+                                          cert.id,
+                                          {
+                                            organization: e.target.value,
+                                          },
+                                          false
+                                        )
+                                      }
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                                      placeholder="Organization"
+                                    />
+                                    <input
+                                      type="month"
+                                      defaultValue={cert.dateEarned}
+                                      onBlur={(e) =>
+                                        updateItem(
+                                          "certifications",
+                                          cert.id,
+                                          {
+                                            dateEarned: e.target.value,
+                                          },
+                                          false
+                                        )
+                                      }
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                                      placeholder="Date Earned"
+                                    />
+                                    <input
+                                      type="month"
+                                      defaultValue={cert.expirationDate || ""}
+                                      onBlur={(e) =>
+                                        updateItem(
+                                          "certifications",
+                                          cert.id,
+                                          {
+                                            expirationDate:
+                                              e.target.value || undefined,
+                                          },
+                                          false
+                                        )
+                                      }
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                                      placeholder="Expiration Date (optional)"
+                                    />
+                                    <div className="flex gap-2">
+                                      <button
+                                        onClick={() => setEditingItem(null)}
+                                        className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors"
+                                      >
+                                        Done
+                                      </button>
+                                      <button
+                                        onClick={() =>
+                                          deleteItem("certifications", cert.id)
+                                        }
+                                        className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                                      >
+                                        Delete
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <h3 className="text-lg font-semibold text-gray-900">
+                                      {cert.name}
+                                    </h3>
+                                    <p className="text-gray-700">
+                                      {cert.organization} - {cert.dateEarned}
+                                    </p>
+                                    {cert.expirationDate && (
+                                      <p className="text-sm text-gray-600">
+                                        Expires: {cert.expirationDate}
+                                      </p>
+                                    )}
+                                    <button
+                                      className="absolute top-0 right-0 opacity-0 group-hover/item:opacity-100 transition-opacity p-2 hover:bg-gray-100 rounded-lg"
+                                      onClick={() =>
+                                        setEditingItem({
+                                          section: "certifications",
+                                          itemId: cert.id,
+                                        })
+                                      }
+                                      title="Edit"
+                                    >
+                                      <Icon
+                                        icon="mingcute:edit-line"
+                                        className="w-4 h-4 text-gray-600"
+                                      />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
+                            <p className="text-gray-500 text-sm mb-3">
+                              No certifications yet
+                            </p>
+                            <button
+                              onClick={() =>
+                                setEditingItem({
+                                  section: "certifications",
+                                  itemId: "new",
+                                })
+                              }
+                              className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors text-sm"
+                            >
+                              <Icon
+                                icon="mingcute:add-line"
+                                className="w-4 h-4 inline mr-1"
+                              />
+                              Add Certification
+                            </button>
+                          </div>
+                        )}
+                        {editingItem?.section === "certifications" &&
+                          editingItem?.itemId === "new" && (
+                            <div className="mt-4 p-4 bg-gray-50 rounded-lg space-y-3">
+                              <input
+                                type="text"
+                                id="new-cert-name"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                                placeholder="Certification Name"
+                              />
+                              <input
+                                type="text"
+                                id="new-cert-org"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                                placeholder="Organization"
+                              />
+                              <input
+                                type="month"
+                                id="new-cert-date"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                                placeholder="Date Earned"
+                              />
+                              <input
+                                type="month"
+                                id="new-cert-exp"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                                placeholder="Expiration Date (optional)"
+                              />
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => {
+                                    const name = (
+                                      document.getElementById(
+                                        "new-cert-name"
+                                      ) as HTMLInputElement
+                                    )?.value;
+                                    const org = (
+                                      document.getElementById(
+                                        "new-cert-org"
+                                      ) as HTMLInputElement
+                                    )?.value;
+                                    const date = (
+                                      document.getElementById(
+                                        "new-cert-date"
+                                      ) as HTMLInputElement
+                                    )?.value;
+                                    const exp = (
+                                      document.getElementById(
+                                        "new-cert-exp"
+                                      ) as HTMLInputElement
+                                    )?.value;
+                                    if (name && org && date) {
+                                      addItem("certifications", {
+                                        id: `cert-${Date.now()}`,
+                                        name,
+                                        organization: org,
+                                        dateEarned: date,
+                                        expirationDate: exp || undefined,
+                                      });
+                                    }
+                                  }}
+                                  className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors"
+                                >
+                                  Add
+                                </button>
+                                <button
+                                  onClick={() => setEditingItem(null)}
+                                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                      </div>
+                    </div>
+                  );
+                }
+
+                return null;
+              })}
+            </div>
+          </div>
+
+          {/* Right Sidebar - Customization */}
+          {showCustomization && (
+            <div
+              className="w-80 bg-white border-l border-gray-200 overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-4 space-y-6">
+                <div className="flex items-center justify-between border-b border-gray-200 pb-3">
+                  <h2 className="text-sm font-semibold text-gray-900">
+                    Customize Appearance
+                  </h2>
+                  <button
+                    onClick={handleResetFormatting}
+                    className="px-3 py-1.5 text-xs text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition-colors flex items-center gap-1.5"
+                    title="Reset all formatting to default"
+                  >
+                    <Icon
+                      icon="mingcute:refresh-line"
+                      className="w-3.5 h-3.5"
+                    />
+                    Reset
+                  </button>
+                </div>
+
+                {/* Section Selector */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-2">
+                    Format Section
+                  </label>
+                  <select
+                    value={selectedSectionForFormatting || "global"}
+                    onChange={(e) =>
+                      setSelectedSectionForFormatting(
+                        e.target.value === "global" ? null : e.target.value
+                      )
+                    }
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                  >
+                    <option value="global">Global (All Sections)</option>
+                    {getSidebarSections().map((section) => (
+                      <option key={section.id} value={section.id}>
+                        {section.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {selectedSectionForFormatting && (
+                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <p className="text-xs text-blue-700">
+                      Formatting options below will apply only to:{" "}
+                      <strong>
+                        {
+                          sections.find(
+                            (s) => s.id === selectedSectionForFormatting
+                          )?.label
+                        }
+                      </strong>
+                    </p>
+                  </div>
+                )}
+
+                {/* Global Controls - Only show when no section is selected */}
+                {!selectedSectionForFormatting && (
+                  <>
+                    {/* Colors */}
+                    <div className="space-y-4">
+                      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                        Colors
+                      </h3>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Primary Color
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={colors.primary}
+                            onChange={(e) => {
+                              if (!resume) return;
+                              const currentCustomizations =
+                                ensureCustomizations();
+                              const currentColors =
+                                currentCustomizations?.colors || colors;
+                              const newCustomizations = {
+                                ...currentCustomizations,
+                                colors: {
+                                  primary: e.target.value,
+                                  secondary: currentColors.secondary,
+                                  text: currentColors.text,
+                                  background: currentColors.background,
+                                },
+                              };
+                              setResume({
+                                ...resume,
+                                customizations: newCustomizations,
+                              });
+                            }}
+                            className="w-16 h-10 rounded-lg border border-gray-300 cursor-pointer"
+                          />
+                          <input
+                            type="text"
+                            value={colors.primary}
+                            onChange={(e) => {
+                              if (!resume) return;
+                              const currentCustomizations =
+                                ensureCustomizations();
+                              const currentColors =
+                                currentCustomizations?.colors || colors;
+                              const newCustomizations = {
+                                ...currentCustomizations,
+                                colors: {
+                                  primary: e.target.value,
+                                  secondary: currentColors.secondary,
+                                  text: currentColors.text,
+                                  background: currentColors.background,
+                                },
+                              };
+                              setResume({
+                                ...resume,
+                                customizations: newCustomizations,
+                              });
+                            }}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            placeholder="#3351FD"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Secondary Color
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={colors.secondary}
+                            onChange={(e) => {
+                              if (!resume) return;
+                              const currentCustomizations =
+                                ensureCustomizations();
+                              const currentColors =
+                                currentCustomizations?.colors || colors;
+                              const newCustomizations = {
+                                ...currentCustomizations,
+                                colors: {
+                                  primary: currentColors.primary,
+                                  secondary: e.target.value,
+                                  text: currentColors.text,
+                                  background: currentColors.background,
+                                },
+                              };
+                              setResume({
+                                ...resume,
+                                customizations: newCustomizations,
+                              });
+                            }}
+                            className="w-16 h-10 rounded-lg border border-gray-300 cursor-pointer"
+                          />
+                          <input
+                            type="text"
+                            value={colors.secondary}
+                            onChange={(e) => {
+                              if (!resume) return;
+                              const currentCustomizations =
+                                ensureCustomizations();
+                              const currentColors =
+                                currentCustomizations?.colors || colors;
+                              const newCustomizations = {
+                                ...currentCustomizations,
+                                colors: {
+                                  primary: currentColors.primary,
+                                  secondary: e.target.value,
+                                  text: currentColors.text,
+                                  background: currentColors.background,
+                                },
+                              };
+                              setResume({
+                                ...resume,
+                                customizations: newCustomizations,
+                              });
+                            }}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            placeholder="#000000"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Text Color
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={colors.text}
+                            onChange={(e) => {
+                              if (!resume) return;
+                              const currentCustomizations =
+                                ensureCustomizations();
+                              const currentColors =
+                                currentCustomizations?.colors || colors;
+                              const newCustomizations = {
+                                ...currentCustomizations,
+                                colors: {
+                                  primary: currentColors.primary,
+                                  secondary: currentColors.secondary,
+                                  text: e.target.value,
+                                  background: currentColors.background,
+                                },
+                              };
+                              setResume({
+                                ...resume,
+                                customizations: newCustomizations,
+                              });
+                            }}
+                            className="w-16 h-10 rounded-lg border border-gray-300 cursor-pointer"
+                          />
+                          <input
+                            type="text"
+                            value={colors.text}
+                            onChange={(e) => {
+                              if (!resume) return;
+                              const currentCustomizations =
+                                ensureCustomizations();
+                              const currentColors =
+                                currentCustomizations?.colors || colors;
+                              const newCustomizations = {
+                                ...currentCustomizations,
+                                colors: {
+                                  primary: currentColors.primary,
+                                  secondary: currentColors.secondary,
+                                  text: e.target.value,
+                                  background: currentColors.background,
+                                },
+                              };
+                              setResume({
+                                ...resume,
+                                customizations: newCustomizations,
+                              });
+                            }}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            placeholder="#000000"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Background Color
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={colors.background}
+                            onChange={(e) => {
+                              if (!resume) return;
+                              const currentCustomizations =
+                                ensureCustomizations();
+                              const currentColors =
+                                currentCustomizations?.colors || colors;
+                              const newCustomizations = {
+                                ...currentCustomizations,
+                                colors: {
+                                  primary: currentColors.primary,
+                                  secondary: currentColors.secondary,
+                                  text: currentColors.text,
+                                  background: e.target.value,
+                                },
+                              };
+                              setResume({
+                                ...resume,
+                                customizations: newCustomizations,
+                              });
+                            }}
+                            className="w-16 h-10 rounded-lg border border-gray-300 cursor-pointer"
+                          />
+                          <input
+                            type="text"
+                            value={colors.background}
+                            onChange={(e) => {
+                              if (!resume) return;
+                              const currentCustomizations =
+                                ensureCustomizations();
+                              const currentColors =
+                                currentCustomizations?.colors || colors;
+                              const newCustomizations = {
+                                ...currentCustomizations,
+                                colors: {
+                                  primary: currentColors.primary,
+                                  secondary: currentColors.secondary,
+                                  text: currentColors.text,
+                                  background: e.target.value,
+                                },
+                              };
+                              setResume({
+                                ...resume,
+                                customizations: newCustomizations,
+                              });
+                            }}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            placeholder="#FFFFFF"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Fonts */}
+                    <div className="space-y-4">
+                      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                        Fonts
+                      </h3>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Heading Font
+                        </label>
+                        <select
+                          value={fonts.heading}
+                          onChange={(e) => {
+                            if (!resume) return;
+                            const currentCustomizations =
+                              ensureCustomizations();
+                            const currentFonts =
+                              currentCustomizations?.fonts || fonts;
+                            const newCustomizations = {
+                              ...currentCustomizations,
+                              fonts: {
+                                heading: e.target.value,
+                                body: currentFonts.body,
+                              },
+                            };
+                            setResume({
+                              ...resume,
+                              customizations: newCustomizations,
+                            });
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                        >
+                          <option>Inter</option>
+                          <option>Roboto</option>
+                          <option>Georgia</option>
+                          <option>Helvetica</option>
+                          <option>Times New Roman</option>
+                          <option>Open Sans</option>
+                          <option>Lato</option>
+                          <option>Montserrat</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Body Font
+                        </label>
+                        <select
+                          value={fonts.body}
+                          onChange={(e) => {
+                            if (!resume) return;
+                            const currentCustomizations =
+                              ensureCustomizations();
+                            const currentFonts =
+                              currentCustomizations?.fonts || fonts;
+                            const newCustomizations = {
+                              ...currentCustomizations,
+                              fonts: {
+                                heading: currentFonts.heading,
+                                body: e.target.value,
+                              },
+                            };
+                            setResume({
+                              ...resume,
+                              customizations: newCustomizations,
+                            });
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                        >
+                          <option>Inter</option>
+                          <option>Roboto</option>
+                          <option>Georgia</option>
+                          <option>Helvetica</option>
+                          <option>Times New Roman</option>
+                          <option>Open Sans</option>
+                          <option>Lato</option>
+                          <option>Montserrat</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Layout */}
+                    <div className="space-y-4">
+                      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                        Layout
+                      </h3>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Text Alignment
+                        </label>
+                        <select
+                          value={resume.customizations?.alignment || "left"}
+                          onChange={(e) => {
+                            if (!resume) return;
+                            const currentCustomizations =
+                              ensureCustomizations();
+                            const newCustomizations = {
+                              ...currentCustomizations,
+                              alignment: e.target.value,
+                            };
+                            setResume({
+                              ...resume,
+                              customizations: newCustomizations,
+                            });
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                        >
+                          <option value="left">Left</option>
+                          <option value="center">Center</option>
+                          <option value="right">Right</option>
+                          <option value="justify">Justify</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Header Style
+                        </label>
+                        <select
+                          value={
+                            resume.customizations?.headerStyle || "centered"
+                          }
+                          onChange={(e) => {
+                            if (!resume) return;
+                            const currentCustomizations =
+                              ensureCustomizations();
+                            const newCustomizations = {
+                              ...currentCustomizations,
+                              headerStyle: e.target.value,
+                            };
+                            setResume({
+                              ...resume,
+                              customizations: newCustomizations,
+                            });
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                        >
+                          <option value="centered">Centered</option>
+                          <option value="left">Left Aligned</option>
+                          <option value="right">Right Aligned</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Spacing */}
+                    <div className="space-y-4">
+                      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                        Spacing
+                      </h3>
+                      {!selectedSectionForFormatting ? (
+                        <>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Section Spacing:{" "}
+                              {resume.customizations?.spacing?.section || 24}px
+                            </label>
+                            <input
+                              type="range"
+                              min="12"
+                              max="48"
+                              step="2"
+                              value={
+                                resume.customizations?.spacing?.section || 24
+                              }
+                              onChange={(e) => {
+                                if (!resume) return;
+                                const currentCustomizations =
+                                  ensureCustomizations();
+                                const newCustomizations = {
+                                  ...currentCustomizations,
+                                  spacing: {
+                                    ...currentCustomizations?.spacing,
+                                    section: parseInt(e.target.value),
+                                    item:
+                                      currentCustomizations?.spacing?.item ||
+                                      12,
+                                  },
+                                };
+                                setResume({
+                                  ...resume,
+                                  customizations: newCustomizations,
+                                });
+                              }}
+                              className="w-full"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Item Spacing:{" "}
+                              {resume.customizations?.spacing?.item || 12}px
+                            </label>
+                            <input
+                              type="range"
+                              min="6"
+                              max="24"
+                              step="2"
+                              value={resume.customizations?.spacing?.item || 12}
+                              onChange={(e) => {
+                                if (!resume) return;
+                                const currentCustomizations =
+                                  ensureCustomizations();
+                                const newCustomizations = {
+                                  ...currentCustomizations,
+                                  spacing: {
+                                    ...currentCustomizations?.spacing,
+                                    section:
+                                      currentCustomizations?.spacing?.section ||
+                                      24,
+                                    item: parseInt(e.target.value),
+                                  },
+                                };
+                                setResume({
+                                  ...resume,
+                                  customizations: newCustomizations,
+                                });
+                              }}
+                              className="w-full"
+                            />
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Top Margin:{" "}
+                              {(() => {
+                                const margin = getSectionFormatting(
+                                  selectedSectionForFormatting
+                                ).marginTop;
+                                return margin
+                                  ? parseInt(
+                                      margin.toString().replace("px", "")
+                                    )
+                                  : 0;
+                              })()}
+                              px
+                            </label>
+                            <input
+                              type="range"
+                              min="0"
+                              max="48"
+                              step="2"
+                              value={(() => {
+                                const margin = getSectionFormatting(
+                                  selectedSectionForFormatting
+                                ).marginTop;
+                                return margin
+                                  ? parseInt(
+                                      margin.toString().replace("px", "")
+                                    )
+                                  : 0;
+                              })()}
+                              onChange={(e) => {
+                                updateSectionFormatting(
+                                  selectedSectionForFormatting,
+                                  {
+                                    marginTop: `${e.target.value}px`,
+                                  }
+                                );
+                              }}
+                              className="w-full"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Bottom Margin:{" "}
+                              {(() => {
+                                const margin = getSectionFormatting(
+                                  selectedSectionForFormatting
+                                ).marginBottom;
+                                return margin
+                                  ? parseInt(
+                                      margin.toString().replace("px", "")
+                                    )
+                                  : 0;
+                              })()}
+                              px
+                            </label>
+                            <input
+                              type="range"
+                              min="0"
+                              max="48"
+                              step="2"
+                              value={(() => {
+                                const margin = getSectionFormatting(
+                                  selectedSectionForFormatting
+                                ).marginBottom;
+                                return margin
+                                  ? parseInt(
+                                      margin.toString().replace("px", "")
+                                    )
+                                  : 0;
+                              })()}
+                              onChange={(e) => {
+                                updateSectionFormatting(
+                                  selectedSectionForFormatting,
+                                  {
+                                    marginBottom: `${e.target.value}px`,
+                                  }
+                                );
+                              }}
+                              className="w-full"
+                            />
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {/* Section-Specific Formatting */}
+                {selectedSectionForFormatting && (
+                  <div className="space-y-4 pt-4 border-t border-gray-200">
+                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                      Section Formatting
+                    </h3>
+
+                    {/* Font Size */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Font Size:{" "}
+                        {getSectionFormatting(selectedSectionForFormatting)
+                          .fontSize || "inherit"}
+                      </label>
+                      <select
+                        value={
+                          getSectionFormatting(selectedSectionForFormatting)
+                            .fontSize || "inherit"
+                        }
+                        onChange={(e) => {
+                          updateSectionFormatting(
+                            selectedSectionForFormatting,
+                            {
+                              fontSize: e.target.value,
+                            }
+                          );
+                        }}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                      >
+                        <option value="inherit">Inherit</option>
+                        <option value="10px">10px</option>
+                        <option value="11px">11px</option>
+                        <option value="12px">12px</option>
+                        <option value="14px">14px</option>
+                        <option value="16px">16px</option>
+                        <option value="18px">18px</option>
+                        <option value="20px">20px</option>
+                        <option value="24px">24px</option>
+                      </select>
+                    </div>
+
+                    {/* Font Weight */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Font Weight
+                      </label>
+                      <select
+                        value={
+                          getSectionFormatting(selectedSectionForFormatting)
+                            .fontWeight || "inherit"
+                        }
+                        onChange={(e) => {
+                          updateSectionFormatting(
+                            selectedSectionForFormatting,
+                            {
+                              fontWeight: e.target.value,
+                            }
+                          );
+                        }}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                      >
+                        <option value="inherit">Inherit</option>
+                        <option value="300">Light</option>
+                        <option value="400">Normal</option>
+                        <option value="500">Medium</option>
+                        <option value="600">Semi-Bold</option>
+                        <option value="700">Bold</option>
+                      </select>
+                    </div>
+
+                    {/* Text Color */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Text Color
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={
+                            getSectionFormatting(selectedSectionForFormatting)
+                              .color || colors.text
+                          }
+                          onChange={(e) => {
+                            updateSectionFormatting(
+                              selectedSectionForFormatting,
+                              {
+                                color: e.target.value,
+                              }
+                            );
+                          }}
+                          className="w-16 h-10 rounded-lg border border-gray-300 cursor-pointer"
+                        />
+                        <input
+                          type="text"
+                          value={
+                            getSectionFormatting(selectedSectionForFormatting)
+                              .color || colors.text
+                          }
+                          onChange={(e) => {
+                            updateSectionFormatting(
+                              selectedSectionForFormatting,
+                              {
+                                color: e.target.value,
+                              }
+                            );
+                          }}
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                          placeholder="#000000"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Background Color */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Background Color
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={
+                            getSectionFormatting(selectedSectionForFormatting)
+                              .backgroundColor || colors.background
+                          }
+                          onChange={(e) => {
+                            updateSectionFormatting(
+                              selectedSectionForFormatting,
+                              {
+                                backgroundColor: e.target.value,
+                              }
+                            );
+                          }}
+                          className="w-16 h-10 rounded-lg border border-gray-300 cursor-pointer"
+                        />
+                        <input
+                          type="text"
+                          value={
+                            getSectionFormatting(selectedSectionForFormatting)
+                              .backgroundColor || colors.background
+                          }
+                          onChange={(e) => {
+                            updateSectionFormatting(
+                              selectedSectionForFormatting,
+                              {
+                                backgroundColor: e.target.value,
+                              }
+                            );
+                          }}
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                          placeholder="#FFFFFF"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Text Alignment */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Text Alignment
+                      </label>
+                      <select
+                        value={
+                          getSectionFormatting(selectedSectionForFormatting)
+                            .textAlign || "inherit"
+                        }
+                        onChange={(e) => {
+                          updateSectionFormatting(
+                            selectedSectionForFormatting,
+                            {
+                              textAlign: e.target.value,
+                            }
+                          );
+                        }}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                      >
+                        <option value="inherit">Inherit</option>
+                        <option value="left">Left</option>
+                        <option value="center">Center</option>
+                        <option value="right">Right</option>
+                        <option value="justify">Justify</option>
+                      </select>
+                    </div>
+
+                    {/* Reset Button */}
+                    <button
+                      onClick={() => {
+                        if (!resume) return;
+                        const newFormatting = { ...sectionFormatting };
+                        delete newFormatting[selectedSectionForFormatting];
+                        setSectionFormatting(newFormatting);
+
+                        // Update resume customizations
+                        const currentCustomizations = ensureCustomizations();
+                        const updatedCustomizations = {
+                          ...currentCustomizations,
+                          sectionFormatting: newFormatting,
+                        };
+                        const updatedResume = {
+                          ...resume,
+                          customizations: updatedCustomizations,
+                        };
+                        setResume(updatedResume);
+
+                        // Auto-save to backend if resume exists
+                        if (resumeId && resumeId !== "new") {
+                          setIsAutoSaving(true);
+                          resumeService
+                            .updateResume(resumeId, {
+                              customizations: updatedCustomizations,
+                            })
+                            .then(() => {
+                              setLastSaved(new Date());
+                            })
+                            .catch((err) => {
+                              console.error("Auto-save failed:", err);
+                            })
+                            .finally(() => {
+                              setTimeout(() => setIsAutoSaving(false), 500);
+                            });
+                        }
+                      }}
+                      className="w-full px-4 py-2 text-sm text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition-colors"
+                    >
+                      Reset Section Formatting
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </Fragment>
+
+      {/* Click outside to close menus */}
+      {(showExportMenu || showPresetMenu) && (
+        <div
+          className="fixed inset-0 z-0"
+          onClick={() => {
+            setShowExportMenu(false);
+            setShowPresetMenu(false);
+          }}
+        />
+      )}
+
+      {/* Import Modal */}
+      {showImportModal && importSection && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Import from Database -{" "}
+                  {importSection.charAt(0).toUpperCase() +
+                    importSection.slice(1)}
+                </h2>
+                {importSection !== "personal" && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleSelectAll}
+                      className="text-xs px-3 py-1.5 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors flex items-center gap-1"
+                    >
+                      <Icon icon="mingcute:check-line" className="w-3 h-3" />
+                      Select All
+                    </button>
+                    <button
+                      onClick={handleDeselectAll}
+                      className="text-xs px-3 py-1.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors flex items-center gap-1"
+                    >
+                      <Icon icon="mingcute:close-line" className="w-3 h-3" />
+                      Deselect All
+                    </button>
+                  </div>
+                )}
+              </div>
+              <p className="text-sm text-gray-600 mt-1">
+                {importSection === "personal"
+                  ? "Import your profile information into your resume"
+                  : "Select items to import into your resume (items already in your resume are disabled)"}
+              </p>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6">
+              {importSection === "skills" && (
+                <div className="space-y-2">
+                  {userSkills.length === 0 ? (
+                    <p className="text-gray-500 text-center py-8">
+                      No skills found in your database
+                    </p>
+                  ) : (
+                    userSkills.map((skill) => {
+                      const isSelected = selectedItems.skills.includes(
+                        skill.id
+                      );
+                      const isAlreadyInResume = resume?.content.skills?.some(
+                        (s: any) =>
+                          s.id === skill.id || s.name === skill.skillName
+                      );
+                      return (
+                        <label
+                          key={skill.id}
+                          className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${
+                            isSelected
+                              ? "border-[#3351FD] bg-blue-50"
+                              : "border-gray-200 hover:border-gray-300"
+                          } ${isAlreadyInResume ? "opacity-50" : ""}`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() =>
+                              toggleItemSelection(skill.id, "skills")
+                            }
+                            disabled={isAlreadyInResume}
+                            className="w-4 h-4 text-[#3351FD] rounded focus:ring-[#3351FD]"
+                          />
+                          <div className="ml-3 flex-1">
+                            <div className="font-medium text-gray-900">
+                              {skill.skillName}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {skill.category || "Uncategorized"} •{" "}
+                              {skill.proficiency}
+                            </div>
+                          </div>
+                          {isAlreadyInResume && (
+                            <span className="text-xs text-gray-500">
+                              Already added
+                            </span>
+                          )}
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+
+              {importSection === "certifications" && (
+                <div className="space-y-2">
+                  {userCertifications.length === 0 ? (
+                    <p className="text-gray-500 text-center py-8">
+                      No certifications found in your database
+                    </p>
+                  ) : (
+                    userCertifications.map((cert) => {
+                      const isSelected = selectedItems.certifications.includes(
+                        cert.id
+                      );
+                      const isAlreadyInResume =
+                        resume?.content.certifications?.some(
+                          (c: any) => c.id === cert.id
+                        );
+                      return (
+                        <label
+                          key={cert.id}
+                          className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${
+                            isSelected
+                              ? "border-[#3351FD] bg-blue-50"
+                              : "border-gray-200 hover:border-gray-300"
+                          } ${isAlreadyInResume ? "opacity-50" : ""}`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() =>
+                              toggleItemSelection(cert.id, "certifications")
+                            }
+                            disabled={isAlreadyInResume}
+                            className="w-4 h-4 text-[#3351FD] rounded focus:ring-[#3351FD]"
+                          />
+                          <div className="ml-3 flex-1">
+                            <div className="font-medium text-gray-900">
+                              {cert.name}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {cert.org_name} •{" "}
+                              {new Date(cert.date_earned).getFullYear()}
+                            </div>
+                          </div>
+                          {isAlreadyInResume && (
+                            <span className="text-xs text-gray-500">
+                              Already added
+                            </span>
+                          )}
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+
+              {importSection === "experience" && (
+                <div className="space-y-2">
+                  {userJobs.length === 0 ? (
+                    <p className="text-gray-500 text-center py-8">
+                      No jobs found in your database
+                    </p>
+                  ) : (
+                    userJobs.map((job) => {
+                      const isSelected = selectedItems.jobs.includes(job.id);
+                      const isAlreadyInResume =
+                        resume?.content.experience?.some(
+                          (e: any) => e.id === job.id
+                        );
+                      return (
+                        <label
+                          key={job.id}
+                          className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${
+                            isSelected
+                              ? "border-[#3351FD] bg-blue-50"
+                              : "border-gray-200 hover:border-gray-300"
+                          } ${isAlreadyInResume ? "opacity-50" : ""}`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleItemSelection(job.id, "jobs")}
+                            disabled={isAlreadyInResume}
+                            className="w-4 h-4 text-[#3351FD] rounded focus:ring-[#3351FD]"
+                          />
+                          <div className="ml-3 flex-1">
+                            <div className="font-medium text-gray-900">
+                              {job.title} at {job.company}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {job.startDate &&
+                                new Date(job.startDate).getFullYear()}{" "}
+                              -{" "}
+                              {job.isCurrent
+                                ? "Present"
+                                : job.endDate
+                                ? new Date(job.endDate).getFullYear()
+                                : ""}
+                            </div>
+                          </div>
+                          {isAlreadyInResume && (
+                            <span className="text-xs text-gray-500">
+                              Already added
+                            </span>
+                          )}
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+
+              {importSection === "education" && (
+                <div className="space-y-2">
+                  {userEducation.length === 0 ? (
+                    <p className="text-gray-500 text-center py-8">
+                      No education found in your database
+                    </p>
+                  ) : (
+                    userEducation.map((edu) => {
+                      const isSelected = selectedItems.education.includes(
+                        edu.id
+                      );
+                      const isAlreadyInResume = resume?.content.education?.some(
+                        (e: any) => e.id === edu.id
+                      );
+                      return (
+                        <label
+                          key={edu.id}
+                          className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${
+                            isSelected
+                              ? "border-[#3351FD] bg-blue-50"
+                              : "border-gray-200 hover:border-gray-300"
+                          } ${isAlreadyInResume ? "opacity-50" : ""}`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() =>
+                              toggleItemSelection(edu.id, "education")
+                            }
+                            disabled={isAlreadyInResume}
+                            className="w-4 h-4 text-[#3351FD] rounded focus:ring-[#3351FD]"
+                          />
+                          <div className="ml-3 flex-1">
+                            <div className="font-medium text-gray-900">
+                              {edu.degreeType} in{" "}
+                              {edu.field || "General Studies"}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {edu.school} •{" "}
+                              {edu.endDate
+                                ? new Date(edu.endDate).getFullYear()
+                                : "Ongoing"}
+                            </div>
+                          </div>
+                          {isAlreadyInResume && (
+                            <span className="text-xs text-gray-500">
+                              Already added
+                            </span>
+                          )}
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+
+              {importSection === "projects" && (
+                <div className="space-y-2">
+                  {userProjects.length === 0 ? (
+                    <p className="text-gray-500 text-center py-8">
+                      No projects found in your database
+                    </p>
+                  ) : (
+                    userProjects.map((proj) => {
+                      const isSelected = selectedItems.projects.includes(
+                        proj.id
+                      );
+                      const isAlreadyInResume = resume?.content.projects?.some(
+                        (p: any) => p.id === proj.id
+                      );
+                      return (
+                        <label
+                          key={proj.id}
+                          className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${
+                            isSelected
+                              ? "border-[#3351FD] bg-blue-50"
+                              : "border-gray-200 hover:border-gray-300"
+                          } ${isAlreadyInResume ? "opacity-50" : ""}`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() =>
+                              toggleItemSelection(proj.id, "projects")
+                            }
+                            disabled={isAlreadyInResume}
+                            className="w-4 h-4 text-[#3351FD] rounded focus:ring-[#3351FD]"
+                          />
+                          <div className="ml-3 flex-1">
+                            <div className="font-medium text-gray-900">
+                              {proj.name}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {proj.description?.substring(0, 100)}
+                              {proj.description && proj.description.length > 100
+                                ? "..."
+                                : ""}
+                            </div>
+                          </div>
+                          {isAlreadyInResume && (
+                            <span className="text-xs text-gray-500">
+                              Already added
+                            </span>
+                          )}
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+
+              {importSection === "personal" && userProfile && (
+                <div className="space-y-4">
+                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <h3 className="font-medium text-gray-900 mb-2">
+                      Profile Information
+                    </h3>
+                    <div className="space-y-1 text-sm text-gray-700">
+                      <p>
+                        <strong>Name:</strong> {userProfile.first_name}{" "}
+                        {userProfile.last_name}
+                      </p>
+                      <p>
+                        <strong>Email:</strong> {userProfile.email}
+                      </p>
+                      {userProfile.phone && (
+                        <p>
+                          <strong>Phone:</strong> {userProfile.phone}
+                        </p>
+                      )}
+                      {userProfile.city && userProfile.state && (
+                        <p>
+                          <strong>Location:</strong> {userProfile.city},{" "}
+                          {userProfile.state}
+                        </p>
+                      )}
+                      {userProfile.bio && (
+                        <p>
+                          <strong>Bio:</strong> {userProfile.bio}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-600">
+                    Click "Import" to populate your resume with this
+                    information.
+                  </p>
+                </div>
+              )}
+            </div>
+            <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowImportModal(false);
+                  setImportSection(null);
+                  setSelectedItems({
+                    skills: [],
+                    certifications: [],
+                    jobs: [],
+                    education: [],
+                    projects: [],
+                  });
+                }}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleImportSelectedItems}
+                disabled={
+                  importSection === "personal"
+                    ? false
+                    : selectedItems[importSection as keyof typeof selectedItems]
+                        ?.length === 0
+                }
+                className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Import{" "}
+                {importSection !== "personal" &&
+                  selectedItems[importSection as keyof typeof selectedItems]
+                    ?.length > 0 &&
+                  `(${
+                    selectedItems[importSection as keyof typeof selectedItems]
+                      .length
+                  })`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Version Modal */}
+      {showVersionModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">
+                Create New Version
+              </h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Create a new version of this resume to experiment with changes
+              </p>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Version Name *
+                </label>
+                <input
+                  type="text"
+                  value={newVersionName}
+                  onChange={(e) => setNewVersionName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                  placeholder="e.g., Software Engineer v2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Description (Optional)
+                </label>
+                <textarea
+                  value={newVersionDescription}
+                  onChange={(e) => setNewVersionDescription(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent min-h-[80px]"
+                  placeholder="Describe what changes you plan to make in this version"
+                />
+              </div>
+            </div>
+            <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowVersionModal(false);
+                  setNewVersionName("");
+                  setNewVersionDescription("");
+                }}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateVersion}
+                disabled={!newVersionName.trim()}
+                className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Create Version
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Version Comparison Modal */}
+      {showVersionCompare && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-[95vw] max-h-[95vh] overflow-hidden flex flex-col">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    Compare Versions
+                  </h2>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {resume1Data && resume2Data
+                      ? "Side-by-side comparison of resume content"
+                      : "Select two versions to compare their differences"}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowVersionCompare(false);
+                    setVersionComparison(null);
+                    setResume1Data(null);
+                    setResume2Data(null);
+                    setSelectedVersion1(null);
+                    setSelectedVersion2(null);
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <Icon
+                    icon="mingcute:close-line"
+                    className="w-5 h-5 text-gray-600"
+                  />
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-hidden flex flex-col">
+              {loadingComparison ? (
+                <div className="flex-1 flex items-center justify-center">
+                  <div className="text-center">
+                    <Icon
+                      icon="mingcute:loading-line"
+                      className="w-8 h-8 animate-spin text-[#3351FD] mx-auto mb-2"
+                    />
+                    <p className="text-gray-600">Loading comparison...</p>
+                  </div>
+                </div>
+              ) : !resume1Data || !resume2Data ? (
+                <div className="p-6 flex-1 overflow-y-auto">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Version 1
+                      </label>
+                      <select
+                        value={selectedVersion1 || ""}
+                        onChange={(e) => setSelectedVersion1(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                      >
+                        <option value="">Select a version</option>
+                        {versions.map((version) => (
+                          <option key={version.id} value={version.id}>
+                            {version.name || `Version ${version.versionNumber}`}{" "}
+                            (v{version.versionNumber || 1})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Version 2
+                      </label>
+                      <select
+                        value={selectedVersion2 || ""}
+                        onChange={(e) => setSelectedVersion2(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                      >
+                        <option value="">Select a version</option>
+                        {versions.map((version) => (
+                          <option key={version.id} value={version.id}>
+                            {version.name || `Version ${version.versionNumber}`}{" "}
+                            (v{version.versionNumber || 1})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <button
+                        onClick={() => handleCompareVersions(false)}
+                        disabled={
+                          !selectedVersion1 ||
+                          !selectedVersion2 ||
+                          loadingComparison
+                        }
+                        className="w-full px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {loadingComparison
+                          ? "Loading..."
+                          : "Compare Selected Versions"}
+                      </button>
+                      <button
+                        onClick={() => handleCompareVersions(true)}
+                        disabled={loadingComparison}
+                        className="w-full px-4 py-2 bg-gray-100 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      >
+                        <Icon icon="mingcute:eye-line" className="w-4 h-4" />
+                        View Demo Comparison (Mock Data)
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-1 overflow-hidden flex">
+                  {/* Side-by-side resume comparison */}
+                  <div className="flex-1 overflow-y-auto bg-gray-100 p-4 border-r border-gray-300">
+                    <div className="sticky top-0 bg-white border-b border-gray-200 p-3 mb-4 z-10">
+                      <h3 className="font-semibold text-gray-900">
+                        {resume1Data.name} (v{resume1Data.versionNumber || 1})
+                      </h3>
+                      {resume1Data.isMaster && (
+                        <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded mt-1 inline-block">
+                          Master
+                        </span>
+                      )}
+                    </div>
+                    <div
+                      className="max-w-2xl mx-auto bg-white shadow-lg p-8"
+                      style={{
+                        fontFamily:
+                          resume1Data.customizations?.fonts?.body || "Inter",
+                        backgroundColor:
+                          resume1Data.customizations?.colors?.background ||
+                          "#FFFFFF",
+                      }}
+                    >
+                      {/* Personal Info */}
+                      <div className="border-b pb-4 mb-4">
+                        <h1
+                          className="text-3xl font-bold mb-2"
+                          style={{
+                            color:
+                              resume1Data.customizations?.colors?.primary ||
+                              "#3351FD",
+                            fontFamily:
+                              resume1Data.customizations?.fonts?.heading ||
+                              "Inter",
+                          }}
+                        >
+                          {resume1Data.content.personalInfo.firstName}{" "}
+                          {resume1Data.content.personalInfo.lastName}
+                        </h1>
+                        <div className="text-sm text-gray-600">
+                          {resume1Data.content.personalInfo.email && (
+                            <span>
+                              {resume1Data.content.personalInfo.email}
+                            </span>
+                          )}
+                          {resume1Data.content.personalInfo.phone && (
+                            <span className="mx-2">•</span>
+                          )}
+                          {resume1Data.content.personalInfo.phone && (
+                            <span>
+                              {resume1Data.content.personalInfo.phone}
+                            </span>
+                          )}
+                          {resume1Data.content.personalInfo.location && (
+                            <span className="mx-2">•</span>
+                          )}
+                          {resume1Data.content.personalInfo.location && (
+                            <span>
+                              {resume1Data.content.personalInfo.location}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Summary */}
+                      {resume1Data.content.summary && (
+                        <div className="mb-4">
+                          <h2
+                            className="text-xl font-semibold mb-2"
+                            style={{
+                              color:
+                                resume1Data.customizations?.colors?.primary ||
+                                "#3351FD",
+                            }}
+                          >
+                            Summary
+                          </h2>
+                          <p className="text-gray-700">
+                            {resume1Data.content.summary}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Experience */}
+                      {resume1Data.content.experience &&
+                        resume1Data.content.experience.length > 0 && (
+                          <div className="mb-4">
+                            <h2
+                              className="text-xl font-semibold mb-3"
+                              style={{
+                                color:
+                                  resume1Data.customizations?.colors?.primary ||
+                                  "#3351FD",
+                              }}
+                            >
+                              Experience
+                            </h2>
+                            {resume1Data.content.experience.map((exp: any) => (
+                              <div key={exp.id} className="mb-4">
+                                <h3 className="font-semibold text-gray-900">
+                                  {exp.title}
+                                </h3>
+                                <p className="text-gray-700">{exp.company}</p>
+                                <p className="text-sm text-gray-600">
+                                  {exp.startDate} -{" "}
+                                  {exp.isCurrent
+                                    ? "Present"
+                                    : exp.endDate || ""}
+                                </p>
+                                {exp.description &&
+                                  exp.description.length > 0 && (
+                                    <ul className="list-disc list-inside mt-2 text-gray-700">
+                                      {exp.description.map(
+                                        (desc: string, idx: number) => (
+                                          <li key={idx}>{desc}</li>
+                                        )
+                                      )}
+                                    </ul>
+                                  )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                      {/* Education */}
+                      {resume1Data.content.education &&
+                        resume1Data.content.education.length > 0 && (
+                          <div className="mb-4">
+                            <h2
+                              className="text-xl font-semibold mb-3"
+                              style={{
+                                color:
+                                  resume1Data.customizations?.colors?.primary ||
+                                  "#3351FD",
+                              }}
+                            >
+                              Education
+                            </h2>
+                            {resume1Data.content.education.map((edu: any) => (
+                              <div key={edu.id} className="mb-3">
+                                <h3 className="font-semibold text-gray-900">
+                                  {edu.degree}
+                                </h3>
+                                <p className="text-gray-700">{edu.school}</p>
+                                {edu.field && (
+                                  <p className="text-sm text-gray-600">
+                                    {edu.field}
+                                  </p>
+                                )}
+                                {edu.endDate && (
+                                  <p className="text-sm text-gray-600">
+                                    Graduated: {edu.endDate}
+                                  </p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                      {/* Skills */}
+                      {resume1Data.content.skills &&
+                        resume1Data.content.skills.length > 0 && (
+                          <div className="mb-4">
+                            <h2
+                              className="text-xl font-semibold mb-3"
+                              style={{
+                                color:
+                                  resume1Data.customizations?.colors?.primary ||
+                                  "#3351FD",
+                              }}
+                            >
+                              Skills
+                            </h2>
+                            <div className="flex flex-wrap gap-2">
+                              {resume1Data.content.skills.map((skill: any) => (
+                                <span
+                                  key={skill.id}
+                                  className="px-3 py-1 rounded text-sm font-medium text-white"
+                                  style={{
+                                    backgroundColor:
+                                      resume1Data.customizations?.colors
+                                        ?.primary || "#3351FD",
+                                  }}
+                                >
+                                  {skill.name}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                    </div>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto bg-gray-100 p-4">
+                    <div className="sticky top-0 bg-white border-b border-gray-200 p-3 mb-4 z-10">
+                      <h3 className="font-semibold text-gray-900">
+                        {resume2Data.name} (v{resume2Data.versionNumber || 1})
+                      </h3>
+                      {resume2Data.isMaster && (
+                        <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded mt-1 inline-block">
+                          Master
+                        </span>
+                      )}
+                    </div>
+                    <div
+                      className="max-w-2xl mx-auto bg-white shadow-lg p-8"
+                      style={{
+                        fontFamily:
+                          resume2Data.customizations?.fonts?.body || "Inter",
+                        backgroundColor:
+                          resume2Data.customizations?.colors?.background ||
+                          "#FFFFFF",
+                      }}
+                    >
+                      {/* Personal Info */}
+                      <div className="border-b pb-4 mb-4">
+                        <h1
+                          className="text-3xl font-bold mb-2"
+                          style={{
+                            color:
+                              resume2Data.customizations?.colors?.primary ||
+                              "#3351FD",
+                            fontFamily:
+                              resume2Data.customizations?.fonts?.heading ||
+                              "Inter",
+                          }}
+                        >
+                          {resume2Data.content.personalInfo.firstName}{" "}
+                          {resume2Data.content.personalInfo.lastName}
+                        </h1>
+                        <div className="text-sm text-gray-600">
+                          {resume2Data.content.personalInfo.email && (
+                            <span>
+                              {resume2Data.content.personalInfo.email}
+                            </span>
+                          )}
+                          {resume2Data.content.personalInfo.phone && (
+                            <span className="mx-2">•</span>
+                          )}
+                          {resume2Data.content.personalInfo.phone && (
+                            <span>
+                              {resume2Data.content.personalInfo.phone}
+                            </span>
+                          )}
+                          {resume2Data.content.personalInfo.location && (
+                            <span className="mx-2">•</span>
+                          )}
+                          {resume2Data.content.personalInfo.location && (
+                            <span>
+                              {resume2Data.content.personalInfo.location}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Summary */}
+                      {resume2Data.content.summary && (
+                        <div className="mb-4">
+                          <h2
+                            className="text-xl font-semibold mb-2"
+                            style={{
+                              color:
+                                resume2Data.customizations?.colors?.primary ||
+                                "#3351FD",
+                            }}
+                          >
+                            Summary
+                          </h2>
+                          <p className="text-gray-700">
+                            {resume2Data.content.summary}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Experience */}
+                      {resume2Data.content.experience &&
+                        resume2Data.content.experience.length > 0 && (
+                          <div className="mb-4">
+                            <h2
+                              className="text-xl font-semibold mb-3"
+                              style={{
+                                color:
+                                  resume2Data.customizations?.colors?.primary ||
+                                  "#3351FD",
+                              }}
+                            >
+                              Experience
+                            </h2>
+                            {resume2Data.content.experience.map((exp: any) => (
+                              <div key={exp.id} className="mb-4">
+                                <h3 className="font-semibold text-gray-900">
+                                  {exp.title}
+                                </h3>
+                                <p className="text-gray-700">{exp.company}</p>
+                                <p className="text-sm text-gray-600">
+                                  {exp.startDate} -{" "}
+                                  {exp.isCurrent
+                                    ? "Present"
+                                    : exp.endDate || ""}
+                                </p>
+                                {exp.description &&
+                                  exp.description.length > 0 && (
+                                    <ul className="list-disc list-inside mt-2 text-gray-700">
+                                      {exp.description.map(
+                                        (desc: string, idx: number) => (
+                                          <li key={idx}>{desc}</li>
+                                        )
+                                      )}
+                                    </ul>
+                                  )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                      {/* Education */}
+                      {resume2Data.content.education &&
+                        resume2Data.content.education.length > 0 && (
+                          <div className="mb-4">
+                            <h2
+                              className="text-xl font-semibold mb-3"
+                              style={{
+                                color:
+                                  resume2Data.customizations?.colors?.primary ||
+                                  "#3351FD",
+                              }}
+                            >
+                              Education
+                            </h2>
+                            {resume2Data.content.education.map((edu: any) => (
+                              <div key={edu.id} className="mb-3">
+                                <h3 className="font-semibold text-gray-900">
+                                  {edu.degree}
+                                </h3>
+                                <p className="text-gray-700">{edu.school}</p>
+                                {edu.field && (
+                                  <p className="text-sm text-gray-600">
+                                    {edu.field}
+                                  </p>
+                                )}
+                                {edu.endDate && (
+                                  <p className="text-sm text-gray-600">
+                                    Graduated: {edu.endDate}
+                                  </p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                      {/* Skills */}
+                      {resume2Data.content.skills &&
+                        resume2Data.content.skills.length > 0 && (
+                          <div className="mb-4">
+                            <h2
+                              className="text-xl font-semibold mb-3"
+                              style={{
+                                color:
+                                  resume2Data.customizations?.colors?.primary ||
+                                  "#3351FD",
+                              }}
+                            >
+                              Skills
+                            </h2>
+                            <div className="flex flex-wrap gap-2">
+                              {resume2Data.content.skills.map((skill: any) => (
+                                <span
+                                  key={skill.id}
+                                  className="px-3 py-1 rounded text-sm font-medium text-white"
+                                  style={{
+                                    backgroundColor:
+                                      resume2Data.customizations?.colors
+                                        ?.primary || "#3351FD",
+                                  }}
+                                >
+                                  {skill.name}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            {(!resume1Data || !resume2Data) && (
+              <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+                <button
+                  onClick={() => {
+                    setShowVersionCompare(false);
+                    setVersionComparison(null);
+                    setResume1Data(null);
+                    setResume2Data(null);
+                    setSelectedVersion1(null);
+                    setSelectedVersion2(null);
+                  }}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+            {resume1Data && resume2Data && (
+              <div className="p-4 border-t border-gray-200 bg-white flex justify-between items-center">
+                <button
+                  onClick={() => {
+                    setResume1Data(null);
+                    setResume2Data(null);
+                    setVersionComparison(null);
+                    setSelectedVersion1(null);
+                    setSelectedVersion2(null);
+                  }}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Compare Different Versions
+                </button>
+                <button
+                  onClick={() => {
+                    setShowVersionCompare(false);
+                    setVersionComparison(null);
+                    setResume1Data(null);
+                    setResume2Data(null);
+                    setSelectedVersion1(null);
+                    setSelectedVersion2(null);
+                  }}
+                  className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Import Resume Modal */}
+      {showImportResumeModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    Import Resume
+                  </h2>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Upload your existing resume (PDF or DOCX) and we'll extract
+                    all the information using AI
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowImportResumeModal(false);
+                    setParsedResumeContent(null);
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <Icon
+                    icon="mingcute:close-line"
+                    className="w-5 h-5 text-gray-600"
+                  />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
+              {!parsedResumeContent ? (
+                <div className="space-y-4">
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-[#3351FD] transition-colors">
+                    <input
+                      type="file"
+                      id="resume-file-input"
+                      accept=".pdf,.docx,.doc"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+
+                        try {
+                          setImportingResume(true);
+                          showToast("Parsing resume with AI...", "info");
+
+                          const response = await resumeService.parseResume(
+                            file
+                          );
+
+                          if (response.ok && response.data) {
+                            setParsedResumeContent(response.data.content);
+                            showToast(
+                              "Resume parsed successfully! Review and confirm to import.",
+                              "success"
+                            );
+                          }
+                        } catch (err: any) {
+                          console.error("Failed to parse resume:", err);
+                          showToast(
+                            err.message ||
+                              "Failed to parse resume. Please try again.",
+                            "error"
+                          );
+                        } finally {
+                          setImportingResume(false);
+                        }
+                      }}
+                      className="hidden"
+                      disabled={importingResume}
+                    />
+                    <label
+                      htmlFor="resume-file-input"
+                      className={`cursor-pointer flex flex-col items-center gap-4 ${
+                        importingResume ? "opacity-50 cursor-not-allowed" : ""
+                      }`}
+                    >
+                      {importingResume ? (
+                        <>
+                          <Icon
+                            icon="mingcute:loading-line"
+                            className="w-12 h-12 animate-spin text-[#3351FD]"
+                          />
+                          <div>
+                            <p className="text-lg font-medium text-gray-900">
+                              Parsing resume with AI...
+                            </p>
+                            <p className="text-sm text-gray-600 mt-1">
+                              This may take a few moments
+                            </p>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <Icon
+                            icon="mingcute:file-upload-line"
+                            className="w-12 h-12 text-gray-400"
+                          />
+                          <div>
+                            <p className="text-lg font-medium text-gray-900">
+                              Click to upload or drag and drop
+                            </p>
+                            <p className="text-sm text-gray-600 mt-1">
+                              PDF or DOCX files only (max 10MB)
+                            </p>
+                          </div>
+                        </>
+                      )}
+                    </label>
+                  </div>
+
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <Icon
+                        icon="mingcute:information-line"
+                        className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5"
+                      />
+                      <div className="text-sm text-blue-800">
+                        <p className="font-medium mb-1">AI-Powered Parsing</p>
+                        <p>
+                          Our AI will extract all information from your resume
+                          including: personal info, experience, education,
+                          skills, projects, and certifications.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2">
+                      <Icon
+                        icon="mingcute:check-circle-line"
+                        className="w-5 h-5 text-green-600"
+                      />
+                      <p className="text-sm font-medium text-green-800">
+                        Resume parsed successfully! Review the extracted
+                        information below.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Preview Parsed Content */}
+                  <div className="space-y-4 max-h-[400px] overflow-y-auto">
+                    {/* Personal Info */}
+                    {parsedResumeContent.personalInfo && (
+                      <div className="border border-gray-200 rounded-lg p-4">
+                        <h3 className="font-semibold text-gray-900 mb-2">
+                          Personal Information
+                        </h3>
+                        <div className="text-sm text-gray-700 space-y-1">
+                          <p>
+                            <strong>Name:</strong>{" "}
+                            {parsedResumeContent.personalInfo.firstName}{" "}
+                            {parsedResumeContent.personalInfo.lastName}
+                          </p>
+                          {parsedResumeContent.personalInfo.email && (
+                            <p>
+                              <strong>Email:</strong>{" "}
+                              {parsedResumeContent.personalInfo.email}
+                            </p>
+                          )}
+                          {parsedResumeContent.personalInfo.phone && (
+                            <p>
+                              <strong>Phone:</strong>{" "}
+                              {parsedResumeContent.personalInfo.phone}
+                            </p>
+                          )}
+                          {parsedResumeContent.personalInfo.location && (
+                            <p>
+                              <strong>Location:</strong>{" "}
+                              {parsedResumeContent.personalInfo.location}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Summary */}
+                    {parsedResumeContent.summary && (
+                      <div className="border border-gray-200 rounded-lg p-4">
+                        <h3 className="font-semibold text-gray-900 mb-2">
+                          Summary
+                        </h3>
+                        <p className="text-sm text-gray-700">
+                          {parsedResumeContent.summary}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Experience */}
+                    {parsedResumeContent.experience &&
+                      parsedResumeContent.experience.length > 0 && (
+                        <div className="border border-gray-200 rounded-lg p-4">
+                          <h3 className="font-semibold text-gray-900 mb-2">
+                            Experience ({parsedResumeContent.experience.length}{" "}
+                            positions)
+                          </h3>
+                          <div className="text-sm text-gray-700 space-y-2">
+                            {parsedResumeContent.experience
+                              .slice(0, 3)
+                              .map((exp: any) => (
+                                <div
+                                  key={exp.id}
+                                  className="border-l-2 border-gray-300 pl-3"
+                                >
+                                  <p className="font-medium">
+                                    {exp.title} at {exp.company}
+                                  </p>
+                                  <p className="text-xs text-gray-600">
+                                    {exp.startDate} -{" "}
+                                    {exp.isCurrent ? "Present" : exp.endDate}
+                                  </p>
+                                </div>
+                              ))}
+                            {parsedResumeContent.experience.length > 3 && (
+                              <p className="text-xs text-gray-500">
+                                +{parsedResumeContent.experience.length - 3}{" "}
+                                more positions
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                    {/* Education */}
+                    {parsedResumeContent.education &&
+                      parsedResumeContent.education.length > 0 && (
+                        <div className="border border-gray-200 rounded-lg p-4">
+                          <h3 className="font-semibold text-gray-900 mb-2">
+                            Education ({parsedResumeContent.education.length}{" "}
+                            entries)
+                          </h3>
+                          <div className="text-sm text-gray-700 space-y-1">
+                            {parsedResumeContent.education.map((edu: any) => (
+                              <p key={edu.id}>
+                                {edu.degree} from {edu.school}
+                              </p>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                    {/* Skills */}
+                    {parsedResumeContent.skills &&
+                      parsedResumeContent.skills.length > 0 && (
+                        <div className="border border-gray-200 rounded-lg p-4">
+                          <h3 className="font-semibold text-gray-900 mb-2">
+                            Skills ({parsedResumeContent.skills.length} skills)
+                          </h3>
+                          <div className="flex flex-wrap gap-2">
+                            {parsedResumeContent.skills
+                              .slice(0, 10)
+                              .map((skill: any) => (
+                                <span
+                                  key={skill.id}
+                                  className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs"
+                                >
+                                  {skill.name}
+                                </span>
+                              ))}
+                            {parsedResumeContent.skills.length > 10 && (
+                              <span className="px-2 py-1 text-gray-500 text-xs">
+                                +{parsedResumeContent.skills.length - 10} more
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                    {/* Projects */}
+                    {parsedResumeContent.projects &&
+                      parsedResumeContent.projects.length > 0 && (
+                        <div className="border border-gray-200 rounded-lg p-4">
+                          <h3 className="font-semibold text-gray-900 mb-2">
+                            Projects ({parsedResumeContent.projects.length}{" "}
+                            projects)
+                          </h3>
+                        </div>
+                      )}
+
+                    {/* Certifications */}
+                    {parsedResumeContent.certifications &&
+                      parsedResumeContent.certifications.length > 0 && (
+                        <div className="border border-gray-200 rounded-lg p-4">
+                          <h3 className="font-semibold text-gray-900 mb-2">
+                            Certifications (
+                            {parsedResumeContent.certifications.length}{" "}
+                            certifications)
+                          </h3>
+                        </div>
+                      )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowImportResumeModal(false);
+                  setParsedResumeContent(null);
+                }}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                {parsedResumeContent ? "Cancel" : "Close"}
+              </button>
+              {parsedResumeContent && (
+                <>
+                  <button
+                    onClick={() => {
+                      setParsedResumeContent(null);
+                      const input = document.getElementById(
+                        "resume-file-input"
+                      ) as HTMLInputElement;
+                      if (input) input.value = "";
+                    }}
+                    className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Upload Different File
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (!resume || !parsedResumeContent) return;
+
+                      try {
+                        // Merge parsed content with existing resume
+                        const newContent = {
+                          ...resume.content,
+                          personalInfo: {
+                            ...resume.content.personalInfo,
+                            ...parsedResumeContent.personalInfo,
+                          },
+                          summary:
+                            parsedResumeContent.summary ||
+                            resume.content.summary,
+                          experience: [
+                            ...(resume.content.experience || []),
+                            ...(parsedResumeContent.experience || []),
+                          ],
+                          education: [
+                            ...(resume.content.education || []),
+                            ...(parsedResumeContent.education || []),
+                          ],
+                          skills: [
+                            ...(resume.content.skills || []),
+                            ...(parsedResumeContent.skills || []),
+                          ],
+                          projects: [
+                            ...(resume.content.projects || []),
+                            ...(parsedResumeContent.projects || []),
+                          ],
+                          certifications: [
+                            ...(resume.content.certifications || []),
+                            ...(parsedResumeContent.certifications || []),
+                          ],
+                        };
+
+                        const updatedResume = {
+                          ...resume,
+                          content: newContent,
+                        };
+                        setResume(updatedResume);
+
+                        // Auto-save if resume exists
+                        if (resumeId && resumeId !== "new") {
+                          setIsAutoSaving(true);
+                          resumeService
+                            .updateResume(resumeId, {
+                              content: newContent,
+                            })
+                            .then(() => {
+                              setLastSaved(new Date());
+                              showToast(
+                                "Resume imported successfully!",
+                                "success"
+                              );
+                            })
+                            .catch((err) => {
+                              console.error("Auto-save failed:", err);
+                              showToast(
+                                "Failed to save imported content. Please try again.",
+                                "error"
+                              );
+                            })
+                            .finally(() => {
+                              setTimeout(() => setIsAutoSaving(false), 500);
+                            });
+                        } else {
+                          showToast(
+                            "Resume imported! Save the resume to persist changes.",
+                            "success"
+                          );
+                        }
+
+                        setShowImportResumeModal(false);
+                        setParsedResumeContent(null);
+                      } catch (err: any) {
+                        console.error("Failed to import resume:", err);
+                        showToast(
+                          "Failed to import resume. Please try again.",
+                          "error"
+                        );
+                      }
+                    }}
+                    className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors"
+                  >
+                    Import to Resume
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

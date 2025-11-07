@@ -15,7 +15,6 @@ export function highlightSearchTerm(
   }
 
   const searchLower = searchTerm.toLowerCase();
-  const textLower = text.toLowerCase();
 
   // Split search term into words for better matching
   const searchWords = searchLower.split(/\s+/).filter((word) => word.length > 0);

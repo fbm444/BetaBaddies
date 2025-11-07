@@ -26,6 +26,13 @@ import {
   STATUS_BG_COLORS,
 } from "../types";
 import { highlightSearchTerm } from "../utils/searchHighlight";
+import {
+  getDaysRemaining,
+  getDeadlineUrgency,
+  getDeadlineColor,
+  getDeadlineBgColor,
+  formatDeadlineText,
+} from "../utils/deadlineUtils";
 
 interface JobPipelineProps {
   opportunities: JobOpportunityData[];
@@ -145,6 +152,26 @@ function PipelineCard({
           <div className="flex items-center gap-1">
             <Icon icon="mingcute:currency-dollar-line" width={12} />
             <span>{formatSalary()}</span>
+          </div>
+        )}
+        {opportunity.applicationDeadline && (
+          <div className="mt-2">
+            <div
+              className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium"
+              style={{
+                backgroundColor: getDeadlineBgColor(
+                  getDeadlineUrgency(getDaysRemaining(opportunity.applicationDeadline))
+                ),
+                color: getDeadlineColor(
+                  getDeadlineUrgency(getDaysRemaining(opportunity.applicationDeadline))
+                ),
+              }}
+            >
+              <Icon icon="mingcute:calendar-line" width={12} />
+              <span>
+                {formatDeadlineText(getDaysRemaining(opportunity.applicationDeadline))}
+              </span>
+            </div>
           </div>
         )}
       </div>

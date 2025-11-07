@@ -16,6 +16,7 @@ import certificationRoutes from "./routes/certificationRoutes.js";
 import fileUploadRoutes from "./routes/fileUploadRoutes.js";
 import projectRoutes from "./routes/projectRoutes.js";
 import profileRoutes from "./routes/profileRoutes.js";
+import resumeRoutes from "./routes/resumeRoutes.js";
 
 // Import middleware
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
@@ -36,7 +37,6 @@ app.use(
     crossOriginEmbedderPolicy: false,
   })
 );
-
 
 // CORS configuration
 app.use(
@@ -73,7 +73,8 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 // Session configuration
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || "your-secret-key-change-in-production",
+    secret:
+      process.env.SESSION_SECRET || "your-secret-key-change-in-production",
     resave: false,
     saveUninitialized: false,
     cookie: {
@@ -114,6 +115,7 @@ app.use("/api/v1/certifications", certificationRoutes);
 app.use("/api/v1/files", fileUploadRoutes);
 app.use("/api/v1/projects", projectRoutes);
 app.use("/api/v1/profile", profileRoutes);
+app.use("/api/v1/resumes", resumeRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

@@ -14,6 +14,10 @@ export const ROUTES = {
   PROJECTS: '/projects',
   CERTIFICATIONS: '/certifications',
   SETTINGS: '/settings',
+  RESUMES: '/resumes',
+  RESUME_BUILDER: '/resumes/builder',
+  RESUME_TEMPLATES: '/resumes/templates',
+  RESUME_PREVIEW: '/resumes/preview',
 } as const
 
 // Navigation menu configuration
@@ -65,6 +69,12 @@ export const navigationItems = [
     label: 'Certifications', 
     icon: 'mingcute:award-line', 
     path: ROUTES.CERTIFICATIONS 
+  },
+  { 
+    id: 'resumes', 
+    label: 'Resumes', 
+    icon: 'mingcute:file-line', 
+    path: ROUTES.RESUMES 
   },
 ] as const
 

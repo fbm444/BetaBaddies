@@ -12,6 +12,10 @@ import { Education } from './pages/Education'
 import { Projects } from './pages/Projects'
 import { Certifications } from './pages/Certifications'
 import { Settings } from './pages/Settings'
+import { Resumes } from './pages/Resumes'
+import { ResumeBuilder } from './pages/ResumeBuilder'
+import { ResumeTemplates } from './pages/ResumeTemplates'
+import { ResumePreview } from './pages/ResumePreview'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { ROUTES } from './config/routes'
@@ -82,6 +86,10 @@ function App() {
 		  <Route path={ROUTES.PROJECTS} element={<Projects />} />
 		  <Route path={ROUTES.CERTIFICATIONS} element={<Certifications />} />
 		  <Route path={ROUTES.SETTINGS} element={<Settings />} />
+		  <Route path={ROUTES.RESUMES} element={<Resumes />} />
+		  <Route path={ROUTES.RESUME_BUILDER} element={<ResumeBuilder />} />
+		  <Route path={ROUTES.RESUME_TEMPLATES} element={<ResumeTemplates />} />
+		  <Route path={ROUTES.RESUME_PREVIEW} element={<ResumePreview />} />
 		</Route>
 	      </Routes>
 	    </div>

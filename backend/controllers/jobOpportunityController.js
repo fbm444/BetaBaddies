@@ -50,15 +50,41 @@ class JobOpportunityController {
   // Get all job opportunities for the authenticated user
   getJobOpportunities = asyncHandler(async (req, res) => {
     const userId = req.session.userId;
-    const { sort, limit, offset, status } = req.query;
+    const {
+      sort,
+      limit,
+      offset,
+      status,
+      search,
+      industry,
+      location,
+      salaryMin,
+      salaryMax,
+      deadlineFrom,
+      deadlineTo,
+    } = req.query;
 
-    const options = { sort, limit, offset, status };
+    const options = {
+      sort,
+      limit,
+      offset,
+      status,
+      search,
+      industry,
+      location,
+      salaryMin: salaryMin ? parseFloat(salaryMin) : undefined,
+      salaryMax: salaryMax ? parseFloat(salaryMax) : undefined,
+      deadlineFrom,
+      deadlineTo,
+    };
+
     const opportunities = await jobOpportunityService.getJobOpportunitiesByUserId(
       userId,
       options
     );
     const totalCount = await jobOpportunityService.getJobOpportunitiesCount(
-      userId
+      userId,
+      options
     );
 
     res.status(200).json({

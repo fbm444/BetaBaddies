@@ -328,7 +328,19 @@ class JobOpportunityService {
   // Get all job opportunities for a user
   async getJobOpportunitiesByUserId(userId, options = {}) {
     try {
-      const { sort = "-created_at", limit = 50, offset = 0, status } = options;
+      const {
+        sort = "-created_at",
+        limit = 50,
+        offset = 0,
+        status,
+        search,
+        industry,
+        location,
+        salaryMin,
+        salaryMax,
+        deadlineFrom,
+        deadlineTo,
+      } = options;
 
       // Validate limit
       const validLimit = Math.min(Math.max(parseInt(limit) || 50, 1), 100);
@@ -339,22 +351,78 @@ class JobOpportunityService {
       const queryParams = [userId];
       let paramIndex = 2;
 
+      // Search filter (searches in title, company, description, notes)
+      if (search && search.trim()) {
+        const searchTerm = `%${search.trim().toLowerCase()}%`;
+        whereClause += ` AND (
+          LOWER(title) LIKE $${paramIndex} OR
+          LOWER(company) LIKE $${paramIndex} OR
+          LOWER(job_description) LIKE $${paramIndex} OR
+          LOWER(notes) LIKE $${paramIndex}
+        )`;
+        queryParams.push(searchTerm);
+        paramIndex++;
+      }
+
+      // Status filter
       if (status) {
         this.validateStatus(status);
         whereClause += ` AND status = $${paramIndex++}`;
         queryParams.push(status);
       }
 
+      // Industry filter
+      if (industry && industry.trim()) {
+        whereClause += ` AND industry = $${paramIndex++}`;
+        queryParams.push(industry.trim());
+      }
+
+      // Location filter (case-insensitive partial match)
+      if (location && location.trim()) {
+        whereClause += ` AND LOWER(location) LIKE $${paramIndex++}`;
+        queryParams.push(`%${location.trim().toLowerCase()}%`);
+      }
+
+      // Salary range filter
+      if (salaryMin !== undefined && salaryMin !== null) {
+        whereClause += ` AND (salary_max >= $${paramIndex} OR salary_max IS NULL)`;
+        queryParams.push(salaryMin);
+        paramIndex++;
+      }
+      if (salaryMax !== undefined && salaryMax !== null) {
+        whereClause += ` AND (salary_min <= $${paramIndex} OR salary_min IS NULL)`;
+        queryParams.push(salaryMax);
+        paramIndex++;
+      }
+
+      // Application deadline date range filter
+      if (deadlineFrom) {
+        whereClause += ` AND application_deadline >= $${paramIndex++}`;
+        queryParams.push(deadlineFrom);
+      }
+      if (deadlineTo) {
+        whereClause += ` AND application_deadline <= $${paramIndex++}`;
+        queryParams.push(deadlineTo);
+      }
+
       // Build sort clause
       let sortClause = "ORDER BY created_at DESC";
       if (sort === "created_at") {
         sortClause = "ORDER BY created_at ASC";
+      } else if (sort === "-created_at") {
+        sortClause = "ORDER BY created_at DESC";
       } else if (sort === "application_deadline") {
         sortClause = "ORDER BY application_deadline ASC NULLS LAST";
       } else if (sort === "-application_deadline") {
         sortClause = "ORDER BY application_deadline DESC NULLS LAST";
       } else if (sort === "company") {
         sortClause = "ORDER BY company ASC";
+      } else if (sort === "-company") {
+        sortClause = "ORDER BY company DESC";
+      } else if (sort === "salary") {
+        sortClause = "ORDER BY salary_min ASC NULLS LAST, salary_max ASC NULLS LAST";
+      } else if (sort === "-salary") {
+        sortClause = "ORDER BY salary_max DESC NULLS LAST, salary_min DESC NULLS LAST";
       } else if (sort === "status_updated_at") {
         sortClause = "ORDER BY status_updated_at DESC";
       }
@@ -409,16 +477,86 @@ class JobOpportunityService {
     }
   }
 
-  // Get total count of job opportunities for a user
-  async getJobOpportunitiesCount(userId) {
+  // Get total count of job opportunities for a user (with same filters as getJobOpportunitiesByUserId)
+  async getJobOpportunitiesCount(userId, options = {}) {
     try {
+      const {
+        status,
+        search,
+        industry,
+        location,
+        salaryMin,
+        salaryMax,
+        deadlineFrom,
+        deadlineTo,
+      } = options;
+
+      // Build WHERE clause (same as getJobOpportunitiesByUserId)
+      let whereClause = "WHERE user_id = $1";
+      const queryParams = [userId];
+      let paramIndex = 2;
+
+      // Search filter
+      if (search && search.trim()) {
+        const searchTerm = `%${search.trim().toLowerCase()}%`;
+        whereClause += ` AND (
+          LOWER(title) LIKE $${paramIndex} OR
+          LOWER(company) LIKE $${paramIndex} OR
+          LOWER(job_description) LIKE $${paramIndex} OR
+          LOWER(notes) LIKE $${paramIndex}
+        )`;
+        queryParams.push(searchTerm);
+        paramIndex++;
+      }
+
+      // Status filter
+      if (status) {
+        this.validateStatus(status);
+        whereClause += ` AND status = $${paramIndex++}`;
+        queryParams.push(status);
+      }
+
+      // Industry filter
+      if (industry && industry.trim()) {
+        whereClause += ` AND industry = $${paramIndex++}`;
+        queryParams.push(industry.trim());
+      }
+
+      // Location filter
+      if (location && location.trim()) {
+        whereClause += ` AND LOWER(location) LIKE $${paramIndex++}`;
+        queryParams.push(`%${location.trim().toLowerCase()}%`);
+      }
+
+      // Salary range filter
+      if (salaryMin !== undefined && salaryMin !== null) {
+        whereClause += ` AND (salary_max >= $${paramIndex} OR salary_max IS NULL)`;
+        queryParams.push(salaryMin);
+        paramIndex++;
+      }
+      if (salaryMax !== undefined && salaryMax !== null) {
+        whereClause += ` AND (salary_min <= $${paramIndex} OR salary_min IS NULL)`;
+        queryParams.push(salaryMax);
+        paramIndex++;
+      }
+
+      // Application deadline date range filter
+      if (deadlineFrom) {
+        whereClause += ` AND application_deadline >= $${paramIndex++}`;
+        queryParams.push(deadlineFrom);
+      }
+      if (deadlineTo) {
+        whereClause += ` AND application_deadline <= $${paramIndex++}`;
+        queryParams.push(deadlineTo);
+      }
+
       const query = `
         SELECT COUNT(*) as count
         FROM job_opportunities
-        WHERE user_id = $1
+        ${whereClause}
       `;
 
-      const result = await database.query(query, [userId]);
+      const result = await database.query(query, queryParams);
       return parseInt(result.rows[0].count, 10);
     } catch (error) {
       console.error("❌ Error getting job opportunities count:", error);

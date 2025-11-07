@@ -25,6 +25,7 @@ import {
   STATUS_COLORS,
   STATUS_BG_COLORS,
 } from "../types";
+import { highlightSearchTerm } from "../utils/searchHighlight";
 
 interface JobPipelineProps {
   opportunities: JobOpportunityData[];
@@ -32,6 +33,7 @@ interface JobPipelineProps {
   onEdit: (opportunity: JobOpportunityData) => void;
   onDelete: (opportunity: JobOpportunityData) => void;
   onView?: (opportunity: JobOpportunityData) => void;
+  searchTerm?: string;
 }
 
 interface PipelineColumnProps {
@@ -40,6 +42,7 @@ interface PipelineColumnProps {
   onEdit: (opportunity: JobOpportunityData) => void;
   onDelete: (opportunity: JobOpportunityData) => void;
   onView?: (opportunity: JobOpportunityData) => void;
+  searchTerm?: string;
 }
 
 interface PipelineCardProps {
@@ -47,10 +50,17 @@ interface PipelineCardProps {
   onEdit: (opportunity: JobOpportunityData) => void;
   onDelete: (opportunity: JobOpportunityData) => void;
   onView?: (opportunity: JobOpportunityData) => void;
+  searchTerm?: string;
 }
 
 // Pipeline Card Component
-function PipelineCard({ opportunity, onEdit, onDelete, onView }: PipelineCardProps) {
+function PipelineCard({
+  opportunity,
+  onEdit,
+  onDelete,
+  onView,
+  searchTerm,
+}: PipelineCardProps) {
   const {
     attributes,
     listeners,
@@ -96,9 +106,11 @@ function PipelineCard({ opportunity, onEdit, onDelete, onView }: PipelineCardPro
           style={{ cursor: onView ? 'pointer' : 'default' }}
         >
           <h4 className="font-semibold text-slate-900 truncate text-sm">
-            {opportunity.title}
+            {highlightSearchTerm(opportunity.title, searchTerm)}
           </h4>
-          <p className="text-xs text-slate-600 truncate">{opportunity.company}</p>
+          <p className="text-xs text-slate-600 truncate">
+            {highlightSearchTerm(opportunity.company, searchTerm)}
+          </p>
         </div>
         <div className="flex gap-1 ml-2">
           <button
@@ -147,6 +159,7 @@ function PipelineColumn({
   onEdit,
   onDelete,
   onView,
+  searchTerm,
 }: PipelineColumnProps) {
   const { setNodeRef } = useDroppable({
     id: status,
@@ -205,6 +218,7 @@ function PipelineColumn({
                       onEdit={onEdit}
                       onDelete={onDelete}
                       onView={onView}
+                      searchTerm={searchTerm}
                     />
                   ))
                 )}
@@ -221,6 +235,7 @@ export function JobPipeline({
   onEdit,
   onDelete,
   onView,
+  searchTerm,
 }: JobPipelineProps) {
   const [, setActiveId] = useState<string | null>(null);
   const sensors = useSensors(
@@ -328,6 +343,7 @@ export function JobPipeline({
                     onEdit={onEdit}
                     onDelete={onDelete}
                     onView={onView}
+                    searchTerm={searchTerm}
                   />
             );
           })}

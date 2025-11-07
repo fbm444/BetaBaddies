@@ -9,8 +9,13 @@ import type {
 } from "../types";
 import { INDUSTRIES, JOB_TYPES, JOB_STATUSES, STATUS_COLORS, STATUS_BG_COLORS } from "../types";
 import { isValidUrl, getUrlErrorMessage } from "../utils/urlValidation";
+import { highlightSearchTerm } from "../utils/searchHighlight";
 import { JobPipeline } from "../components/JobPipeline";
 import { JobOpportunityDetailModal } from "../components/JobOpportunityDetailModal";
+import {
+  JobOpportunityFilters,
+  JobOpportunityFilters as FiltersComponent,
+} from "../components/JobOpportunityFilters";
 
 export function JobOpportunities() {
   const [opportunities, setOpportunities] = useState<JobOpportunityData[]>([]);
@@ -28,7 +33,20 @@ export function JobOpportunities() {
 
   // View mode: 'list' or 'pipeline'
   const [viewMode, setViewMode] = useState<"list" | "pipeline">("pipeline");
-  const [statusFilter, setStatusFilter] = useState<JobStatus | "all">("all");
+
+  // Filters state
+  const [filters, setFilters] = useState<JobOpportunityFilters>(() => {
+    // Load saved preferences from localStorage
+    const saved = localStorage.getItem("jobOpportunityFilters");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return { sort: "-created_at" };
+      }
+    }
+    return { sort: "-created_at" };
+  });
 
   // Bulk selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -45,6 +63,11 @@ export function JobOpportunities() {
   const [selectedOpportunity, setSelectedOpportunity] =
     useState<JobOpportunityData | null>(null);
 
+  // Save filters to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem("jobOpportunityFilters", JSON.stringify(filters));
+  }, [filters]);
+
   // Load opportunities and status counts on mount and when filter/view changes
   useEffect(() => {
     const loadData = async () => {
@@ -53,7 +76,7 @@ export function JobOpportunities() {
     };
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter, viewMode]);
+  }, [filters, viewMode]);
 
   // Keep selected opportunity in sync with opportunities list
   useEffect(() => {
@@ -65,17 +88,12 @@ export function JobOpportunities() {
     }
   }, [opportunities]);
 
-  // Reset filter and clear selection when switching to pipeline view
+  // Clear selection when switching to pipeline view
   useEffect(() => {
     if (viewMode === "pipeline") {
-      if (statusFilter !== "all") {
-        setStatusFilter("all");
-      }
-      // Clear selection when switching to pipeline view
       setSelectedIds(new Set());
       setShowBulkActions(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMode]);
 
   const showMessage = (text: string, type: "success" | "error") => {
@@ -99,11 +117,27 @@ export function JobOpportunities() {
     try {
       setIsLoading(true);
       setError(null);
-      // In pipeline view, always fetch all opportunities. In list view, respect filter.
-      const status = viewMode === "pipeline" || statusFilter === "all" 
-        ? undefined 
-        : statusFilter;
-      const response = await api.getJobOpportunities(undefined, undefined, undefined, status);
+      
+      // In pipeline view, don't apply status filter (show all)
+      // In list view, apply all filters
+      const filterParams: any = {
+        sort: filters.sort || "-created_at",
+        limit: 100, // Increased limit for better filtering
+        search: filters.search,
+        industry: filters.industry,
+        location: filters.location,
+        salaryMin: filters.salaryMin,
+        salaryMax: filters.salaryMax,
+        deadlineFrom: filters.deadlineFrom,
+        deadlineTo: filters.deadlineTo,
+      };
+
+      // Only apply status filter in list view
+      if (viewMode === "list" && filters.status && filters.status !== "all") {
+        filterParams.status = filters.status;
+      }
+
+      const response = await api.getJobOpportunities(filterParams);
       if (response.ok && response.data) {
         setOpportunities(response.data.jobOpportunities);
       }
@@ -358,68 +392,41 @@ export function JobOpportunities() {
         </div>
       )}
 
-      {/* View Mode Toggle and Status Filter */}
-      <div className="bg-slate-50 rounded-xl p-6 mb-6 border border-slate-200">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          {/* View Mode Toggle */}
-          <div className="flex gap-2">
-            <button
-              onClick={() => setViewMode("pipeline")}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
-                viewMode === "pipeline"
-                  ? "bg-blue-500 text-white"
-                  : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
-              }`}
-            >
-              <Icon icon="mingcute:grid-line" width={18} />
-              Pipeline View
-            </button>
-            <button
-              onClick={() => setViewMode("list")}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
-                viewMode === "list"
-                  ? "bg-blue-500 text-white"
-                  : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
-              }`}
-            >
-              <Icon icon="mingcute:list-check-line" width={18} />
-              List View
-            </button>
-          </div>
+      {/* Search and Filters */}
+      <FiltersComponent
+        filters={filters}
+        onFiltersChange={setFilters}
+        onClearFilters={() => setFilters({ sort: "-created_at" })}
+      />
 
-          {/* Status Filter (only show in list view) */}
-          {viewMode === "list" && (
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm font-medium text-slate-700">Filter:</span>
-              <button
-                onClick={() => setStatusFilter("all")}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  statusFilter === "all"
-                    ? "bg-slate-900 text-white"
-                    : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
-                }`}
-              >
-                All ({opportunities.length})
-              </button>
-              {JOB_STATUSES.map((status) => (
-                <button
-                  key={status}
-                  onClick={() => setStatusFilter(status)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    statusFilter === status
-                      ? "text-white"
-                      : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
-                  }`}
-                  style={{
-                    backgroundColor:
-                      statusFilter === status ? STATUS_COLORS[status] : undefined,
-                  }}
-                >
-                  {status} ({statusCounts[status]})
-                </button>
-              ))}
-            </div>
-          )}
+      {/* View Mode Toggle */}
+      <div className="bg-slate-50 rounded-xl p-4 mb-6 border border-slate-200">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setViewMode("pipeline")}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+              viewMode === "pipeline"
+                ? "bg-blue-500 text-white"
+                : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
+            }`}
+          >
+            <Icon icon="mingcute:grid-line" width={18} />
+            Pipeline View
+          </button>
+          <button
+            onClick={() => setViewMode("list")}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+              viewMode === "list"
+                ? "bg-blue-500 text-white"
+                : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
+            }`}
+          >
+            <Icon icon="mingcute:list-check-line" width={18} />
+            List View
+          </button>
+          <div className="ml-auto text-sm text-slate-600">
+            Showing {opportunities.length} job{opportunities.length !== 1 ? "s" : ""}
+          </div>
         </div>
       </div>
 
@@ -477,22 +484,59 @@ export function JobOpportunities() {
             className="mx-auto text-slate-300 mb-4"
           />
           <h3 className="text-xl font-semibold text-slate-900 mb-2">
-            {statusFilter !== "all"
-              ? `No jobs with status "${statusFilter}"`
+            {filters.search ||
+            filters.status ||
+            filters.industry ||
+            filters.location ||
+            filters.salaryMin ||
+            filters.salaryMax ||
+            filters.deadlineFrom ||
+            filters.deadlineTo
+              ? "No jobs match your filters"
               : "No Job Opportunities Yet"}
           </h3>
           <p className="text-slate-600 mb-6">
-            {statusFilter !== "all"
-              ? "Try selecting a different status filter or add a new job opportunity."
+            {filters.search ||
+            filters.status ||
+            filters.industry ||
+            filters.location ||
+            filters.salaryMin ||
+            filters.salaryMax ||
+            filters.deadlineFrom ||
+            filters.deadlineTo
+              ? "Try adjusting your search criteria or filters to see more results."
               : "Start tracking positions you're interested in by adding your first job opportunity."}
           </p>
-          {statusFilter === "all" && (
+          {!(filters.search ||
+            filters.status ||
+            filters.industry ||
+            filters.location ||
+            filters.salaryMin ||
+            filters.salaryMax ||
+            filters.deadlineFrom ||
+            filters.deadlineTo) && (
             <button
               onClick={() => setShowAddModal(true)}
               className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium inline-flex items-center gap-2"
             >
               <Icon icon="mingcute:add-line" width={20} />
               Add Your First Opportunity
+            </button>
+          )}
+          {(filters.search ||
+            filters.status ||
+            filters.industry ||
+            filters.location ||
+            filters.salaryMin ||
+            filters.salaryMax ||
+            filters.deadlineFrom ||
+            filters.deadlineTo) && (
+            <button
+              onClick={() => setFilters({ sort: "-created_at" })}
+              className="px-6 py-3 bg-slate-200 text-slate-800 rounded-lg hover:bg-slate-300 transition-colors font-medium inline-flex items-center gap-2"
+            >
+              <Icon icon="mingcute:close-line" width={20} />
+              Clear Filters
             </button>
           )}
         </div>
@@ -506,6 +550,7 @@ export function JobOpportunities() {
                 onEdit={openEditModal}
                 onDelete={openDeleteModal}
                 onView={openDetailModal}
+                searchTerm={filters.search}
               />
             )}
 
@@ -573,6 +618,7 @@ export function JobOpportunities() {
                 isSelected={selectedIds.has(opportunity.id)}
                 onToggleSelect={() => toggleSelection(opportunity.id)}
                 showCheckbox={true}
+                searchTerm={filters.search}
               />
             ))}
           </div>
@@ -637,6 +683,7 @@ function OpportunityCard({
   isSelected = false,
   onToggleSelect,
   showCheckbox = false,
+  searchTerm,
 }: {
   opportunity: JobOpportunityData;
   onEdit: (opportunity: JobOpportunityData) => void;
@@ -645,6 +692,7 @@ function OpportunityCard({
   isSelected?: boolean;
   onToggleSelect?: () => void;
   showCheckbox?: boolean;
+  searchTerm?: string;
 }) {
   const formatSalary = () => {
     if (opportunity.salaryMin && opportunity.salaryMax) {
@@ -695,10 +743,10 @@ function OpportunityCard({
           )}
           <div className="flex-1">
             <h3 className="text-lg font-semibold text-slate-900 mb-1">
-              {opportunity.title}
+              {highlightSearchTerm(opportunity.title, searchTerm)}
             </h3>
             <p className="text-base font-medium text-slate-700">
-              {opportunity.company}
+              {highlightSearchTerm(opportunity.company, searchTerm)}
             </p>
           </div>
         </div>

@@ -10,12 +10,20 @@ import type {
 import { INDUSTRIES, JOB_TYPES, JOB_STATUSES, STATUS_COLORS, STATUS_BG_COLORS } from "../types";
 import { isValidUrl, getUrlErrorMessage } from "../utils/urlValidation";
 import { highlightSearchTerm } from "../utils/searchHighlight";
+import {
+  getDaysRemaining,
+  getDeadlineUrgency,
+  getDeadlineColor,
+  getDeadlineBgColor,
+  formatDeadlineText,
+} from "../utils/deadlineUtils";
 import { JobPipeline } from "../components/JobPipeline";
 import { JobOpportunityDetailModal } from "../components/JobOpportunityDetailModal";
 import {
   JobOpportunityFilters,
   JobOpportunityFilters as FiltersComponent,
 } from "../components/JobOpportunityFilters";
+import { DeadlineCalendar } from "../components/DeadlineCalendar";
 
 export function JobOpportunities() {
   const [opportunities, setOpportunities] = useState<JobOpportunityData[]>([]);
@@ -31,8 +39,8 @@ export function JobOpportunities() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // View mode: 'list' or 'pipeline'
-  const [viewMode, setViewMode] = useState<"list" | "pipeline">("pipeline");
+  // View mode: 'list', 'pipeline', or 'calendar'
+  const [viewMode, setViewMode] = useState<"list" | "pipeline" | "calendar">("pipeline");
 
   // Filters state
   const [filters, setFilters] = useState<JobOpportunityFilters>(() => {
@@ -197,6 +205,57 @@ export function JobOpportunities() {
       }
     } catch (err: any) {
       showMessage(err.message || "Failed to update jobs", "error");
+    }
+  };
+
+  const handleBulkDeadlineExtension = async (days: number) => {
+    if (selectedIds.size === 0) return;
+
+    try {
+      const selectedOpportunities = opportunities.filter((opp) =>
+        selectedIds.has(opp.id)
+      );
+      
+      // Filter to only opportunities with deadlines
+      const opportunitiesWithDeadlines = selectedOpportunities.filter(
+        (opp) => opp.applicationDeadline
+      );
+
+      if (opportunitiesWithDeadlines.length === 0) {
+        showMessage(
+          "Selected jobs don't have deadlines to extend",
+          "error"
+        );
+        return;
+      }
+
+      // Update each opportunity's deadline
+      const updatePromises = opportunitiesWithDeadlines.map(async (opp) => {
+        const currentDate = new Date(opp.applicationDeadline!);
+        currentDate.setDate(currentDate.getDate() + days);
+        const newDeadline = currentDate.toISOString().split("T")[0];
+
+        return api.updateJobOpportunity(opp.id, {
+          ...opp,
+          applicationDeadline: newDeadline,
+        });
+      });
+
+      const results = await Promise.all(updatePromises);
+      const successCount = results.filter((r) => r.ok).length;
+
+      if (successCount > 0) {
+        setSelectedIds(new Set());
+        setShowBulkActions(false);
+        await fetchOpportunities();
+        await fetchStatusCounts();
+        showMessage(
+          `${successCount} job deadline(s) extended by ${days} days!`,
+          "success"
+        );
+      }
+    } catch (err: any) {
+      showMessage(err.message || "Failed to extend deadlines", "error");
     }
   };
 
@@ -424,6 +483,17 @@ export function JobOpportunities() {
             <Icon icon="mingcute:list-check-line" width={18} />
             List View
           </button>
+          <button
+            onClick={() => setViewMode("calendar")}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+              viewMode === "calendar"
+                ? "bg-blue-500 text-white"
+                : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
+            }`}
+          >
+            <Icon icon="mingcute:calendar-line" width={18} />
+            Calendar View
+          </button>
           <div className="ml-auto text-sm text-slate-600">
             Showing {opportunities.length} job{opportunities.length !== 1 ? "s" : ""}
           </div>
@@ -554,10 +624,18 @@ export function JobOpportunities() {
               />
             )}
 
+            {/* Calendar View */}
+            {viewMode === "calendar" && (
+              <DeadlineCalendar
+                opportunities={opportunities}
+                onOpportunityClick={openDetailModal}
+              />
+            )}
+
       {/* Bulk Actions Bar */}
       {viewMode === "list" && showBulkActions && selectedIds.size > 0 && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex flex-col gap-4">
             <div className="flex items-center gap-4">
               <span className="text-sm font-medium text-blue-900">
                 {selectedIds.size} job{selectedIds.size !== 1 ? "s" : ""} selected
@@ -572,19 +650,46 @@ export function JobOpportunities() {
                 Clear selection
               </button>
             </div>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-              <span className="text-sm text-blue-900 sm:mr-2">Update status to:</span>
-              <div className="flex flex-wrap gap-2">
-                {JOB_STATUSES.map((status) => (
-                  <button
-                    key={status}
-                    onClick={() => handleBulkStatusUpdate(status)}
-                    className="px-3 py-1.5 rounded-lg text-sm font-medium text-white transition-colors hover:opacity-90"
-                    style={{ backgroundColor: STATUS_COLORS[status] }}
-                  >
-                    {status}
-                  </button>
-                ))}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                <span className="text-sm text-blue-900 sm:mr-2">Update status to:</span>
+                <div className="flex flex-wrap gap-2">
+                  {JOB_STATUSES.map((status) => (
+                    <button
+                      key={status}
+                      onClick={() => handleBulkStatusUpdate(status)}
+                      className="px-3 py-1.5 rounded-lg text-sm font-medium text-white transition-colors hover:opacity-90"
+                      style={{ backgroundColor: STATUS_COLORS[status] }}
+                    >
+                      {status}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="border-t sm:border-t-0 sm:border-l border-blue-300 pt-4 sm:pt-0 sm:pl-4">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                  <span className="text-sm text-blue-900 sm:mr-2">Extend deadline by:</span>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => handleBulkDeadlineExtension(7)}
+                      className="px-3 py-1.5 rounded-lg text-sm font-medium bg-white text-blue-700 border border-blue-300 hover:bg-blue-50 transition-colors"
+                    >
+                      +7 days
+                    </button>
+                    <button
+                      onClick={() => handleBulkDeadlineExtension(14)}
+                      className="px-3 py-1.5 rounded-lg text-sm font-medium bg-white text-blue-700 border border-blue-300 hover:bg-blue-50 transition-colors"
+                    >
+                      +14 days
+                    </button>
+                    <button
+                      onClick={() => handleBulkDeadlineExtension(30)}
+                      className="px-3 py-1.5 rounded-lg text-sm font-medium bg-white text-blue-700 border border-blue-300 hover:bg-blue-50 transition-colors"
+                    >
+                      +30 days
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -715,10 +820,10 @@ function OpportunityCard({
     });
   };
 
-  const isDeadlinePassed = () => {
-    if (!opportunity.applicationDeadline) return false;
-    return new Date(opportunity.applicationDeadline) < new Date();
-  };
+  const daysRemaining = getDaysRemaining(opportunity.applicationDeadline);
+  const urgency = getDeadlineUrgency(daysRemaining);
+  const deadlineColor = getDeadlineColor(urgency);
+  const deadlineBgColor = getDeadlineBgColor(urgency);
 
   return (
     <div
@@ -813,16 +918,20 @@ function OpportunityCard({
 
       {/* Application Deadline */}
       {opportunity.applicationDeadline && (
-        <div
-          className={`flex items-center gap-2 text-sm mb-3 ${
-            isDeadlinePassed() ? "text-red-600" : "text-slate-600"
-          }`}
-        >
-          <Icon icon="mingcute:calendar-line" width={16} />
-          <span>
-            Deadline: {formatDate(opportunity.applicationDeadline)}
-            {isDeadlinePassed() && " (Passed)"}
-          </span>
+        <div className="mb-3">
+          <div
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium"
+            style={{
+              backgroundColor: deadlineBgColor,
+              color: deadlineColor,
+            }}
+          >
+            <Icon icon="mingcute:calendar-line" width={16} />
+            <span>
+              {formatDeadlineText(daysRemaining)} •{" "}
+              {formatDate(opportunity.applicationDeadline)}
+            </span>
+          </div>
         </div>
       )}
 

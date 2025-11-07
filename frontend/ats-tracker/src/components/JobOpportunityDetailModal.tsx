@@ -7,6 +7,13 @@ import type {
   ApplicationHistoryEntry,
 } from "../types";
 import { JOB_STATUSES, STATUS_COLORS, STATUS_BG_COLORS, INDUSTRIES, JOB_TYPES } from "../types";
+import {
+  getDaysRemaining,
+  getDeadlineUrgency,
+  getDeadlineColor,
+  getDeadlineBgColor,
+  formatDeadlineText,
+} from "../utils/deadlineUtils";
 
 interface JobOpportunityDetailModalProps {
   opportunity: JobOpportunityData;
@@ -86,6 +93,20 @@ export function JobOpportunityDetailModal({
     });
     setIsEditMode(false);
   }, [opportunity]);
+
+  const extendDeadline = (days: number) => {
+    if (!opportunity.applicationDeadline) return;
+    
+    const currentDate = new Date(opportunity.applicationDeadline);
+    currentDate.setDate(currentDate.getDate() + days);
+    const newDeadline = currentDate.toISOString().split("T")[0];
+    
+    setFormData({
+      ...formData,
+      applicationDeadline: newDeadline,
+    });
+    setIsEditMode(true);
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -377,11 +398,61 @@ export function JobOpportunityDetailModal({
                       className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     />
                   ) : (
-                    <p className="text-slate-600">
-                      {opportunity.applicationDeadline
-                        ? formatDate(opportunity.applicationDeadline)
-                        : "Not specified"}
-                    </p>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-3">
+                        <p className="text-slate-600">
+                          {opportunity.applicationDeadline
+                            ? formatDate(opportunity.applicationDeadline)
+                            : "Not specified"}
+                        </p>
+                        {opportunity.applicationDeadline && (
+                          <div
+                            className="px-3 py-1 rounded-lg text-sm font-medium"
+                            style={{
+                              backgroundColor: getDeadlineBgColor(
+                                getDeadlineUrgency(
+                                  getDaysRemaining(opportunity.applicationDeadline)
+                                )
+                              ),
+                              color: getDeadlineColor(
+                                getDeadlineUrgency(
+                                  getDaysRemaining(opportunity.applicationDeadline)
+                                )
+                              ),
+                            }}
+                          >
+                            {formatDeadlineText(
+                              getDaysRemaining(opportunity.applicationDeadline)
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      {opportunity.applicationDeadline && !isEditMode && (
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => extendDeadline(7)}
+                            className="px-3 py-1.5 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                          >
+                            Extend by 7 days
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => extendDeadline(14)}
+                            className="px-3 py-1.5 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                          >
+                            Extend by 14 days
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => extendDeadline(30)}
+                            className="px-3 py-1.5 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                          >
+                            Extend by 30 days
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>

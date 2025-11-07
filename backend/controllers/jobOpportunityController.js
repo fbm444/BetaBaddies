@@ -27,6 +27,8 @@ class JobOpportunityController {
           description: opportunity.description,
           industry: opportunity.industry,
           jobType: opportunity.jobType,
+          status: opportunity.status,
+          statusUpdatedAt: opportunity.statusUpdatedAt,
           createdAt: opportunity.createdAt,
           updatedAt: opportunity.updatedAt,
         },
@@ -38,9 +40,9 @@ class JobOpportunityController {
   // Get all job opportunities for the authenticated user
   getJobOpportunities = asyncHandler(async (req, res) => {
     const userId = req.session.userId;
-    const { sort, limit, offset } = req.query;
+    const { sort, limit, offset, status } = req.query;
 
-    const options = { sort, limit, offset };
+    const options = { sort, limit, offset, status };
     const opportunities = await jobOpportunityService.getJobOpportunitiesByUserId(
       userId,
       options
@@ -64,6 +66,8 @@ class JobOpportunityController {
           description: opportunity.description,
           industry: opportunity.industry,
           jobType: opportunity.jobType,
+          status: opportunity.status,
+          statusUpdatedAt: opportunity.statusUpdatedAt,
           createdAt: opportunity.createdAt,
           updatedAt: opportunity.updatedAt,
         })),
@@ -113,6 +117,8 @@ class JobOpportunityController {
           description: opportunity.description,
           industry: opportunity.industry,
           jobType: opportunity.jobType,
+          status: opportunity.status,
+          statusUpdatedAt: opportunity.statusUpdatedAt,
           createdAt: opportunity.createdAt,
           updatedAt: opportunity.updatedAt,
         },
@@ -147,6 +153,8 @@ class JobOpportunityController {
           description: opportunity.description,
           industry: opportunity.industry,
           jobType: opportunity.jobType,
+          status: opportunity.status,
+          statusUpdatedAt: opportunity.statusUpdatedAt,
           createdAt: opportunity.createdAt,
           updatedAt: opportunity.updatedAt,
         },
@@ -166,6 +174,60 @@ class JobOpportunityController {
       ok: true,
       data: {
         message: "Job opportunity deleted successfully",
+      },
+    });
+  });
+
+  // Bulk update status for multiple job opportunities
+  bulkUpdateStatus = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { opportunityIds, status } = req.body;
+
+    if (!opportunityIds || !Array.isArray(opportunityIds) || opportunityIds.length === 0) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          message: "opportunityIds array is required and cannot be empty",
+          code: "VALIDATION_ERROR",
+        },
+      });
+    }
+
+    if (!status) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          message: "status is required",
+          code: "VALIDATION_ERROR",
+        },
+      });
+    }
+
+    const updatedOpportunities = await jobOpportunityService.bulkUpdateStatus(
+      userId,
+      opportunityIds,
+      status
+    );
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        updatedOpportunities,
+        message: `${updatedOpportunities.length} job opportunity/ies updated successfully`,
+      },
+    });
+  });
+
+  // Get status counts for the authenticated user
+  getStatusCounts = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+
+    const counts = await jobOpportunityService.getStatusCounts(userId);
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        statusCounts: counts,
       },
     });
   });

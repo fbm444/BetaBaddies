@@ -4,15 +4,34 @@ import { api } from "../services/api";
 import type {
   JobOpportunityData,
   JobOpportunityInput,
+  JobStatus,
+  StatusCounts,
 } from "../types";
-import { INDUSTRIES, JOB_TYPES } from "../types";
+import { INDUSTRIES, JOB_TYPES, JOB_STATUSES, STATUS_COLORS, STATUS_BG_COLORS } from "../types";
 import { isValidUrl, getUrlErrorMessage } from "../utils/urlValidation";
+import { JobPipeline } from "../components/JobPipeline";
 
 export function JobOpportunities() {
   const [opportunities, setOpportunities] = useState<JobOpportunityData[]>([]);
+  const [statusCounts, setStatusCounts] = useState<StatusCounts>({
+    Interested: 0,
+    Applied: 0,
+    "Phone Screen": 0,
+    Interview: 0,
+    Offer: 0,
+    Rejected: 0,
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // View mode: 'list' or 'pipeline'
+  const [viewMode, setViewMode] = useState<"list" | "pipeline">("pipeline");
+  const [statusFilter, setStatusFilter] = useState<JobStatus | "all">("all");
+
+  // Bulk selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkActions, setShowBulkActions] = useState(false);
 
   // Modal states
   const [showAddModal, setShowAddModal] = useState(false);
@@ -21,10 +40,28 @@ export function JobOpportunities() {
   const [selectedOpportunity, setSelectedOpportunity] =
     useState<JobOpportunityData | null>(null);
 
-  // Load opportunities on mount
+  // Load opportunities and status counts on mount and when filter/view changes
   useEffect(() => {
-    fetchOpportunities();
-  }, []);
+    const loadData = async () => {
+      await fetchOpportunities();
+      await fetchStatusCounts();
+    };
+    loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter, viewMode]);
+
+  // Reset filter and clear selection when switching to pipeline view
+  useEffect(() => {
+    if (viewMode === "pipeline") {
+      if (statusFilter !== "all") {
+        setStatusFilter("all");
+      }
+      // Clear selection when switching to pipeline view
+      setSelectedIds(new Set());
+      setShowBulkActions(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewMode]);
 
   const showMessage = (text: string, type: "success" | "error") => {
     if (type === "success") {
@@ -47,7 +84,11 @@ export function JobOpportunities() {
     try {
       setIsLoading(true);
       setError(null);
-      const response = await api.getJobOpportunities();
+      // In pipeline view, always fetch all opportunities. In list view, respect filter.
+      const status = viewMode === "pipeline" || statusFilter === "all" 
+        ? undefined 
+        : statusFilter;
+      const response = await api.getJobOpportunities(undefined, undefined, undefined, status);
       if (response.ok && response.data) {
         setOpportunities(response.data.jobOpportunities);
       }
@@ -62,12 +103,82 @@ export function JobOpportunities() {
     }
   };
 
+  const fetchStatusCounts = async () => {
+    try {
+      const response = await api.getJobOpportunityStatusCounts();
+      if (response.ok && response.data) {
+        setStatusCounts(response.data.statusCounts);
+      }
+    } catch (err: any) {
+      console.error("Failed to fetch status counts:", err);
+    }
+  };
+
+  const handleStatusChange = async (id: string, newStatus: JobStatus) => {
+    try {
+      const response = await api.updateJobOpportunity(id, { status: newStatus });
+      if (response.ok) {
+        await fetchOpportunities();
+        await fetchStatusCounts();
+        showMessage("Status updated successfully!", "success");
+      }
+    } catch (err: any) {
+      showMessage(err.message || "Failed to update status", "error");
+      throw err;
+    }
+  };
+
+  const handleBulkStatusUpdate = async (newStatus: JobStatus) => {
+    if (selectedIds.size === 0) return;
+
+    try {
+      const response = await api.bulkUpdateJobOpportunityStatus(
+        Array.from(selectedIds),
+        newStatus
+      );
+      if (response.ok && response.data) {
+        setSelectedIds(new Set());
+        setShowBulkActions(false);
+        await fetchOpportunities();
+        await fetchStatusCounts();
+        showMessage(
+          `${response.data.updatedOpportunities.length} job(s) updated successfully!`,
+          "success"
+        );
+      }
+    } catch (err: any) {
+      showMessage(err.message || "Failed to update jobs", "error");
+    }
+  };
+
+  const toggleSelection = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+    setShowBulkActions(newSelected.size > 0);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === opportunities.length) {
+      setSelectedIds(new Set());
+      setShowBulkActions(false);
+    } else {
+      setSelectedIds(new Set(opportunities.map((o) => o.id)));
+      setShowBulkActions(true);
+    }
+  };
+
   const handleAddOpportunity = async (data: JobOpportunityInput) => {
     try {
       const response = await api.createJobOpportunity(data);
       if (response.ok) {
         setShowAddModal(false);
         await fetchOpportunities();
+        await fetchStatusCounts();
         showMessage("Job opportunity added successfully!", "success");
       }
     } catch (err: any) {
@@ -87,6 +198,7 @@ export function JobOpportunities() {
         setShowEditModal(false);
         setSelectedOpportunity(null);
         await fetchOpportunities();
+        await fetchStatusCounts();
         showMessage("Job opportunity updated successfully!", "success");
       }
     } catch (err: any) {
@@ -103,6 +215,7 @@ export function JobOpportunities() {
         setShowDeleteModal(false);
         setSelectedOpportunity(null);
         await fetchOpportunities();
+        await fetchStatusCounts();
         showMessage("Job opportunity deleted successfully!", "success");
       }
     } catch (err: any) {
@@ -161,6 +274,91 @@ export function JobOpportunities() {
         </button>
       </div>
 
+      {/* View Mode Toggle and Status Filter */}
+      <div className="bg-slate-50 rounded-xl p-6 mb-6 border border-slate-200">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          {/* View Mode Toggle */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setViewMode("pipeline")}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+                viewMode === "pipeline"
+                  ? "bg-blue-500 text-white"
+                  : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
+              }`}
+            >
+              <Icon icon="mingcute:grid-line" width={18} />
+              Pipeline View
+            </button>
+            <button
+              onClick={() => setViewMode("list")}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+                viewMode === "list"
+                  ? "bg-blue-500 text-white"
+                  : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
+              }`}
+            >
+              <Icon icon="mingcute:list-check-line" width={18} />
+              List View
+            </button>
+          </div>
+
+          {/* Status Filter (only show in list view) */}
+          {viewMode === "list" && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-medium text-slate-700">Filter:</span>
+              <button
+                onClick={() => setStatusFilter("all")}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  statusFilter === "all"
+                    ? "bg-slate-900 text-white"
+                    : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
+                }`}
+              >
+                All ({opportunities.length})
+              </button>
+              {JOB_STATUSES.map((status) => (
+                <button
+                  key={status}
+                  onClick={() => setStatusFilter(status)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    statusFilter === status
+                      ? "text-white"
+                      : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
+                  }`}
+                  style={{
+                    backgroundColor:
+                      statusFilter === status ? STATUS_COLORS[status] : undefined,
+                  }}
+                >
+                  {status} ({statusCounts[status]})
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Status Counts (only show in pipeline view) */}
+      {viewMode === "pipeline" && (
+        <div className="grid grid-cols-6 gap-4 mb-6">
+          {JOB_STATUSES.map((status) => (
+            <div
+              key={status}
+              className="bg-white rounded-lg p-4 border border-slate-200 text-center"
+            >
+              <div
+                className="text-2xl font-bold mb-1"
+                style={{ color: STATUS_COLORS[status] }}
+              >
+                {statusCounts[status]}
+              </div>
+              <div className="text-xs text-slate-600">{status}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Success/Error Messages */}
       {successMessage && (
         <div className="mb-6 bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
@@ -186,8 +384,8 @@ export function JobOpportunities() {
         </div>
       )}
 
-      {/* Empty State */}
-      {opportunities.length === 0 && (
+      {/* Empty State for List View */}
+      {viewMode === "list" && opportunities.length === 0 && (
         <div className="bg-white rounded-xl p-12 text-center shadow-sm border border-slate-200">
           <Icon
             icon="mingcute:briefcase-line"
@@ -195,35 +393,106 @@ export function JobOpportunities() {
             className="mx-auto text-slate-300 mb-4"
           />
           <h3 className="text-xl font-semibold text-slate-900 mb-2">
-            No Job Opportunities Yet
+            {statusFilter !== "all"
+              ? `No jobs with status "${statusFilter}"`
+              : "No Job Opportunities Yet"}
           </h3>
           <p className="text-slate-600 mb-6">
-            Start tracking positions you're interested in by adding your first job
-            opportunity.
+            {statusFilter !== "all"
+              ? "Try selecting a different status filter or add a new job opportunity."
+              : "Start tracking positions you're interested in by adding your first job opportunity."}
           </p>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium inline-flex items-center gap-2"
-          >
-            <Icon icon="mingcute:add-line" width={20} />
-            Add Your First Opportunity
-          </button>
+          {statusFilter === "all" && (
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium inline-flex items-center gap-2"
+            >
+              <Icon icon="mingcute:add-line" width={20} />
+              Add Your First Opportunity
+            </button>
+          )}
         </div>
       )}
 
-      {/* Opportunities List */}
-      {opportunities.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {opportunities.map((opportunity) => (
-            <OpportunityCard
-              key={opportunity.id}
-              opportunity={opportunity}
-              onEdit={openEditModal}
-              onDelete={openDeleteModal}
-            />
-          ))}
+            {/* Pipeline View */}
+            {viewMode === "pipeline" && opportunities.length > 0 && (
+              <JobPipeline
+                opportunities={opportunities}
+                onStatusChange={handleStatusChange}
+                onEdit={openEditModal}
+                onDelete={openDeleteModal}
+              />
+            )}
+
+      {/* Bulk Actions Bar */}
+      {viewMode === "list" && showBulkActions && selectedIds.size > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <span className="text-sm font-medium text-blue-900">
+                {selectedIds.size} job{selectedIds.size !== 1 ? "s" : ""} selected
+              </span>
+              <button
+                onClick={() => {
+                  setSelectedIds(new Set());
+                  setShowBulkActions(false);
+                }}
+                className="text-sm text-blue-600 hover:text-blue-700"
+              >
+                Clear selection
+              </button>
+            </div>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <span className="text-sm text-blue-900 sm:mr-2">Update status to:</span>
+              <div className="flex flex-wrap gap-2">
+                {JOB_STATUSES.map((status) => (
+                  <button
+                    key={status}
+                    onClick={() => handleBulkStatusUpdate(status)}
+                    className="px-3 py-1.5 rounded-lg text-sm font-medium text-white transition-colors hover:opacity-90"
+                    style={{ backgroundColor: STATUS_COLORS[status] }}
+                  >
+                    {status}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       )}
+
+      {/* List View */}
+      {viewMode === "list" && opportunities.length > 0 && (
+        <div>
+          {/* Select All Checkbox */}
+          <div className="mb-4 flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={selectedIds.size === opportunities.length && opportunities.length > 0}
+              onChange={toggleSelectAll}
+              className="w-4 h-4 text-blue-500 border-slate-300 rounded focus:ring-blue-500"
+            />
+            <label className="text-sm font-medium text-slate-700">
+              Select all ({opportunities.length})
+            </label>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {opportunities.map((opportunity) => (
+              <OpportunityCard
+                key={opportunity.id}
+                opportunity={opportunity}
+                onEdit={openEditModal}
+                onDelete={openDeleteModal}
+                isSelected={selectedIds.has(opportunity.id)}
+                onToggleSelect={() => toggleSelection(opportunity.id)}
+                showCheckbox={true}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
 
       {/* Modals */}
       {showAddModal && (
@@ -265,10 +534,16 @@ function OpportunityCard({
   opportunity,
   onEdit,
   onDelete,
+  isSelected = false,
+  onToggleSelect,
+  showCheckbox = false,
 }: {
   opportunity: JobOpportunityData;
   onEdit: (opportunity: JobOpportunityData) => void;
   onDelete: (opportunity: JobOpportunityData) => void;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
+  showCheckbox?: boolean;
 }) {
   const formatSalary = () => {
     if (opportunity.salaryMin && opportunity.salaryMax) {
@@ -297,16 +572,33 @@ function OpportunityCard({
   };
 
   return (
-    <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200 hover:shadow-md transition-all">
+    <div
+      className={`bg-white rounded-xl p-6 shadow-sm border transition-all ${
+        isSelected
+          ? "border-blue-500 ring-2 ring-blue-200"
+          : "border-slate-200 hover:shadow-md"
+      }`}
+    >
       {/* Header */}
       <div className="flex justify-between items-start mb-3">
-        <div className="flex-1">
-          <h3 className="text-lg font-semibold text-slate-900 mb-1">
-            {opportunity.title}
-          </h3>
-          <p className="text-base font-medium text-slate-700">
-            {opportunity.company}
-          </p>
+        <div className="flex items-start gap-2 flex-1">
+          {showCheckbox && onToggleSelect && (
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={onToggleSelect}
+              onClick={(e) => e.stopPropagation()}
+              className="w-4 h-4 mt-1 text-blue-500 border-slate-300 rounded focus:ring-blue-500"
+            />
+          )}
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-slate-900 mb-1">
+              {opportunity.title}
+            </h3>
+            <p className="text-base font-medium text-slate-700">
+              {opportunity.company}
+            </p>
+          </div>
         </div>
         <div className="flex gap-2">
           <button
@@ -324,6 +616,19 @@ function OpportunityCard({
             <Icon icon="mingcute:delete-line" width={18} />
           </button>
         </div>
+      </div>
+
+      {/* Status Badge */}
+      <div className="mb-2">
+        <span
+          className="px-2 py-1 rounded text-xs font-medium"
+          style={{
+            backgroundColor: STATUS_BG_COLORS[opportunity.status],
+            color: STATUS_COLORS[opportunity.status],
+          }}
+        >
+          {opportunity.status}
+        </span>
       </div>
 
       {/* Location */}
@@ -419,6 +724,7 @@ function JobOpportunityFormModal({
     description: initialData?.description || "",
     industry: initialData?.industry || "",
     jobType: initialData?.jobType || "",
+    status: initialData?.status || "Interested",
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -442,6 +748,7 @@ function JobOpportunityFormModal({
         description: initialData.description || "",
         industry: initialData.industry || "",
         jobType: initialData.jobType || "",
+        status: initialData.status || "Interested",
       });
     } else {
       setFormData({
@@ -455,6 +762,7 @@ function JobOpportunityFormModal({
         description: "",
         industry: "",
         jobType: "",
+        status: "Interested",
       });
     }
     setErrors({});
@@ -533,6 +841,7 @@ function JobOpportunityFormModal({
       description: formData.description?.trim() || undefined,
       industry: formData.industry?.trim() || undefined,
       jobType: formData.jobType?.trim() || undefined,
+      status: formData.status || "Interested",
     };
 
     await onSubmit(submitData);
@@ -618,6 +927,27 @@ function JobOpportunityFormModal({
             {errors.location && (
               <p className="text-red-500 text-sm mt-1">{errors.location}</p>
             )}
+          </div>
+
+          {/* Status */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Status
+            </label>
+            <select
+              value={formData.status}
+              onChange={(e) =>
+                setFormData({ ...formData, status: e.target.value as JobStatus })
+              }
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              disabled={isSubmitting}
+            >
+              {JOB_STATUSES.map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Salary Range */}

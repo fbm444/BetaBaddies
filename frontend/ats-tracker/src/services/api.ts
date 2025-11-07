@@ -18,6 +18,8 @@ import {
   FileUploadResponse,
   JobOpportunityData,
   JobOpportunityInput,
+  JobStatus,
+  StatusCounts,
 } from "../types";
 
 // In development, use proxy (relative path). In production, use env variable or full URL
@@ -268,11 +270,17 @@ class ApiService {
   }
 
   // Job Opportunities endpoints
-  async getJobOpportunities(sort?: string, limit?: number, offset?: number) {
+  async getJobOpportunities(
+    sort?: string,
+    limit?: number,
+    offset?: number,
+    status?: JobStatus
+  ) {
     const params = new URLSearchParams();
     if (sort) params.append("sort", sort);
     if (limit) params.append("limit", limit.toString());
     if (offset) params.append("offset", offset.toString());
+    if (status) params.append("status", status);
     const query = params.toString() ? `?${params.toString()}` : "";
     return this.request<
       ApiResponse<{
@@ -317,6 +325,30 @@ class ApiService {
       {
         method: "DELETE",
       }
+    );
+  }
+
+  async bulkUpdateJobOpportunityStatus(opportunityIds: string[], status: JobStatus) {
+    return this.request<
+      ApiResponse<{
+        updatedOpportunities: Array<{
+          id: string;
+          title: string;
+          company: string;
+          status: JobStatus;
+          statusUpdatedAt: string;
+        }>;
+        message: string;
+      }>
+    >("/job-opportunities/bulk-update-status", {
+      method: "POST",
+      body: JSON.stringify({ opportunityIds, status }),
+    });
+  }
+
+  async getJobOpportunityStatusCounts() {
+    return this.request<ApiResponse<{ statusCounts: StatusCounts }>>(
+      "/job-opportunities/status/counts"
     );
   }
 

@@ -22,5 +22,11 @@ router.put("/:id", jobOpportunityController.updateJobOpportunity);
 // Delete job opportunity
 router.delete("/:id", jobOpportunityController.deleteJobOpportunity);
 
+// Bulk update status
+router.post("/bulk-update-status", jobOpportunityController.bulkUpdateStatus);
+
+// Get status counts
+router.get("/status/counts", jobOpportunityController.getStatusCounts);
+
 export default router;
 

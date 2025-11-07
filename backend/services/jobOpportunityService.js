@@ -10,6 +10,23 @@ class JobOpportunityService {
     this.maxUrlLength = 1000;
     this.maxIndustryLength = 255;
     this.maxJobTypeLength = 50;
+    this.validStatuses = [
+      "Interested",
+      "Applied",
+      "Phone Screen",
+      "Interview",
+      "Offer",
+      "Rejected",
+    ];
+  }
+
+  // Validate status
+  validateStatus(status) {
+    if (status && !this.validStatuses.includes(status)) {
+      throw new Error(
+        `Invalid status. Must be one of: ${this.validStatuses.join(", ")}`
+      );
+    }
   }
 
   // Validate field lengths
@@ -127,6 +144,7 @@ class JobOpportunityService {
       description,
       industry,
       jobType,
+      status = "Interested",
     } = opportunityData;
 
     try {
@@ -152,18 +170,21 @@ class JobOpportunityService {
         this.validateUrl(jobPostingUrl);
       }
 
+      // Validate status
+      this.validateStatus(status);
+
       const opportunityId = uuidv4();
 
       // Create job opportunity in database
       const query = `
         INSERT INTO job_opportunities (
           id, user_id, title, company, location, salary_min, salary_max,
-          job_posting_url, application_deadline, job_description, industry, job_type
+          job_posting_url, application_deadline, job_description, industry, job_type, status
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
         RETURNING id, title, company, location, salary_min, salary_max,
-          job_posting_url, application_deadline, job_description, industry, job_type,
-          created_at, updated_at
+          job_posting_url, application_deadline, job_description, industry, job_type, status,
+          status_updated_at, created_at, updated_at
       `;
 
       const result = await database.query(query, [
@@ -179,6 +200,7 @@ class JobOpportunityService {
         description?.trim() || null,
         industry?.trim() || null,
         jobType?.trim() || null,
+        status,
       ]);
 
       const row = result.rows[0];
@@ -195,6 +217,8 @@ class JobOpportunityService {
         description: row.job_description,
         industry: row.industry,
         jobType: row.job_type,
+        status: row.status,
+        statusUpdatedAt: row.status_updated_at,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
       };
@@ -209,8 +233,8 @@ class JobOpportunityService {
     try {
       const query = `
         SELECT id, title, company, location, salary_min, salary_max,
-          job_posting_url, application_deadline, job_description, industry, job_type,
-          created_at, updated_at
+          job_posting_url, application_deadline, job_description, industry, job_type, status,
+          status_updated_at, created_at, updated_at
         FROM job_opportunities
         WHERE id = $1 AND user_id = $2
       `;
@@ -234,6 +258,8 @@ class JobOpportunityService {
         description: opportunity.job_description,
         industry: opportunity.industry,
         jobType: opportunity.job_type,
+        status: opportunity.status,
+        statusUpdatedAt: opportunity.status_updated_at,
         createdAt: opportunity.created_at,
         updatedAt: opportunity.updated_at,
       };
@@ -246,11 +272,22 @@ class JobOpportunityService {
   // Get all job opportunities for a user
   async getJobOpportunitiesByUserId(userId, options = {}) {
     try {
-      const { sort = "-created_at", limit = 50, offset = 0 } = options;
+      const { sort = "-created_at", limit = 50, offset = 0, status } = options;
 
       // Validate limit
       const validLimit = Math.min(Math.max(parseInt(limit) || 50, 1), 100);
       const validOffset = Math.max(parseInt(offset) || 0, 0);
+
+      // Build WHERE clause
+      let whereClause = "WHERE user_id = $1";
+      const queryParams = [userId];
+      let paramIndex = 2;
+
+      if (status) {
+        this.validateStatus(status);
+        whereClause += ` AND status = $${paramIndex++}`;
+        queryParams.push(status);
+      }
 
       // Build sort clause
       let sortClause = "ORDER BY created_at DESC";
@@ -262,23 +299,23 @@ class JobOpportunityService {
         sortClause = "ORDER BY application_deadline DESC NULLS LAST";
       } else if (sort === "company") {
         sortClause = "ORDER BY company ASC";
+      } else if (sort === "status_updated_at") {
+        sortClause = "ORDER BY status_updated_at DESC";
       }
 
       const query = `
         SELECT id, title, company, location, salary_min, salary_max,
-          job_posting_url, application_deadline, job_description, industry, job_type,
-          created_at, updated_at
+          job_posting_url, application_deadline, job_description, industry, job_type, status,
+          status_updated_at, created_at, updated_at
         FROM job_opportunities
-        WHERE user_id = $1
+        ${whereClause}
         ${sortClause}
-        LIMIT $2 OFFSET $3
+        LIMIT $${paramIndex++} OFFSET $${paramIndex}
       `;
 
-      const result = await database.query(query, [
-        userId,
-        validLimit,
-        validOffset,
-      ]);
+      queryParams.push(validLimit, validOffset);
+
+      const result = await database.query(query, queryParams);
 
       return result.rows.map((opportunity) => ({
         id: opportunity.id,
@@ -292,6 +329,8 @@ class JobOpportunityService {
         description: opportunity.job_description,
         industry: opportunity.industry,
         jobType: opportunity.job_type,
+        status: opportunity.status,
+        statusUpdatedAt: opportunity.status_updated_at,
         createdAt: opportunity.created_at,
         updatedAt: opportunity.updated_at,
       }));
@@ -342,6 +381,11 @@ class JobOpportunityService {
         }
       }
 
+      // Check if status is being updated
+      if (updateData.status !== undefined) {
+        this.validateStatus(updateData.status);
+      }
+
       // Build update query dynamically
       const updates = [];
       const values = [];
@@ -358,6 +402,7 @@ class JobOpportunityService {
         description: "job_description",
         industry: "industry",
         jobType: "job_type",
+        status: "status",
       };
 
       for (const [key, column] of Object.entries(fields)) {
@@ -390,6 +435,10 @@ class JobOpportunityService {
           } else if (key === "applicationDeadline") {
             updates.push(`${column} = $${paramIndex++}`);
             values.push(updateData[key] || null);
+          } else if (key === "status") {
+            // Status field - will update the value
+            updates.push(`${column} = $${paramIndex++}`);
+            values.push(updateData[key]);
           }
         }
       }
@@ -406,8 +455,8 @@ class JobOpportunityService {
         SET ${updates.join(", ")}, updated_at = NOW()
         WHERE user_id = $${paramIndex++} AND id = $${paramIndex}
         RETURNING id, title, company, location, salary_min, salary_max,
-          job_posting_url, application_deadline, job_description, industry, job_type,
-          created_at, updated_at
+          job_posting_url, application_deadline, job_description, industry, job_type, status,
+          status_updated_at, created_at, updated_at
       `;
 
       const result = await database.query(query, values);
@@ -425,11 +474,94 @@ class JobOpportunityService {
         description: row.job_description,
         industry: row.industry,
         jobType: row.job_type,
+        status: row.status,
+        statusUpdatedAt: row.status_updated_at,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
       };
     } catch (error) {
       console.error("❌ Error updating job opportunity:", error);
+      throw error;
+    }
+  }
+
+  // Bulk update status for multiple job opportunities
+  async bulkUpdateStatus(userId, opportunityIds, newStatus) {
+    try {
+      // Validate status
+      this.validateStatus(newStatus);
+
+      if (!Array.isArray(opportunityIds) || opportunityIds.length === 0) {
+        throw new Error("Opportunity IDs array is required and cannot be empty");
+      }
+
+      // Verify all opportunities belong to the user
+      const placeholders = opportunityIds.map((_, index) => `$${index + 2}`).join(", ");
+      const query = `
+        UPDATE job_opportunities
+        SET status = $1, updated_at = NOW()
+        WHERE user_id = $${opportunityIds.length + 2} 
+          AND id IN (${placeholders})
+        RETURNING id, title, company, status, status_updated_at
+      `;
+
+      const values = [newStatus, ...opportunityIds, userId];
+      const result = await database.query(query, values);
+
+      if (result.rows.length !== opportunityIds.length) {
+        throw new Error(
+          "Some job opportunities were not found or do not belong to the user"
+        );
+      }
+
+      return result.rows.map((row) => ({
+        id: row.id,
+        title: row.title,
+        company: row.company,
+        status: row.status,
+        statusUpdatedAt: row.status_updated_at,
+      }));
+    } catch (error) {
+      console.error("❌ Error bulk updating status:", error);
+      throw error;
+    }
+  }
+
+  // Get status counts for a user
+  async getStatusCounts(userId) {
+    try {
+      const query = `
+        SELECT status, COUNT(*) as count
+        FROM job_opportunities
+        WHERE user_id = $1
+        GROUP BY status
+        ORDER BY 
+          CASE status
+            WHEN 'Interested' THEN 1
+            WHEN 'Applied' THEN 2
+            WHEN 'Phone Screen' THEN 3
+            WHEN 'Interview' THEN 4
+            WHEN 'Offer' THEN 5
+            WHEN 'Rejected' THEN 6
+          END
+      `;
+
+      const result = await database.query(query, [userId]);
+      const counts = {};
+
+      // Initialize all statuses with 0
+      this.validStatuses.forEach((status) => {
+        counts[status] = 0;
+      });
+
+      // Update with actual counts
+      result.rows.forEach((row) => {
+        counts[row.status] = parseInt(row.count, 10);
+      });
+
+      return counts;
+    } catch (error) {
+      console.error("❌ Error getting status counts:", error);
       throw error;
     }
   }

@@ -1,3 +1,11 @@
+export type JobStatus =
+  | "Interested"
+  | "Applied"
+  | "Phone Screen"
+  | "Interview"
+  | "Offer"
+  | "Rejected";
+
 export interface JobOpportunityData {
   id: string;
   title: string;
@@ -10,6 +18,8 @@ export interface JobOpportunityData {
   description?: string;
   industry?: string;
   jobType?: string;
+  status: JobStatus;
+  statusUpdatedAt?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -25,7 +35,44 @@ export interface JobOpportunityInput {
   description?: string;
   industry?: string;
   jobType?: string;
+  status?: JobStatus;
 }
+
+export interface StatusCounts {
+  Interested: number;
+  Applied: number;
+  "Phone Screen": number;
+  Interview: number;
+  Offer: number;
+  Rejected: number;
+}
+
+export const JOB_STATUSES: JobStatus[] = [
+  "Interested",
+  "Applied",
+  "Phone Screen",
+  "Interview",
+  "Offer",
+  "Rejected",
+];
+
+export const STATUS_COLORS: Record<JobStatus, string> = {
+  Interested: "#3B82F6", // Blue
+  Applied: "#10B981", // Green
+  "Phone Screen": "#F59E0B", // Amber
+  Interview: "#8B5CF6", // Purple
+  Offer: "#10B981", // Green (success color for offers)
+  Rejected: "#6B7280", // Gray
+};
+
+export const STATUS_BG_COLORS: Record<JobStatus, string> = {
+  Interested: "#DBEAFE", // Blue 100
+  Applied: "#D1FAE5", // Green 100
+  "Phone Screen": "#FEF3C7", // Amber 100
+  Interview: "#EDE9FE", // Purple 100
+  Offer: "#D1FAE5", // Green 100 (success background for offers)
+  Rejected: "#F3F4F6", // Gray 100
+};
 
 // Common job types
 export const JOB_TYPES = [

@@ -276,10 +276,8 @@ class ProfileService {
   async getProfilePicturePath(userId) {
     try {
       // First check if profile picture is in uploads folder
-      const files = await fileUploadService.getUserFiles(userId);
-      const profilePic = files.find(
-        (file) => file.fileType === "profile-picture"
-      );
+      const files = await fileUploadService.getUserFiles(userId, "profile_pic");
+      const profilePic = files[0];
 
       if (profilePic) {
         // Return the actual file path from uploads

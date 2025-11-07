@@ -13,6 +13,12 @@ router.post("/", jobOpportunityController.createJobOpportunity);
 // Get all job opportunities for the authenticated user
 router.get("/", jobOpportunityController.getJobOpportunities);
 
+// Bulk update status (must be before :id)
+router.post("/bulk-update-status", jobOpportunityController.bulkUpdateStatus);
+
+// Get status counts (must be before :id)
+router.get("/status/counts", jobOpportunityController.getStatusCounts);
+
 // Get job opportunity by ID (must be after other routes to avoid conflicts)
 router.get("/:id", jobOpportunityController.getJobOpportunity);
 
@@ -21,12 +27,6 @@ router.put("/:id", jobOpportunityController.updateJobOpportunity);
 
 // Delete job opportunity
 router.delete("/:id", jobOpportunityController.deleteJobOpportunity);
-
-// Bulk update status
-router.post("/bulk-update-status", jobOpportunityController.bulkUpdateStatus);
-
-// Get status counts
-router.get("/status/counts", jobOpportunityController.getStatusCounts);
 
 export default router;
 

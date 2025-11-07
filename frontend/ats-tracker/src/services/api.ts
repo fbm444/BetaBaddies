@@ -16,6 +16,8 @@ import {
   CategoryCounts,
   ProfilePictureData,
   FileUploadResponse,
+  JobOpportunityData,
+  JobOpportunityInput,
 } from "../types";
 
 // In development, use proxy (relative path). In production, use env variable or full URL
@@ -263,6 +265,59 @@ class ApiService {
 
   async getJobStatistics() {
     return this.request<ApiResponse<{ statistics: any }>>("/jobs/statistics");
+  }
+
+  // Job Opportunities endpoints
+  async getJobOpportunities(sort?: string, limit?: number, offset?: number) {
+    const params = new URLSearchParams();
+    if (sort) params.append("sort", sort);
+    if (limit) params.append("limit", limit.toString());
+    if (offset) params.append("offset", offset.toString());
+    const query = params.toString() ? `?${params.toString()}` : "";
+    return this.request<
+      ApiResponse<{
+        jobOpportunities: JobOpportunityData[];
+        pagination: {
+          total: number;
+          limit: number;
+          offset: number;
+          hasMore: boolean;
+        };
+      }>
+    >(`/job-opportunities${query}`);
+  }
+
+  async getJobOpportunity(id: string) {
+    return this.request<
+      ApiResponse<{ jobOpportunity: JobOpportunityData }>
+    >(`/job-opportunities/${id}`);
+  }
+
+  async createJobOpportunity(data: JobOpportunityInput) {
+    return this.request<
+      ApiResponse<{ jobOpportunity: JobOpportunityData; message: string }>
+    >("/job-opportunities", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateJobOpportunity(id: string, data: Partial<JobOpportunityInput>) {
+    return this.request<
+      ApiResponse<{ jobOpportunity: JobOpportunityData; message: string }>
+    >(`/job-opportunities/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteJobOpportunity(id: string) {
+    return this.request<ApiResponse<{ message: string }>>(
+      `/job-opportunities/${id}`,
+      {
+        method: "DELETE",
+      }
+    );
   }
 
   // Education endpoints

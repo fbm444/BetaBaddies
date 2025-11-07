@@ -6,6 +6,7 @@ import { Register } from './pages/Register'
 import { Dashboard } from './pages/Dashboard'
 import BasicInformation from './pages/BasicInformation'
 import { Employment } from './pages/Employment'
+import { JobOpportunities } from './pages/JobOpportunities'
 import { Skills } from './pages/Skills'
 import { Education } from './pages/Education'
 import { Projects } from './pages/Projects'
@@ -75,6 +76,7 @@ function App() {
 		  <Route path={ROUTES.DASHBOARD} element={<Dashboard />} />
 		  <Route path={ROUTES.BASIC_INFO} element={<BasicInformation />} />
 		  <Route path={ROUTES.EMPLOYMENT} element={<Employment />} />
+		  <Route path={ROUTES.JOB_OPPORTUNITIES} element={<JobOpportunities />} />
 		  <Route path={ROUTES.SKILLS} element={<Skills />} />
 		  <Route path={ROUTES.EDUCATION} element={<Education />} />
 		  <Route path={ROUTES.PROJECTS} element={<Projects />} />

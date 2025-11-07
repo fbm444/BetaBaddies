@@ -7,6 +7,7 @@ export * from './education.types';
 export * from './project.types';
 export * from './certification.types';
 export * from './job.types';
+export * from './jobOpportunity.types';
 export * from './skill.types';
 export * from './file.types';
 

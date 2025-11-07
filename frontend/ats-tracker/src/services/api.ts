@@ -270,17 +270,34 @@ class ApiService {
   }
 
   // Job Opportunities endpoints
-  async getJobOpportunities(
-    sort?: string,
-    limit?: number,
-    offset?: number,
-    status?: JobStatus
-  ) {
+  async getJobOpportunities(filters?: {
+    sort?: string;
+    limit?: number;
+    offset?: number;
+    status?: JobStatus;
+    search?: string;
+    industry?: string;
+    location?: string;
+    salaryMin?: number;
+    salaryMax?: number;
+    deadlineFrom?: string;
+    deadlineTo?: string;
+  }) {
     const params = new URLSearchParams();
-    if (sort) params.append("sort", sort);
-    if (limit) params.append("limit", limit.toString());
-    if (offset) params.append("offset", offset.toString());
-    if (status) params.append("status", status);
+    if (filters?.sort) params.append("sort", filters.sort);
+    if (filters?.limit) params.append("limit", filters.limit.toString());
+    if (filters?.offset) params.append("offset", filters.offset.toString());
+    if (filters?.status) params.append("status", filters.status);
+    if (filters?.search) params.append("search", filters.search);
+    if (filters?.industry) params.append("industry", filters.industry);
+    if (filters?.location) params.append("location", filters.location);
+    if (filters?.salaryMin !== undefined)
+      params.append("salaryMin", filters.salaryMin.toString());
+    if (filters?.salaryMax !== undefined)
+      params.append("salaryMax", filters.salaryMax.toString());
+    if (filters?.deadlineFrom) params.append("deadlineFrom", filters.deadlineFrom);
+    if (filters?.deadlineTo) params.append("deadlineTo", filters.deadlineTo);
+
     const query = params.toString() ? `?${params.toString()}` : "";
     return this.request<
       ApiResponse<{

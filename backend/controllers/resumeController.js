@@ -1,19 +1,33 @@
-import resumeService from "../services/resumeService.js";
-import resumeTemplateService from "../services/resumeTemplateService.js";
-import resumeCommentService from "../services/resumeCommentService.js";
-import resumeTailoringService from "../services/resumeTailoringService.js";
-import resumeShareService from "../services/resumeShareService.js";
-import resumeExportService from "../services/resumeExportService.js";
-import resumeValidationService from "../services/resumeValidationService.js";
-import resumeSectionService from "../services/resumeSectionService.js";
-import resumeVersionService from "../services/resumeVersionService.js";
-import resumeParseService from "../services/resumeParseService.js";
+import {
+  coreService as resumeService,
+  templateService as resumeTemplateService,
+  commentService as resumeCommentService,
+  tailoringService as resumeTailoringService,
+  shareService as resumeShareService,
+  exportService as resumeExportService,
+  validationService as resumeValidationService,
+  sectionService as resumeSectionService,
+  versionService as resumeVersionService,
+  parseService as resumeParseService,
+  aiService as resumeAIAssistantService,
+} from "../services/resumes/index.js";
+import profileService from "../services/profileService.js";
+import skillService from "../services/skillService.js";
+import jobService from "../services/jobService.js";
+import educationService from "../services/educationService.js";
+import projectService from "../services/projectService.js";
+import certificationService from "../services/certificationService.js";
 import fileUploadService from "../services/fileUploadService.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 import fs from "fs/promises";
 import path from "path";
 import multer from "multer";
 import { v4 as uuidv4 } from "uuid";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 class ResumeController {
   // Create a new resume
@@ -85,6 +99,17 @@ class ResumeController {
     const userId = req.session.userId;
     const { id } = req.params;
 
+    // Validate UUID format
+    if (!resumeService.isValidUUID(id)) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: "INVALID_ID",
+          message: `Invalid resume ID format. Expected UUID, got: ${id}`,
+        },
+      });
+    }
+
     const resume = await resumeService.getResumeById(id, userId);
 
     if (!resume) {
@@ -128,6 +153,17 @@ class ResumeController {
     const { id } = req.params;
     const resumeData = req.body;
 
+    // Validate UUID format
+    if (!resumeService.isValidUUID(id)) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: "INVALID_ID",
+          message: `Invalid resume ID format. Expected UUID, got: ${id}`,
+        },
+      });
+    }
+
     const resume = await resumeService.updateResume(id, userId, resumeData);
 
     res.status(200).json({
@@ -161,6 +197,17 @@ class ResumeController {
     const userId = req.session.userId;
     const { id } = req.params;
 
+    // Validate UUID format
+    if (!resumeService.isValidUUID(id)) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: "INVALID_ID",
+          message: `Invalid resume ID format. Expected UUID, got: ${id}`,
+        },
+      });
+    }
+
     await resumeService.deleteResume(id, userId);
 
     res.status(200).json({
@@ -176,6 +223,17 @@ class ResumeController {
     const userId = req.session.userId;
     const { id } = req.params;
     const { versionName } = req.body;
+
+    // Validate UUID format
+    if (!resumeService.isValidUUID(id)) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: "INVALID_ID",
+          message: `Invalid resume ID format. Expected UUID, got: ${id}`,
+        },
+      });
+    }
 
     const newResume = await resumeService.duplicateResume(
       id,
@@ -815,18 +873,51 @@ class ResumeController {
     const { id } = req.params;
     const { filename, watermark } = req.query;
 
+    // Validate UUID format
+    if (!resumeService.isValidUUID(id)) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: "INVALID_ID",
+          message: `Invalid resume ID format. Expected UUID, got: ${id}`,
+        },
+      });
+    }
+
     const result = await resumeExportService.exportPDF(id, userId, {
       filename,
       watermark: watermark === "true",
     });
 
-    // Send file
-    const filePath = result.filePath;
-    const fileContent = await fs.readFile(filePath);
-    const fileName = result.fileName;
+    // Check if file exists
+    try {
+      await fs.access(result.filePath);
+    } catch (error) {
+      return res.status(404).json({
+        ok: false,
+        error: {
+          code: "FILE_NOT_FOUND",
+          message: "Export file not found",
+        },
+      });
+    }
 
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+    // Read file content and send it
+    // For PDF and DOCX, read as binary (no encoding)
+    const isBinary =
+      result.contentType === "application/pdf" ||
+      result.contentType?.includes("application/vnd.openxmlformats");
+
+    const fileContent = isBinary
+      ? await fs.readFile(result.filePath)
+      : await fs.readFile(result.filePath, "utf8");
+
+    // Send file content with proper headers
+    res.setHeader("Content-Type", result.contentType || "text/html");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${result.fileName}"`
+    );
     res.send(fileContent);
   });
 
@@ -836,19 +927,50 @@ class ResumeController {
     const { id } = req.params;
     const { filename } = req.query;
 
+    // Validate UUID format
+    if (!resumeService.isValidUUID(id)) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: "INVALID_ID",
+          message: `Invalid resume ID format. Expected UUID, got: ${id}`,
+        },
+      });
+    }
+
     const result = await resumeExportService.exportDOCX(id, userId, {
       filename,
     });
 
-    const filePath = result.filePath;
-    const fileContent = await fs.readFile(filePath);
-    const fileName = result.fileName;
+    // Check if file exists
+    try {
+      await fs.access(result.filePath);
+    } catch (error) {
+      return res.status(404).json({
+        ok: false,
+        error: {
+          code: "FILE_NOT_FOUND",
+          message: "Export file not found",
+        },
+      });
+    }
 
+    // Read file content and send it
+    // For PDF and DOCX, read as binary (no encoding)
+    const isBinary =
+      result.contentType === "application/pdf" ||
+      result.contentType?.includes("application/vnd.openxmlformats");
+
+    const fileContent = isBinary
+      ? await fs.readFile(result.filePath)
+      : await fs.readFile(result.filePath, "utf8");
+
+    // Send file content with proper headers
+    res.setHeader("Content-Type", result.contentType || "text/plain");
     res.setHeader(
-      "Content-Type",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      "Content-Disposition",
+      `attachment; filename="${result.fileName}"`
     );
-    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
     res.send(fileContent);
   });
 
@@ -858,16 +980,50 @@ class ResumeController {
     const { id } = req.params;
     const { filename } = req.query;
 
+    // Validate UUID format
+    if (!resumeService.isValidUUID(id)) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: "INVALID_ID",
+          message: `Invalid resume ID format. Expected UUID, got: ${id}`,
+        },
+      });
+    }
+
     const result = await resumeExportService.exportTXT(id, userId, {
       filename,
     });
 
-    const filePath = result.filePath;
-    const fileContent = await fs.readFile(filePath);
-    const fileName = result.fileName;
+    // Check if file exists
+    try {
+      await fs.access(result.filePath);
+    } catch (error) {
+      return res.status(404).json({
+        ok: false,
+        error: {
+          code: "FILE_NOT_FOUND",
+          message: "Export file not found",
+        },
+      });
+    }
 
-    res.setHeader("Content-Type", "text/plain");
-    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+    // Read file content and send it
+    // For PDF and DOCX, read as binary (no encoding)
+    const isBinary =
+      result.contentType === "application/pdf" ||
+      result.contentType?.includes("application/vnd.openxmlformats");
+
+    const fileContent = isBinary
+      ? await fs.readFile(result.filePath)
+      : await fs.readFile(result.filePath, "utf8");
+
+    // Send file content with proper headers
+    res.setHeader("Content-Type", result.contentType || "text/plain");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${result.fileName}"`
+    );
     res.send(fileContent);
   });
 
@@ -877,17 +1033,44 @@ class ResumeController {
     const { id } = req.params;
     const { filename, watermark } = req.query;
 
+    // Validate UUID format
+    if (!resumeService.isValidUUID(id)) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: "INVALID_ID",
+          message: `Invalid resume ID format. Expected UUID, got: ${id}`,
+        },
+      });
+    }
+
     const result = await resumeExportService.exportHTML(id, userId, {
       filename,
       watermark: watermark === "true",
     });
 
-    const filePath = result.filePath;
-    const fileContent = await fs.readFile(filePath);
-    const fileName = result.fileName;
+    // Check if file exists
+    try {
+      await fs.access(result.filePath);
+    } catch (error) {
+      return res.status(404).json({
+        ok: false,
+        error: {
+          code: "FILE_NOT_FOUND",
+          message: "Export file not found",
+        },
+      });
+    }
 
-    res.setHeader("Content-Type", "text/html");
-    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+    // Read file content and send it
+    const fileContent = await fs.readFile(result.filePath, "utf8");
+
+    // Send file content with proper headers
+    res.setHeader("Content-Type", result.contentType || "text/html");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${result.fileName}"`
+    );
     res.send(fileContent);
   });
 
@@ -923,6 +1106,38 @@ class ResumeController {
         count: issues.length,
       },
     });
+  });
+
+  // AI-powered resume critique
+  critiqueResume = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { id } = req.params;
+    const { jobDescription } = req.body;
+
+    try {
+      const critique = await resumeValidationService.critiqueResume(
+        id,
+        userId,
+        jobDescription || null
+      );
+
+      res.status(200).json({
+        ok: true,
+        data: {
+          critique,
+          message: "Resume critique completed",
+        },
+      });
+    } catch (error) {
+      console.error("❌ Error critiquing resume:", error);
+      res.status(500).json({
+        ok: false,
+        error: {
+          code: "CRITIQUE_ERROR",
+          message: error.message || "Failed to critique resume",
+        },
+      });
+    }
   });
 
   // Resolve validation issue
@@ -1341,6 +1556,222 @@ class ResumeController {
       }
     }),
   ];
+
+  // Parse template's existing resume file
+  parseTemplateResume = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { id: templateId } = req.params;
+
+    try {
+      // Get template
+      const template = await resumeTemplateService.getTemplateById(templateId);
+      if (!template) {
+        return res.status(404).json({
+          ok: false,
+          error: {
+            code: "TEMPLATE_NOT_FOUND",
+            message: "Template not found",
+          },
+        });
+      }
+
+      // Check if template has an existing resume file
+      if (!template.existingResumeTemplate) {
+        return res.status(400).json({
+          ok: false,
+          error: {
+            code: "NO_TEMPLATE_FILE",
+            message: "Template does not have an existing resume file",
+          },
+        });
+      }
+
+      // Resolve file path (existingResumeTemplate is a file path)
+      const filePath = path.join(
+        process.cwd(),
+        template.existingResumeTemplate.startsWith("/")
+          ? template.existingResumeTemplate.slice(1)
+          : template.existingResumeTemplate
+      );
+
+      // Check if file exists
+      try {
+        await fs.access(filePath);
+      } catch (error) {
+        return res.status(404).json({
+          ok: false,
+          error: {
+            code: "FILE_NOT_FOUND",
+            message: "Template resume file not found",
+          },
+        });
+      }
+
+      // Parse the resume file
+      const parsedContent = await resumeParseService.parseResumeFile(filePath);
+
+      res.status(200).json({
+        ok: true,
+        data: {
+          content: parsedContent,
+          templateId: template.id,
+          templateName: template.templateName,
+          message: "Template resume parsed successfully",
+        },
+      });
+    } catch (error) {
+      console.error("❌ Error parsing template resume:", error);
+      res.status(500).json({
+        ok: false,
+        error: {
+          code: "PARSE_ERROR",
+          message: error.message || "Failed to parse template resume",
+        },
+      });
+    }
+  });
+
+  // AI Assistant - Chat
+  chat = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { resumeId } = req.params;
+    const { messages } = req.body;
+
+    if (!messages || !Array.isArray(messages) || messages.length === 0) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: "INVALID_INPUT",
+          message: "Messages array is required",
+        },
+      });
+    }
+
+    try {
+      // Get resume if resumeId is provided
+      let resume = null;
+      if (resumeId && resumeId !== "new") {
+        try {
+          resume = await resumeService.getResume(resumeId, userId);
+        } catch (err) {
+          // Resume not found or not accessible, continue without context
+          console.log("Resume not found for AI context:", err.message);
+        }
+      }
+
+      // Get user data for context
+      let userData = null;
+      try {
+        const [profile, skills, jobs, education, projects, certifications] =
+          await Promise.allSettled([
+            profileService.getProfileByUserId(userId),
+            skillService.getSkillsByUserId(userId),
+            jobService.getJobsByUserId(userId),
+            educationService.getEducationsByUserId(userId),
+            projectService.getProjectsByUserId(userId),
+            certificationService.getCertifications(userId),
+          ]);
+
+        userData = {
+          profile: profile.status === "fulfilled" ? profile.value : null,
+          skills: skills.status === "fulfilled" ? skills.value : [],
+          jobs: jobs.status === "fulfilled" ? jobs.value : [],
+          education: education.status === "fulfilled" ? education.value : [],
+          projects: projects.status === "fulfilled" ? projects.value : [],
+          certifications:
+            certifications.status === "fulfilled" ? certifications.value : [],
+        };
+
+        // Debug logging (can be removed in production)
+        console.log("📊 AI Context - User Data:", {
+          hasProfile: !!userData.profile,
+          skillsCount: userData.skills.length,
+          jobsCount: userData.jobs.length,
+          educationCount: userData.education.length,
+          projectsCount: userData.projects.length,
+          certificationsCount: userData.certifications.length,
+        });
+      } catch (err) {
+        console.log("Failed to fetch user data for AI context:", err.message);
+      }
+
+      const response = await resumeAIAssistantService.chat(
+        messages,
+        resume,
+        userData
+      );
+
+      res.status(200).json({
+        ok: true,
+        data: {
+          message: response.message,
+          usage: response.usage,
+        },
+      });
+    } catch (error) {
+      console.error("❌ Error in AI chat:", error);
+      res.status(500).json({
+        ok: false,
+        error: {
+          code: "AI_CHAT_ERROR",
+          message: error.message || "Failed to process AI chat request",
+        },
+      });
+    }
+  });
+
+  // AI Assistant - Generate Content
+  generateContent = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { resumeId } = req.params;
+    const { type, context, jobDescription } = req.body;
+
+    if (!type || !context) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: "INVALID_INPUT",
+          message: "Type and context are required",
+        },
+      });
+    }
+
+    const validTypes = ["summary", "experience", "skills", "optimize"];
+    if (!validTypes.includes(type)) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: "INVALID_TYPE",
+          message: `Type must be one of: ${validTypes.join(", ")}`,
+        },
+      });
+    }
+
+    try {
+      const response = await resumeAIAssistantService.generateContent(
+        type,
+        context,
+        jobDescription || null
+      );
+
+      res.status(200).json({
+        ok: true,
+        data: {
+          content: response.content,
+          usage: response.usage,
+        },
+      });
+    } catch (error) {
+      console.error("❌ Error generating content:", error);
+      res.status(500).json({
+        ok: false,
+        error: {
+          code: "AI_GENERATE_ERROR",
+          message: error.message || "Failed to generate content",
+        },
+      });
+    }
+  });
 }
 
 export default new ResumeController();

@@ -59,8 +59,12 @@ router.get("/:id/export/html", resumeController.exportHTML);
 
 // Validation Routes
 router.post("/:id/validate", resumeController.validateResume);
+router.post("/:id/critique", resumeController.critiqueResume);
 router.get("/:id/validation-issues", resumeController.getValidationIssues);
-router.post("/validation-issues/:issueId/resolve", resumeController.resolveValidationIssue);
+router.post(
+  "/validation-issues/:issueId/resolve",
+  resumeController.resolveValidationIssue
+);
 
 // Section Management Routes
 router.get("/:id/sections", resumeController.getSectionConfig);
@@ -83,6 +87,10 @@ router.get("/:id/preview", resumeController.getResumePreview);
 
 // Parse/Import Routes
 router.post("/parse", resumeController.parseResume);
+router.post("/templates/:id/parse", resumeController.parseTemplateResume);
+
+// AI Assistant Routes
+router.post("/:resumeId/ai/chat", resumeController.chat);
+router.post("/:resumeId/ai/generate", resumeController.generateContent);
 
 export default router;
-

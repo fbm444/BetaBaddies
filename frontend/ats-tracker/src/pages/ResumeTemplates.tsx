@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Icon } from "@iconify/react";
 import { ROUTES } from "../config/routes";
-import { ResumeTemplate } from "../types";
+import { ResumeTemplate, Resume } from "../types";
 import { resumeService } from "../services/resumeService";
 
 export function ResumeTemplates() {
@@ -17,6 +17,10 @@ export function ResumeTemplates() {
   const [previewTemplateId, setPreviewTemplateId] = useState<string | null>(
     null
   );
+  const [showImportResumeModal, setShowImportResumeModal] = useState(false);
+  const [availableResumes, setAvailableResumes] = useState<Resume[]>([]);
+  const [isLoadingResumes, setIsLoadingResumes] = useState(false);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
 
   // Fetch templates from API (or use mock data if API fails)
   useEffect(() => {
@@ -236,9 +240,55 @@ export function ResumeTemplates() {
     setPreviewTemplateId(null);
   };
 
-  const handleCreateFromResume = () => {
-    // TODO: Implement import from existing resume
-    alert("Import from existing resume - Coming soon!");
+  const handleCreateFromResume = async () => {
+    try {
+      setIsLoadingResumes(true);
+      setShowImportResumeModal(true);
+      
+      // Fetch available resumes
+      const response = await resumeService.getResumes();
+      if (response.ok && response.data) {
+        setAvailableResumes(response.data.resumes);
+      } else {
+        setAvailableResumes([]);
+      }
+    } catch (err: any) {
+      console.error("Failed to fetch resumes:", err);
+      setAvailableResumes([]);
+    } finally {
+      setIsLoadingResumes(false);
+    }
+  };
+
+  const handleSelectResumeToImport = (resumeId: string) => {
+    // Navigate to resume builder with importFromId parameter
+    navigate(`${ROUTES.RESUME_BUILDER}?importFromId=${resumeId}`);
+    setShowImportResumeModal(false);
+  };
+
+  const handleFileUpload = async (file: File) => {
+    try {
+      setIsUploadingFile(true);
+      
+      // Parse the uploaded file
+      const response = await resumeService.parseResume(file);
+      
+      if (response.ok && response.data) {
+        // Navigate to resume builder with parsed content
+        // We'll pass the content via state or URL params
+        // For now, navigate and let ResumeBuilder handle it via a special parameter
+        navigate(`${ROUTES.RESUME_BUILDER}?uploaded=true`);
+        setShowImportResumeModal(false);
+        
+        // Store parsed content in sessionStorage temporarily
+        sessionStorage.setItem('uploadedResumeContent', JSON.stringify(response.data.content));
+      }
+    } catch (err: any) {
+      console.error("Failed to parse uploaded resume:", err);
+      alert(err.message || "Failed to parse resume. Please try again.");
+    } finally {
+      setIsUploadingFile(false);
+    }
   };
 
   const parseColors = (colors: string | object | undefined) => {
@@ -484,6 +534,180 @@ export function ResumeTemplates() {
                   className="w-full h-full min-h-[600px] border-0"
                   title="Template Preview"
                 />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Import Resume Modal */}
+        {showImportResumeModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+              {/* Header */}
+              <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Import from Existing Resume
+                </h2>
+                <button
+                  onClick={() => setShowImportResumeModal(false)}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <Icon
+                    icon="mingcute:close-line"
+                    className="w-5 h-5 text-gray-600"
+                  />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 overflow-y-auto p-6">
+                {/* File Upload Section */}
+                <div className="mb-6">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                    Upload Resume File
+                  </h3>
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-[#3351FD] transition-colors">
+                    <input
+                      type="file"
+                      id="resume-file-upload"
+                      accept=".pdf,.docx,.doc"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        await handleFileUpload(file);
+                      }}
+                      className="hidden"
+                      disabled={isUploadingFile}
+                    />
+                    <label
+                      htmlFor="resume-file-upload"
+                      className={`cursor-pointer flex flex-col items-center gap-3 ${
+                        isUploadingFile ? "opacity-50 cursor-not-allowed" : ""
+                      }`}
+                    >
+                      {isUploadingFile ? (
+                        <>
+                          <Icon
+                            icon="mingcute:loading-line"
+                            className="w-10 h-10 animate-spin text-[#3351FD]"
+                          />
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">
+                              Parsing resume with AI...
+                            </p>
+                            <p className="text-xs text-gray-600 mt-1">
+                              This may take a few moments
+                            </p>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <Icon
+                            icon="mingcute:file-upload-line"
+                            className="w-10 h-10 text-gray-400"
+                          />
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">
+                              Click to upload or drag and drop
+                            </p>
+                            <p className="text-xs text-gray-600 mt-1">
+                              PDF or DOCX files only (max 10MB)
+                            </p>
+                          </div>
+                        </>
+                      )}
+                    </label>
+                  </div>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-3">
+                    <div className="flex items-start gap-2">
+                      <Icon
+                        icon="mingcute:information-line"
+                        className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5"
+                      />
+                      <p className="text-xs text-blue-800">
+                        Our AI will extract all information from your resume
+                        including: personal info, experience, education, skills,
+                        projects, and certifications.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Divider */}
+                <div className="relative mb-6">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-gray-300"></div>
+                  </div>
+                  <div className="relative flex justify-center text-sm">
+                    <span className="px-2 bg-white text-gray-500">OR</span>
+                  </div>
+                </div>
+
+                {/* Existing Resumes Section */}
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                    Import from Existing Resume
+                  </h3>
+                  {isLoadingResumes ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Icon
+                        icon="mingcute:loading-line"
+                        className="w-8 h-8 animate-spin text-[#3351FD]"
+                      />
+                      <p className="ml-3 text-gray-600">Loading resumes...</p>
+                    </div>
+                  ) : availableResumes.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Icon
+                        icon="mingcute:file-line"
+                        className="w-10 h-10 mx-auto text-gray-400 mb-3"
+                      />
+                      <p className="text-sm text-gray-600 mb-1">No resumes found</p>
+                      <p className="text-xs text-gray-500">
+                        Create a resume first to import from it
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {availableResumes.map((resume) => (
+                        <button
+                          key={resume.id}
+                          onClick={() => handleSelectResumeToImport(resume.id)}
+                          className="w-full text-left p-4 border border-gray-200 rounded-lg hover:border-[#3351FD] hover:bg-blue-50 transition-all"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-gray-900">
+                                {resume.name || resume.versionName || "Untitled Resume"}
+                              </h3>
+                              {resume.description && (
+                                <p className="text-sm text-gray-600 mt-1">
+                                  {resume.description}
+                                </p>
+                              )}
+                              <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                                {resume.isMaster && (
+                                  <span className="flex items-center gap-1">
+                                    <Icon icon="mingcute:star-fill" className="w-3 h-3" />
+                                    Master
+                                  </span>
+                                )}
+                                <span>
+                                  Updated:{" "}
+                                  {new Date(resume.updatedAt).toLocaleDateString()}
+                                </span>
+                              </div>
+                            </div>
+                            <Icon
+                              icon="mingcute:arrow-right-line"
+                              className="w-5 h-5 text-gray-400"
+                            />
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>

@@ -15,7 +15,7 @@ import certificationRoutes from "./routes/certificationRoutes.js";
 import fileUploadRoutes from "./routes/fileUploadRoutes.js";
 import projectRoutes from "./routes/projectRoutes.js";
 import profileRoutes from "./routes/profileRoutes.js";
-import resumeRoutes from "./routes/resumeRoutes.js";
+import resumeRoutes from "./routes/resumes/index.js";
 
 // Import middleware
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";

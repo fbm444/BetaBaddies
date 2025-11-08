@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
-import database from "./database.js";
+import database from "../database.js";
 
 class ResumeService {
   constructor() {
@@ -46,14 +46,35 @@ class ResumeService {
 
       const resumeId = uuidv4();
 
-      // Only use basic columns that exist in the table
-      // Optional columns (template_id, job_id, content, etc.) will be added via migration
+      // Handle templateId: if it's not a valid UUID, set to null
+      // Default templates (like "default-chronological") don't have UUIDs in the database
+      let validTemplateId = null;
+      if (templateId) {
+        if (this.isValidUUID(templateId)) {
+          validTemplateId = templateId;
+        } else {
+          // If it's a default template identifier (starts with "default-"), set to null
+          // The template identifier can be stored in customizations or remembered separately
+          console.log(`⚠️ Template ID "${templateId}" is not a UUID. Setting template_id to NULL.`);
+          validTemplateId = null;
+        }
+      }
+
+      // Build columns and values arrays dynamically
       const columns = [
         "id",
         "user_id",
         "version_name",
         "description",
         "file",
+        "template_id",
+        "job_id",
+        "content",
+        "section_config",
+        "customizations",
+        "version_number",
+        "parent_resume_id",
+        "is_master",
         "comments_id",
       ];
       const values = [
@@ -62,15 +83,25 @@ class ResumeService {
         versionName,
         description || null,
         file || null,
+        validTemplateId,
+        jobId || null,
+        content ? JSON.stringify(content) : null,
+        sectionConfig ? JSON.stringify(sectionConfig) : null,
+        customizations ? JSON.stringify(customizations) : null,
+        versionNumber || 1,
+        parentResumeId || null,
+        isMaster || false,
         commentsId || null,
       ];
-      const placeholders = ["$1", "$2", "$3", "$4", "$5", "$6"];
+      const placeholders = values.map((_, i) => `$${i + 1}`);
 
       // Create resume in database
       const query = `
         INSERT INTO resume (${columns.join(", ")})
         VALUES (${placeholders.join(", ")})
-        RETURNING id, user_id, version_name, description, created_at, updated_at, file, comments_id
+        RETURNING id, user_id, version_name, description, created_at, updated_at, file, 
+                  template_id, job_id, content, section_config, customizations, 
+                  version_number, parent_resume_id, is_master, comments_id
       `;
 
       const result = await database.query(query, values);
@@ -102,7 +133,9 @@ class ResumeService {
       }
 
       const query = `
-        SELECT id, user_id, version_name, description, created_at, updated_at, file, comments_id
+        SELECT id, user_id, version_name, description, created_at, updated_at, file, 
+               template_id, job_id, content, section_config, customizations, 
+               version_number, parent_resume_id, is_master, comments_id
         FROM resume
         WHERE user_id = $1
         ${sortClause}
@@ -122,12 +155,24 @@ class ResumeService {
     }
   }
 
-  // Get resume by ID
+  // Validate UUID format
+  isValidUUID(uuid) {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(uuid);
+  }
+
+  // Get resume by ID (with user validation)
   async getResumeById(resumeId, userId) {
     try {
-      // Build query with only columns that exist (handle missing columns gracefully)
+      // Validate UUID format
+      if (!this.isValidUUID(resumeId)) {
+        throw new Error(`Invalid resume ID format. Expected UUID, got: ${resumeId}`);
+      }
+
       const query = `
-        SELECT id, user_id, version_name, description, created_at, updated_at, file, comments_id
+        SELECT id, user_id, version_name, description, created_at, updated_at, file, 
+               template_id, job_id, content, section_config, customizations, 
+               version_number, parent_resume_id, is_master, comments_id
         FROM resume
         WHERE id = $1 AND user_id = $2
       `;
@@ -143,6 +188,11 @@ class ResumeService {
       console.error("❌ Error getting resume by ID:", error);
       throw error;
     }
+  }
+
+  // Get resume by ID (alias for getResumeById, used by AI assistant)
+  async getResume(resumeId, userId) {
+    return this.getResumeById(resumeId, userId);
   }
 
   // Update resume
@@ -163,6 +213,11 @@ class ResumeService {
     } = resumeData;
 
     try {
+      // Validate UUID format
+      if (!this.isValidUUID(resumeId)) {
+        throw new Error(`Invalid resume ID format. Expected UUID, got: ${resumeId}`);
+      }
+
       // Check if resume exists and belongs to user
       const existingResume = await this.getResumeById(resumeId, userId);
       if (!existingResume) {
@@ -207,8 +262,56 @@ class ResumeService {
         values.push(commentsId || null);
       }
 
-      // Only update basic columns that exist in the table
-      // Skip optional columns (template_id, job_id, content, etc.) - they'll be added via migration
+      if (templateId !== undefined) {
+        // Handle templateId: if it's not a valid UUID, set to null
+        let validTemplateId = null;
+        if (templateId) {
+          if (this.isValidUUID(templateId)) {
+            validTemplateId = templateId;
+          } else {
+            // If it's a default template identifier (starts with "default-"), set to null
+            console.log(`⚠️ Template ID "${templateId}" is not a UUID. Setting template_id to NULL.`);
+            validTemplateId = null;
+          }
+        }
+        updates.push(`template_id = $${paramCount++}`);
+        values.push(validTemplateId);
+      }
+
+      if (jobId !== undefined) {
+        updates.push(`job_id = $${paramCount++}`);
+        values.push(jobId || null);
+      }
+
+      if (content !== undefined) {
+        updates.push(`content = $${paramCount++}`);
+        values.push(content ? JSON.stringify(content) : null);
+      }
+
+      if (sectionConfig !== undefined) {
+        updates.push(`section_config = $${paramCount++}`);
+        values.push(sectionConfig ? JSON.stringify(sectionConfig) : null);
+      }
+
+      if (customizations !== undefined) {
+        updates.push(`customizations = $${paramCount++}`);
+        values.push(customizations ? JSON.stringify(customizations) : null);
+      }
+
+      if (versionNumber !== undefined) {
+        updates.push(`version_number = $${paramCount++}`);
+        values.push(versionNumber);
+      }
+
+      if (parentResumeId !== undefined) {
+        updates.push(`parent_resume_id = $${paramCount++}`);
+        values.push(parentResumeId || null);
+      }
+
+      if (isMaster !== undefined) {
+        updates.push(`is_master = $${paramCount++}`);
+        values.push(isMaster);
+      }
 
       if (updates.length === 0) {
         return existingResume;
@@ -221,7 +324,9 @@ class ResumeService {
         UPDATE resume
         SET ${updates.join(", ")}, updated_at = CURRENT_TIMESTAMP
         WHERE id = $${paramCount++} AND user_id = $${paramCount++}
-        RETURNING id, user_id, version_name, description, created_at, updated_at, file, comments_id
+        RETURNING id, user_id, version_name, description, created_at, updated_at, file, 
+                  template_id, job_id, content, section_config, customizations, 
+                  version_number, parent_resume_id, is_master, comments_id
       `;
 
       const result = await database.query(query, values);
@@ -277,6 +382,14 @@ class ResumeService {
         versionName: newVersionName || `${originalResume.versionName} (Copy)`,
         description: originalResume.description,
         file: originalResume.file,
+        templateId: originalResume.templateId,
+        jobId: originalResume.jobId,
+        content: originalResume.content,
+        sectionConfig: originalResume.sectionConfig,
+        customizations: originalResume.customizations,
+        versionNumber: (originalResume.versionNumber || 1) + 1,
+        parentResumeId: originalResume.id,
+        isMaster: false,
         commentsId: originalResume.commentsId,
       };
 
@@ -297,13 +410,16 @@ class ResumeService {
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       file: row.file,
-      commentsId: row.comments_id,
+      templateId: row.template_id || undefined,
+      jobId: row.job_id || undefined,
+      versionNumber: row.version_number ?? 1,
+      parentResumeId: row.parent_resume_id || undefined,
+      isMaster: row.is_master ?? false,
+      commentsId: row.comments_id || undefined,
     };
 
-    // Add optional fields if they exist
-    if (row.template_id !== undefined) resume.templateId = row.template_id;
-    if (row.job_id !== undefined) resume.jobId = row.job_id;
-    if (row.content !== undefined) {
+    // Parse JSONB fields (they come as objects from PostgreSQL, but handle string fallback)
+    if (row.content !== undefined && row.content !== null) {
       try {
         resume.content =
           typeof row.content === "string"
@@ -312,8 +428,11 @@ class ResumeService {
       } catch {
         resume.content = row.content;
       }
+    } else {
+      resume.content = undefined;
     }
-    if (row.section_config !== undefined) {
+
+    if (row.section_config !== undefined && row.section_config !== null) {
       try {
         resume.sectionConfig =
           typeof row.section_config === "string"
@@ -322,8 +441,11 @@ class ResumeService {
       } catch {
         resume.sectionConfig = row.section_config;
       }
+    } else {
+      resume.sectionConfig = undefined;
     }
-    if (row.customizations !== undefined) {
+
+    if (row.customizations !== undefined && row.customizations !== null) {
       try {
         resume.customizations =
           typeof row.customizations === "string"
@@ -332,12 +454,9 @@ class ResumeService {
       } catch {
         resume.customizations = row.customizations;
       }
+    } else {
+      resume.customizations = undefined;
     }
-    if (row.version_number !== undefined)
-      resume.versionNumber = row.version_number;
-    if (row.parent_resume_id !== undefined)
-      resume.parentResumeId = row.parent_resume_id;
-    if (row.is_master !== undefined) resume.isMaster = row.is_master;
 
     return resume;
   }

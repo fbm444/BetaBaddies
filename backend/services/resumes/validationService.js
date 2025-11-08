@@ -1,6 +1,7 @@
-import database from "./database.js";
-import resumeService from "./resumeService.js";
-import profileService from "./profileService.js";
+import database from "../database.js";
+import resumeService from "./coreService.js";
+import profileService from "../profileService.js";
+import resumeAIAssistantService from "./aiService.js";
 
 class ResumeValidationService {
   constructor() {
@@ -338,6 +339,228 @@ class ResumeValidationService {
       console.error("❌ Error resolving validation issue:", error);
       throw error;
     }
+  }
+
+  // AI-powered resume critique
+  async critiqueResume(resumeId, userId, jobDescription = null) {
+    try {
+      const resume = await resumeService.getResumeById(resumeId, userId);
+      if (!resume) {
+        throw new Error("Resume not found");
+      }
+
+      // Get user profile for context
+      const profile = await profileService.getProfileByUserId(userId);
+
+      // Build comprehensive resume context for AI
+      const resumeContext = this.buildResumeContextForAI(resume, profile);
+
+      // Create critique prompt
+      let prompt = `Please provide a comprehensive critique of this resume. Analyze the following aspects:
+
+1. **Content Quality:**
+   - Are bullet points impactful and quantified?
+   - Is the summary compelling and concise?
+   - Are skills relevant and well-organized?
+   - Is experience described effectively?
+
+2. **ATS Compatibility:**
+   - Are keywords optimized?
+   - Is formatting ATS-friendly?
+   - Are section headings clear?
+   - Is the structure logical?
+
+3. **Professional Presentation:**
+   - Is the tone professional?
+   - Are there any grammar or spelling issues?
+   - Is the length appropriate (1-2 pages)?
+   - Is information well-organized?
+
+4. **Completeness:**
+   - Are all essential sections present?
+   - Is contact information complete?
+   - Are dates and locations consistent?
+   - Is there missing critical information?
+
+5. **Improvement Suggestions:**
+   - Specific areas to strengthen
+   - Action verbs to use
+   - Quantifiable achievements to add
+   - Skills to emphasize or add
+
+${jobDescription ? `\n6. **Job-Specific Tailoring:**\n   - How well does this resume match the job description?\n   - What keywords from the job posting are missing?\n   - What experience should be emphasized?\n   - How can it be better tailored?\n\nTarget Job Description:\n${jobDescription}` : ""}
+
+Please provide:
+- Overall assessment (strengths and weaknesses)
+- Specific issues found (with severity: error, warning, or info)
+- Actionable improvement suggestions
+- Priority recommendations
+
+Resume Content:
+${resumeContext}`;
+
+      try {
+        const aiResponse = await resumeAIAssistantService.chat(
+          [{ role: "user", content: prompt }],
+          resume
+        );
+
+        // Parse AI response and extract structured feedback
+        const critique = this.parseAICritique(aiResponse.message);
+
+        // Combine with standard validation
+        const standardValidation = await this.validateResume(resumeId, userId);
+
+        return {
+          ...standardValidation,
+          aiCritique: critique,
+          overallAssessment: aiResponse.message,
+          jobSpecific: !!jobDescription,
+        };
+      } catch (aiError) {
+        console.error("❌ AI critique failed, falling back to standard validation:", aiError);
+        // Fall back to standard validation if AI fails
+        return await this.validateResume(resumeId, userId);
+      }
+    } catch (error) {
+      console.error("❌ Error critiquing resume:", error);
+      throw error;
+    }
+  }
+
+  // Build comprehensive resume context for AI analysis
+  buildResumeContextForAI(resume, profile) {
+    const context = [];
+
+    // Personal Information
+    context.push("=== PERSONAL INFORMATION ===");
+    if (resume.content?.personalInfo) {
+      const { firstName, lastName, email, phone, location, linkedIn, portfolio } =
+        resume.content.personalInfo;
+      context.push(`Name: ${firstName || ""} ${lastName || ""}`);
+      context.push(`Email: ${email || "Not provided"}`);
+      context.push(`Phone: ${phone || "Not provided"}`);
+      context.push(`Location: ${location || "Not provided"}`);
+      if (linkedIn) context.push(`LinkedIn: ${linkedIn}`);
+      if (portfolio) context.push(`Portfolio: ${portfolio}`);
+    }
+    context.push("");
+
+    // Summary
+    if (resume.content?.summary) {
+      context.push("=== PROFESSIONAL SUMMARY ===");
+      context.push(resume.content.summary);
+      context.push("");
+    }
+
+    // Experience
+    if (resume.content?.experience && resume.content.experience.length > 0) {
+      context.push("=== WORK EXPERIENCE ===");
+      resume.content.experience.forEach((exp) => {
+        context.push(`${exp.title || "N/A"} at ${exp.company || "N/A"}`);
+        if (exp.location) context.push(`Location: ${exp.location}`);
+        context.push(
+          `Duration: ${exp.startDate || "N/A"} - ${exp.isCurrent ? "Present" : exp.endDate || "N/A"}`
+        );
+        if (exp.description && exp.description.length > 0) {
+          exp.description.forEach((desc) => context.push(`  • ${desc}`));
+        }
+        context.push("");
+      });
+    }
+
+    // Education
+    if (resume.content?.education && resume.content.education.length > 0) {
+      context.push("=== EDUCATION ===");
+      resume.content.education.forEach((edu) => {
+        context.push(`${edu.degree || "N/A"} from ${edu.school || "N/A"}`);
+        if (edu.field) context.push(`Field: ${edu.field}`);
+        if (edu.endDate) context.push(`Graduated: ${edu.endDate}`);
+        if (edu.gpa) context.push(`GPA: ${edu.gpa}`);
+        if (edu.honors) context.push(`Honors: ${edu.honors}`);
+        context.push("");
+      });
+    }
+
+    // Skills
+    if (resume.content?.skills && resume.content.skills.length > 0) {
+      context.push("=== SKILLS ===");
+      const skillsByCategory = {};
+      resume.content.skills.forEach((skill) => {
+        const category = skill.category || "Other";
+        if (!skillsByCategory[category]) {
+          skillsByCategory[category] = [];
+        }
+        skillsByCategory[category].push(skill.name);
+      });
+      Object.keys(skillsByCategory).forEach((category) => {
+        context.push(`${category}: ${skillsByCategory[category].join(", ")}`);
+      });
+      context.push("");
+    }
+
+    // Projects
+    if (resume.content?.projects && resume.content.projects.length > 0) {
+      context.push("=== PROJECTS ===");
+      resume.content.projects.forEach((proj) => {
+        context.push(`${proj.name || "N/A"}`);
+        if (proj.description) context.push(`  ${proj.description}`);
+        if (proj.technologies && proj.technologies.length > 0) {
+          context.push(`  Technologies: ${proj.technologies.join(", ")}`);
+        }
+        if (proj.link) context.push(`  Link: ${proj.link}`);
+        context.push("");
+      });
+    }
+
+    // Certifications
+    if (resume.content?.certifications && resume.content.certifications.length > 0) {
+      context.push("=== CERTIFICATIONS ===");
+      resume.content.certifications.forEach((cert) => {
+        context.push(`${cert.name || "N/A"} from ${cert.organization || "N/A"}`);
+        if (cert.dateEarned) context.push(`  Earned: ${cert.dateEarned}`);
+        if (cert.expirationDate) context.push(`  Expires: ${cert.expirationDate}`);
+        context.push("");
+      });
+    }
+
+    return context.join("\n");
+  }
+
+  // Parse AI critique response into structured format
+  parseAICritique(aiResponse) {
+    // Extract structured information from AI response
+    // This is a simplified parser - could be enhanced with more sophisticated parsing
+    const critique = {
+      strengths: [],
+      weaknesses: [],
+      suggestions: [],
+      priority: [],
+    };
+
+    // Try to extract sections (basic parsing)
+    const lines = aiResponse.split("\n");
+    let currentSection = null;
+
+    lines.forEach((line) => {
+      const lowerLine = line.toLowerCase().trim();
+      if (lowerLine.includes("strength") || lowerLine.includes("strong")) {
+        currentSection = "strengths";
+      } else if (lowerLine.includes("weakness") || lowerLine.includes("improve")) {
+        currentSection = "weaknesses";
+      } else if (lowerLine.includes("suggestion") || lowerLine.includes("recommend")) {
+        currentSection = "suggestions";
+      } else if (lowerLine.includes("priority") || lowerLine.includes("important")) {
+        currentSection = "priority";
+      } else if (line.trim().startsWith("•") || line.trim().startsWith("-")) {
+        const content = line.trim().substring(1).trim();
+        if (content && currentSection) {
+          critique[currentSection].push(content);
+        }
+      }
+    });
+
+    return critique;
   }
 }
 

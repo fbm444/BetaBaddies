@@ -51,7 +51,8 @@ export interface Resume {
   id: string;
   userId: string;
   templateId?: string;
-  name: string;
+  name: string; // Maps to versionName in backend
+  versionName?: string; // Backend field name
   description?: string;
   jobId?: string;
   content: ResumeContent;
@@ -62,6 +63,8 @@ export interface Resume {
   isMaster: boolean;
   createdAt: string;
   updatedAt: string;
+  file?: string;
+  commentsId?: string;
 }
 
 export interface ResumeContent {

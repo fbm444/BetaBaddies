@@ -155,20 +155,20 @@ export function Resumes() {
 
       switch (format) {
         case 'pdf':
-          blob = await resumeService.exportPDF(resumeId, { filename: `${filename}.pdf` });
-          resumeService.downloadBlob(blob, `${filename}.pdf`);
+          const pdfResult = await resumeService.exportPDF(resumeId, { filename: `${filename}.pdf` });
+          resumeService.downloadBlob(pdfResult.blob, pdfResult.filename);
           break;
         case 'docx':
-          blob = await resumeService.exportDOCX(resumeId, { filename: `${filename}.docx` });
-          resumeService.downloadBlob(blob, `${filename}.docx`);
+          const docxResult = await resumeService.exportDOCX(resumeId, { filename: `${filename}.docx` });
+          resumeService.downloadBlob(docxResult.blob, docxResult.filename);
           break;
         case 'txt':
-          blob = await resumeService.exportTXT(resumeId, { filename: `${filename}.txt` });
-          resumeService.downloadBlob(blob, `${filename}.txt`);
+          const txtResult = await resumeService.exportTXT(resumeId, { filename: `${filename}.txt` });
+          resumeService.downloadBlob(txtResult.blob, txtResult.filename);
           break;
         case 'html':
-          blob = await resumeService.exportHTML(resumeId, { filename: `${filename}.html` });
-          resumeService.downloadBlob(blob, `${filename}.html`);
+          const htmlResult = await resumeService.exportHTML(resumeId, { filename: `${filename}.html` });
+          resumeService.downloadBlob(htmlResult.blob, htmlResult.filename);
           break;
       }
     } catch (err: any) {

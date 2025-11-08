@@ -1,5 +1,5 @@
-import database from "./database.js";
-import resumeService from "./resumeService.js";
+import database from "../database.js";
+import resumeService from "./coreService.js";
 
 class ResumeSectionService {
   constructor() {

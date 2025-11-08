@@ -164,6 +164,28 @@ export const errorHandler = (err, req, res, next) => {
     });
   }
 
+  // Handle UUID validation errors
+  if (errorCode === "22P02" || err.message?.includes("invalid input syntax for type uuid")) {
+    return res.status(400).json({
+      ok: false,
+      error: {
+        code: "INVALID_ID",
+        message: err.message || "Invalid ID format. Expected UUID.",
+      },
+    });
+  }
+
+  // Handle "Invalid resume ID format" errors
+  if (err.message?.includes("Invalid resume ID format") || err.message?.includes("Invalid ID format")) {
+    return res.status(400).json({
+      ok: false,
+      error: {
+        code: "INVALID_ID",
+        message: err.message || "Invalid ID format. Expected UUID.",
+      },
+    });
+  }
+
   // Default to 500 Internal Server Error
   res.status(500).json({
     ok: false,

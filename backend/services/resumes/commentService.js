@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
-import database from "./database.js";
+import database from "../database.js";
 
 class ResumeCommentService {
   constructor() {

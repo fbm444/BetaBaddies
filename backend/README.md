@@ -17,19 +17,36 @@ Server will run on `http://localhost:3001`
 
 ### Environment Variables
 
-Create a `.env` file in the backend directory:
+Create a `.env` file in the backend directory. You can copy from `.env.example`:
 
 ```env
+# Database Configuration
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=ats_tracker
 DB_USER=postgres
 DB_PASS=your_password
+
+# Server Configuration
 SERVER_PORT=3001
 SESSION_SECRET=your-secret-key-change-in-production
 NODE_ENV=development
 FRONTEND_URL=http://localhost:3000
+
+# OpenAI Configuration (for AI Resume Parsing)
+# Get your API key from: https://platform.openai.com/api-keys
+OPENAI_API_KEY=your_openai_api_key_here
+
+# Optional: Custom OpenAI API URL (for using proxy or different endpoint)
+# OPENAI_API_URL=https://api.openai.com/v1
 ```
+
+**Getting an OpenAI API Key:**
+1. Go to [https://platform.openai.com/](https://platform.openai.com/)
+2. Sign in or create an account
+3. Navigate to **API Keys** section
+4. Click **Create new secret key**
+5. Copy the key (starts with `sk-`) and add it to your `.env` file
 
 ## 📡 API Endpoints
 

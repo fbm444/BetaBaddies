@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
-import database from "./database.js";
-import resumeService from "./resumeService.js";
+import database from "../database.js";
+import resumeService from "./coreService.js";
 
 class ResumeVersionService {
   // Get all versions of a resume
@@ -61,11 +61,16 @@ class ResumeVersionService {
       // Determine parent resume ID (use original if it has a parent, otherwise use original ID)
       const parentResumeId = originalResume.parentResumeId || resumeId;
 
-      // Create new version
+      // Create new version with all content
       const newResumeData = {
         versionName: versionName || `${originalResume.versionName} v${nextVersionNumber}`,
         description: description || originalResume.description,
         file: originalResume.file,
+        templateId: originalResume.templateId,
+        jobId: originalResume.jobId,
+        content: originalResume.content,
+        sectionConfig: originalResume.sectionConfig,
+        customizations: originalResume.customizations,
         commentsId: originalResume.commentsId,
         parentResumeId: parentResumeId,
         versionNumber: nextVersionNumber,
@@ -95,6 +100,11 @@ class ResumeVersionService {
         versionName: resume1.versionName !== resume2.versionName,
         description: resume1.description !== resume2.description,
         file: resume1.file !== resume2.file,
+        content: JSON.stringify(resume1.content || {}) !== JSON.stringify(resume2.content || {}),
+        sectionConfig: JSON.stringify(resume1.sectionConfig || {}) !== JSON.stringify(resume2.sectionConfig || {}),
+        customizations: JSON.stringify(resume1.customizations || {}) !== JSON.stringify(resume2.customizations || {}),
+        templateId: resume1.templateId !== resume2.templateId,
+        jobId: resume1.jobId !== resume2.jobId,
         createdAt: resume1.createdAt !== resume2.createdAt,
         updatedAt: resume1.updatedAt !== resume2.updatedAt,
       };
@@ -123,6 +133,49 @@ class ResumeVersionService {
           field: "file",
           old: resume1.file,
           new: resume2.file,
+        });
+      }
+
+      if (differences.content) {
+        detailedDifferences.push({
+          field: "content",
+          old: "Content differs",
+          new: "Content differs",
+          hasChanges: true,
+        });
+      }
+
+      if (differences.sectionConfig) {
+        detailedDifferences.push({
+          field: "sectionConfig",
+          old: "Section configuration differs",
+          new: "Section configuration differs",
+          hasChanges: true,
+        });
+      }
+
+      if (differences.customizations) {
+        detailedDifferences.push({
+          field: "customizations",
+          old: "Customizations differ",
+          new: "Customizations differ",
+          hasChanges: true,
+        });
+      }
+
+      if (differences.templateId) {
+        detailedDifferences.push({
+          field: "templateId",
+          old: resume1.templateId,
+          new: resume2.templateId,
+        });
+      }
+
+      if (differences.jobId) {
+        detailedDifferences.push({
+          field: "jobId",
+          old: resume1.jobId,
+          new: resume2.jobId,
         });
       }
 

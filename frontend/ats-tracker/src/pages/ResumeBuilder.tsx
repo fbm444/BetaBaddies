@@ -1,4 +1,4 @@
-import { useState, useEffect, Fragment } from "react";
+import { useState, useEffect, Fragment, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Icon } from "@iconify/react";
 import { ROUTES } from "../config/routes";
@@ -13,14 +13,26 @@ import {
 } from "../types";
 import { resumeService } from "../services/resumeService";
 import { api } from "../services/api";
+import { AIAssistantChat } from "../components/resume/AIAssistantChat";
+import { Toast } from "../components/resume/Toast";
+import { ResumeTopBar } from "../components/resume/ResumeTopBar";
 
 export function ResumeBuilder() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const resumeId = searchParams.get("id");
   const templateId = searchParams.get("templateId");
+  const importFromId = searchParams.get("importFromId");
+  const uploaded = searchParams.get("uploaded");
+
+  // Helper function to validate UUID format
+  const isValidUUID = (id: string | null): boolean => {
+    if (!id || id === "new") return false;
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+  };
 
   const [resume, setResume] = useState<Resume | null>(null);
+  const [previewResume, setPreviewResume] = useState<Resume | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const [editingItem, setEditingItem] = useState<{
@@ -72,6 +84,14 @@ export function ResumeBuilder() {
   const [resume1Data, setResume1Data] = useState<Resume | null>(null);
   const [resume2Data, setResume2Data] = useState<Resume | null>(null);
   const [loadingComparison, setLoadingComparison] = useState(false);
+
+  // Undo/Redo history
+  const [resumeHistory, setResumeHistory] = useState<Resume[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const maxHistorySize = 50; // Limit history to prevent memory issues
+  const maxLocalStorageSize = 10; // Limit localStorage history (smaller due to size constraints)
+  const localStorageKey = `resume_history_${resumeId || 'new'}`;
+  const isUndoingRef = useRef(false); // Track if we're currently undoing to prevent saving to history
 
   // Toast notifications
   const [toast, setToast] = useState<{
@@ -160,21 +180,134 @@ export function ResumeBuilder() {
     const fetchResume = async () => {
       try {
         setIsLoading(true);
+        // Validate UUID format if resumeId is provided
         if (resumeId) {
-          const response = await resumeService.getResume(resumeId);
-          if (response.ok && response.data) {
-            const loadedResume = response.data.resume;
-            setResume(loadedResume);
-            // Load section formatting from resume customizations
-            if (loadedResume.customizations?.sectionFormatting) {
-              setSectionFormatting(
-                loadedResume.customizations.sectionFormatting
-              );
+          if (!isValidUUID(resumeId) && resumeId !== "new") {
+            showToast("Invalid resume ID format. Please select a valid resume.", "error");
+            navigate(ROUTES.RESUMES);
+            return;
+          }
+          
+          if (isValidUUID(resumeId)) {
+            const response = await resumeService.getResume(resumeId);
+            if (response.ok && response.data) {
+              const loadedResume = response.data.resume;
+              setResume(loadedResume);
+              // Initialize history with loaded resume first
+              const initialHistory = [JSON.parse(JSON.stringify(loadedResume))];
+              setResumeHistory(initialHistory);
+              setHistoryIndex(0);
+              // Then try to load history from localStorage (will override if available)
+              loadHistoryFromStorage(loadedResume);
+              // Load section formatting from resume customizations
+              if (loadedResume.customizations?.sectionFormatting) {
+                setSectionFormatting(
+                  loadedResume.customizations.sectionFormatting
+                );
+              }
+            } else if (response.error?.code === "INVALID_ID") {
+              showToast("Invalid resume ID format. Please select a valid resume.", "error");
+              navigate(ROUTES.RESUMES);
+              return;
             }
           }
         } else {
+          // New resume - check if uploaded file content is available
+          if (uploaded === "true") {
+            try {
+              // Get parsed content from sessionStorage
+              const storedContent = sessionStorage.getItem('uploadedResumeContent');
+              if (storedContent) {
+                const parsedContent = JSON.parse(storedContent);
+                // Set parsed content to show preview
+                setParsedResumeContent(parsedContent);
+                // Show import modal
+                setShowImportResumeModal(true);
+                showToast(
+                  "Resume parsed successfully! Review and confirm to import.",
+                  "success"
+                );
+                // Clear sessionStorage
+                sessionStorage.removeItem('uploadedResumeContent');
+                // Remove uploaded parameter from URL
+                navigate(`${ROUTES.RESUME_BUILDER}?templateId=${templateId || "default-chronological"}`, { replace: true });
+              }
+            } catch (err: any) {
+              console.error("Failed to load uploaded resume content:", err);
+              showToast(
+                "Failed to load uploaded resume content.",
+                "error"
+              );
+            }
+          }
+          
+          // New resume - check if importing from existing resume
+          if (importFromId && isValidUUID(importFromId)) {
+            try {
+              // Load the resume to import from
+              const importResponse = await resumeService.getResume(importFromId);
+              if (importResponse.ok && importResponse.data) {
+                const sourceResume = importResponse.data.resume;
+                // Set parsed content to show preview (same as file upload)
+                setParsedResumeContent(sourceResume.content);
+                // Show import modal
+                setShowImportResumeModal(true);
+                showToast(
+                  "Resume loaded! Review and confirm to import.",
+                  "success"
+                );
+                // Remove importFromId from URL
+                navigate(`${ROUTES.RESUME_BUILDER}?templateId=${templateId || "default-chronological"}`, { replace: true });
+              }
+            } catch (importErr: any) {
+              console.error("Failed to load resume for import:", importErr);
+              showToast(
+                importErr.message || "Failed to load resume for import.",
+                "error"
+              );
+            }
+          }
+          
+          // New resume - check if template has an existing resume file to parse
+          if (templateId) {
+            try {
+              // Get template to check if it has an existing resume file
+              const templateResponse = await resumeService.getTemplate(templateId);
+              if (templateResponse.ok && templateResponse.data?.template?.existingResumeTemplate) {
+                // Template has an existing resume file - parse it with AI
+                showToast("Parsing template resume with AI...", "info");
+                setImportingResume(true);
+                
+                try {
+                  const parseResponse = await resumeService.parseTemplateResume(templateId);
+                  if (parseResponse.ok && parseResponse.data) {
+                    // Set parsed content to show preview
+                    setParsedResumeContent(parseResponse.data.content);
+                    // Show import modal
+                    setShowImportResumeModal(true);
+                    showToast(
+                      "Template resume parsed successfully! Review and confirm to import.",
+                      "success"
+                    );
+                  }
+                } catch (parseErr: any) {
+                  console.error("Failed to parse template resume:", parseErr);
+                  showToast(
+                    parseErr.message || "Failed to parse template resume. Using default template.",
+                    "error"
+                  );
+                } finally {
+                  setImportingResume(false);
+                }
+              }
+            } catch (templateErr: any) {
+              console.log("Template not found or no existing resume file:", templateErr.message);
+              // Continue with default template
+            }
+          }
+
           // New resume - use mock data for preview
-          setResume({
+          const newResume = {
             id: "new",
             userId: "user1",
             name: "New Resume",
@@ -278,13 +411,23 @@ export function ResumeBuilder() {
             isMaster: true,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
-          });
+          };
+          setResume(newResume);
+          // Initialize history with new resume
+          setResumeHistory([JSON.parse(JSON.stringify(newResume))]);
+          setHistoryIndex(0);
         }
       } catch (err: any) {
         // Use mock data if API fails
         console.log("API not available, using mock data:", err.message);
+        // Only use mock data if resumeId is "new" or invalid UUID
+        if (isValidUUID(resumeId)) {
+          // If it's a valid UUID but API failed, show error
+          showToast("Failed to load resume. Please try again.", "error");
+          return;
+        }
         setResume({
-          id: resumeId || "1",
+          id: resumeId || "new",
           userId: "user1",
           name: "Software Engineer Resume",
           description: "Tailored for tech positions",
@@ -382,12 +525,12 @@ export function ResumeBuilder() {
     };
 
     fetchResume();
-  }, [resumeId, templateId]);
+  }, [resumeId, templateId, importFromId, uploaded]);
 
   // Fetch versions when resumeId changes
   useEffect(() => {
     const fetchVersions = async () => {
-      if (!resumeId || resumeId === "new") {
+      if (!resumeId || resumeId === "new" || !isValidUUID(resumeId)) {
         setVersions([]);
         setVersionHistory([]);
         return;
@@ -446,7 +589,7 @@ export function ResumeBuilder() {
     setResume({ ...resume, sectionConfig: newConfig });
 
     // Auto-save section config changes (optional - can be removed if you want manual save only)
-    if (resumeId && resumeId !== "new") {
+    if (resumeId && resumeId !== "new" && isValidUUID(resumeId)) {
       // Silently save section config changes
       resumeService
         .updateResume(resumeId, {
@@ -507,7 +650,7 @@ export function ResumeBuilder() {
     setDraggedSection(null);
 
     // Auto-save reorder changes
-    if (resumeId && resumeId !== "new") {
+    if (resumeId && resumeId !== "new" && isValidUUID(resumeId)) {
       resumeService.reorderSections(resumeId, newOrder).catch((err) => {
         console.log(
           "Auto-save reorder failed (will work once database is set up):",
@@ -572,7 +715,7 @@ export function ResumeBuilder() {
     setResume({ ...resume, sectionConfig: newConfig });
     setDraggedDocumentSection(null);
 
-    if (resumeId && resumeId !== "new") {
+    if (resumeId && resumeId !== "new" && isValidUUID(resumeId)) {
       resumeService.reorderSections(resumeId, newOrder).catch((err) => {
         console.log("Auto-save reorder failed:", err);
       });
@@ -644,7 +787,7 @@ export function ResumeBuilder() {
     setResume(updatedResume);
 
     // Auto-save to backend if resume exists
-    if (resumeId && resumeId !== "new") {
+    if (resumeId && resumeId !== "new" && isValidUUID(resumeId)) {
       setIsAutoSaving(true);
       resumeService
         .updateResume(resumeId, {
@@ -707,6 +850,171 @@ export function ResumeBuilder() {
     return style;
   };
 
+  // Save current resume state to history (both memory and localStorage)
+  const saveToHistory = (resumeState: Resume) => {
+    // Don't save to history if we're currently undoing
+    if (isUndoingRef.current) {
+      console.log("⏭️ Skipping history save during undo operation");
+      return;
+    }
+    
+    setHistoryIndex((prevIndex) => {
+      setResumeHistory((prevHistory) => {
+        // Remove any history after current index (if we're not at the end)
+        const newHistory = prevHistory.slice(0, prevIndex + 1);
+        
+        // Add new state
+        const updatedHistory = [...newHistory, JSON.parse(JSON.stringify(resumeState))];
+        
+        // Limit history size
+        let finalHistory = updatedHistory;
+        let newIndex = updatedHistory.length - 1;
+        if (updatedHistory.length > maxHistorySize) {
+          finalHistory = updatedHistory.slice(-maxHistorySize);
+          // Update index to match trimmed history
+          newIndex = finalHistory.length - 1;
+        }
+
+        // Persist to localStorage (limited to recent history due to size constraints)
+        try {
+          const historyForStorage = finalHistory.slice(-maxLocalStorageSize);
+          const historyData = {
+            history: historyForStorage,
+            index: Math.min(newIndex, historyForStorage.length - 1),
+            timestamp: Date.now(),
+          };
+          localStorage.setItem(localStorageKey, JSON.stringify(historyData));
+        } catch (error) {
+          // localStorage might be full or unavailable - silently fail
+          console.warn("Failed to save history to localStorage:", error);
+        }
+
+        return finalHistory;
+      });
+      
+      // Calculate new index
+      return prevIndex + 1;
+    });
+  };
+
+  // Load history from localStorage on mount
+  const loadHistoryFromStorage = (currentResume: Resume | null) => {
+    if (!resumeId || resumeId === "new") return; // Don't load for new resumes
+    
+    try {
+      const stored = localStorage.getItem(localStorageKey);
+      if (stored) {
+        const historyData = JSON.parse(stored);
+        // Only restore if it's recent (within last 24 hours)
+        const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+        if (historyData.timestamp && historyData.timestamp > oneDayAgo) {
+          if (historyData.history && historyData.history.length > 0) {
+            // Merge with current resume to ensure we have the latest state
+            if (currentResume) {
+              // Prepend current resume to history if not already there
+              const mergedHistory = [currentResume, ...historyData.history];
+              setResumeHistory(mergedHistory);
+              setHistoryIndex(mergedHistory.length - 1);
+            } else {
+              setResumeHistory(historyData.history);
+              setHistoryIndex(
+                Math.min(historyData.index || 0, historyData.history.length - 1)
+              );
+            }
+          }
+        } else {
+          // Clean up old history
+          localStorage.removeItem(localStorageKey);
+        }
+      }
+    } catch (error) {
+      console.warn("Failed to load history from localStorage:", error);
+      // Clean up corrupted data
+      localStorage.removeItem(localStorageKey);
+    }
+  };
+
+  // Undo function
+  const handleUndo = () => {
+    setHistoryIndex((prevIndex) => {
+      setResumeHistory((prevHistory) => {
+        console.log("🔄 Undo check:", {
+          prevIndex,
+          historyLength: prevHistory.length,
+          canUndo: prevIndex > 0 && prevHistory.length > 0
+        });
+        
+        if (prevIndex > 0 && prevHistory.length > 0) {
+          // Set flag to prevent saving to history during undo
+          isUndoingRef.current = true;
+          
+          const previousState = prevHistory[prevIndex - 1];
+          console.log("↩️ Undoing to state at index:", prevIndex - 1);
+          
+          setResume(previousState);
+          setToast({
+            message: `Changes undone (${prevIndex} change${prevIndex > 1 ? 's' : ''} remaining)`,
+            type: "success",
+          });
+          
+          // Save to backend if resume exists
+          if (resumeId && resumeId !== "new" && previousState) {
+            resumeService
+              .updateResume(resumeId, previousState)
+              .then(() => {
+                setLastSaved(new Date());
+                // Reset flag after a short delay to allow state updates to complete
+                setTimeout(() => {
+                  isUndoingRef.current = false;
+                }, 200);
+              })
+              .catch((err) => {
+                console.error("Failed to save undo:", err);
+                isUndoingRef.current = false;
+              });
+          } else {
+            // Reset flag if no backend save needed
+            setTimeout(() => {
+              isUndoingRef.current = false;
+            }, 200);
+          }
+          
+          // Update localStorage
+          try {
+            const historyForStorage = prevHistory.slice(-maxLocalStorageSize);
+            const historyData = {
+              history: historyForStorage,
+              index: prevIndex - 1,
+              timestamp: Date.now(),
+            };
+            localStorage.setItem(localStorageKey, JSON.stringify(historyData));
+          } catch (error) {
+            console.warn("Failed to save undo to localStorage:", error);
+          }
+          
+          return prevHistory; // Don't modify history on undo
+        } else {
+          setToast({
+            message: "Nothing to undo",
+            type: "info",
+          });
+          return prevHistory;
+        }
+      });
+      
+      // Decrement index if we can undo
+      if (prevIndex > 0) {
+        const newIndex = prevIndex - 1;
+        console.log("📉 History index decremented:", prevIndex, "->", newIndex);
+        return newIndex;
+      }
+      return prevIndex;
+    });
+  };
+
+  // Check if undo is available
+  const canUndo = historyIndex > 0 && resumeHistory.length > 0;
+
   // Toast notification helper
   const showToast = (
     message: string,
@@ -717,20 +1025,54 @@ export function ResumeBuilder() {
   };
 
   const handleSave = async () => {
-    if (!resume || !resumeId || resumeId === "new") {
-      showToast("Please create a resume first", "error");
+    if (!resume) {
+      showToast("No resume to save", "error");
       return;
     }
+
     try {
       setIsSaving(true);
-      await resumeService.updateResume(resumeId, {
-        name: resume.name,
-        description: resume.description,
-        sectionConfig: resume.sectionConfig,
-        customizations: resume.customizations,
-      });
-      setLastSaved(new Date());
-      showToast("Resume saved successfully!", "success");
+      
+      // If resumeId is "new" or invalid, create a new resume
+      if (!resumeId || resumeId === "new" || !isValidUUID(resumeId)) {
+        const response = await resumeService.createResume({
+          name: resume.name || "New Resume",
+          description: resume.description,
+          templateId: resume.templateId,
+          jobId: resume.jobId,
+          content: resume.content,
+          sectionConfig: resume.sectionConfig,
+          customizations: resume.customizations,
+          versionNumber: resume.versionNumber || 1,
+          isMaster: resume.isMaster ?? true,
+        });
+
+        if (response.ok && response.data?.resume) {
+          const newResume = response.data.resume;
+          setResume(newResume);
+          // Update URL with new resume ID
+          navigate(`${ROUTES.RESUME_BUILDER}?id=${newResume.id}`, { replace: true });
+          setLastSaved(new Date());
+          showToast("Resume created successfully!", "success");
+        } else {
+          throw new Error(response.error?.message || "Failed to create resume");
+        }
+      } else {
+        // Update existing resume
+        await resumeService.updateResume(resumeId, {
+          name: resume.name,
+          description: resume.description,
+          content: resume.content,
+          sectionConfig: resume.sectionConfig,
+          customizations: resume.customizations,
+          versionNumber: resume.versionNumber,
+          isMaster: resume.isMaster,
+          templateId: resume.templateId,
+          jobId: resume.jobId,
+        });
+        setLastSaved(new Date());
+        showToast("Resume saved successfully!", "success");
+      }
     } catch (err: any) {
       showToast(
         err.message || "Failed to save resume. Please try again.",
@@ -748,6 +1090,12 @@ export function ResumeBuilder() {
       return;
     }
 
+    // Validate UUID format
+    if (!isValidUUID(resumeId)) {
+      showToast("Invalid resume ID. Please save the resume first.", "error");
+      return;
+    }
+
     try {
       setExporting(true);
       setShowExportMenu(false);
@@ -757,28 +1105,28 @@ export function ResumeBuilder() {
 
       switch (format) {
         case "pdf":
-          const pdfBlob = await resumeService.exportPDF(resumeId, {
+          const pdfResult = await resumeService.exportPDF(resumeId, {
             filename: `${filename}.pdf`,
           });
-          resumeService.downloadBlob(pdfBlob, `${filename}.pdf`);
+          resumeService.downloadBlob(pdfResult.blob, pdfResult.filename);
           break;
         case "docx":
-          const docxBlob = await resumeService.exportDOCX(resumeId, {
+          const docxResult = await resumeService.exportDOCX(resumeId, {
             filename: `${filename}.docx`,
           });
-          resumeService.downloadBlob(docxBlob, `${filename}.docx`);
+          resumeService.downloadBlob(docxResult.blob, docxResult.filename);
           break;
         case "txt":
-          const txtBlob = await resumeService.exportTXT(resumeId, {
+          const txtResult = await resumeService.exportTXT(resumeId, {
             filename: `${filename}.txt`,
           });
-          resumeService.downloadBlob(txtBlob, `${filename}.txt`);
+          resumeService.downloadBlob(txtResult.blob, txtResult.filename);
           break;
         case "html":
-          const htmlBlob = await resumeService.exportHTML(resumeId, {
+          const htmlResult = await resumeService.exportHTML(resumeId, {
             filename: `${filename}.html`,
           });
-          resumeService.downloadBlob(htmlBlob, `${filename}.html`);
+          resumeService.downloadBlob(htmlResult.blob, htmlResult.filename);
           break;
       }
       showToast(
@@ -809,7 +1157,24 @@ export function ResumeBuilder() {
     } else {
       (newContent as any)[sectionId] = value;
     }
-    setResume({ ...resume, content: newContent });
+    const updatedResume = { ...resume, content: newContent };
+    setResume(updatedResume);
+    
+    // Auto-save to backend
+    if (resumeId && resumeId !== "new" && isValidUUID(resumeId)) {
+      saveToHistory(resume); // Save to history before updating
+      resumeService
+        .updateResume(resumeId, {
+          content: newContent,
+        })
+        .then(() => {
+          setLastSaved(new Date());
+        })
+        .catch((err) => {
+          console.error("Auto-save failed:", err);
+        });
+    }
+    
     if (closeEdit) {
       setEditingSection(null);
     }
@@ -829,7 +1194,23 @@ export function ResumeBuilder() {
       if (index !== -1) {
         section[index] = { ...section[index], ...updates };
         (newContent as any)[sectionId] = [...section];
-        setResume({ ...resume, content: newContent });
+        const updatedResume = { ...resume, content: newContent };
+        setResume(updatedResume);
+        
+        // Auto-save to backend
+        if (resumeId && resumeId !== "new") {
+          saveToHistory(resume); // Save to history before updating
+          resumeService
+            .updateResume(resumeId, {
+              content: newContent,
+            })
+            .then(() => {
+              setLastSaved(new Date());
+            })
+            .catch((err) => {
+              console.error("Auto-save failed:", err);
+            });
+        }
       }
     }
     if (closeEdit) {
@@ -843,7 +1224,23 @@ export function ResumeBuilder() {
     const section = (newContent as any)[sectionId];
     if (Array.isArray(section)) {
       (newContent as any)[sectionId] = [...section, newItem];
-      setResume({ ...resume, content: newContent });
+      const updatedResume = { ...resume, content: newContent };
+      setResume(updatedResume);
+      
+      // Auto-save to backend
+      if (resumeId && resumeId !== "new") {
+        saveToHistory(resume); // Save to history before updating
+        resumeService
+          .updateResume(resumeId, {
+            content: newContent,
+          })
+          .then(() => {
+            setLastSaved(new Date());
+          })
+          .catch((err) => {
+            console.error("Auto-save failed:", err);
+          });
+      }
     }
     setEditingItem(null);
   };
@@ -857,7 +1254,23 @@ export function ResumeBuilder() {
       (newContent as any)[sectionId] = section.filter(
         (item: any) => item.id !== itemId
       );
-      setResume({ ...resume, content: newContent });
+      const updatedResume = { ...resume, content: newContent };
+      setResume(updatedResume);
+      
+      // Auto-save to backend
+      if (resumeId && resumeId !== "new") {
+        saveToHistory(resume); // Save to history before updating
+        resumeService
+          .updateResume(resumeId, {
+            content: newContent,
+          })
+          .then(() => {
+            setLastSaved(new Date());
+          })
+          .catch((err) => {
+            console.error("Auto-save failed:", err);
+          });
+      }
     }
   };
 
@@ -1130,7 +1543,7 @@ export function ResumeBuilder() {
     setResume(updatedResume);
 
     // Auto-save to backend if resume exists
-    if (resumeId && resumeId !== "new") {
+    if (resumeId && resumeId !== "new" && isValidUUID(resumeId)) {
       setIsAutoSaving(true);
       resumeService
         .updateResume(resumeId, {
@@ -1179,7 +1592,7 @@ export function ResumeBuilder() {
 
   // Version management functions
   const handleCreateVersion = async () => {
-    if (!resumeId || resumeId === "new") {
+    if (!resumeId || resumeId === "new" || !isValidUUID(resumeId)) {
       showToast("Please save the resume before creating a version", "error");
       return;
     }
@@ -1535,6 +1948,11 @@ export function ResumeBuilder() {
       return;
     }
 
+    if (!isValidUUID(selectedVersion1) || !isValidUUID(selectedVersion2)) {
+      showToast("Invalid version IDs", "error");
+      return;
+    }
+
     try {
       setLoadingComparison(true);
 
@@ -1585,11 +2003,16 @@ export function ResumeBuilder() {
   };
 
   const handleSetMasterVersion = async (versionId: string) => {
+    if (!isValidUUID(versionId)) {
+      showToast("Invalid version ID", "error");
+      return;
+    }
+
     try {
       const response = await resumeService.setMasterVersion(versionId);
       if (response.ok) {
         // Refresh versions
-        if (resumeId) {
+        if (resumeId && isValidUUID(resumeId)) {
           const versionsRes = await resumeService.getVersions(resumeId);
           if (versionsRes.ok) {
             setVersions(versionsRes.data?.resumes || []);
@@ -1785,8 +2208,9 @@ export function ResumeBuilder() {
   };
 
   // Get enabled sections only (for document display)
-  const getEnabledSections = () => {
-    if (!resume) return [];
+  const getEnabledSections = (resumeData?: Resume | null) => {
+    const dataToUse = resumeData || resume;
+    if (!dataToUse) return [];
 
     // Filter by job type first
     const jobTypeFiltered = sections.filter((section) => {
@@ -1796,17 +2220,17 @@ export function ResumeBuilder() {
 
     // Filter sections based on enabled state (default to true if not set)
     const enabled = jobTypeFiltered.filter((section) => {
-      const config = resume.sectionConfig?.[section.id];
+      const config = dataToUse.sectionConfig?.[section.id];
       return config?.enabled !== false; // Default to enabled if not specified
     });
 
     // Sort by order (default to section index if not set)
     return enabled.sort((a, b) => {
       const orderA =
-        resume.sectionConfig?.[a.id]?.order ??
+        dataToUse.sectionConfig?.[a.id]?.order ??
         sections.findIndex((s) => s.id === a.id);
       const orderB =
-        resume.sectionConfig?.[b.id]?.order ??
+        dataToUse.sectionConfig?.[b.id]?.order ??
         sections.findIndex((s) => s.id === b.id);
       return orderA - orderB;
     });
@@ -1974,365 +2398,93 @@ export function ResumeBuilder() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
       {/* Top Bar */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => navigate(ROUTES.RESUMES)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <Icon
-                  icon="mingcute:arrow-left-line"
-                  className="w-5 h-5 text-gray-700"
-                />
-              </button>
-              <div className="flex items-center gap-3">
-                <div>
-                  <h1 className="text-lg font-semibold text-gray-900">
-                    {resume.name}
-                  </h1>
-                  <p className="text-xs text-gray-500">
-                    v{resume.versionNumber || 1}
-                    {resume.isMaster && (
-                      <span className="ml-2 px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">
-                        Master
-                      </span>
-                    )}
-                  </p>
-                </div>
-                {versions.length > 0 && (
-                  <div className="relative">
-                    <button
-                      onClick={() => setShowVersionHistory(!showVersionHistory)}
-                      className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2"
-                    >
-                      <Icon
-                        icon="mingcute:git-branch-line"
-                        className="w-4 h-4"
-                      />
-                      Versions ({versions.length})
-                      <Icon
-                        icon={
-                          showVersionHistory
-                            ? "mingcute:up-line"
-                            : "mingcute:down-line"
-                        }
-                        className="w-3 h-3"
-                      />
-                    </button>
-                    {showVersionHistory && (
-                      <div className="absolute left-0 top-full mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-[280px] max-h-[400px] overflow-y-auto">
-                        <div className="p-3 border-b border-gray-200">
-                          <div className="flex items-center justify-between mb-2">
-                            <h3 className="text-sm font-semibold text-gray-900">
-                              Versions
-                            </h3>
-                            <button
-                              onClick={() => {
-                                setShowVersionModal(true);
-                                setShowVersionHistory(false);
-                              }}
-                              className="text-xs px-2 py-1 bg-[#3351FD] text-white rounded hover:bg-[#2a45d4] transition-colors flex items-center gap-1"
-                            >
-                              <Icon
-                                icon="mingcute:add-line"
-                                className="w-3 h-3"
-                              />
-                              New
-                            </button>
-                          </div>
-                        </div>
-                        <div className="p-2">
-                          {versions.map((version) => (
-                            <button
-                              key={version.id}
-                              onClick={() => handleSwitchVersion(version.id)}
-                              className={`w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors mb-1 ${
-                                version.id === resumeId
-                                  ? "bg-blue-50 border border-blue-200"
-                                  : ""
-                              }`}
-                            >
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-sm font-medium text-gray-900 truncate">
-                                      {version.name ||
-                                        `Version ${version.versionNumber}`}
-                                    </span>
-                                    {version.isMaster && (
-                                      <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium flex-shrink-0">
-                                        Master
-                                      </span>
-                                    )}
-                                  </div>
-                                  <p className="text-xs text-gray-500 mt-0.5">
-                                    v{version.versionNumber || 1}
-                                  </p>
-                                </div>
-                                {version.id !== resumeId && (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleSetMasterVersion(version.id);
-                                    }}
-                                    className="ml-2 p-1 hover:bg-gray-200 rounded transition-colors"
-                                    title="Set as Master"
-                                  >
-                                    <Icon
-                                      icon="mingcute:star-line"
-                                      className="w-4 h-4 text-gray-600"
-                                    />
-                                  </button>
-                                )}
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                        <div className="p-3 border-t border-gray-200">
-                          <button
-                            onClick={() => {
-                              setSelectedVersion1(resumeId);
-                              setSelectedVersion2(null);
-                              setShowVersionCompare(true);
-                              setShowVersionHistory(false);
-                            }}
-                            className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors flex items-center gap-2"
-                          >
-                            <Icon
-                              icon="mingcute:git-compare-line"
-                              className="w-4 h-4"
-                            />
-                            Compare Versions
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {/* Auto-save indicator */}
-              {isAutoSaving && (
-                <div className="flex items-center gap-2 px-3 py-1.5 text-xs text-gray-600 bg-gray-50 rounded-lg">
-                  <Icon
-                    icon="mingcute:loading-line"
-                    className="w-3 h-3 animate-spin text-[#3351FD]"
-                  />
-                  <span>Saving...</span>
-                </div>
-              )}
-              {lastSaved && !isAutoSaving && (
-                <div className="flex items-center gap-2 px-3 py-1.5 text-xs text-gray-500 bg-gray-50 rounded-lg">
-                  <Icon
-                    icon="mingcute:check-circle-line"
-                    className="w-3 h-3 text-green-600"
-                  />
-                  <span>
-                    Saved{" "}
-                    {lastSaved.toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </span>
-                </div>
-              )}
-              <button
-                onClick={() => setShowImportResumeModal(true)}
-                className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium flex items-center gap-2"
-                title="Import existing resume (PDF/DOCX)"
-              >
-                <Icon icon="mingcute:upload-line" className="w-4 h-4" />
-                Import Resume
-              </button>
-              {resumeId && resumeId !== "new" && (
-                <button
-                  onClick={() => setShowVersionModal(true)}
-                  className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium flex items-center gap-2"
-                >
-                  <Icon icon="mingcute:git-branch-line" className="w-4 h-4" />
-                  Create Version
-                </button>
-              )}
-              <button
-                onClick={() => setShowCustomization(!showCustomization)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  showCustomization
-                    ? "bg-[#3351FD] text-white"
-                    : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
-                }`}
-              >
-                <Icon
-                  icon="mingcute:palette-line"
-                  className="w-4 h-4 inline mr-2"
-                />
-                Customize
-              </button>
-              <button
-                onClick={() => setShowValidationPanel(!showValidationPanel)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  showValidationPanel
-                    ? "bg-[#3351FD] text-white"
-                    : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
-                }`}
-              >
-                <Icon
-                  icon="mingcute:check-line"
-                  className="w-4 h-4 inline mr-2"
-                />
-                Validate
-              </button>
-              <div className="relative">
-                <button
-                  onClick={() => setShowExportMenu(!showExportMenu)}
-                  disabled={exporting}
-                  className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium flex items-center gap-2"
-                >
-                  {exporting ? (
-                    <>
-                      <Icon
-                        icon="mingcute:loading-line"
-                        className="w-4 h-4 animate-spin"
-                      />
-                      Exporting...
-                    </>
-                  ) : (
-                    <>
-                      <Icon icon="mingcute:download-line" className="w-4 h-4" />
-                      Export
-                      <Icon
-                        icon="mingcute:arrow-down-line"
-                        className="w-3 h-3"
-                      />
-                    </>
-                  )}
-                </button>
-                {showExportMenu && !exporting && (
-                  <div className="absolute right-0 top-full mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[180px]">
-                    <button
-                      onClick={() => handleExport("pdf")}
-                      className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2 text-sm border-b border-gray-100"
-                    >
-                      <Icon
-                        icon="mingcute:file-pdf-line"
-                        className="w-4 h-4 text-red-600"
-                      />
-                      Export as PDF
-                    </button>
-                    <button
-                      onClick={() => handleExport("docx")}
-                      className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2 text-sm border-b border-gray-100"
-                    >
-                      <Icon
-                        icon="mingcute:file-word-line"
-                        className="w-4 h-4 text-blue-600"
-                      />
-                      Export as DOCX
-                    </button>
-                    <button
-                      onClick={() => handleExport("html")}
-                      className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2 text-sm border-b border-gray-100"
-                    >
-                      <Icon
-                        icon="mingcute:file-html-line"
-                        className="w-4 h-4 text-orange-600"
-                      />
-                      Export as HTML
-                    </button>
-                    <button
-                      onClick={() => handleExport("txt")}
-                      className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2 text-sm"
-                    >
-                      <Icon
-                        icon="mingcute:file-text-line"
-                        className="w-4 h-4 text-gray-600"
-                      />
-                      Export as TXT
-                    </button>
-                  </div>
-                )}
-              </div>
-              <button
-                onClick={handleSave}
-                disabled={isSaving}
-                className="px-6 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                {isSaving ? (
-                  <>
-                    <Icon
-                      icon="mingcute:loading-line"
-                      className="w-4 h-4 animate-spin"
-                    />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Icon icon="mingcute:save-line" className="w-4 h-4" />
-                    Save
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <ResumeTopBar
+        resume={resume}
+        resumeId={resumeId}
+        versions={versions}
+        isSaving={isSaving}
+        isAutoSaving={isAutoSaving}
+        lastSaved={lastSaved}
+        exporting={exporting}
+        showExportMenu={showExportMenu}
+        showVersionHistory={showVersionHistory}
+        showCustomization={showCustomization}
+        showValidationPanel={showValidationPanel}
+        canUndo={canUndo}
+        onNavigateBack={() => navigate(ROUTES.RESUMES)}
+        onSave={handleSave}
+        onUndo={handleUndo}
+        onExport={handleExport}
+        onToggleExportMenu={() => setShowExportMenu(!showExportMenu)}
+        onToggleVersionHistory={() =>
+          setShowVersionHistory(!showVersionHistory)
+        }
+        onToggleCustomization={() => setShowCustomization(!showCustomization)}
+        onToggleValidationPanel={() =>
+          setShowValidationPanel(!showValidationPanel)
+        }
+        onShowVersionModal={() => setShowVersionModal(true)}
+        onShowImportResumeModal={() => setShowImportResumeModal(true)}
+        onSwitchVersion={handleSwitchVersion}
+        onSetMasterVersion={handleSetMasterVersion}
+        onShowVersionCompare={() => {
+          setSelectedVersion1(resumeId);
+          setSelectedVersion2(null);
+          setShowVersionCompare(true);
+          setShowVersionHistory(false);
+        }}
+      />
 
       {/* Toast Notifications */}
       {toast && (
-        <div
-          className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 min-w-[300px] max-w-[500px] animate-slide-in ${
-            toast.type === "success"
-              ? "bg-green-50 border border-green-200 text-green-800"
-              : toast.type === "error"
-              ? "bg-red-50 border border-red-200 text-red-800"
-              : "bg-blue-50 border border-blue-200 text-blue-800"
-          }`}
-        >
-          <Icon
-            icon={
-              toast.type === "success"
-                ? "mingcute:check-circle-line"
-                : toast.type === "error"
-                ? "mingcute:alert-circle-line"
-                : "mingcute:information-line"
-            }
-            className={`w-5 h-5 flex-shrink-0 ${
-              toast.type === "success"
-                ? "text-green-600"
-                : toast.type === "error"
-                ? "text-red-600"
-                : "text-blue-600"
-            }`}
-          />
-          <p className="flex-1 text-sm font-medium">{toast.message}</p>
-          <button
-            onClick={() => setToast(null)}
-            className="flex-shrink-0 hover:opacity-70 transition-opacity"
-          >
-            <Icon
-              icon="mingcute:close-line"
-              className={`w-4 h-4 ${
-                toast.type === "success"
-                  ? "text-green-600"
-                  : toast.type === "error"
-                  ? "text-red-600"
-                  : "text-blue-600"
-              }`}
-            />
-          </button>
-        </div>
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
       )}
 
       {/* Main Content */}
       <Fragment>
-        <div className="flex-1 flex overflow-hidden">
+        <div
+          className="flex-1 flex overflow-hidden"
+          style={{
+            height: "calc(100vh - 64px)",
+            maxHeight: "calc(100vh - 64px)",
+            minHeight: 0,
+          }}
+        >
           {/* Left Sidebar - Section Manager (Always Visible) */}
           <div className="w-80 bg-white border-r border-gray-200 overflow-y-auto">
             <div className="p-4">
+              {/* AI Assistant Button - Prominent Feature */}
+              <button
+                onClick={() => setShowAIPanel(!showAIPanel)}
+                className={`w-full flex items-center gap-3 px-4 py-3 mb-4 rounded-lg transition-all font-semibold text-sm shadow-md hover:shadow-lg ${
+                  showAIPanel
+                    ? "bg-gradient-to-r from-[#3351FD] to-[#5a6ffd] text-white"
+                    : "bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600"
+                }`}
+              >
+                <div className="p-1.5 bg-white bg-opacity-20 rounded-lg">
+                  <Icon icon="mingcute:ai-fill" className="w-5 h-5" />
+                </div>
+                <div className="flex-1 text-left">
+                  <div className="font-semibold">AI Resume Assistant</div>
+                  <div className="text-xs opacity-90">
+                    {showAIPanel ? "Chat with AI" : "Get AI-powered help"}
+                  </div>
+                </div>
+                {showAIPanel && (
+                  <Icon
+                    icon="mingcute:close-line"
+                    className="w-4 h-4 opacity-80"
+                  />
+                )}
+              </button>
+
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-sm font-semibold text-gray-900">
                   Sections
@@ -2793,35 +2945,33 @@ export function ResumeBuilder() {
                   </div>
                 )}
               </div>
-
-              {/* AI Tools Section */}
-              <div className="mt-6 pt-6 border-t border-gray-200">
-                <h3 className="text-xs font-semibold text-gray-700 mb-3">
-                  AI Tools
-                </h3>
-                <div className="space-y-2">
-                  <button
-                    onClick={() => setShowAIPanel(!showAIPanel)}
-                    className="w-full flex items-center gap-3 px-3 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-colors font-medium text-sm"
-                  >
-                    <Icon icon="mingcute:ai-fill" className="w-5 h-5" />
-                    <span>AI Content Generator</span>
-                  </button>
-                  <button className="w-full flex items-center gap-3 px-3 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700 font-medium text-sm">
-                    <Icon icon="mingcute:star-line" className="w-5 h-5" />
-                    <span>Optimize Skills</span>
-                  </button>
-                  <button className="w-full flex items-center gap-3 px-3 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700 font-medium text-sm">
-                    <Icon icon="mingcute:briefcase-line" className="w-5 h-5" />
-                    <span>Tailor Experience</span>
-                  </button>
-                </div>
-              </div>
             </div>
           </div>
 
           {/* Center - Resume Document */}
-          <div className="flex-1 overflow-y-auto bg-gray-100 p-8">
+          <div className="flex-1 overflow-y-auto bg-gray-100 p-8 transition-all duration-300">
+            {/* Preview Banner */}
+            {previewResume && (
+              <div className="max-w-4xl mx-auto mb-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Icon
+                      icon="mingcute:eye-line"
+                      className="w-5 h-5 text-yellow-600"
+                    />
+                    <div>
+                      <p className="text-sm font-semibold text-yellow-900">
+                        Preview Mode
+                      </p>
+                      <p className="text-xs text-yellow-700">
+                        You're viewing preview changes. They won't be saved
+                        until you click "Apply Changes" in the AI chat.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
             <div
               className="max-w-4xl mx-auto bg-white shadow-lg p-12 print:shadow-none print:p-8"
               style={{
@@ -2830,8 +2980,13 @@ export function ResumeBuilder() {
               }}
             >
               {/* Render sections dynamically based on order */}
-              {enabledSections.map((section) => {
+              {(previewResume
+                ? getEnabledSections(previewResume)
+                : enabledSections
+              ).map((section) => {
                 const sectionId = section.id;
+                const displayResume = previewResume || resume;
+                if (!displayResume) return null;
 
                 // Personal Info Section
                 if (sectionId === "personal") {
@@ -2852,7 +3007,7 @@ export function ResumeBuilder() {
                         ...getSectionStyle("personal"),
                         marginBottom:
                           getSectionFormatting("personal").marginBottom ||
-                          `${resume.customizations?.spacing?.section || 24}px`,
+                          `${displayResume.customizations?.spacing?.section || 24}px`,
                         marginTop:
                           getSectionFormatting("personal").marginTop ||
                           undefined,
@@ -2861,9 +3016,9 @@ export function ResumeBuilder() {
                     >
                       <div
                         className={`border-b pb-6 mb-6 ${
-                          resume.customizations?.headerStyle === "centered"
+                          displayResume.customizations?.headerStyle === "centered"
                             ? "text-center"
-                            : resume.customizations?.headerStyle === "right"
+                            : displayResume.customizations?.headerStyle === "right"
                             ? "text-right"
                             : "text-left"
                         }`}
@@ -3026,7 +3181,7 @@ export function ResumeBuilder() {
                 }
 
                 // Summary Section
-                if (sectionId === "summary" && resume.content.summary) {
+                if (sectionId === "summary" && displayResume.content.summary) {
                   return (
                     <div
                       key={sectionId}
@@ -3039,12 +3194,12 @@ export function ResumeBuilder() {
                         draggedDocumentSection === "summary"
                           ? "opacity-50 border-2 border-dashed border-[#3351FD] rounded-lg p-2"
                           : "hover:border-2 hover:border-dashed hover:border-gray-300 rounded-lg p-2"
-                      }`}
+                      } ${previewResume ? "ring-2 ring-yellow-400" : ""}`}
                       style={{
                         ...getSectionStyle("summary"),
                         marginBottom:
                           getSectionFormatting("summary").marginBottom ||
-                          `${resume.customizations?.spacing?.section || 24}px`,
+                          `${displayResume.customizations?.spacing?.section || 24}px`,
                         marginTop:
                           getSectionFormatting("summary").marginTop ||
                           undefined,
@@ -3054,7 +3209,7 @@ export function ResumeBuilder() {
                       {editingSection === "summary" ? (
                         <div>
                           <textarea
-                            value={resume.content.summary}
+                            value={displayResume.content.summary}
                             onChange={(e) =>
                               updateContent("summary", e.target.value)
                             }
@@ -3108,7 +3263,7 @@ export function ResumeBuilder() {
                             Summary
                           </h2>
                           <p className="leading-relaxed">
-                            {resume.content.summary}
+                            {displayResume.content.summary}
                           </p>
                           <button
                             className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-gray-100 rounded-lg"
@@ -3145,7 +3300,7 @@ export function ResumeBuilder() {
                         ...getSectionStyle("experience"),
                         marginBottom:
                           getSectionFormatting("experience").marginBottom ||
-                          `${resume.customizations?.spacing?.section || 24}px`,
+                          `${displayResume.customizations?.spacing?.section || 24}px`,
                         marginTop:
                           getSectionFormatting("experience").marginTop ||
                           undefined,
@@ -3223,10 +3378,10 @@ export function ResumeBuilder() {
                             </button>
                           </div>
                         </div>
-                        {resume.content.experience &&
-                        resume.content.experience.length > 0 ? (
+                        {displayResume.content.experience &&
+                        displayResume.content.experience.length > 0 ? (
                           <div className="space-y-6">
-                            {resume.content.experience.map((exp) => (
+                            {displayResume.content.experience.map((exp) => (
                               <div
                                 key={exp.id}
                                 className="border-l-2 pl-4 relative group/item"
@@ -3595,7 +3750,7 @@ export function ResumeBuilder() {
                         ...getSectionStyle("education"),
                         marginBottom:
                           getSectionFormatting("education").marginBottom ||
-                          `${resume.customizations?.spacing?.section || 24}px`,
+                          `${displayResume.customizations?.spacing?.section || 24}px`,
                         marginTop:
                           getSectionFormatting("education").marginTop ||
                           undefined,
@@ -3672,10 +3827,10 @@ export function ResumeBuilder() {
                             </button>
                           </div>
                         </div>
-                        {resume.content.education &&
-                        resume.content.education.length > 0 ? (
+                        {displayResume.content.education &&
+                        displayResume.content.education.length > 0 ? (
                           <div className="space-y-4">
-                            {resume.content.education.map((edu) => (
+                            {displayResume.content.education.map((edu) => (
                               <div key={edu.id} className="relative group/item">
                                 {editingItem?.section === "education" &&
                                 editingItem?.itemId === edu.id ? (
@@ -4027,7 +4182,7 @@ export function ResumeBuilder() {
                         ...getSectionStyle("skills"),
                         marginBottom:
                           getSectionFormatting("skills").marginBottom ||
-                          `${resume.customizations?.spacing?.section || 24}px`,
+                          `${displayResume.customizations?.spacing?.section || 24}px`,
                         marginTop:
                           getSectionFormatting("skills").marginTop || undefined,
                       }}
@@ -4179,10 +4334,10 @@ export function ResumeBuilder() {
                           </div>
                         ) : (
                           <>
-                            {resume.content.skills &&
-                            resume.content.skills.length > 0 ? (
+                            {displayResume.content.skills &&
+                            displayResume.content.skills.length > 0 ? (
                               <div className="flex flex-wrap gap-2">
-                                {resume.content.skills.map((skill) => (
+                                {displayResume.content.skills.map((skill) => (
                                   <span
                                     key={skill.id}
                                     className="px-3 py-1 rounded-lg text-sm font-medium"
@@ -4226,7 +4381,7 @@ export function ResumeBuilder() {
                         ...getSectionStyle("projects"),
                         marginBottom:
                           getSectionFormatting("projects").marginBottom ||
-                          `${resume.customizations?.spacing?.section || 24}px`,
+                          `${displayResume.customizations?.spacing?.section || 24}px`,
                         marginTop:
                           getSectionFormatting("projects").marginTop ||
                           undefined,
@@ -4302,10 +4457,10 @@ export function ResumeBuilder() {
                             </button>
                           </div>
                         </div>
-                        {resume.content.projects &&
-                        resume.content.projects.length > 0 ? (
+                        {displayResume.content.projects &&
+                        displayResume.content.projects.length > 0 ? (
                           <div className="space-y-4">
-                            {resume.content.projects.map((project) => (
+                            {displayResume.content.projects.map((project) => (
                               <div
                                 key={project.id}
                                 className="relative group/item"
@@ -4568,7 +4723,7 @@ export function ResumeBuilder() {
                         ...getSectionStyle("certifications"),
                         marginBottom:
                           getSectionFormatting("certifications").marginBottom ||
-                          `${resume.customizations?.spacing?.section || 24}px`,
+                          `${displayResume.customizations?.spacing?.section || 24}px`,
                         marginTop:
                           getSectionFormatting("certifications").marginTop ||
                           undefined,
@@ -4879,6 +5034,55 @@ export function ResumeBuilder() {
               })}
             </div>
           </div>
+
+          {/* Right Sidebar - AI Assistant */}
+          {showAIPanel && (
+            <div
+              className="w-[28rem] bg-white border-r border-gray-200 flex flex-col overflow-hidden"
+              style={{ height: "100%", maxHeight: "100%" }}
+            >
+              <AIAssistantChat
+                resume={resume}
+                resumeId={resumeId}
+                isOpen={showAIPanel}
+                onClose={() => setShowAIPanel(false)}
+                onResumeUpdate={(updates) => {
+                  if (resume) {
+                    // Save current state to history before applying changes
+                    saveToHistory(resume);
+                    
+                    const updatedResume = { ...resume, ...updates };
+                    setResume(updatedResume);
+                    // Auto-save to backend
+                    if (resumeId && resumeId !== "new") {
+                      resumeService
+                        .updateResume(resumeId, updatedResume)
+                        .then(() => {
+                          setToast({
+                            message: "Resume updated successfully!",
+                            type: "success",
+                          });
+                        })
+                        .catch((err) => {
+                          console.error("Failed to save:", err);
+                          setToast({
+                            message: "Failed to save changes",
+                            type: "error",
+                          });
+                        });
+                    }
+                  }
+                }}
+                onPreviewUpdate={(preview) => {
+                  console.log(
+                    "📝 Preview update received:",
+                    preview ? "has preview" : "null"
+                  );
+                  setPreviewResume(preview);
+                }}
+              />
+            </div>
+          )}
 
           {/* Right Sidebar - Customization */}
           {showCustomization && (
@@ -6927,29 +7131,53 @@ export function ResumeBuilder() {
                     {parsedResumeContent.experience &&
                       parsedResumeContent.experience.length > 0 && (
                         <div className="border border-gray-200 rounded-lg p-4">
-                          <h3 className="font-semibold text-gray-900 mb-2">
+                          <h3 className="font-semibold text-gray-900 mb-3">
                             Experience ({parsedResumeContent.experience.length}{" "}
                             positions)
                           </h3>
-                          <div className="text-sm text-gray-700 space-y-2">
+                          <div className="space-y-4">
                             {parsedResumeContent.experience
                               .slice(0, 3)
                               .map((exp: any) => (
                                 <div
                                   key={exp.id}
-                                  className="border-l-2 border-gray-300 pl-3"
+                                  className="border-l-2 border-[#3351FD] pl-4 pb-2"
                                 >
-                                  <p className="font-medium">
-                                    {exp.title} at {exp.company}
-                                  </p>
-                                  <p className="text-xs text-gray-600">
-                                    {exp.startDate} -{" "}
-                                    {exp.isCurrent ? "Present" : exp.endDate}
-                                  </p>
+                                  <div className="flex justify-between items-start mb-1">
+                                    <div>
+                                      <p className="font-semibold text-gray-900">
+                                        {exp.title}
+                                      </p>
+                                      <p className="text-sm text-gray-700">
+                                        {exp.company}
+                                        {exp.location && ` • ${exp.location}`}
+                                      </p>
+                                    </div>
+                                    <p className="text-xs text-gray-600 whitespace-nowrap ml-2">
+                                      {exp.startDate} -{" "}
+                                      {exp.isCurrent ? "Present" : exp.endDate || ""}
+                                    </p>
+                                  </div>
+                                  {exp.description &&
+                                    exp.description.length > 0 && (
+                                      <ul className="text-sm text-gray-700 mt-2 space-y-1 list-disc list-inside">
+                                        {exp.description
+                                          .slice(0, 3)
+                                          .map((desc: string, idx: number) => (
+                                            <li key={idx}>{desc}</li>
+                                          ))}
+                                        {exp.description.length > 3 && (
+                                          <li className="text-gray-500 italic">
+                                            +{exp.description.length - 3} more
+                                            bullet points
+                                          </li>
+                                        )}
+                                      </ul>
+                                    )}
                                 </div>
                               ))}
                             {parsedResumeContent.experience.length > 3 && (
-                              <p className="text-xs text-gray-500">
+                              <p className="text-xs text-gray-500 text-center pt-2 border-t border-gray-200">
                                 +{parsedResumeContent.experience.length - 3}{" "}
                                 more positions
                               </p>
@@ -6962,15 +7190,40 @@ export function ResumeBuilder() {
                     {parsedResumeContent.education &&
                       parsedResumeContent.education.length > 0 && (
                         <div className="border border-gray-200 rounded-lg p-4">
-                          <h3 className="font-semibold text-gray-900 mb-2">
+                          <h3 className="font-semibold text-gray-900 mb-3">
                             Education ({parsedResumeContent.education.length}{" "}
                             entries)
                           </h3>
-                          <div className="text-sm text-gray-700 space-y-1">
+                          <div className="space-y-3">
                             {parsedResumeContent.education.map((edu: any) => (
-                              <p key={edu.id}>
-                                {edu.degree} from {edu.school}
-                              </p>
+                              <div
+                                key={edu.id}
+                                className="border-l-2 border-[#3351FD] pl-4"
+                              >
+                                <div className="flex justify-between items-start">
+                                  <div>
+                                    <p className="font-semibold text-gray-900">
+                                      {edu.degree}
+                                      {edu.field && ` in ${edu.field}`}
+                                    </p>
+                                    <p className="text-sm text-gray-700">
+                                      {edu.school}
+                                    </p>
+                                  </div>
+                                  {edu.endDate && (
+                                    <p className="text-xs text-gray-600 whitespace-nowrap ml-2">
+                                      {edu.endDate}
+                                    </p>
+                                  )}
+                                </div>
+                                {(edu.gpa || edu.honors) && (
+                                  <div className="mt-1 text-xs text-gray-600">
+                                    {edu.gpa && <span>GPA: {edu.gpa}</span>}
+                                    {edu.gpa && edu.honors && <span> • </span>}
+                                    {edu.honors && <span>{edu.honors}</span>}
+                                  </div>
+                                )}
+                              </div>
                             ))}
                           </div>
                         </div>
@@ -7007,10 +7260,71 @@ export function ResumeBuilder() {
                     {parsedResumeContent.projects &&
                       parsedResumeContent.projects.length > 0 && (
                         <div className="border border-gray-200 rounded-lg p-4">
-                          <h3 className="font-semibold text-gray-900 mb-2">
+                          <h3 className="font-semibold text-gray-900 mb-3">
                             Projects ({parsedResumeContent.projects.length}{" "}
                             projects)
                           </h3>
+                          <div className="space-y-3">
+                            {parsedResumeContent.projects
+                              .slice(0, 3)
+                              .map((proj: any) => (
+                                <div
+                                  key={proj.id}
+                                  className="border-l-2 border-[#3351FD] pl-4"
+                                >
+                                  <div className="flex justify-between items-start">
+                                    <div className="flex-1">
+                                      <p className="font-semibold text-gray-900">
+                                        {proj.name}
+                                      </p>
+                                      {proj.description && (
+                                        <p className="text-sm text-gray-700 mt-1">
+                                          {proj.description.length > 150
+                                            ? `${proj.description.substring(0, 150)}...`
+                                            : proj.description}
+                                        </p>
+                                      )}
+                                    </div>
+                                    {proj.link && (
+                                      <a
+                                        href={proj.link}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-xs text-[#3351FD] hover:underline ml-2 whitespace-nowrap"
+                                      >
+                                        View →
+                                      </a>
+                                    )}
+                                  </div>
+                                  {proj.technologies &&
+                                    proj.technologies.length > 0 && (
+                                      <div className="flex flex-wrap gap-1 mt-2">
+                                        {proj.technologies
+                                          .slice(0, 5)
+                                          .map((tech: string, idx: number) => (
+                                            <span
+                                              key={idx}
+                                              className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs"
+                                            >
+                                              {tech}
+                                            </span>
+                                          ))}
+                                        {proj.technologies.length > 5 && (
+                                          <span className="px-2 py-0.5 text-gray-500 text-xs">
+                                            +{proj.technologies.length - 5} more
+                                          </span>
+                                        )}
+                                      </div>
+                                    )}
+                                </div>
+                              ))}
+                            {parsedResumeContent.projects.length > 3 && (
+                              <p className="text-xs text-gray-500 text-center pt-2 border-t border-gray-200">
+                                +{parsedResumeContent.projects.length - 3}{" "}
+                                more projects
+                              </p>
+                            )}
+                          </div>
                         </div>
                       )}
 
@@ -7018,11 +7332,37 @@ export function ResumeBuilder() {
                     {parsedResumeContent.certifications &&
                       parsedResumeContent.certifications.length > 0 && (
                         <div className="border border-gray-200 rounded-lg p-4">
-                          <h3 className="font-semibold text-gray-900 mb-2">
+                          <h3 className="font-semibold text-gray-900 mb-3">
                             Certifications (
                             {parsedResumeContent.certifications.length}{" "}
                             certifications)
                           </h3>
+                          <div className="space-y-2">
+                            {parsedResumeContent.certifications.map(
+                              (cert: any) => (
+                                <div
+                                  key={cert.id}
+                                  className="border-l-2 border-[#3351FD] pl-4"
+                                >
+                                  <div className="flex justify-between items-start">
+                                    <div>
+                                      <p className="font-semibold text-gray-900">
+                                        {cert.name}
+                                      </p>
+                                      <p className="text-sm text-gray-700">
+                                        {cert.organization}
+                                      </p>
+                                    </div>
+                                    <p className="text-xs text-gray-600 whitespace-nowrap ml-2">
+                                      {cert.dateEarned}
+                                      {cert.expirationDate &&
+                                        ` - ${cert.expirationDate}`}
+                                    </p>
+                                  </div>
+                                </div>
+                              )
+                            )}
+                          </div>
                         </div>
                       )}
                   </div>

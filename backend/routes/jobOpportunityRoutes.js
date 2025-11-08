@@ -22,6 +22,16 @@ router.get("/status/counts", jobOpportunityController.getStatusCounts);
 // Get statistics (must be before :id)
 router.get("/statistics", jobOpportunityController.getStatistics);
 
+// Get archived job opportunities (must be before :id)
+router.get("/archived", jobOpportunityController.getArchivedJobOpportunities);
+
+// Bulk archive (must be before :id)
+router.post("/bulk-archive", jobOpportunityController.bulkArchiveJobOpportunities);
+
+// Archive/unarchive job opportunity (must be before generic :id routes)
+router.post("/:id/archive", jobOpportunityController.archiveJobOpportunity);
+router.post("/:id/unarchive", jobOpportunityController.unarchiveJobOpportunity);
+
 // Get job opportunity by ID (must be after other routes to avoid conflicts)
 router.get("/:id", jobOpportunityController.getJobOpportunity);
 

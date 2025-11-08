@@ -20,6 +20,8 @@ interface JobOpportunityDetailModalProps {
   onClose: () => void;
   onSave: (data: JobOpportunityInput) => Promise<void>;
   onDelete: () => void;
+  onArchive?: (archiveReason?: string) => void;
+  onUnarchive?: () => void;
 }
 
 export function JobOpportunityDetailModal({
@@ -27,6 +29,8 @@ export function JobOpportunityDetailModal({
   onClose,
   onSave,
   onDelete,
+  onArchive,
+  onUnarchive,
 }: JobOpportunityDetailModalProps) {
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -213,13 +217,33 @@ export function JobOpportunityDetailModal({
           <div className="flex gap-2">
             {!isEditMode && (
               <>
-                <button
-                  onClick={() => setIsEditMode(true)}
-                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2"
-                >
-                  <Icon icon="mingcute:edit-line" width={18} />
-                  Edit
-                </button>
+                {!opportunity.archived && (
+                  <button
+                    onClick={() => setIsEditMode(true)}
+                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2"
+                  >
+                    <Icon icon="mingcute:edit-line" width={18} />
+                    Edit
+                  </button>
+                )}
+                {opportunity.archived && onUnarchive && (
+                  <button
+                    onClick={onUnarchive}
+                    className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center gap-2"
+                  >
+                    <Icon icon="mingcute:refresh-line" width={18} />
+                    Restore
+                  </button>
+                )}
+                {!opportunity.archived && onArchive && (
+                  <button
+                    onClick={() => onArchive()}
+                    className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors flex items-center gap-2"
+                  >
+                    <Icon icon="mingcute:archive-line" width={18} />
+                    Archive
+                  </button>
+                )}
                 <button
                   onClick={onDelete}
                   className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors flex items-center gap-2"
@@ -241,6 +265,36 @@ export function JobOpportunityDetailModal({
         {/* Content */}
         <form onSubmit={handleSubmit} className="px-8 py-6">
           <div className="space-y-6">
+            {/* Archive Information (if archived) */}
+            {opportunity.archived && (
+              <section className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <Icon icon="mingcute:archive-line" className="text-amber-600 mt-0.5" width={20} />
+                  <div className="flex-1">
+                    <h4 className="text-sm font-semibold text-amber-900 mb-2">
+                      Archived Job Opportunity
+                    </h4>
+                    {opportunity.archivedAt && (
+                      <p className="text-sm text-amber-800 mb-1">
+                        Archived on: {new Date(opportunity.archivedAt).toLocaleDateString("en-US", {
+                          month: "long",
+                          day: "numeric",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                    )}
+                    {opportunity.archiveReason && (
+                      <p className="text-sm text-amber-800">
+                        Reason: {opportunity.archiveReason}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </section>
+            )}
+
             {/* Basic Information */}
             <section>
               <h3 className="text-lg font-semibold text-slate-900 mb-4">

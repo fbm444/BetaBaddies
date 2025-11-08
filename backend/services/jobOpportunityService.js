@@ -271,6 +271,40 @@ class JobOpportunityService {
     }
   }
 
+  // Helper method to map database row to job opportunity object
+  mapRowToJobOpportunity(row) {
+    return {
+      id: row.id,
+      title: row.title,
+      company: row.company,
+      location: row.location,
+      salaryMin: row.salary_min,
+      salaryMax: row.salary_max,
+      jobPostingUrl: row.job_posting_url,
+      applicationDeadline: row.application_deadline,
+      description: row.job_description,
+      industry: row.industry,
+      jobType: row.job_type,
+      status: row.status,
+      notes: row.notes,
+      recruiterName: row.recruiter_name,
+      recruiterEmail: row.recruiter_email,
+      recruiterPhone: row.recruiter_phone,
+      hiringManagerName: row.hiring_manager_name,
+      hiringManagerEmail: row.hiring_manager_email,
+      hiringManagerPhone: row.hiring_manager_phone,
+      salaryNegotiationNotes: row.salary_negotiation_notes,
+      interviewNotes: row.interview_notes,
+      applicationHistory: row.application_history || [],
+      statusUpdatedAt: row.status_updated_at,
+      archived: row.archived || false,
+      archivedAt: row.archived_at,
+      archiveReason: row.archive_reason,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
   // Get job opportunity by ID (with user ownership validation)
   async getJobOpportunityById(opportunityId, userId) {
     try {
@@ -280,7 +314,8 @@ class JobOpportunityService {
           notes, recruiter_name, recruiter_email, recruiter_phone,
           hiring_manager_name, hiring_manager_email, hiring_manager_phone,
           salary_negotiation_notes, interview_notes, application_history,
-          status_updated_at, created_at, updated_at
+          status_updated_at, archived, archived_at, archive_reason,
+          created_at, updated_at
         FROM job_opportunities
         WHERE id = $1 AND user_id = $2
       `;
@@ -292,33 +327,7 @@ class JobOpportunityService {
         return null;
       }
 
-      return {
-        id: opportunity.id,
-        title: opportunity.title,
-        company: opportunity.company,
-        location: opportunity.location,
-        salaryMin: opportunity.salary_min,
-        salaryMax: opportunity.salary_max,
-        jobPostingUrl: opportunity.job_posting_url,
-        applicationDeadline: opportunity.application_deadline,
-        description: opportunity.job_description,
-        industry: opportunity.industry,
-        jobType: opportunity.job_type,
-        status: opportunity.status,
-        notes: opportunity.notes,
-        recruiterName: opportunity.recruiter_name,
-        recruiterEmail: opportunity.recruiter_email,
-        recruiterPhone: opportunity.recruiter_phone,
-        hiringManagerName: opportunity.hiring_manager_name,
-        hiringManagerEmail: opportunity.hiring_manager_email,
-        hiringManagerPhone: opportunity.hiring_manager_phone,
-        salaryNegotiationNotes: opportunity.salary_negotiation_notes,
-        interviewNotes: opportunity.interview_notes,
-        applicationHistory: opportunity.application_history || [],
-        statusUpdatedAt: opportunity.status_updated_at,
-        createdAt: opportunity.created_at,
-        updatedAt: opportunity.updated_at,
-      };
+      return this.mapRowToJobOpportunity(opportunity);
     } catch (error) {
       console.error("❌ Error getting job opportunity by ID:", error);
       throw error;
@@ -427,13 +436,19 @@ class JobOpportunityService {
         sortClause = "ORDER BY status_updated_at DESC";
       }
 
+      // Exclude archived jobs by default unless explicitly requested
+      if (options.includeArchived !== true) {
+        whereClause += ` AND (archived = false OR archived IS NULL)`;
+      }
+
       const query = `
         SELECT id, title, company, location, salary_min, salary_max,
           job_posting_url, application_deadline, job_description, industry, job_type, status,
           notes, recruiter_name, recruiter_email, recruiter_phone,
           hiring_manager_name, hiring_manager_email, hiring_manager_phone,
           salary_negotiation_notes, interview_notes, application_history,
-          status_updated_at, created_at, updated_at
+          status_updated_at, archived, archived_at, archive_reason,
+          created_at, updated_at
         FROM job_opportunities
         ${whereClause}
         ${sortClause}
@@ -444,33 +459,7 @@ class JobOpportunityService {
 
       const result = await database.query(query, queryParams);
 
-      return result.rows.map((opportunity) => ({
-        id: opportunity.id,
-        title: opportunity.title,
-        company: opportunity.company,
-        location: opportunity.location,
-        salaryMin: opportunity.salary_min,
-        salaryMax: opportunity.salary_max,
-        jobPostingUrl: opportunity.job_posting_url,
-        applicationDeadline: opportunity.application_deadline,
-        description: opportunity.job_description,
-        industry: opportunity.industry,
-        jobType: opportunity.job_type,
-        status: opportunity.status,
-        notes: opportunity.notes,
-        recruiterName: opportunity.recruiter_name,
-        recruiterEmail: opportunity.recruiter_email,
-        recruiterPhone: opportunity.recruiter_phone,
-        hiringManagerName: opportunity.hiring_manager_name,
-        hiringManagerEmail: opportunity.hiring_manager_email,
-        hiringManagerPhone: opportunity.hiring_manager_phone,
-        salaryNegotiationNotes: opportunity.salary_negotiation_notes,
-        interviewNotes: opportunity.interview_notes,
-        applicationHistory: opportunity.application_history || [],
-        statusUpdatedAt: opportunity.status_updated_at,
-        createdAt: opportunity.created_at,
-        updatedAt: opportunity.updated_at,
-      }));
+      return result.rows.map((row) => this.mapRowToJobOpportunity(row));
     } catch (error) {
       console.error("❌ Error getting job opportunities:", error);
       throw error;
@@ -548,6 +537,11 @@ class JobOpportunityService {
       if (deadlineTo) {
         whereClause += ` AND application_deadline <= $${paramIndex++}`;
         queryParams.push(deadlineTo);
+      }
+
+      // Exclude archived jobs by default unless explicitly requested
+      if (options.includeArchived !== true) {
+        whereClause += ` AND (archived = false OR archived IS NULL)`;
       }
 
       const query = `
@@ -708,39 +702,14 @@ class JobOpportunityService {
           notes, recruiter_name, recruiter_email, recruiter_phone,
           hiring_manager_name, hiring_manager_email, hiring_manager_phone,
           salary_negotiation_notes, interview_notes, application_history,
-          status_updated_at, created_at, updated_at
+          status_updated_at, archived, archived_at, archive_reason,
+          created_at, updated_at
       `;
 
       const result = await database.query(query, values);
       const row = result.rows[0];
 
-      return {
-        id: row.id,
-        title: row.title,
-        company: row.company,
-        location: row.location,
-        salaryMin: row.salary_min,
-        salaryMax: row.salary_max,
-        jobPostingUrl: row.job_posting_url,
-        applicationDeadline: row.application_deadline,
-        description: row.job_description,
-        industry: row.industry,
-        jobType: row.job_type,
-        status: row.status,
-        notes: row.notes,
-        recruiterName: row.recruiter_name,
-        recruiterEmail: row.recruiter_email,
-        recruiterPhone: row.recruiter_phone,
-        hiringManagerName: row.hiring_manager_name,
-        hiringManagerEmail: row.hiring_manager_email,
-        hiringManagerPhone: row.hiring_manager_phone,
-        salaryNegotiationNotes: row.salary_negotiation_notes,
-        interviewNotes: row.interview_notes,
-        applicationHistory: row.application_history || [],
-        statusUpdatedAt: row.status_updated_at,
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-      };
+      return this.mapRowToJobOpportunity(row);
     } catch (error) {
       console.error("❌ Error updating job opportunity:", error);
       throw error;
@@ -789,13 +758,13 @@ class JobOpportunityService {
     }
   }
 
-  // Get status counts for a user
+  // Get status counts for a user (excluding archived)
   async getStatusCounts(userId) {
     try {
       const query = `
         SELECT status, COUNT(*) as count
         FROM job_opportunities
-        WHERE user_id = $1
+        WHERE user_id = $1 AND (archived = false OR archived IS NULL)
         GROUP BY status
         ORDER BY 
           CASE status
@@ -859,13 +828,13 @@ class JobOpportunityService {
   // Get comprehensive job opportunity statistics
   async getJobOpportunityStatistics(userId) {
     try {
-      // Get total jobs by status
+      // Get total jobs by status (excluding archived)
       const statusCountsQuery = `
         SELECT 
           status,
           COUNT(*) as count
         FROM job_opportunities
-        WHERE user_id = $1
+        WHERE user_id = $1 AND (archived = false OR archived IS NULL)
         GROUP BY status
         ORDER BY status
       `;
@@ -895,13 +864,13 @@ class JobOpportunityService {
         ? Math.round((respondedCount / totalApplications) * 100 * 10) / 10
         : 0;
 
-      // Get monthly application volume
+      // Get monthly application volume (excluding archived)
       const monthlyVolumeQuery = `
         SELECT 
           DATE_TRUNC('month', created_at) as month,
           COUNT(*) as count
         FROM job_opportunities
-        WHERE user_id = $1
+        WHERE user_id = $1 AND (archived = false OR archived IS NULL)
         GROUP BY DATE_TRUNC('month', created_at)
         ORDER BY month DESC
         LIMIT 12
@@ -913,14 +882,14 @@ class JobOpportunityService {
         count: parseInt(row.count),
       })).reverse(); // Reverse to show oldest first
 
-      // Calculate deadline adherence
+      // Calculate deadline adherence (excluding archived)
       const deadlineQuery = `
         SELECT 
           COUNT(*) as total_with_deadlines,
           COUNT(CASE WHEN application_deadline < CURRENT_DATE THEN 1 END) as overdue,
           COUNT(CASE WHEN application_deadline >= CURRENT_DATE THEN 1 END) as upcoming
         FROM job_opportunities
-        WHERE user_id = $1 AND application_deadline IS NOT NULL
+        WHERE user_id = $1 AND application_deadline IS NOT NULL AND (archived = false OR archived IS NULL)
       `;
       const deadlineResult = await database.query(deadlineQuery, [userId]);
       const deadlineStats = deadlineResult.rows[0];
@@ -929,7 +898,7 @@ class JobOpportunityService {
       const overdueCount = parseInt(deadlineStats.overdue) || 0;
       const upcomingCount = parseInt(deadlineStats.upcoming) || 0;
       
-      // Check which overdue deadlines had applications submitted before deadline
+      // Check which overdue deadlines had applications submitted before deadline (excluding archived)
       const adherenceQuery = `
         SELECT 
           COUNT(*) as met_deadlines
@@ -938,6 +907,7 @@ class JobOpportunityService {
           AND application_deadline IS NOT NULL
           AND application_deadline < CURRENT_DATE
           AND status != 'Interested'
+          AND (archived = false OR archived IS NULL)
       `;
       const adherenceResult = await database.query(adherenceQuery, [userId]);
       const metDeadlines = parseInt(adherenceResult.rows[0].met_deadlines) || 0;
@@ -946,7 +916,7 @@ class JobOpportunityService {
         ? Math.round((metDeadlines / totalWithDeadlines) * 100 * 10) / 10
         : 0;
 
-      // Calculate time-to-offer analytics
+      // Calculate time-to-offer analytics (excluding archived)
       // For jobs with status "Offer", calculate average time from created_at to status change
       // Since we don't track status_updated_at reliably, we'll use a simplified approach
       // based on created_at and assume Offer status means they got an offer
@@ -955,7 +925,7 @@ class JobOpportunityService {
           created_at,
           updated_at
         FROM job_opportunities
-        WHERE user_id = $1 AND status = 'Offer'
+        WHERE user_id = $1 AND status = 'Offer' AND (archived = false OR archived IS NULL)
         ORDER BY updated_at DESC
       `;
       const offerResult = await database.query(offerQuery, [userId]);
@@ -975,13 +945,13 @@ class JobOpportunityService {
         : 0;
 
       // Calculate average time in each stage (simplified - based on created_at and status)
-      // This is an approximation since we don't track stage entry times
+      // This is an approximation since we don't track stage entry times (excluding archived)
       const stageTimeQuery = `
         SELECT 
           status,
           AVG(EXTRACT(EPOCH FROM (updated_at - created_at)) / 86400) as avg_days
         FROM job_opportunities
-        WHERE user_id = $1
+        WHERE user_id = $1 AND (archived = false OR archived IS NULL)
         GROUP BY status
       `;
       const stageTimeResult = await database.query(stageTimeQuery, [userId]);
@@ -1011,6 +981,156 @@ class JobOpportunityService {
       };
     } catch (error) {
       console.error("❌ Error getting job opportunity statistics:", error);
+      throw error;
+    }
+  }
+
+  // Archive a job opportunity
+  async archiveJobOpportunity(opportunityId, userId, archiveReason = null) {
+    try {
+      // Check if opportunity exists and belongs to user
+      const existing = await this.getJobOpportunityById(opportunityId, userId);
+      if (!existing) {
+        throw new Error("Job opportunity not found");
+      }
+
+      const query = `
+        UPDATE job_opportunities
+        SET archived = true, archived_at = NOW(), archive_reason = $1, updated_at = NOW()
+        WHERE id = $2 AND user_id = $3
+        RETURNING id, archived, archived_at, archive_reason
+      `;
+
+      const result = await database.query(query, [archiveReason, opportunityId, userId]);
+
+      if (result.rows.length === 0) {
+        throw new Error("Job opportunity not found");
+      }
+
+      return {
+        id: result.rows[0].id,
+        archived: result.rows[0].archived,
+        archivedAt: result.rows[0].archived_at,
+        archiveReason: result.rows[0].archive_reason,
+      };
+    } catch (error) {
+      console.error("❌ Error archiving job opportunity:", error);
+      throw error;
+    }
+  }
+
+  // Unarchive a job opportunity
+  async unarchiveJobOpportunity(opportunityId, userId) {
+    try {
+      // Check if opportunity exists and belongs to user
+      const existing = await this.getJobOpportunityById(opportunityId, userId);
+      if (!existing) {
+        throw new Error("Job opportunity not found");
+      }
+
+      const query = `
+        UPDATE job_opportunities
+        SET archived = false, archived_at = NULL, archive_reason = NULL, updated_at = NOW()
+        WHERE id = $1 AND user_id = $2
+        RETURNING id, archived
+      `;
+
+      const result = await database.query(query, [opportunityId, userId]);
+
+      if (result.rows.length === 0) {
+        throw new Error("Job opportunity not found");
+      }
+
+      return {
+        id: result.rows[0].id,
+        archived: result.rows[0].archived,
+      };
+    } catch (error) {
+      console.error("❌ Error unarchiving job opportunity:", error);
+      throw error;
+    }
+  }
+
+  // Bulk archive job opportunities
+  async bulkArchiveJobOpportunities(userId, opportunityIds, archiveReason = null) {
+    try {
+      if (!Array.isArray(opportunityIds) || opportunityIds.length === 0) {
+        throw new Error("Opportunity IDs array is required and cannot be empty");
+      }
+
+      // Verify all opportunities belong to the user
+      const placeholders = opportunityIds.map((_, index) => `$${index + 2}`).join(", ");
+      const query = `
+        UPDATE job_opportunities
+        SET archived = true, archived_at = NOW(), archive_reason = $1, updated_at = NOW()
+        WHERE user_id = $${opportunityIds.length + 2} 
+          AND id IN (${placeholders})
+          AND archived = false
+        RETURNING id, title, company, archived, archived_at
+      `;
+
+      const values = [archiveReason, ...opportunityIds, userId];
+      const result = await database.query(query, values);
+
+      return result.rows.map((row) => ({
+        id: row.id,
+        title: row.title,
+        company: row.company,
+        archived: row.archived,
+        archivedAt: row.archived_at,
+      }));
+    } catch (error) {
+      console.error("❌ Error bulk archiving job opportunities:", error);
+      throw error;
+    }
+  }
+
+  // Get archived job opportunities (for statistics or separate view)
+  async getArchivedJobOpportunities(userId, options = {}) {
+    try {
+      const {
+        limit = 100,
+        offset = 0,
+        sort = "-archived_at",
+      } = options;
+
+      let query = `
+        SELECT id, title, company, location, salary_min, salary_max,
+          job_posting_url, application_deadline, job_description, industry, job_type, status,
+          notes, recruiter_name, recruiter_email, recruiter_phone,
+          hiring_manager_name, hiring_manager_email, hiring_manager_phone,
+          salary_negotiation_notes, interview_notes, application_history,
+          status_updated_at, archived, archived_at, archive_reason,
+          created_at, updated_at
+        FROM job_opportunities
+        WHERE user_id = $1 AND archived = true
+      `;
+
+      const values = [userId];
+      let paramIndex = 2;
+
+      // Sorting
+      const validSorts = {
+        "-archived_at": "archived_at DESC",
+        "archived_at": "archived_at ASC",
+        "-created_at": "created_at DESC",
+        "created_at": "created_at ASC",
+        "company": "company ASC",
+        "-company": "company DESC",
+      };
+
+      const orderBy = validSorts[sort] || "archived_at DESC";
+      query += ` ORDER BY ${orderBy}`;
+
+      // Limit and offset
+      query += ` LIMIT $${paramIndex++} OFFSET $${paramIndex}`;
+      values.push(limit, offset);
+
+      const result = await database.query(query, values);
+
+      return result.rows.map((row) => this.mapRowToJobOpportunity(row));
+    } catch (error) {
+      console.error("❌ Error getting archived job opportunities:", error);
       throw error;
     }
   }

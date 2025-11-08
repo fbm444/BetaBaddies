@@ -24,6 +24,7 @@ import {
   JobOpportunityFilters as FiltersComponent,
 } from "../components/JobOpportunityFilters";
 import { DeadlineCalendar } from "../components/DeadlineCalendar";
+import { ArchiveModal } from "../components/ArchiveModal";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "../config/routes";
 
@@ -44,6 +45,9 @@ export function JobOpportunities() {
 
   // View mode: 'list', 'pipeline', or 'calendar'
   const [viewMode, setViewMode] = useState<"list" | "pipeline" | "calendar">("pipeline");
+
+  // Archive view mode
+  const [showArchived, setShowArchived] = useState(false);
 
   // Filters state
   const [filters, setFilters] = useState<JobOpportunityFilters>(() => {
@@ -71,8 +75,20 @@ export function JobOpportunities() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
+  const [archiveTarget, setArchiveTarget] = useState<{
+    type: "single" | "bulk";
+    opportunity?: JobOpportunityData;
+    opportunityIds?: string[];
+  } | null>(null);
   const [selectedOpportunity, setSelectedOpportunity] =
     useState<JobOpportunityData | null>(null);
+  
+  // Notification state for undo
+  const [undoArchive, setUndoArchive] = useState<{
+    opportunityId: string;
+    timeout: ReturnType<typeof setTimeout>;
+  } | null>(null);
 
   // Save filters to localStorage whenever they change
   useEffect(() => {
@@ -83,11 +99,13 @@ export function JobOpportunities() {
   useEffect(() => {
     const loadData = async () => {
       await fetchOpportunities();
-      await fetchStatusCounts();
+      if (!showArchived) {
+        await fetchStatusCounts();
+      }
     };
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters, viewMode]);
+  }, [filters, viewMode, showArchived]);
 
   // Keep selected opportunity in sync with opportunities list
   useEffect(() => {
@@ -129,28 +147,39 @@ export function JobOpportunities() {
       setIsLoading(true);
       setError(null);
       
-      // In pipeline view, don't apply status filter (show all)
-      // In list view, apply all filters
-      const filterParams: any = {
-        sort: filters.sort || "-created_at",
-        limit: 100, // Increased limit for better filtering
-        search: filters.search,
-        industry: filters.industry,
-        location: filters.location,
-        salaryMin: filters.salaryMin,
-        salaryMax: filters.salaryMax,
-        deadlineFrom: filters.deadlineFrom,
-        deadlineTo: filters.deadlineTo,
-      };
+      if (showArchived) {
+        // Fetch archived opportunities
+        const filterParams: any = {
+          sort: filters.sort || "-archived_at",
+          limit: 100,
+        };
+        const response = await api.getArchivedJobOpportunities(filterParams);
+        if (response.ok && response.data) {
+          setOpportunities(response.data.jobOpportunities);
+        }
+      } else {
+        // Fetch active opportunities
+        const filterParams: any = {
+          sort: filters.sort || "-created_at",
+          limit: 100, // Increased limit for better filtering
+          search: filters.search,
+          industry: filters.industry,
+          location: filters.location,
+          salaryMin: filters.salaryMin,
+          salaryMax: filters.salaryMax,
+          deadlineFrom: filters.deadlineFrom,
+          deadlineTo: filters.deadlineTo,
+        };
 
-      // Only apply status filter in list view
-      if (viewMode === "list" && filters.status && filters.status !== "all") {
-        filterParams.status = filters.status;
-      }
+        // Only apply status filter in list view
+        if (viewMode === "list" && filters.status && filters.status !== "all") {
+          filterParams.status = filters.status;
+        }
 
-      const response = await api.getJobOpportunities(filterParams);
-      if (response.ok && response.data) {
-        setOpportunities(response.data.jobOpportunities);
+        const response = await api.getJobOpportunities(filterParams);
+        if (response.ok && response.data) {
+          setOpportunities(response.data.jobOpportunities);
+        }
       }
     } catch (err: any) {
       console.error("Failed to fetch job opportunities:", err);
@@ -349,6 +378,85 @@ export function JobOpportunities() {
     setShowDetailModal(true);
   };
 
+  const openArchiveModal = (opportunity?: JobOpportunityData) => {
+    if (opportunity) {
+      setArchiveTarget({ type: "single", opportunity });
+    } else if (selectedIds.size > 0) {
+      setArchiveTarget({ type: "bulk", opportunityIds: Array.from(selectedIds) });
+    }
+    setShowArchiveModal(true);
+  };
+
+  const handleArchive = async (archiveReason?: string) => {
+    if (!archiveTarget) return;
+
+    try {
+      setShowArchiveModal(false);
+
+      if (archiveTarget.type === "single" && archiveTarget.opportunity) {
+        const response = await api.archiveJobOpportunity(
+          archiveTarget.opportunity.id,
+          archiveReason
+        );
+        if (response.ok && response.data) {
+          await fetchOpportunities();
+          await fetchStatusCounts();
+          showMessage("Job opportunity archived successfully!", "success");
+          
+          // Set up undo option
+          const timeout = setTimeout(async () => {
+            setUndoArchive(null);
+          }, 10000); // 10 seconds to undo
+          
+          setUndoArchive({
+            opportunityId: archiveTarget.opportunity!.id,
+            timeout,
+          });
+        }
+      } else if (archiveTarget.type === "bulk" && archiveTarget.opportunityIds) {
+        const response = await api.bulkArchiveJobOpportunities(
+          archiveTarget.opportunityIds,
+          archiveReason
+        );
+        if (response.ok && response.data) {
+          setSelectedIds(new Set());
+          setShowBulkActions(false);
+          await fetchOpportunities();
+          await fetchStatusCounts();
+          showMessage(
+            `${response.data.archivedOpportunities.length} job(s) archived successfully!`,
+            "success"
+          );
+        }
+      }
+      
+      setArchiveTarget(null);
+    } catch (err: any) {
+      showMessage(err.message || "Failed to archive job opportunity", "error");
+    }
+  };
+
+  const handleUnarchive = async (opportunityId: string) => {
+    try {
+      const response = await api.unarchiveJobOpportunity(opportunityId);
+      if (response.ok && response.data) {
+        await fetchOpportunities();
+        await fetchStatusCounts();
+        showMessage("Job opportunity restored successfully!", "success");
+      }
+    } catch (err: any) {
+      showMessage(err.message || "Failed to restore job opportunity", "error");
+    }
+  };
+
+  const handleUndoArchive = async () => {
+    if (!undoArchive) return;
+    
+    clearTimeout(undoArchive.timeout);
+    await handleUnarchive(undoArchive.opportunityId);
+    setUndoArchive(null);
+  };
+
   const handleDetailSave = async (data: JobOpportunityInput) => {
     if (!selectedOpportunity) return;
     try {
@@ -463,50 +571,85 @@ export function JobOpportunities() {
         </div>
       )}
 
-      {/* Search and Filters */}
-      <FiltersComponent
-        filters={filters}
-        onFiltersChange={setFilters}
-        onClearFilters={() => setFilters({ sort: "-created_at" })}
-      />
+      {/* Search and Filters (only show for active jobs) */}
+      {!showArchived && (
+        <FiltersComponent
+          filters={filters}
+          onFiltersChange={setFilters}
+          onClearFilters={() => setFilters({ sort: "-created_at" })}
+        />
+      )}
 
-      {/* View Mode Toggle */}
+      {/* Archive/Active Toggle and View Mode Toggle */}
       <div className="bg-slate-50 rounded-xl p-4 mb-6 border border-slate-200">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setViewMode("pipeline")}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
-              viewMode === "pipeline"
-                ? "bg-blue-500 text-white"
-                : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
-            }`}
-          >
-            <Icon icon="mingcute:grid-line" width={18} />
-            Pipeline View
-          </button>
-          <button
-            onClick={() => setViewMode("list")}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
-              viewMode === "list"
-                ? "bg-blue-500 text-white"
-                : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
-            }`}
-          >
-            <Icon icon="mingcute:list-check-line" width={18} />
-            List View
-          </button>
-          <button
-            onClick={() => setViewMode("calendar")}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
-              viewMode === "calendar"
-                ? "bg-blue-500 text-white"
-                : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
-            }`}
-          >
-            <Icon icon="mingcute:calendar-line" width={18} />
-            Calendar View
-          </button>
-          <div className="ml-auto text-sm text-slate-600">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowArchived(false)}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+                !showArchived
+                  ? "bg-blue-500 text-white"
+                  : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
+              }`}
+            >
+              <Icon icon="mingcute:briefcase-line" width={18} />
+              Active Jobs
+            </button>
+            <button
+              onClick={() => {
+                setShowArchived(true);
+                setViewMode("list"); // Archive view only supports list mode
+              }}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+                showArchived
+                  ? "bg-amber-500 text-white"
+                  : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
+              }`}
+            >
+              <Icon icon="mingcute:archive-line" width={18} />
+              Archived Jobs
+            </button>
+          </div>
+
+          {!showArchived && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setViewMode("pipeline")}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+                  viewMode === "pipeline"
+                    ? "bg-blue-500 text-white"
+                    : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
+                }`}
+              >
+                <Icon icon="mingcute:grid-line" width={18} />
+                Pipeline View
+              </button>
+              <button
+                onClick={() => setViewMode("list")}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+                  viewMode === "list"
+                    ? "bg-blue-500 text-white"
+                    : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
+                }`}
+              >
+                <Icon icon="mingcute:list-check-line" width={18} />
+                List View
+              </button>
+              <button
+                onClick={() => setViewMode("calendar")}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+                  viewMode === "calendar"
+                    ? "bg-blue-500 text-white"
+                    : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
+                }`}
+              >
+                <Icon icon="mingcute:calendar-line" width={18} />
+                Calendar View
+              </button>
+            </div>
+          )}
+
+          <div className="text-sm text-slate-600">
             Showing {opportunities.length} job{opportunities.length !== 1 ? "s" : ""}
           </div>
         </div>
@@ -534,14 +677,25 @@ export function JobOpportunities() {
 
       {/* Success/Error Messages */}
       {successMessage && (
-        <div className="mb-6 bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
-          <Icon
-            icon="mingcute:check-circle-line"
-            width={20}
-            height={20}
-            className="text-green-600"
-          />
-          <p className="text-green-800 text-sm m-0">{successMessage}</p>
+        <div className="mb-6 bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <Icon
+              icon="mingcute:check-circle-line"
+              width={20}
+              height={20}
+              className="text-green-600"
+            />
+            <p className="text-green-800 text-sm m-0">{successMessage}</p>
+          </div>
+          {undoArchive && successMessage.includes("archived") && (
+            <button
+              onClick={handleUndoArchive}
+              className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium flex items-center gap-2"
+            >
+              <Icon icon="mingcute:refresh-line" width={16} />
+              Undo
+            </button>
+          )}
         </div>
       )}
 
@@ -561,66 +715,72 @@ export function JobOpportunities() {
       {viewMode === "list" && opportunities.length === 0 && (
         <div className="bg-white rounded-xl p-12 text-center shadow-sm border border-slate-200">
           <Icon
-            icon="mingcute:briefcase-line"
+            icon={showArchived ? "mingcute:archive-line" : "mingcute:briefcase-line"}
             width={64}
             className="mx-auto text-slate-300 mb-4"
           />
           <h3 className="text-xl font-semibold text-slate-900 mb-2">
-            {filters.search ||
-            filters.status ||
-            filters.industry ||
-            filters.location ||
-            filters.salaryMin ||
-            filters.salaryMax ||
-            filters.deadlineFrom ||
-            filters.deadlineTo
+            {showArchived
+              ? "No Archived Jobs"
+              : filters.search ||
+                filters.status ||
+                filters.industry ||
+                filters.location ||
+                filters.salaryMin ||
+                filters.salaryMax ||
+                filters.deadlineFrom ||
+                filters.deadlineTo
               ? "No jobs match your filters"
               : "No Job Opportunities Yet"}
           </h3>
           <p className="text-slate-600 mb-6">
-            {filters.search ||
-            filters.status ||
-            filters.industry ||
-            filters.location ||
-            filters.salaryMin ||
-            filters.salaryMax ||
-            filters.deadlineFrom ||
-            filters.deadlineTo
+            {showArchived
+              ? "You haven't archived any job opportunities yet. Archive completed or irrelevant jobs to keep your active list organized."
+              : filters.search ||
+                filters.status ||
+                filters.industry ||
+                filters.location ||
+                filters.salaryMin ||
+                filters.salaryMax ||
+                filters.deadlineFrom ||
+                filters.deadlineTo
               ? "Try adjusting your search criteria or filters to see more results."
               : "Start tracking positions you're interested in by adding your first job opportunity."}
           </p>
-          {!(filters.search ||
-            filters.status ||
-            filters.industry ||
-            filters.location ||
-            filters.salaryMin ||
-            filters.salaryMax ||
-            filters.deadlineFrom ||
-            filters.deadlineTo) && (
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium inline-flex items-center gap-2"
-            >
-              <Icon icon="mingcute:add-line" width={20} />
-              Add Your First Opportunity
-            </button>
-          )}
-          {(filters.search ||
-            filters.status ||
-            filters.industry ||
-            filters.location ||
-            filters.salaryMin ||
-            filters.salaryMax ||
-            filters.deadlineFrom ||
-            filters.deadlineTo) && (
-            <button
-              onClick={() => setFilters({ sort: "-created_at" })}
-              className="px-6 py-3 bg-slate-200 text-slate-800 rounded-lg hover:bg-slate-300 transition-colors font-medium inline-flex items-center gap-2"
-            >
-              <Icon icon="mingcute:close-line" width={20} />
-              Clear Filters
-            </button>
-          )}
+          {!showArchived &&
+            !(filters.search ||
+              filters.status ||
+              filters.industry ||
+              filters.location ||
+              filters.salaryMin ||
+              filters.salaryMax ||
+              filters.deadlineFrom ||
+              filters.deadlineTo) && (
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium inline-flex items-center gap-2"
+              >
+                <Icon icon="mingcute:add-line" width={20} />
+                Add Your First Opportunity
+              </button>
+            )}
+          {!showArchived &&
+            (filters.search ||
+              filters.status ||
+              filters.industry ||
+              filters.location ||
+              filters.salaryMin ||
+              filters.salaryMax ||
+              filters.deadlineFrom ||
+              filters.deadlineTo) && (
+              <button
+                onClick={() => setFilters({ sort: "-created_at" })}
+                className="px-6 py-3 bg-slate-200 text-slate-800 rounded-lg hover:bg-slate-300 transition-colors font-medium inline-flex items-center gap-2"
+              >
+                <Icon icon="mingcute:close-line" width={20} />
+                Clear Filters
+              </button>
+            )}
         </div>
       )}
 
@@ -645,7 +805,7 @@ export function JobOpportunities() {
             )}
 
       {/* Bulk Actions Bar */}
-      {viewMode === "list" && showBulkActions && selectedIds.size > 0 && (
+      {viewMode === "list" && !showArchived && showBulkActions && selectedIds.size > 0 && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
           <div className="flex flex-col gap-4">
             <div className="flex items-center gap-4">
@@ -703,6 +863,15 @@ export function JobOpportunities() {
                   </div>
                 </div>
               </div>
+              <div className="border-t sm:border-t-0 sm:border-l border-blue-300 pt-4 sm:pt-0 sm:pl-4">
+                <button
+                  onClick={() => openArchiveModal()}
+                  className="px-4 py-2 rounded-lg text-sm font-medium bg-amber-500 text-white hover:bg-amber-600 transition-colors flex items-center gap-2"
+                >
+                  <Icon icon="mingcute:archive-line" width={16} />
+                  Archive Selected
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -732,10 +901,13 @@ export function JobOpportunities() {
                 onEdit={openEditModal}
                 onDelete={openDeleteModal}
                 onView={openDetailModal}
+                onArchive={openArchiveModal}
+                onUnarchive={handleUnarchive}
                 isSelected={selectedIds.has(opportunity.id)}
                 onToggleSelect={() => toggleSelection(opportunity.id)}
                 showCheckbox={true}
                 searchTerm={filters.search}
+                showArchived={showArchived}
               />
             ))}
           </div>
@@ -785,6 +957,35 @@ export function JobOpportunities() {
           }}
           onSave={handleDetailSave}
           onDelete={handleDetailDelete}
+          onArchive={() => {
+            setArchiveTarget({ type: "single", opportunity: selectedOpportunity });
+            setShowDetailModal(false);
+            setShowArchiveModal(true);
+          }}
+          onUnarchive={() => handleUnarchive(selectedOpportunity.id)}
+        />
+      )}
+
+      {/* Archive Modal */}
+      {showArchiveModal && archiveTarget && (
+        <ArchiveModal
+          title={
+            archiveTarget.type === "bulk"
+              ? `Archive ${archiveTarget.opportunityIds?.length || 0} Jobs`
+              : "Archive Job Opportunity"
+          }
+          message={
+            archiveTarget.type === "bulk"
+              ? `Are you sure you want to archive ${archiveTarget.opportunityIds?.length || 0} selected job opportunities? You can restore them later from the Archived Jobs view.`
+              : `Are you sure you want to archive "${archiveTarget.opportunity?.title}" at ${archiveTarget.opportunity?.company}? You can restore it later from the Archived Jobs view.`
+          }
+          onConfirm={handleArchive}
+          onCancel={() => {
+            setShowArchiveModal(false);
+            setArchiveTarget(null);
+          }}
+          isBulk={archiveTarget.type === "bulk"}
+          itemCount={archiveTarget.type === "bulk" ? archiveTarget.opportunityIds?.length || 0 : 1}
         />
       )}
     </div>
@@ -797,19 +998,25 @@ function OpportunityCard({
   onEdit,
   onDelete,
   onView,
+  onArchive,
+  onUnarchive,
   isSelected = false,
   onToggleSelect,
   showCheckbox = false,
   searchTerm,
+  showArchived = false,
 }: {
   opportunity: JobOpportunityData;
   onEdit: (opportunity: JobOpportunityData) => void;
   onDelete: (opportunity: JobOpportunityData) => void;
   onView?: (opportunity: JobOpportunityData) => void;
+  onArchive?: (opportunity: JobOpportunityData) => void;
+  onUnarchive?: (opportunityId: string) => void;
   isSelected?: boolean;
   onToggleSelect?: () => void;
   showCheckbox?: boolean;
   searchTerm?: string;
+  showArchived?: boolean;
 }) {
   const formatSalary = () => {
     if (opportunity.salaryMin && opportunity.salaryMax) {
@@ -868,13 +1075,33 @@ function OpportunityCard({
           </div>
         </div>
         <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={() => onEdit(opportunity)}
-            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-            title="Edit"
-          >
-            <Icon icon="mingcute:edit-line" width={18} />
-          </button>
+          {!showArchived && onArchive && (
+            <button
+              onClick={() => onArchive(opportunity)}
+              className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+              title="Archive"
+            >
+              <Icon icon="mingcute:archive-line" width={18} />
+            </button>
+          )}
+          {showArchived && onUnarchive && (
+            <button
+              onClick={() => onUnarchive(opportunity.id)}
+              className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+              title="Restore"
+            >
+              <Icon icon="mingcute:refresh-line" width={18} />
+            </button>
+          )}
+          {!showArchived && (
+            <button
+              onClick={() => onEdit(opportunity)}
+              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+              title="Edit"
+            >
+              <Icon icon="mingcute:edit-line" width={18} />
+            </button>
+          )}
           <button
             onClick={() => onDelete(opportunity)}
             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -885,8 +1112,8 @@ function OpportunityCard({
         </div>
       </div>
 
-      {/* Status Badge */}
-      <div className="mb-2">
+      {/* Status Badge and Archive Info */}
+      <div className="mb-2 flex items-center gap-2 flex-wrap">
         <span
           className="px-2 py-1 rounded text-xs font-medium"
           style={{
@@ -896,6 +1123,16 @@ function OpportunityCard({
         >
           {opportunity.status}
         </span>
+        {showArchived && opportunity.archivedAt && (
+          <span className="px-2 py-1 rounded text-xs font-medium bg-amber-100 text-amber-700">
+            Archived {formatDate(opportunity.archivedAt)}
+          </span>
+        )}
+        {showArchived && opportunity.archiveReason && (
+          <span className="px-2 py-1 rounded text-xs font-medium bg-slate-100 text-slate-600">
+            {opportunity.archiveReason}
+          </span>
+        )}
       </div>
 
       {/* Location */}

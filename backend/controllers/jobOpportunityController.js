@@ -309,6 +309,89 @@ class JobOpportunityController {
       data: statistics,
     });
   });
+
+  // Archive a job opportunity
+  archiveJobOpportunity = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { id } = req.params;
+    const { archiveReason } = req.body;
+
+    const result = await jobOpportunityService.archiveJobOpportunity(id, userId, archiveReason);
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        jobOpportunity: result,
+        message: "Job opportunity archived successfully",
+      },
+    });
+  });
+
+  // Unarchive a job opportunity
+  unarchiveJobOpportunity = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { id } = req.params;
+
+    const result = await jobOpportunityService.unarchiveJobOpportunity(id, userId);
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        jobOpportunity: result,
+        message: "Job opportunity unarchived successfully",
+      },
+    });
+  });
+
+  // Bulk archive job opportunities
+  bulkArchiveJobOpportunities = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { opportunityIds, archiveReason } = req.body;
+
+    if (!Array.isArray(opportunityIds) || opportunityIds.length === 0) {
+      return res.status(400).json({
+        ok: false,
+        error: "opportunityIds array is required and cannot be empty",
+      });
+    }
+
+    const archivedOpportunities = await jobOpportunityService.bulkArchiveJobOpportunities(
+      userId,
+      opportunityIds,
+      archiveReason
+    );
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        archivedOpportunities,
+        message: `${archivedOpportunities.length} job opportunity/ies archived successfully`,
+      },
+    });
+  });
+
+  // Get archived job opportunities
+  getArchivedJobOpportunities = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const {
+      limit = 100,
+      offset = 0,
+      sort = "-archived_at",
+    } = req.query;
+
+    const opportunities = await jobOpportunityService.getArchivedJobOpportunities(userId, {
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+      sort,
+    });
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        jobOpportunities: opportunities,
+      },
+    });
+  });
 }
 
 export default new JobOpportunityController();

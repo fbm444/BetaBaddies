@@ -36,6 +36,9 @@ export interface JobOpportunityData {
   interviewNotes?: string;
   applicationHistory?: ApplicationHistoryEntry[];
   statusUpdatedAt?: string;
+  archived?: boolean;
+  archivedAt?: string;
+  archiveReason?: string;
   createdAt?: string;
   updatedAt?: string;
 }

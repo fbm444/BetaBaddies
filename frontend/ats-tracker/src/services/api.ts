@@ -376,6 +376,51 @@ class ApiService {
     );
   }
 
+  async archiveJobOpportunity(id: string, archiveReason?: string) {
+    return this.request<ApiResponse<{ jobOpportunity: JobOpportunityData; message: string }>>(
+      `/job-opportunities/${id}/archive`,
+      {
+        method: "POST",
+        body: JSON.stringify({ archiveReason }),
+      }
+    );
+  }
+
+  async unarchiveJobOpportunity(id: string) {
+    return this.request<ApiResponse<{ jobOpportunity: JobOpportunityData; message: string }>>(
+      `/job-opportunities/${id}/unarchive`,
+      {
+        method: "POST",
+      }
+    );
+  }
+
+  async bulkArchiveJobOpportunities(opportunityIds: string[], archiveReason?: string) {
+    return this.request<ApiResponse<{ archivedOpportunities: JobOpportunityData[]; message: string }>>(
+      "/job-opportunities/bulk-archive",
+      {
+        method: "POST",
+        body: JSON.stringify({ opportunityIds, archiveReason }),
+      }
+    );
+  }
+
+  async getArchivedJobOpportunities(options?: {
+    limit?: number;
+    offset?: number;
+    sort?: string;
+  }) {
+    const params = new URLSearchParams();
+    if (options?.limit) params.append("limit", options.limit.toString());
+    if (options?.offset) params.append("offset", options.offset.toString());
+    if (options?.sort) params.append("sort", options.sort);
+
+    const queryString = params.toString();
+    return this.request<ApiResponse<{ jobOpportunities: JobOpportunityData[] }>>(
+      `/job-opportunities/archived${queryString ? `?${queryString}` : ""}`
+    );
+  }
+
   // Education endpoints
   async getEducation() {
     return this.request<ApiResponse<{ educations: EducationData[] }>>(

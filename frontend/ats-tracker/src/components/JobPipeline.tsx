@@ -17,8 +17,10 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  closestCorners,
   useDroppable,
+  pointerWithin,
+  rectIntersection,
+  type CollisionDetection,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -107,7 +109,14 @@ function PipelineCard({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: opportunity.id });
+  } = useSortable({
+    id: opportunity.id,
+    data: {
+      type: "card",
+      status: opportunity.status,
+      opportunity,
+    },
+  });
 
   const daysRemaining = getDaysRemaining(opportunity.applicationDeadline);
   const isOverdueInterested =
@@ -134,8 +143,10 @@ function PipelineCard({
     <div
       ref={setNodeRef}
       style={baseStyle}
-      className={`bg-white rounded-[11px] border border-[#D1D1D1] p-2 pl-3 w-[165px] min-h-[90px] mb-3 shadow-[1px_2px_4px_rgba(0,0,0,0.07)] cursor-grab active:cursor-grabbing transition-transform ${
-        isDragging ? "scale-[1.01] shadow-[0_18px_40px_rgba(17,23,58,0.12)]" : "hover:-translate-y-1"
+      className={`bg-white rounded-[11px] border border-[#D1D1D1] p-2 pl-3 w-[165px] min-h-[90px] mb-3 shadow-[1px_2px_4px_rgba(0,0,0,0.07)] cursor-grab active:cursor-grabbing transition-transform transition-colors ${
+        isDragging
+          ? "scale-[1.01] shadow-[0_18px_40px_rgba(17,23,58,0.12)]"
+          : "hover:-translate-y-1 hover:bg-[#F3F4F6] hover:border-[#B9B9B9] hover:shadow-[2px_4px_8px_rgba(0,0,0,0.1)]"
       }`}
       {...attributes}
       {...listeners}
@@ -216,6 +227,10 @@ function PipelineColumn({
 }: PipelineColumnProps) {
   const { setNodeRef } = useDroppable({
     id: status,
+    data: {
+      type: "column",
+      status,
+    },
   });
 
   const statusColor = STATUS_COLORS[status];
@@ -307,6 +322,24 @@ export function JobPipeline({
     })
   );
 
+  const collisionDetectionStrategy: CollisionDetection = (args) => {
+    const pointerCollisions = pointerWithin(args);
+    const collisions = pointerCollisions.length > 0 ? pointerCollisions : rectIntersection(args);
+
+    if (!collisions.length) return [];
+
+    const prioritized = collisions.find((collision) => {
+      const data = collision.data?.droppableContainer?.data?.current as { type?: string } | undefined;
+      return data?.type === "column";
+    });
+
+    if (prioritized) {
+      return [prioritized];
+    }
+
+    return collisions;
+  };
+
   // Group opportunities by status
   const opportunitiesByStatus = useMemo(() => {
     const grouped: Record<JobStatus, JobOpportunityData[]> = {
@@ -347,20 +380,20 @@ export function JobPipeline({
     if (!over) return;
 
     const opportunityId = active.id as string;
-    const overId = over.id as string;
 
-    // Check if we're dropping on a status column or another card
+    const overData = over.data?.current as
+      | { type: "column"; status: JobStatus }
+      | { type: "card"; status: JobStatus }
+      | undefined;
+
     let newStatus: JobStatus | null = null;
 
-    // If dropping on a status column
-    if (JOB_STATUSES.includes(overId as JobStatus)) {
-      newStatus = overId as JobStatus;
-    } else {
-      // If dropping on another card, find that card's status
-      const targetOpportunity = opportunities.find((o) => o.id === overId);
-      if (targetOpportunity) {
-        newStatus = targetOpportunity.status;
-      }
+    if (overData?.type === "column") {
+      newStatus = overData.status;
+    } else if (overData?.type === "card") {
+      newStatus = overData.status;
+    } else if (JOB_STATUSES.includes(over.id as JobStatus)) {
+      newStatus = over.id as JobStatus;
     }
 
     if (!newStatus) return;
@@ -388,7 +421,7 @@ export function JobPipeline({
     <div className="w-full">
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCorners}
+        collisionDetection={collisionDetectionStrategy}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
         onDragOver={handleDragOver}

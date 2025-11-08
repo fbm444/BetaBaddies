@@ -1,4 +1,11 @@
-import { useState, useEffect, useMemo, FormEvent } from "react";
+  useEffect(() => {
+    return () => {
+      if (messageTimeoutRef.current) {
+        clearTimeout(messageTimeoutRef.current);
+      }
+    };
+  }, []);
+import { useState, useEffect, useMemo, useRef, FormEvent } from "react";
 import { Icon } from "@iconify/react";
 import { api } from "../services/api";
 import type { JobOpportunityData, JobOpportunityInput, JobStatus } from "../types";
@@ -68,6 +75,7 @@ export function JobOpportunities() {
   const [addContextNote, setAddContextNote] = useState<string | null>(null);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [searchValue, setSearchValue] = useState(filters.search || "");
+  const messageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   // Notification state for undo
   const [undoArchive, setUndoArchive] = useState<{
@@ -113,6 +121,11 @@ export function JobOpportunities() {
   }, [viewMode]);
 
   const showMessage = (text: string, type: "success" | "error") => {
+    if (messageTimeoutRef.current) {
+      clearTimeout(messageTimeoutRef.current);
+      messageTimeoutRef.current = null;
+    }
+
     if (type === "success") {
       setSuccessMessage(text);
       setError(null);
@@ -120,12 +133,13 @@ export function JobOpportunities() {
       setError(text);
       setSuccessMessage(null);
     }
-    setTimeout(() => {
+    messageTimeoutRef.current = setTimeout(() => {
       if (type === "success") {
         setSuccessMessage(null);
       } else {
         setError(null);
       }
+      messageTimeoutRef.current = null;
     }, 5000);
   };
 

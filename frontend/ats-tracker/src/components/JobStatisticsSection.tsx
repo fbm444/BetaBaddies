@@ -44,7 +44,10 @@ export function JobStatisticsSection({ scrollRef }: JobStatisticsSectionProps) {
 
   if (isLoading) {
     return (
-      <div ref={scrollRef} className="mt-12 pt-8 border-t border-slate-200">
+      <div
+        ref={scrollRef}
+        className="mt-12 pt-8 border-t border-slate-200 w-full max-w-[1320px] mx-auto"
+      >
         <div className="text-center py-12">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
           <p className="mt-4 text-slate-600">Loading statistics...</p>
@@ -55,7 +58,10 @@ export function JobStatisticsSection({ scrollRef }: JobStatisticsSectionProps) {
 
   if (error || !statistics) {
     return (
-      <div ref={scrollRef} className="mt-12 pt-8 border-t border-slate-200">
+      <div
+        ref={scrollRef}
+        className="mt-12 pt-8 border-t border-slate-200 w-full max-w-[1320px] mx-auto"
+      >
         <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
           <Icon icon="mingcute:alert-line" className="mx-auto text-red-600 mb-2" width={48} />
           <p className="text-red-800">{error || "Failed to load statistics"}</p>
@@ -65,7 +71,10 @@ export function JobStatisticsSection({ scrollRef }: JobStatisticsSectionProps) {
   }
 
   return (
-    <div ref={scrollRef} className="mt-12 pt-8 border-t border-slate-200">
+    <div
+      ref={scrollRef}
+      className="mt-12 pt-8 border-t border-slate-200 w-full max-w-[1320px] mx-auto"
+    >
       {/* Header */}
       <div className="mb-8 flex items-center justify-between">
         <div>
@@ -101,7 +110,7 @@ export function JobStatisticsSection({ scrollRef }: JobStatisticsSectionProps) {
 
         <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
           <div className="flex items-center gap-3 mb-2">
-            <Icon icon="mingcute:calendar-check-line" className="text-purple-600" width={24} />
+            <Icon icon="mingcute:calendar-line" className="text-purple-600" width={24} />
             <h3 className="text-sm font-medium text-slate-600">Deadline Adherence</h3>
           </div>
           <p className="text-3xl font-bold text-slate-900">

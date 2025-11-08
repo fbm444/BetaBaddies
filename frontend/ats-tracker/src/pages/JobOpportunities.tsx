@@ -32,6 +32,8 @@ export function JobOpportunities() {
 
   // View mode: 'list', 'pipeline', or 'calendar'
   const [viewMode, setViewMode] = useState<"list" | "pipeline" | "calendar">("pipeline");
+  const [previousViewMode, setPreviousViewMode] =
+    useState<"list" | "pipeline" | "calendar">("pipeline");
 
   // Archive view mode
   const [showArchived, setShowArchived] = useState(false);
@@ -466,7 +468,10 @@ export function JobOpportunities() {
   const handleToggleArchived = (value: boolean) => {
     setShowArchived(value);
     if (value) {
+      setPreviousViewMode(viewMode);
       setViewMode("list");
+    } else {
+      setViewMode(previousViewMode);
     }
     setIsFiltersOpen(false);
   };
@@ -476,6 +481,9 @@ export function JobOpportunities() {
       setShowArchived(false);
     }
     setViewMode(mode);
+    if (!showArchived || mode !== "list") {
+      setPreviousViewMode(mode);
+    }
   };
 
   const handleOpenAddModal = (status?: JobStatus, note?: string | null) => {
@@ -579,37 +587,39 @@ export function JobOpportunities() {
             </button>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => handleOpenAddModal(undefined, null)}
-              className="px-4 py-2 rounded-full bg-[#5490FF] text-white text-sm font-semibold inline-flex items-center gap-2 shadow hover:bg-[#4478D9]"
-            >
-              <Icon icon="mingcute:add-line" width={16} />
-              Add New Application
-            </button>
-            <button
-              onClick={() => setShowImportModal(true)}
-              className="px-4 py-2 rounded-full border border-slate-200 bg-white text-slate-600 text-sm font-semibold inline-flex items-center gap-2 shadow-sm hover:bg-slate-100"
-            >
-              <Icon icon="mingcute:link-line" width={16} />
-              Import from URL
-            </button>
+            {!showArchived && (
+              <>
+                <button
+                  onClick={() => handleOpenAddModal(undefined, null)}
+                  className="px-4 py-2 rounded-full bg-[#5490FF] text-white text-sm font-semibold inline-flex items-center gap-2 shadow hover:bg-[#4478D9]"
+                >
+                  <Icon icon="mingcute:add-line" width={16} />
+                  Add New Application
+                </button>
+                <button
+                  onClick={() => setShowImportModal(true)}
+                  className="px-4 py-2 rounded-full border border-slate-200 bg-white text-slate-600 text-sm font-semibold inline-flex items-center gap-2 shadow-sm hover:bg-slate-100"
+                >
+                  <Icon icon="mingcute:link-line" width={16} />
+                  Import from URL
+                </button>
+                <button
+                  onClick={() => {
+                    statisticsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }}
+                  className="px-4 py-2 rounded-full border border-slate-200 bg-white text-slate-600 text-sm font-semibold inline-flex items-center gap-2 shadow-sm hover:bg-slate-100"
+                >
+                  <Icon icon="mingcute:chart-line" width={16} />
+                  View Statistics
+                </button>
+              </>
+            )}
             <button
               onClick={() => handleToggleArchived(!showArchived)}
               className="font-semibold text-slate-600 hover:text-slate-900 text-sm"
             >
               {showArchived ? "Back to Active Jobs" : "View Archived Jobs"}
             </button>
-            {!showArchived && (
-              <button
-                onClick={() => {
-                  statisticsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-                }}
-                className="px-4 py-2 rounded-full border border-slate-200 bg-white text-slate-600 text-sm font-semibold inline-flex items-center gap-2 shadow-sm hover:bg-slate-100"
-              >
-                <Icon icon="mingcute:chart-line" width={16} />
-                View Statistics
-              </button>
-            )}
           </div>
         </div>
 

@@ -1,5 +1,6 @@
 import jobOpportunityService from "../services/jobOpportunityService.js";
 import companyService from "../services/companyService.js";
+import jobImportService from "../services/jobImportService.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 
 class JobOpportunityController {
@@ -426,6 +427,39 @@ class JobOpportunityController {
           location: opportunity.location,
           industry: opportunity.industry,
         },
+      },
+    });
+  });
+
+  // Import job from URL
+  importJobFromUrl = asyncHandler(async (req, res) => {
+    const { url } = req.body;
+
+    if (!url || typeof url !== "string") {
+      return res.status(400).json({
+        ok: false,
+        error: "URL is required",
+      });
+    }
+
+    // Import job data from URL
+    const importResult = await jobImportService.importJobFromUrl(url);
+
+    if (!importResult.success) {
+      return res.status(200).json({
+        ok: true,
+        data: {
+          importResult,
+          message: importResult.error || "Failed to import job data",
+        },
+      });
+    }
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        importResult,
+        message: "Job data imported successfully",
       },
     });
   });

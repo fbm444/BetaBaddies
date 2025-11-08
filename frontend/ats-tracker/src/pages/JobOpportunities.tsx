@@ -21,6 +21,7 @@ import {
 import { DeadlineCalendar } from "../components/DeadlineCalendar";
 import { ArchiveModal } from "../components/ArchiveModal";
 import { JobStatisticsSection } from "../components/JobStatisticsSection";
+import { JobImportModal } from "../components/JobImportModal";
 
 export function JobOpportunities() {
   const statisticsRef = useRef<HTMLDivElement>(null);
@@ -59,6 +60,8 @@ export function JobOpportunities() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showArchiveModal, setShowArchiveModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importedJobData, setImportedJobData] = useState<JobOpportunityInput | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<{
     type: "single" | "bulk";
     opportunity?: JobOpportunityData;
@@ -485,6 +488,7 @@ export function JobOpportunities() {
     setShowAddModal(false);
     setQuickAddStatus(undefined);
     setAddContextNote(null);
+    setImportedJobData(null);
   };
 
   const hasActiveFilters = useMemo(() => {
@@ -583,8 +587,8 @@ export function JobOpportunities() {
               Add New Application
             </button>
             <button
+              onClick={() => setShowImportModal(true)}
               className="px-4 py-2 rounded-full border border-slate-200 bg-white text-slate-600 text-sm font-semibold inline-flex items-center gap-2 shadow-sm hover:bg-slate-100"
-              title="Import job opportunities from a URL (coming soon)"
             >
               <Icon icon="mingcute:link-line" width={16} />
               Import from URL
@@ -900,6 +904,7 @@ export function JobOpportunities() {
           onClose={handleCloseAddModal}
           defaultStatus={quickAddStatus}
           contextNote={addContextNote}
+          initialData={importedJobData || undefined}
         />
       )}
 
@@ -970,6 +975,22 @@ export function JobOpportunities() {
 
       {/* Statistics Section - Only show for active jobs */}
       {!showArchived && <JobStatisticsSection scrollRef={statisticsRef} />}
+
+      {/* Import Modal */}
+      {showImportModal && (
+        <JobImportModal
+          onImport={(data) => {
+            setImportedJobData(data);
+            setShowImportModal(false);
+            // Open add modal with imported data
+            setShowAddModal(true);
+          }}
+          onClose={() => {
+            setShowImportModal(false);
+            setImportedJobData(null);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -1199,12 +1220,23 @@ function JobOpportunityFormModal({
   contextNote,
 }: {
   title: string;
-  initialData?: JobOpportunityData;
+  initialData?: JobOpportunityData | JobOpportunityInput;
   onSubmit: (data: JobOpportunityInput) => void;
   onClose: () => void;
   defaultStatus?: JobStatus;
   contextNote?: string | null;
 }) {
+  // Helper to get date string from either format
+  const getDateString = (date?: string | null) => {
+    if (!date) return "";
+    // Handle ISO date string
+    if (date.includes("T")) {
+      return date.split("T")[0];
+    }
+    // Handle date-only string (YYYY-MM-DD)
+    return date;
+  };
+
   const [formData, setFormData] = useState<JobOpportunityInput>({
     title: initialData?.title || "",
     company: initialData?.company || "",
@@ -1212,9 +1244,9 @@ function JobOpportunityFormModal({
     salaryMin: initialData?.salaryMin,
     salaryMax: initialData?.salaryMax,
     jobPostingUrl: initialData?.jobPostingUrl || "",
-    applicationDeadline: initialData?.applicationDeadline
-      ? initialData.applicationDeadline.split("T")[0]
-      : "",
+    applicationDeadline: getDateString(
+      "applicationDeadline" in (initialData || {}) ? initialData?.applicationDeadline : undefined
+    ),
     description: initialData?.description || "",
     industry: initialData?.industry || "",
     jobType: initialData?.jobType || "",
@@ -1236,9 +1268,9 @@ function JobOpportunityFormModal({
         salaryMin: initialData.salaryMin,
         salaryMax: initialData.salaryMax,
         jobPostingUrl: initialData.jobPostingUrl || "",
-        applicationDeadline: initialData.applicationDeadline
-          ? initialData.applicationDeadline.split("T")[0]
-          : "",
+        applicationDeadline: getDateString(
+          "applicationDeadline" in initialData ? initialData.applicationDeadline : undefined
+        ),
         description: initialData.description || "",
         industry: initialData.industry || "",
         jobType: initialData.jobType || "",

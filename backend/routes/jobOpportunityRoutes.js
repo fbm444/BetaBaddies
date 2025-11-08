@@ -35,6 +35,9 @@ router.post("/:id/unarchive", jobOpportunityController.unarchiveJobOpportunity);
 // Get company information (must be before generic :id routes)
 router.get("/:id/company", jobOpportunityController.getCompanyInformation);
 
+// Import job from URL (must be before generic :id routes)
+router.post("/import", jobOpportunityController.importJobFromUrl);
+
 // Get job opportunity by ID (must be after other routes to avoid conflicts)
 router.get("/:id", jobOpportunityController.getJobOpportunity);
 

@@ -437,6 +437,30 @@ class ApiService {
     >(`/job-opportunities/${opportunityId}/company`);
   }
 
+  async importJobFromUrl(url: string) {
+    return this.request<
+      ApiResponse<{
+        importResult: {
+          success: boolean;
+          error?: string | null;
+          data?: {
+            url: string;
+            title?: string | null;
+            company?: string | null;
+            location?: string | null;
+            description?: string | null;
+            jobBoard?: string | null;
+            importStatus: "success" | "partial" | "failed";
+          };
+        };
+        message: string;
+      }>
+    >("/job-opportunities/import", {
+      method: "POST",
+      body: JSON.stringify({ url }),
+    });
+  }
+
   // Education endpoints
   async getEducation() {
     return this.request<ApiResponse<{ educations: EducationData[] }>>(

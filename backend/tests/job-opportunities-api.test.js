@@ -23,62 +23,102 @@ async function ensureJobOpportunitiesTable() {
     `SELECT to_regclass('public.job_opportunities') AS table_name`
   );
 
-  if (rows[0]?.table_name) {
-    return true;
-  }
+  const tableExists = rows[0]?.table_name;
 
   try {
-    await database.query(`
-      CREATE TABLE IF NOT EXISTS job_opportunities (
-        id uuid PRIMARY KEY,
-        user_id uuid NOT NULL,
-        title varchar(255) NOT NULL,
-        company varchar(255) NOT NULL,
-        location varchar(256) NOT NULL,
-        salary_min numeric,
-        salary_max numeric,
-        job_posting_url varchar(1000),
-        application_deadline date,
-        job_description text,
-        industry varchar(255),
-        job_type varchar(50),
-        notes text,
-        recruiter_name varchar(255),
-        recruiter_email varchar(255),
-        recruiter_phone varchar(50),
-        hiring_manager_name varchar(255),
-        hiring_manager_email varchar(255),
-        hiring_manager_phone varchar(50),
-        salary_negotiation_notes text,
-        interview_notes text,
-        application_history jsonb DEFAULT '[]'::jsonb,
-        status varchar(50) DEFAULT 'Interested' NOT NULL,
-        status_updated_at timestamptz DEFAULT now() NOT NULL,
-        created_at timestamptz DEFAULT now() NOT NULL,
-        updated_at timestamptz DEFAULT now() NOT NULL
-      )
-    `);
+    if (!tableExists) {
+      // Create table if it doesn't exist
+      await database.query(`
+        CREATE TABLE IF NOT EXISTS job_opportunities (
+          id uuid PRIMARY KEY,
+          user_id uuid NOT NULL,
+          title varchar(255) NOT NULL,
+          company varchar(255) NOT NULL,
+          location varchar(256) NOT NULL,
+          salary_min numeric,
+          salary_max numeric,
+          job_posting_url varchar(1000),
+          application_deadline date,
+          job_description text,
+          industry varchar(255),
+          job_type varchar(50),
+          notes text,
+          recruiter_name varchar(255),
+          recruiter_email varchar(255),
+          recruiter_phone varchar(50),
+          hiring_manager_name varchar(255),
+          hiring_manager_email varchar(255),
+          hiring_manager_phone varchar(50),
+          salary_negotiation_notes text,
+          interview_notes text,
+          application_history jsonb DEFAULT '[]'::jsonb,
+          status varchar(50) DEFAULT 'Interested' NOT NULL,
+          status_updated_at timestamptz DEFAULT now() NOT NULL,
+          archived boolean DEFAULT false NOT NULL,
+          archived_at timestamptz,
+          archive_reason varchar(255),
+          created_at timestamptz DEFAULT now() NOT NULL,
+          updated_at timestamptz DEFAULT now() NOT NULL
+        )
+      `);
+    }
 
+    // Ensure archive columns exist (for both new and existing tables)
+    await database.query(`
+      ALTER TABLE job_opportunities
+        ADD COLUMN IF NOT EXISTS archived boolean DEFAULT false NOT NULL
+    `).catch(() => {});
+
+    await database.query(`
+      ALTER TABLE job_opportunities
+        ADD COLUMN IF NOT EXISTS archived_at timestamptz
+    `).catch(() => {});
+
+    await database.query(`
+      ALTER TABLE job_opportunities
+        ADD COLUMN IF NOT EXISTS archive_reason varchar(255)
+    `).catch(() => {});
+
+    // Create indexes
     await database.query(`
       CREATE INDEX IF NOT EXISTS idx_job_opportunities_user_id
         ON job_opportunities(user_id)
-    `);
+    `).catch(() => {});
 
     await database.query(`
       CREATE INDEX IF NOT EXISTS idx_job_opportunities_status
         ON job_opportunities(status)
-    `);
+    `).catch(() => {});
 
     await database.query(`
       CREATE INDEX IF NOT EXISTS idx_job_opportunities_status_updated_at
         ON job_opportunities(status_updated_at)
-    `);
+    `).catch(() => {});
 
+    await database.query(`
+      CREATE INDEX IF NOT EXISTS idx_job_opportunities_archived
+        ON job_opportunities(archived)
+    `).catch(() => {});
+
+    await database.query(`
+      CREATE INDEX IF NOT EXISTS idx_job_opportunities_user_archived
+        ON job_opportunities(user_id, archived)
+    `).catch(() => {});
+
+    // Add constraint if it doesn't exist
     await database
       .query(`
-        ALTER TABLE job_opportunities
-          ADD CONSTRAINT check_job_opportunity_status
-          CHECK (status IN ('Interested', 'Applied', 'Phone Screen', 'Interview', 'Offer', 'Rejected'))
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint 
+            WHERE conname = 'check_job_opportunity_status'
+          ) THEN
+            ALTER TABLE job_opportunities
+              ADD CONSTRAINT check_job_opportunity_status
+              CHECK (status IN ('Interested', 'Applied', 'Phone Screen', 'Interview', 'Offer', 'Rejected'));
+          END IF;
+        END $$;
       `)
       .catch(() => {});
 

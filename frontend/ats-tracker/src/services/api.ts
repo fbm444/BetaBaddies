@@ -21,6 +21,7 @@ import {
   JobStatus,
   StatusCounts,
   JobOpportunityStatistics,
+  CompanyInfo,
 } from "../types";
 
 // In development, use proxy (relative path). In production, use env variable or full URL
@@ -419,6 +420,21 @@ class ApiService {
     return this.request<ApiResponse<{ jobOpportunities: JobOpportunityData[] }>>(
       `/job-opportunities/archived${queryString ? `?${queryString}` : ""}`
     );
+  }
+
+  async getCompanyInformation(opportunityId: string) {
+    return this.request<
+      ApiResponse<{
+        companyInfo: CompanyInfo;
+        jobOpportunity: {
+          id: string;
+          title: string;
+          company: string;
+          location: string;
+          industry?: string;
+        };
+      }>
+    >(`/job-opportunities/${opportunityId}/company`);
   }
 
   // Education endpoints

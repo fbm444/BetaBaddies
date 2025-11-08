@@ -1,4 +1,5 @@
 import jobOpportunityService from "../services/jobOpportunityService.js";
+import companyService from "../services/companyService.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 
 class JobOpportunityController {
@@ -389,6 +390,42 @@ class JobOpportunityController {
       ok: true,
       data: {
         jobOpportunities: opportunities,
+      },
+    });
+  });
+
+  // Get company information for a job opportunity
+  getCompanyInformation = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { id } = req.params;
+
+    // Get the job opportunity to extract company info
+    const opportunity = await jobOpportunityService.getJobOpportunityById(id, userId);
+
+    if (!opportunity) {
+      return res.status(404).json({
+        ok: false,
+        error: "Job opportunity not found",
+      });
+    }
+
+    // Fetch company information from the job posting URL
+    const companyInfo = await companyService.getCompanyInformation(
+      opportunity.jobPostingUrl,
+      opportunity.company
+    );
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        companyInfo,
+        jobOpportunity: {
+          id: opportunity.id,
+          title: opportunity.title,
+          company: opportunity.company,
+          location: opportunity.location,
+          industry: opportunity.industry,
+        },
       },
     });
   });

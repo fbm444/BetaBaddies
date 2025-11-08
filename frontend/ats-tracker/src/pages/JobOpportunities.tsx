@@ -20,8 +20,10 @@ import {
 } from "../components/JobOpportunityFilters";
 import { DeadlineCalendar } from "../components/DeadlineCalendar";
 import { ArchiveModal } from "../components/ArchiveModal";
+import { JobStatisticsSection } from "../components/JobStatisticsSection";
 
 export function JobOpportunities() {
+  const statisticsRef = useRef<HTMLDivElement>(null);
   const [opportunities, setOpportunities] = useState<JobOpportunityData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -75,9 +77,6 @@ export function JobOpportunities() {
     opportunityId: string;
     timeout: ReturnType<typeof setTimeout>;
   } | null>(null);
-
-  const navItems = ["Dashboard", "Employment", "Skills", "Education", "Projects"];
-  const activeNav = "Dashboard";
 
   // Save filters to localStorage whenever they change
   useEffect(() => {
@@ -596,6 +595,17 @@ export function JobOpportunities() {
             >
               {showArchived ? "Back to Active Jobs" : "View Archived Jobs"}
             </button>
+            {!showArchived && (
+              <button
+                onClick={() => {
+                  statisticsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }}
+                className="px-4 py-2 rounded-full border border-slate-200 bg-white text-slate-600 text-sm font-semibold inline-flex items-center gap-2 shadow-sm hover:bg-slate-100"
+              >
+                <Icon icon="mingcute:chart-line" width={16} />
+                View Statistics
+              </button>
+            )}
           </div>
         </div>
 
@@ -680,8 +690,6 @@ export function JobOpportunities() {
           <JobPipeline
             opportunities={opportunities}
             onStatusChange={handleStatusChange}
-            onEdit={openEditModal}
-            onDelete={openDeleteModal}
             onView={openDetailModal}
             onCreate={(status) =>
               handleOpenAddModal(
@@ -959,6 +967,9 @@ export function JobOpportunities() {
           itemCount={archiveTarget.type === "bulk" ? archiveTarget.opportunityIds?.length || 0 : 1}
         />
       )}
+
+      {/* Statistics Section - Only show for active jobs */}
+      {!showArchived && <JobStatisticsSection scrollRef={statisticsRef} />}
     </div>
   );
 }

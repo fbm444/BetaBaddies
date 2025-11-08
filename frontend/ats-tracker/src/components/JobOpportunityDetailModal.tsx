@@ -14,6 +14,7 @@ import {
   getDeadlineBgColor,
   formatDeadlineText,
 } from "../utils/deadlineUtils";
+import { CompanyInfoModal } from "./CompanyInfoModal";
 
 interface JobOpportunityDetailModalProps {
   opportunity: JobOpportunityData;
@@ -34,6 +35,7 @@ export function JobOpportunityDetailModal({
 }: JobOpportunityDetailModalProps) {
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [showCompanyInfo, setShowCompanyInfo] = useState(false);
   const [formData, setFormData] = useState<JobOpportunityInput>({
     title: opportunity.title,
     company: opportunity.company,
@@ -217,6 +219,15 @@ export function JobOpportunityDetailModal({
           <div className="flex gap-2">
             {!isEditMode && (
               <>
+                {opportunity.jobPostingUrl && (
+                  <button
+                    onClick={() => setShowCompanyInfo(true)}
+                    className="px-3 py-1.5 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition-colors flex items-center gap-1.5 text-sm"
+                  >
+                    <Icon icon="mingcute:building-line" width={14} />
+                    Company Info
+                  </button>
+                )}
                 {!opportunity.archived && (
                   <button
                     onClick={() => setIsEditMode(true)}
@@ -961,6 +972,18 @@ export function JobOpportunityDetailModal({
           )}
         </form>
       </div>
+
+      {/* Company Info Modal */}
+      {showCompanyInfo && (
+        <CompanyInfoModal
+          opportunityId={opportunity.id}
+          companyName={opportunity.company}
+          jobTitle={opportunity.title}
+          location={opportunity.location}
+          industry={opportunity.industry}
+          onClose={() => setShowCompanyInfo(false)}
+        />
+      )}
     </div>
   );
 }

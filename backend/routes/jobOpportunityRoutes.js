@@ -32,6 +32,9 @@ router.post("/bulk-archive", jobOpportunityController.bulkArchiveJobOpportunitie
 router.post("/:id/archive", jobOpportunityController.archiveJobOpportunity);
 router.post("/:id/unarchive", jobOpportunityController.unarchiveJobOpportunity);
 
+// Get company information (must be before generic :id routes)
+router.get("/:id/company", jobOpportunityController.getCompanyInformation);
+
 // Get job opportunity by ID (must be after other routes to avoid conflicts)
 router.get("/:id", jobOpportunityController.getJobOpportunity);
 

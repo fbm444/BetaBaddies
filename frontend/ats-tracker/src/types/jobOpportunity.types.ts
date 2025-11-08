@@ -160,3 +160,16 @@ export interface JobOpportunityStatistics {
   averageTimeInStage: Record<JobStatus, number>;
 }
 
+export interface CompanyInfo {
+  name: string;
+  website?: string | null;
+  domain?: string | null;
+  logo?: string | null;
+  size?: string | null;
+  industry?: string | null;
+  description?: string | null;
+  mission?: string | null;
+  founded?: string | null;
+  headquarters?: string | null;
+}
+

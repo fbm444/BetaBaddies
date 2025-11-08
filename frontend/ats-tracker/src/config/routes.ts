@@ -9,6 +9,7 @@ export const ROUTES = {
   BASIC_INFO: '/basic-information',
   EMPLOYMENT: '/employment',
   JOB_OPPORTUNITIES: '/job-opportunities',
+  JOB_STATISTICS: '/job-opportunities/statistics',
   SKILLS: '/skills',
   EDUCATION: '/education',
   PROJECTS: '/projects',

@@ -855,6 +855,165 @@ class JobOpportunityService {
       throw error;
     }
   }
+
+  // Get comprehensive job opportunity statistics
+  async getJobOpportunityStatistics(userId) {
+    try {
+      // Get total jobs by status
+      const statusCountsQuery = `
+        SELECT 
+          status,
+          COUNT(*) as count
+        FROM job_opportunities
+        WHERE user_id = $1
+        GROUP BY status
+        ORDER BY status
+      `;
+      const statusCountsResult = await database.query(statusCountsQuery, [userId]);
+      
+      const statusCounts = {};
+      let totalJobs = 0;
+      statusCountsResult.rows.forEach((row) => {
+        statusCounts[row.status] = parseInt(row.count);
+        totalJobs += parseInt(row.count);
+      });
+
+      // Calculate application response rate
+      // Response rate = (Jobs that received responses) / (Total applications)
+      // Applications are jobs with status "Applied" or beyond
+      const appliedCount = statusCounts["Applied"] || 0;
+      const respondedCount = 
+        (statusCounts["Phone Screen"] || 0) +
+        (statusCounts["Interview"] || 0) +
+        (statusCounts["Offer"] || 0) +
+        (statusCounts["Rejected"] || 0);
+      
+      // Total applications = currently applied + those that received responses
+      const totalApplications = appliedCount + respondedCount;
+      
+      const responseRate = totalApplications > 0 
+        ? Math.round((respondedCount / totalApplications) * 100 * 10) / 10
+        : 0;
+
+      // Get monthly application volume
+      const monthlyVolumeQuery = `
+        SELECT 
+          DATE_TRUNC('month', created_at) as month,
+          COUNT(*) as count
+        FROM job_opportunities
+        WHERE user_id = $1
+        GROUP BY DATE_TRUNC('month', created_at)
+        ORDER BY month DESC
+        LIMIT 12
+      `;
+      const monthlyVolumeResult = await database.query(monthlyVolumeQuery, [userId]);
+      
+      const monthlyVolume = monthlyVolumeResult.rows.map((row) => ({
+        month: row.month.toISOString().split('T')[0],
+        count: parseInt(row.count),
+      })).reverse(); // Reverse to show oldest first
+
+      // Calculate deadline adherence
+      const deadlineQuery = `
+        SELECT 
+          COUNT(*) as total_with_deadlines,
+          COUNT(CASE WHEN application_deadline < CURRENT_DATE THEN 1 END) as overdue,
+          COUNT(CASE WHEN application_deadline >= CURRENT_DATE THEN 1 END) as upcoming
+        FROM job_opportunities
+        WHERE user_id = $1 AND application_deadline IS NOT NULL
+      `;
+      const deadlineResult = await database.query(deadlineQuery, [userId]);
+      const deadlineStats = deadlineResult.rows[0];
+      
+      const totalWithDeadlines = parseInt(deadlineStats.total_with_deadlines) || 0;
+      const overdueCount = parseInt(deadlineStats.overdue) || 0;
+      const upcomingCount = parseInt(deadlineStats.upcoming) || 0;
+      
+      // Check which overdue deadlines had applications submitted before deadline
+      const adherenceQuery = `
+        SELECT 
+          COUNT(*) as met_deadlines
+        FROM job_opportunities
+        WHERE user_id = $1 
+          AND application_deadline IS NOT NULL
+          AND application_deadline < CURRENT_DATE
+          AND status != 'Interested'
+      `;
+      const adherenceResult = await database.query(adherenceQuery, [userId]);
+      const metDeadlines = parseInt(adherenceResult.rows[0].met_deadlines) || 0;
+      
+      const deadlineAdherence = totalWithDeadlines > 0
+        ? Math.round((metDeadlines / totalWithDeadlines) * 100 * 10) / 10
+        : 0;
+
+      // Calculate time-to-offer analytics
+      // For jobs with status "Offer", calculate average time from created_at to status change
+      // Since we don't track status_updated_at reliably, we'll use a simplified approach
+      // based on created_at and assume Offer status means they got an offer
+      const offerQuery = `
+        SELECT 
+          created_at,
+          updated_at
+        FROM job_opportunities
+        WHERE user_id = $1 AND status = 'Offer'
+        ORDER BY updated_at DESC
+      `;
+      const offerResult = await database.query(offerQuery, [userId]);
+      
+      let totalDaysToOffer = 0;
+      let offerCount = offerResult.rows.length;
+      
+      offerResult.rows.forEach((row) => {
+        const created = new Date(row.created_at);
+        const updated = new Date(row.updated_at);
+        const daysDiff = Math.floor((updated - created) / (1000 * 60 * 60 * 24));
+        totalDaysToOffer += daysDiff;
+      });
+      
+      const averageTimeToOffer = offerCount > 0
+        ? Math.round((totalDaysToOffer / offerCount) * 10) / 10
+        : 0;
+
+      // Calculate average time in each stage (simplified - based on created_at and status)
+      // This is an approximation since we don't track stage entry times
+      const stageTimeQuery = `
+        SELECT 
+          status,
+          AVG(EXTRACT(EPOCH FROM (updated_at - created_at)) / 86400) as avg_days
+        FROM job_opportunities
+        WHERE user_id = $1
+        GROUP BY status
+      `;
+      const stageTimeResult = await database.query(stageTimeQuery, [userId]);
+      
+      const averageTimeInStage = {};
+      stageTimeResult.rows.forEach((row) => {
+        averageTimeInStage[row.status] = Math.round(parseFloat(row.avg_days) * 10) / 10;
+      });
+
+      return {
+        totalJobs,
+        statusCounts,
+        responseRate,
+        monthlyVolume,
+        deadlineAdherence: {
+          percentage: deadlineAdherence,
+          totalWithDeadlines,
+          metDeadlines,
+          overdueCount,
+          upcomingCount,
+        },
+        timeToOffer: {
+          averageDays: averageTimeToOffer,
+          totalOffers: offerCount,
+        },
+        averageTimeInStage,
+      };
+    } catch (error) {
+      console.error("❌ Error getting job opportunity statistics:", error);
+      throw error;
+    }
+  }
 }
 
 export default new JobOpportunityService();

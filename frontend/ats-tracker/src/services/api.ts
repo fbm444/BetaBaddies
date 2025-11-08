@@ -20,6 +20,7 @@ import {
   JobOpportunityInput,
   JobStatus,
   StatusCounts,
+  JobOpportunityStatistics,
 } from "../types";
 
 // In development, use proxy (relative path). In production, use env variable or full URL
@@ -366,6 +367,12 @@ class ApiService {
   async getJobOpportunityStatusCounts() {
     return this.request<ApiResponse<{ statusCounts: StatusCounts }>>(
       "/job-opportunities/status/counts"
+    );
+  }
+
+  async getJobOpportunityStatistics() {
+    return this.request<ApiResponse<JobOpportunityStatistics>>(
+      "/job-opportunities/statistics"
     );
   }
 

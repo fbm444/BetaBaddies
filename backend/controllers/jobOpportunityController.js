@@ -297,6 +297,18 @@ class JobOpportunityController {
       },
     });
   });
+
+  // Get comprehensive job opportunity statistics
+  getStatistics = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+
+    const statistics = await jobOpportunityService.getJobOpportunityStatistics(userId);
+
+    res.status(200).json({
+      ok: true,
+      data: statistics,
+    });
+  });
 }
 
 export default new JobOpportunityController();

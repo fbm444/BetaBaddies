@@ -24,8 +24,11 @@ import {
   JobOpportunityFilters as FiltersComponent,
 } from "../components/JobOpportunityFilters";
 import { DeadlineCalendar } from "../components/DeadlineCalendar";
+import { useNavigate } from "react-router-dom";
+import { ROUTES } from "../config/routes";
 
 export function JobOpportunities() {
+  const navigate = useNavigate();
   const [opportunities, setOpportunities] = useState<JobOpportunityData[]>([]);
   const [statusCounts, setStatusCounts] = useState<StatusCounts>({
     Interested: 0,
@@ -401,13 +404,22 @@ export function JobOpportunities() {
             total
           </p>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium flex items-center gap-2"
-        >
-          <Icon icon="mingcute:add-line" width={20} />
-          Add Job Opportunity
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => navigate(ROUTES.JOB_STATISTICS)}
+            className="px-6 py-3 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors font-medium inline-flex items-center gap-2"
+          >
+            <Icon icon="mingcute:chart-line" width={20} />
+            View Statistics
+          </button>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium inline-flex items-center gap-2"
+          >
+            <Icon icon="mingcute:add-line" width={20} />
+            Add Job Opportunity
+          </button>
+        </div>
       </div>
 
       {/* Instructions */}

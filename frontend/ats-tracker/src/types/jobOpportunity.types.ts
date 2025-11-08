@@ -135,3 +135,25 @@ export const INDUSTRIES = [
 
 export type Industry = (typeof INDUSTRIES)[number];
 
+export interface JobOpportunityStatistics {
+  totalJobs: number;
+  statusCounts: StatusCounts;
+  responseRate: number;
+  monthlyVolume: Array<{
+    month: string;
+    count: number;
+  }>;
+  deadlineAdherence: {
+    percentage: number;
+    totalWithDeadlines: number;
+    metDeadlines: number;
+    overdueCount: number;
+    upcomingCount: number;
+  };
+  timeToOffer: {
+    averageDays: number;
+    totalOffers: number;
+  };
+  averageTimeInStage: Record<JobStatus, number>;
+}
+

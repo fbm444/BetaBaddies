@@ -27,7 +27,24 @@ import './App.css'
 function App() {
   return (
  //   <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme"> 
-    <ErrorBoundary>
+    <ErrorBoundary
+      fallback={
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-lg p-8 max-w-md text-center space-y-4">
+            <h1 className="text-2xl font-bold text-red-600">Something went wrong</h1>
+            <p className="text-slate-700">
+              The application encountered an unexpected error. Try refreshing the page.
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="w-full bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 transition"
+            >
+              Reload Page
+            </button>
+          </div>
+        </div>
+      }
+    >
 	    <div className="app">
 	      <Routes>
 		{/* Landing page - public, no auth required */}

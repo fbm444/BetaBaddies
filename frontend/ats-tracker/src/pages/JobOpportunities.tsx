@@ -1,10 +1,3 @@
-  useEffect(() => {
-    return () => {
-      if (messageTimeoutRef.current) {
-        clearTimeout(messageTimeoutRef.current);
-      }
-    };
-  }, []);
 import { useState, useEffect, useMemo, useRef, FormEvent } from "react";
 import { Icon } from "@iconify/react";
 import { api } from "../services/api";
@@ -119,6 +112,14 @@ export function JobOpportunities() {
       setShowBulkActions(false);
     }
   }, [viewMode]);
+
+  useEffect(() => {
+    return () => {
+      if (messageTimeoutRef.current) {
+        clearTimeout(messageTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const showMessage = (text: string, type: "success" | "error") => {
     if (messageTimeoutRef.current) {

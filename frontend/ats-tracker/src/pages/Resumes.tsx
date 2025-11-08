@@ -117,17 +117,21 @@ export function Resumes() {
   const handleDuplicateResume = async (id: string) => {
     try {
       const response = await resumeService.duplicateResume(id);
-      if (response.ok) {
+      if (response.ok && response.data) {
         // Refresh resumes list
         const resumesResponse = await resumeService.getResumes();
         if (resumesResponse.ok && resumesResponse.data) {
           setResumes(resumesResponse.data.resumes);
         }
+        // Show success message
+        const duplicatedResume = response.data.resume;
+        alert(`Resume duplicated successfully! Created: ${duplicatedResume.name || duplicatedResume.versionName}`);
+      } else {
+        alert(response.error?.message || "Failed to duplicate resume. Please try again.");
       }
     } catch (err: any) {
-      // Mock mode - just show alert
-      alert("Duplicate functionality will work once database is set up");
-      console.log("Would duplicate resume:", id);
+      console.error("Error duplicating resume:", err);
+      alert(err.message || "Failed to duplicate resume. Please try again.");
     }
   };
 

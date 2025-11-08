@@ -55,7 +55,9 @@ class ResumeService {
         } else {
           // If it's a default template identifier (starts with "default-"), set to null
           // The template identifier can be stored in customizations or remembered separately
-          console.log(`⚠️ Template ID "${templateId}" is not a UUID. Setting template_id to NULL.`);
+          console.log(
+            `⚠️ Template ID "${templateId}" is not a UUID. Setting template_id to NULL.`
+          );
           validTemplateId = null;
         }
       }
@@ -157,7 +159,8 @@ class ResumeService {
 
   // Validate UUID format
   isValidUUID(uuid) {
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     return uuidRegex.test(uuid);
   }
 
@@ -166,7 +169,9 @@ class ResumeService {
     try {
       // Validate UUID format
       if (!this.isValidUUID(resumeId)) {
-        throw new Error(`Invalid resume ID format. Expected UUID, got: ${resumeId}`);
+        throw new Error(
+          `Invalid resume ID format. Expected UUID, got: ${resumeId}`
+        );
       }
 
       const query = `
@@ -215,7 +220,9 @@ class ResumeService {
     try {
       // Validate UUID format
       if (!this.isValidUUID(resumeId)) {
-        throw new Error(`Invalid resume ID format. Expected UUID, got: ${resumeId}`);
+        throw new Error(
+          `Invalid resume ID format. Expected UUID, got: ${resumeId}`
+        );
       }
 
       // Check if resume exists and belongs to user
@@ -270,7 +277,9 @@ class ResumeService {
             validTemplateId = templateId;
           } else {
             // If it's a default template identifier (starts with "default-"), set to null
-            console.log(`⚠️ Template ID "${templateId}" is not a UUID. Setting template_id to NULL.`);
+            console.log(
+              `⚠️ Template ID "${templateId}" is not a UUID. Setting template_id to NULL.`
+            );
             validTemplateId = null;
           }
         }
@@ -378,8 +387,49 @@ class ResumeService {
         throw new Error("Resume not found");
       }
 
+      // Import versionService dynamically to avoid circular dependency
+      const { default: versionService } = await import("./versionService.js");
+
+      // Determine the master resume ID (the original resume in the version chain)
+      // If the original resume has a parent, use that as the master; otherwise, the original is the master
+      const masterResumeId = originalResume.parentResumeId || originalResume.id;
+
+      // Get all versions of this resume family to calculate next version number
+      const versions = await versionService.getVersions(masterResumeId, userId);
+
+      // Calculate next version number
+      // If no versions exist, start at v2; otherwise, find the max version number and add 1
+      const nextVersionNumber =
+        versions.length > 0
+          ? Math.max(...versions.map((v) => v.versionNumber || 1)) + 1
+          : 2;
+
+      // Get the base name (from master resume or original)
+      let masterResume;
+      if (masterResumeId === originalResume.id) {
+        // Original resume is the master
+        masterResume = originalResume;
+      } else {
+        // Fetch the master resume
+        masterResume = await this.getResumeById(masterResumeId, userId);
+        if (!masterResume) {
+          // Fallback: use original resume if master not found (shouldn't happen, but be safe)
+          masterResume = originalResume;
+        }
+      }
+
+      const baseName = masterResume.versionName || originalResume.versionName;
+
+      // Remove existing version suffix (e.g., "Resume Name v2" -> "Resume Name")
+      // This ensures we always use the clean base name for versioning
+      const baseNameWithoutVersion = baseName.replace(/\s+v\d+$/i, "").trim();
+
+      // Generate version name: "Base Name v2", "Base Name v3", etc.
+      const generatedVersionName =
+        newVersionName || `${baseNameWithoutVersion} v${nextVersionNumber}`;
+
       const newResumeData = {
-        versionName: newVersionName || `${originalResume.versionName} (Copy)`,
+        versionName: generatedVersionName,
         description: originalResume.description,
         file: originalResume.file,
         templateId: originalResume.templateId,
@@ -387,8 +437,8 @@ class ResumeService {
         content: originalResume.content,
         sectionConfig: originalResume.sectionConfig,
         customizations: originalResume.customizations,
-        versionNumber: (originalResume.versionNumber || 1) + 1,
-        parentResumeId: originalResume.id,
+        versionNumber: nextVersionNumber,
+        parentResumeId: masterResumeId,
         isMaster: false,
         commentsId: originalResume.commentsId,
       };

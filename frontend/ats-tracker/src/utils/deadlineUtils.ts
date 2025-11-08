@@ -28,11 +28,9 @@ export function getDeadlineUrgency(daysRemaining: number | null): DeadlineUrgenc
   if (daysRemaining === null) return null;
   
   if (daysRemaining < 0) return "overdue";
-  if (daysRemaining === 0) return "urgent";
   if (daysRemaining <= 3) return "urgent";
   if (daysRemaining <= 7) return "warning";
-  if (daysRemaining <= 14) return "normal";
-  return "upcoming";
+  return "normal";
 }
 
 /**
@@ -43,15 +41,15 @@ export function getDeadlineColor(urgency: DeadlineUrgency | null): string {
   
   switch (urgency) {
     case "overdue":
-      return "#EF4444"; // Red
+      return "#93694B"; // Muted orange-brown
     case "urgent":
-      return "#F59E0B"; // Amber/Orange
+      return "#B91C1C"; // Red
     case "warning":
-      return "#FBBF24"; // Yellow
+      return "#B7791F"; // Amber
     case "normal":
-      return "#10B981"; // Green
+      return "#15803D"; // Green
     case "upcoming":
-      return "#3B82F6"; // Blue
+      return "#15803D"; // Treat upcoming as green
     default:
       return "#6B7280"; // Gray
   }
@@ -65,15 +63,15 @@ export function getDeadlineBgColor(urgency: DeadlineUrgency | null): string {
   
   switch (urgency) {
     case "overdue":
-      return "#FEE2E2"; // Red 100
+      return "#FFE4BD"; // Soft orange
     case "urgent":
-      return "#FEF3C7"; // Amber 100
+      return "#FFE4E2"; // Light red
     case "warning":
-      return "#FEF3C7"; // Amber 100
+      return "#FFF4CC"; // Light yellow
     case "normal":
-      return "#D1FAE5"; // Green 100
+      return "#DEF7E3"; // Light green
     case "upcoming":
-      return "#DBEAFE"; // Blue 100
+      return "#DEF7E3"; // Light green
     default:
       return "#F3F4F6"; // Gray 100
   }

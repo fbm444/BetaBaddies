@@ -1,12 +1,7 @@
-import { useState, useEffect, FormEvent } from "react";
+import { useState, useEffect, useMemo, FormEvent } from "react";
 import { Icon } from "@iconify/react";
 import { api } from "../services/api";
-import type {
-  JobOpportunityData,
-  JobOpportunityInput,
-  JobStatus,
-  StatusCounts,
-} from "../types";
+import type { JobOpportunityData, JobOpportunityInput, JobStatus } from "../types";
 import { INDUSTRIES, JOB_TYPES, JOB_STATUSES, STATUS_COLORS, STATUS_BG_COLORS } from "../types";
 import { isValidUrl, getUrlErrorMessage } from "../utils/urlValidation";
 import { highlightSearchTerm } from "../utils/searchHighlight";
@@ -25,20 +20,9 @@ import {
 } from "../components/JobOpportunityFilters";
 import { DeadlineCalendar } from "../components/DeadlineCalendar";
 import { ArchiveModal } from "../components/ArchiveModal";
-import { useNavigate } from "react-router-dom";
-import { ROUTES } from "../config/routes";
 
 export function JobOpportunities() {
-  const navigate = useNavigate();
   const [opportunities, setOpportunities] = useState<JobOpportunityData[]>([]);
-  const [statusCounts, setStatusCounts] = useState<StatusCounts>({
-    Interested: 0,
-    Applied: 0,
-    "Phone Screen": 0,
-    Interview: 0,
-    Offer: 0,
-    Rejected: 0,
-  });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -67,9 +51,6 @@ export function JobOpportunities() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkActions, setShowBulkActions] = useState(false);
 
-  // Instructions visibility
-  const [showInstructions, setShowInstructions] = useState(true);
-
   // Modal states
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -83,12 +64,19 @@ export function JobOpportunities() {
   } | null>(null);
   const [selectedOpportunity, setSelectedOpportunity] =
     useState<JobOpportunityData | null>(null);
+  const [quickAddStatus, setQuickAddStatus] = useState<JobStatus | undefined>(undefined);
+  const [addContextNote, setAddContextNote] = useState<string | null>(null);
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [searchValue, setSearchValue] = useState(filters.search || "");
   
   // Notification state for undo
   const [undoArchive, setUndoArchive] = useState<{
     opportunityId: string;
     timeout: ReturnType<typeof setTimeout>;
   } | null>(null);
+
+  const navItems = ["Dashboard", "Employment", "Skills", "Education", "Projects"];
+  const activeNav = "Dashboard";
 
   // Save filters to localStorage whenever they change
   useEffect(() => {
@@ -100,7 +88,6 @@ export function JobOpportunities() {
     const loadData = async () => {
       await fetchOpportunities();
       if (!showArchived) {
-        await fetchStatusCounts();
       }
     };
     loadData();
@@ -192,23 +179,11 @@ export function JobOpportunities() {
     }
   };
 
-  const fetchStatusCounts = async () => {
-    try {
-      const response = await api.getJobOpportunityStatusCounts();
-      if (response.ok && response.data) {
-        setStatusCounts(response.data.statusCounts);
-      }
-    } catch (err: any) {
-      console.error("Failed to fetch status counts:", err);
-    }
-  };
-
   const handleStatusChange = async (id: string, newStatus: JobStatus) => {
     try {
       const response = await api.updateJobOpportunity(id, { status: newStatus });
       if (response.ok) {
         await fetchOpportunities();
-        await fetchStatusCounts();
         showMessage("Status updated successfully!", "success");
       }
     } catch (err: any) {
@@ -229,7 +204,6 @@ export function JobOpportunities() {
         setSelectedIds(new Set());
         setShowBulkActions(false);
         await fetchOpportunities();
-        await fetchStatusCounts();
         showMessage(
           `${response.data.updatedOpportunities.length} job(s) updated successfully!`,
           "success"
@@ -280,7 +254,6 @@ export function JobOpportunities() {
         setSelectedIds(new Set());
         setShowBulkActions(false);
         await fetchOpportunities();
-        await fetchStatusCounts();
         showMessage(
           `${successCount} job deadline(s) extended by ${days} days!`,
           "success"
@@ -318,7 +291,6 @@ export function JobOpportunities() {
       if (response.ok) {
         setShowAddModal(false);
         await fetchOpportunities();
-        await fetchStatusCounts();
         showMessage("Job opportunity added successfully!", "success");
       }
     } catch (err: any) {
@@ -338,7 +310,6 @@ export function JobOpportunities() {
         setShowEditModal(false);
         setSelectedOpportunity(null);
         await fetchOpportunities();
-        await fetchStatusCounts();
         showMessage("Job opportunity updated successfully!", "success");
       }
     } catch (err: any) {
@@ -355,7 +326,6 @@ export function JobOpportunities() {
         setShowDeleteModal(false);
         setSelectedOpportunity(null);
         await fetchOpportunities();
-        await fetchStatusCounts();
         showMessage("Job opportunity deleted successfully!", "success");
       }
     } catch (err: any) {
@@ -400,7 +370,6 @@ export function JobOpportunities() {
         );
         if (response.ok && response.data) {
           await fetchOpportunities();
-          await fetchStatusCounts();
           showMessage("Job opportunity archived successfully!", "success");
           
           // Set up undo option
@@ -422,7 +391,6 @@ export function JobOpportunities() {
           setSelectedIds(new Set());
           setShowBulkActions(false);
           await fetchOpportunities();
-          await fetchStatusCounts();
           showMessage(
             `${response.data.archivedOpportunities.length} job(s) archived successfully!`,
             "success"
@@ -441,7 +409,6 @@ export function JobOpportunities() {
       const response = await api.unarchiveJobOpportunity(opportunityId);
       if (response.ok && response.data) {
         await fetchOpportunities();
-        await fetchStatusCounts();
         showMessage("Job opportunity restored successfully!", "success");
       }
     } catch (err: any) {
@@ -465,7 +432,6 @@ export function JobOpportunities() {
         // Update the selected opportunity with the response data
         setSelectedOpportunity(response.data.jobOpportunity);
         await fetchOpportunities();
-        await fetchStatusCounts();
         showMessage("Job opportunity updated successfully!", "success");
       }
     } catch (err: any) {
@@ -478,6 +444,58 @@ export function JobOpportunities() {
     if (!selectedOpportunity) return;
     setShowDetailModal(false);
     await handleDeleteOpportunity();
+  };
+
+  const handleToggleArchived = (value: boolean) => {
+    setShowArchived(value);
+    if (value) {
+      setViewMode("list");
+    }
+    setIsFiltersOpen(false);
+  };
+
+  const handleViewModeChange = (mode: "list" | "pipeline" | "calendar") => {
+    if (showArchived && mode !== "list") {
+      setShowArchived(false);
+    }
+    setViewMode(mode);
+  };
+
+  const handleOpenAddModal = (status?: JobStatus, note?: string | null) => {
+    setQuickAddStatus(status);
+    setAddContextNote(note || null);
+    setShowAddModal(true);
+  };
+
+  const handleCloseAddModal = () => {
+    setShowAddModal(false);
+    setQuickAddStatus(undefined);
+    setAddContextNote(null);
+  };
+
+  const hasActiveFilters = useMemo(() => {
+    return !!(
+      (filters.status && filters.status !== "all") ||
+      filters.industry ||
+      filters.location ||
+      filters.salaryMin ||
+      filters.salaryMax ||
+      filters.deadlineFrom ||
+      filters.deadlineTo ||
+      (filters.sort && filters.sort !== "-created_at")
+    );
+  }, [filters]);
+
+  useEffect(() => {
+    setSearchValue(filters.search || "");
+  }, [filters.search]);
+
+  const handleSearchChange = (value: string) => {
+    setSearchValue(value);
+    setFilters((prev) => ({
+      ...prev,
+      search: value.trim() ? value : undefined,
+    }));
   };
 
   // Loading state
@@ -500,216 +518,172 @@ export function JobOpportunities() {
   }
 
   return (
-    <div className="p-10 max-w-[1400px] mx-auto bg-white font-poppins min-h-full">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-4xl font-bold text-slate-900 mb-2">
-            Job Opportunities
-          </h1>
-          <p className="text-slate-600">
-            Track positions you're interested in applying for • {opportunities.length}{" "}
-            total
-          </p>
+    <div className="min-h-screen bg-white font-poppins">
+      <main className="max-w-[1400px] mx-auto px-6 lg:px-10 py-10">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-10">
+          <h1 className="text-4xl md:text-5xl font-bold text-slate-900">Job Status Management</h1>
         </div>
-        <div className="flex gap-3">
-          <button
-            onClick={() => navigate(ROUTES.JOB_STATISTICS)}
-            className="px-6 py-3 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors font-medium inline-flex items-center gap-2"
-          >
-            <Icon icon="mingcute:chart-line" width={20} />
-            View Statistics
-          </button>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium inline-flex items-center gap-2"
-          >
-            <Icon icon="mingcute:add-line" width={20} />
-            Add Job Opportunity
-          </button>
-        </div>
-      </div>
 
-      {/* Instructions */}
-      {showInstructions && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
-          <div className="flex items-start gap-3">
-            <Icon
-              icon="mingcute:information-line"
-              className="text-blue-600 mt-0.5 flex-shrink-0"
-              width={20}
-            />
-            <div className="flex-1">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-sm font-semibold text-blue-900">
-                  How to View and Edit Job Details
-                </h3>
+        <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500 mb-6">
+          <div className="flex items-center gap-3 flex-1 min-w-[240px] max-w-xl">
+            <div className="relative flex-1">
+              <Icon
+                icon="mingcute:search-line"
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                width={20}
+              />
+              <input
+                type="text"
+                value={searchValue}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                placeholder="Search job applications..."
+                className="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-full shadow-sm focus:ring-2 focus:ring-[#5490FF] focus:border-transparent text-slate-700 text-sm"
+              />
+              {searchValue && (
                 <button
-                  onClick={() => setShowInstructions(false)}
-                  className="text-blue-600 hover:text-blue-800 transition-colors"
-                  title="Dismiss instructions"
+                  onClick={() => handleSearchChange("")}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                 >
                   <Icon icon="mingcute:close-line" width={18} />
                 </button>
-              </div>
-              <div className="text-sm text-blue-800 space-y-1">
-                <p>
-                  <strong>List View:</strong> Click on any job card to open the detailed view.
-                </p>
-                <p>
-                  <strong>Pipeline View:</strong> Double-click on a job card to open the detailed view.
-                  Single-click and drag to move jobs between stages.
-                </p>
-                <p className="mt-2">
-                  In the detail view, you can edit all job information, add notes, track contacts
-                  (recruiter and hiring manager), record interview feedback, manage salary negotiations,
-                  and maintain an application history log with timestamps.
-                </p>
-              </div>
+              )}
             </div>
+            <button
+              onClick={() => setIsFiltersOpen(true)}
+              className={`px-4 py-2 rounded-full border transition-colors font-medium inline-flex items-center gap-2 text-sm ${
+                hasActiveFilters
+                  ? "border-[#5490FF] bg-[#EEF4FF] text-[#2F5DFF]"
+                  : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              <Icon icon="mingcute:filter-line" width={16} />
+              Filter
+            </button>
           </div>
-        </div>
-      )}
-
-      {/* Search and Filters (only show for active jobs) */}
-      {!showArchived && (
-        <FiltersComponent
-          filters={filters}
-          onFiltersChange={setFilters}
-          onClearFilters={() => setFilters({ sort: "-created_at" })}
-        />
-      )}
-
-      {/* Archive/Active Toggle and View Mode Toggle */}
-      <div className="bg-slate-50 rounded-xl p-4 mb-6 border border-slate-200">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setShowArchived(false)}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
-                !showArchived
-                  ? "bg-blue-500 text-white"
-                  : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
-              }`}
+              onClick={() => handleOpenAddModal(undefined, null)}
+              className="px-4 py-2 rounded-full bg-[#5490FF] text-white text-sm font-semibold inline-flex items-center gap-2 shadow hover:bg-[#4478D9]"
             >
-              <Icon icon="mingcute:briefcase-line" width={18} />
-              Active Jobs
+              <Icon icon="mingcute:add-line" width={16} />
+              Add New Application
             </button>
             <button
-              onClick={() => {
-                setShowArchived(true);
-                setViewMode("list"); // Archive view only supports list mode
-              }}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
-                showArchived
-                  ? "bg-amber-500 text-white"
-                  : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
-              }`}
+              className="px-4 py-2 rounded-full border border-slate-200 bg-white text-slate-600 text-sm font-semibold inline-flex items-center gap-2 shadow-sm hover:bg-slate-100"
+              title="Import job opportunities from a URL (coming soon)"
             >
-              <Icon icon="mingcute:archive-line" width={18} />
-              Archived Jobs
+              <Icon icon="mingcute:link-line" width={16} />
+              Import from URL
+            </button>
+            <button
+              onClick={() => handleToggleArchived(!showArchived)}
+              className="font-semibold text-slate-600 hover:text-slate-900 text-sm"
+            >
+              {showArchived ? "Back to Active Jobs" : "View Archived Jobs"}
             </button>
           </div>
-
-          {!showArchived && (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setViewMode("pipeline")}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
-                  viewMode === "pipeline"
-                    ? "bg-blue-500 text-white"
-                    : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
-                }`}
-              >
-                <Icon icon="mingcute:grid-line" width={18} />
-                Pipeline View
-              </button>
-              <button
-                onClick={() => setViewMode("list")}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
-                  viewMode === "list"
-                    ? "bg-blue-500 text-white"
-                    : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
-                }`}
-              >
-                <Icon icon="mingcute:list-check-line" width={18} />
-                List View
-              </button>
-              <button
-                onClick={() => setViewMode("calendar")}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
-                  viewMode === "calendar"
-                    ? "bg-blue-500 text-white"
-                    : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
-                }`}
-              >
-                <Icon icon="mingcute:calendar-line" width={18} />
-                Calendar View
-              </button>
-            </div>
-          )}
-
-          <div className="text-sm text-slate-600">
-            Showing {opportunities.length} job{opportunities.length !== 1 ? "s" : ""}
-          </div>
         </div>
-      </div>
 
-      {/* Status Counts (only show in pipeline view) */}
-      {viewMode === "pipeline" && (
-        <div className="grid grid-cols-6 gap-4 mb-6">
-          {JOB_STATUSES.map((status) => (
+        {/* Filters Modal */}
+        {isFiltersOpen && (
+          <div className="fixed inset-0 z-40 flex justify-end">
             <div
-              key={status}
-              className="bg-white rounded-lg p-4 border border-slate-200 text-center"
-            >
-              <div
-                className="text-2xl font-bold mb-1"
-                style={{ color: STATUS_COLORS[status] }}
-              >
-                {statusCounts[status]}
+              className="absolute inset-0 bg-slate-900/30"
+              onClick={() => setIsFiltersOpen(false)}
+            />
+            <div className="relative h-full w-full max-w-md bg-white shadow-2xl border-l border-slate-200 pt-12 pb-6 px-6 overflow-y-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-slate-900">Filters</h2>
+                <button
+                  onClick={() => setIsFiltersOpen(false)}
+                  className="text-slate-400 hover:text-slate-600"
+                >
+                  <Icon icon="mingcute:close-line" width={22} />
+                </button>
               </div>
-              <div className="text-xs text-slate-600">{status}</div>
+              <FiltersComponent
+                filters={filters}
+                onFiltersChange={setFilters}
+                onClearFilters={() => setFilters({ sort: "-created_at" })}
+                hideSearchBar
+                variant="plain"
+                viewMode={viewMode}
+                onViewModeChange={handleViewModeChange}
+                showArchivedValue={showArchived}
+                onArchivedToggle={handleToggleArchived}
+              />
+              <div className="mt-6">
+                <button
+                  onClick={() => setIsFiltersOpen(false)}
+                  className="w-full px-4 py-3 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors font-medium"
+                >
+                  Apply Filters
+                </button>
+              </div>
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        )}
 
-      {/* Success/Error Messages */}
-      {successMessage && (
-        <div className="mb-6 bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
+        {/* Success/Error Messages */}
+        {successMessage && (
+          <div className="mb-6 bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <Icon
+                icon="mingcute:check-circle-line"
+                width={20}
+                height={20}
+                className="text-green-600"
+              />
+              <p className="text-green-800 text-sm m-0">{successMessage}</p>
+            </div>
+            {undoArchive && successMessage.includes("archived") && (
+              <button
+                onClick={handleUndoArchive}
+                className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium flex items-center gap-2"
+              >
+                <Icon icon="mingcute:refresh-line" width={16} />
+                Undo
+              </button>
+            )}
+          </div>
+        )}
+
+        {error && (
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
             <Icon
-              icon="mingcute:check-circle-line"
+              icon="mingcute:alert-line"
               width={20}
               height={20}
-              className="text-green-600"
+              className="text-red-600"
             />
-            <p className="text-green-800 text-sm m-0">{successMessage}</p>
+            <p className="text-red-800 text-sm m-0">{error}</p>
           </div>
-          {undoArchive && successMessage.includes("archived") && (
-            <button
-              onClick={handleUndoArchive}
-              className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium flex items-center gap-2"
-            >
-              <Icon icon="mingcute:refresh-line" width={16} />
-              Undo
-            </button>
-          )}
-        </div>
-      )}
+        )}
 
-      {error && (
-        <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
-          <Icon
-            icon="mingcute:alert-line"
-            width={20}
-            height={20}
-            className="text-red-600"
+        {/* View Content */}
+        {!showArchived && viewMode === "pipeline" && (
+          <JobPipeline
+            opportunities={opportunities}
+            onStatusChange={handleStatusChange}
+            onEdit={openEditModal}
+            onDelete={openDeleteModal}
+            onView={openDetailModal}
+            onCreate={(status) =>
+              handleOpenAddModal(
+                status,
+                `Adding a new application directly to ${status}. You can always adjust the stage later.`
+              )
+            }
+            searchTerm={filters.search}
           />
-          <p className="text-red-800 text-sm m-0">{error}</p>
-        </div>
-      )}
+        )}
+
+        {!showArchived && viewMode === "calendar" && (
+          <DeadlineCalendar
+            opportunities={opportunities}
+            onOpportunityClick={openDetailModal}
+          />
+        )}
 
       {/* Empty State for List View */}
       {viewMode === "list" && opportunities.length === 0 && (
@@ -784,26 +758,6 @@ export function JobOpportunities() {
         </div>
       )}
 
-            {/* Pipeline View */}
-            {viewMode === "pipeline" && opportunities.length > 0 && (
-              <JobPipeline
-                opportunities={opportunities}
-                onStatusChange={handleStatusChange}
-                onEdit={openEditModal}
-                onDelete={openDeleteModal}
-                onView={openDetailModal}
-                searchTerm={filters.search}
-              />
-            )}
-
-            {/* Calendar View */}
-            {viewMode === "calendar" && (
-              <DeadlineCalendar
-                opportunities={opportunities}
-                onOpportunityClick={openDetailModal}
-              />
-            )}
-
       {/* Bulk Actions Bar */}
       {viewMode === "list" && !showArchived && showBulkActions && selectedIds.size > 0 && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
@@ -877,50 +831,52 @@ export function JobOpportunities() {
         </div>
       )}
 
-      {/* List View */}
-      {viewMode === "list" && opportunities.length > 0 && (
-        <div>
-          {/* Select All Checkbox */}
-          <div className="mb-4 flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={selectedIds.size === opportunities.length && opportunities.length > 0}
-              onChange={toggleSelectAll}
-              className="w-4 h-4 text-blue-500 border-slate-300 rounded focus:ring-blue-500"
-            />
-            <label className="text-sm font-medium text-slate-700">
-              Select all ({opportunities.length})
-            </label>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {opportunities.map((opportunity) => (
-              <OpportunityCard
-                key={opportunity.id}
-                opportunity={opportunity}
-                onEdit={openEditModal}
-                onDelete={openDeleteModal}
-                onView={openDetailModal}
-                onArchive={openArchiveModal}
-                onUnarchive={handleUnarchive}
-                isSelected={selectedIds.has(opportunity.id)}
-                onToggleSelect={() => toggleSelection(opportunity.id)}
-                showCheckbox={true}
-                searchTerm={filters.search}
-                showArchived={showArchived}
+        {/* List View */}
+        {viewMode === "list" && opportunities.length > 0 && (
+          <div>
+            {/* Select All Checkbox */}
+            <div className="mb-4 flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={selectedIds.size === opportunities.length && opportunities.length > 0}
+                onChange={toggleSelectAll}
+                className="w-4 h-4 text-blue-500 border-slate-300 rounded focus:ring-blue-500"
               />
-            ))}
-          </div>
-        </div>
-      )}
+              <label className="text-sm font-medium text-slate-700">
+                Select all ({opportunities.length})
+              </label>
+            </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {opportunities.map((opportunity) => (
+                <OpportunityCard
+                  key={opportunity.id}
+                  opportunity={opportunity}
+                  onEdit={openEditModal}
+                  onDelete={openDeleteModal}
+                  onView={openDetailModal}
+                  onArchive={openArchiveModal}
+                  onUnarchive={handleUnarchive}
+                  isSelected={selectedIds.has(opportunity.id)}
+                  onToggleSelect={() => toggleSelection(opportunity.id)}
+                  showCheckbox={true}
+                  searchTerm={filters.search}
+                  showArchived={showArchived}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+      </main>
 
       {/* Modals */}
       {showAddModal && (
         <JobOpportunityFormModal
           title="Add Job Opportunity"
           onSubmit={handleAddOpportunity}
-          onClose={() => setShowAddModal(false)}
+          onClose={handleCloseAddModal}
+          defaultStatus={quickAddStatus}
+          contextNote={addContextNote}
         />
       )}
 
@@ -1213,11 +1169,15 @@ function JobOpportunityFormModal({
   initialData,
   onSubmit,
   onClose,
+  defaultStatus,
+  contextNote,
 }: {
   title: string;
   initialData?: JobOpportunityData;
   onSubmit: (data: JobOpportunityInput) => void;
   onClose: () => void;
+  defaultStatus?: JobStatus;
+  contextNote?: string | null;
 }) {
   const [formData, setFormData] = useState<JobOpportunityInput>({
     title: initialData?.title || "",
@@ -1232,7 +1192,7 @@ function JobOpportunityFormModal({
     description: initialData?.description || "",
     industry: initialData?.industry || "",
     jobType: initialData?.jobType || "",
-    status: initialData?.status || "Interested",
+    status: initialData?.status || defaultStatus || "Interested",
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -1256,7 +1216,7 @@ function JobOpportunityFormModal({
         description: initialData.description || "",
         industry: initialData.industry || "",
         jobType: initialData.jobType || "",
-        status: initialData.status || "Interested",
+        status: initialData.status || defaultStatus || "Interested",
       });
     } else {
       setFormData({
@@ -1270,11 +1230,11 @@ function JobOpportunityFormModal({
         description: "",
         industry: "",
         jobType: "",
-        status: "Interested",
+        status: defaultStatus || "Interested",
       });
     }
     setErrors({});
-  }, [initialData]);
+  }, [initialData, defaultStatus]);
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -1369,6 +1329,12 @@ function JobOpportunityFormModal({
             <Icon icon="mingcute:close-line" width={24} />
           </button>
         </div>
+
+        {contextNote && (
+          <div className="bg-violet-50 border border-violet-200 text-violet-800 text-sm rounded-xl p-4 mb-4">
+            {contextNote}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Job Title */}

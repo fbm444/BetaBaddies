@@ -1,4 +1,14 @@
-import { useState, useMemo } from "react";
+const formatStageDate = (dateString?: string) => {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("en-US", {
+    month: "numeric",
+    day: "numeric",
+    year: "numeric",
+  });
+};
+import { useState, useMemo, type CSSProperties } from "react";
 import { Icon } from "@iconify/react";
 import {
   DndContext,
@@ -20,11 +30,7 @@ import type {
   JobOpportunityData,
   JobStatus,
 } from "../types";
-import {
-  JOB_STATUSES,
-  STATUS_COLORS,
-  STATUS_BG_COLORS,
-} from "../types";
+import { JOB_STATUSES, STATUS_COLORS } from "../types";
 import { highlightSearchTerm } from "../utils/searchHighlight";
 import {
   getDaysRemaining,
@@ -37,34 +43,60 @@ import {
 interface JobPipelineProps {
   opportunities: JobOpportunityData[];
   onStatusChange: (id: string, newStatus: JobStatus) => Promise<void>;
-  onEdit: (opportunity: JobOpportunityData) => void;
-  onDelete: (opportunity: JobOpportunityData) => void;
   onView?: (opportunity: JobOpportunityData) => void;
+  onCreate?: (status: JobStatus) => void;
   searchTerm?: string;
 }
 
 interface PipelineColumnProps {
   status: JobStatus;
   opportunities: JobOpportunityData[];
-  onEdit: (opportunity: JobOpportunityData) => void;
-  onDelete: (opportunity: JobOpportunityData) => void;
   onView?: (opportunity: JobOpportunityData) => void;
+  onCreate?: (status: JobStatus) => void;
   searchTerm?: string;
 }
 
 interface PipelineCardProps {
   opportunity: JobOpportunityData;
-  onEdit: (opportunity: JobOpportunityData) => void;
-  onDelete: (opportunity: JobOpportunityData) => void;
   onView?: (opportunity: JobOpportunityData) => void;
   searchTerm?: string;
 }
 
+const getDaysInStage = (dateString?: string): number | null => {
+  if (!dateString) return null;
+  const updatedAt = new Date(dateString);
+  if (Number.isNaN(updatedAt.getTime())) return null;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  updatedAt.setHours(0, 0, 0, 0);
+
+  const diffTime = today.getTime() - updatedAt.getTime();
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  return Math.max(0, diffDays);
+};
+
+const getDaysInStageLabel = (daysInStage: number | null) => {
+  if (daysInStage === null) return "Stage timing unavailable";
+  if (daysInStage <= 1) return "1 Day";
+  if (daysInStage === 1) return "1 Day";
+  return `${daysInStage} Days`;
+};
+
+const formatDeadlineStatus = (daysRemaining: number | null) => {
+  if (daysRemaining === null) return null;
+  if (daysRemaining < 0) {
+    const daysOverdue = Math.abs(daysRemaining);
+    return `${daysOverdue} Day${daysOverdue !== 1 ? "s" : ""} Overdue`;
+  }
+  if (daysRemaining === 0) return "Due Today";
+  if (daysRemaining === 1) return "1 Day Left to Apply";
+  return `${daysRemaining} Days Left to Apply`;
+};
+
 // Pipeline Card Component
 function PipelineCard({
   opportunity,
-  onEdit,
-  onDelete,
   onView,
   searchTerm,
 }: PipelineCardProps) {
@@ -77,103 +109,98 @@ function PipelineCard({
     isDragging,
   } = useSortable({ id: opportunity.id });
 
-  const style = {
+  const daysRemaining = getDaysRemaining(opportunity.applicationDeadline);
+  const isOverdueInterested =
+    opportunity.status === "Interested" &&
+    daysRemaining !== null &&
+    daysRemaining < 0;
+  const accentColor = isOverdueInterested ? "#F89000" : STATUS_COLORS[opportunity.status];
+  const baseStyle: CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
+    opacity: isDragging ? 0.9 : 1,
+    borderLeft: `8px solid ${accentColor}`,
   };
-  const formatSalary = () => {
-    if (opportunity.salaryMin && opportunity.salaryMax) {
-      return `$${opportunity.salaryMin.toLocaleString()} - $${opportunity.salaryMax.toLocaleString()}`;
-    } else if (opportunity.salaryMin) {
-      return `$${opportunity.salaryMin.toLocaleString()}+`;
-    } else if (opportunity.salaryMax) {
-      return `Up to $${opportunity.salaryMax.toLocaleString()}`;
-    }
-    return null;
-  };
+  const deadlineUrgency = getDeadlineUrgency(daysRemaining);
+  const deadlineColor = getDeadlineColor(deadlineUrgency);
+  const deadlineBgColor = getDeadlineBgColor(deadlineUrgency);
+  const deadlineStatus = formatDeadlineStatus(daysRemaining);
+
+  const daysInStage = getDaysInStage(opportunity.statusUpdatedAt);
+  const stageLabel = getDaysInStageLabel(daysInStage);
+  const stageDate = formatStageDate(opportunity.statusUpdatedAt);
 
   return (
     <div
       ref={setNodeRef}
-      style={style}
-      className={`bg-white rounded-lg border border-slate-200 p-4 mb-3 cursor-grab active:cursor-grabbing hover:shadow-md transition-all ${
-        isDragging ? "shadow-lg ring-2 ring-blue-500" : ""
+      style={baseStyle}
+      className={`bg-white rounded-[11px] border border-[#D1D1D1] p-2 pl-3 w-[165px] min-h-[90px] mb-3 shadow-[1px_2px_4px_rgba(0,0,0,0.07)] cursor-grab active:cursor-grabbing transition-transform ${
+        isDragging ? "scale-[1.01] shadow-[0_18px_40px_rgba(17,23,58,0.12)]" : "hover:-translate-y-1"
       }`}
       {...attributes}
       {...listeners}
+      onDoubleClick={(e) => {
+        e.stopPropagation();
+        onView && onView(opportunity);
+      }}
     >
-      <div className="flex items-start justify-between mb-2">
-        <div 
-          className="flex-1 min-w-0"
-          onDoubleClick={(e) => {
-            e.stopPropagation();
-            onView && onView(opportunity);
-          }}
-          style={{ cursor: onView ? 'pointer' : 'default' }}
-        >
-          <h4 className="font-semibold text-slate-900 truncate text-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <h4 className="text-[14px] font-medium text-slate-900 leading-tight truncate">
             {highlightSearchTerm(opportunity.title, searchTerm)}
           </h4>
-          <p className="text-xs text-slate-600 truncate">
-            {highlightSearchTerm(opportunity.company, searchTerm)}
-          </p>
-        </div>
-        <div className="flex gap-1 ml-2">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit(opportunity);
-            }}
-            className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-            title="Edit"
-          >
-            <Icon icon="mingcute:edit-line" width={14} />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(opportunity);
-            }}
-            className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
-            title="Delete"
-          >
-            <Icon icon="mingcute:delete-line" width={14} />
-          </button>
+          <div className="flex items-center gap-1 text-[11px] font-medium text-[#848484] mt-0.5 truncate">
+            <span className="truncate">
+              {highlightSearchTerm(opportunity.company, searchTerm)}
+            </span>
+            {opportunity.location && (
+              <>
+                <span className="text-[#C9C9C9]">•</span>
+                <span className="truncate text-[#848484]">{opportunity.location}</span>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
-      <div className="space-y-1 text-xs text-slate-600">
-        <div className="flex items-center gap-1">
-          <Icon icon="mingcute:location-line" width={12} />
-          <span className="truncate">{opportunity.location}</span>
-        </div>
-        {formatSalary() && (
-          <div className="flex items-center gap-1">
-            <Icon icon="mingcute:currency-dollar-line" width={12} />
-            <span>{formatSalary()}</span>
-          </div>
-        )}
-        {opportunity.applicationDeadline && (
-          <div className="mt-2">
-            <div
-              className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium"
-              style={{
-                backgroundColor: getDeadlineBgColor(
-                  getDeadlineUrgency(getDaysRemaining(opportunity.applicationDeadline))
-                ),
-                color: getDeadlineColor(
-                  getDeadlineUrgency(getDaysRemaining(opportunity.applicationDeadline))
-                ),
-              }}
-            >
-              <Icon icon="mingcute:calendar-line" width={12} />
-              <span>
-                {formatDeadlineText(getDaysRemaining(opportunity.applicationDeadline))}
+      <div className="mt-2 flex flex-col gap-1 text-[9px] font-medium">
+        {((opportunity.status === "Interested" && opportunity.applicationDeadline) || opportunity.statusUpdatedAt) && (
+          <div className="flex flex-wrap items-center gap-2">
+            {opportunity.status === "Interested" && opportunity.applicationDeadline && (
+              <span
+                className="inline-flex items-center gap-1.5 rounded-full px-1.5 py-0.5"
+                style={{
+                  backgroundColor: deadlineBgColor,
+                  color: deadlineColor,
+                }}
+              >
+                <Icon icon="mingcute:edit-4-line" width={10} />
+                {deadlineStatus || formatDeadlineText(daysRemaining)}
               </span>
-            </div>
+            )}
+
+            {opportunity.statusUpdatedAt && (
+              <span className="inline-flex items-center gap-1.5">
+                <span
+                  className="inline-flex items-center gap-1.5 rounded-full px-1.5 py-0.5"
+                  style={{
+                    backgroundColor: "#EAE0FF",
+                    color: "#916BE3",
+                  }}
+                >
+                  <Icon icon="mingcute:calendar-line" width={10} />
+                  {stageLabel}
+                </span>
+                {stageDate && (
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-[#F3F6FF] text-[#6A94EE] font-medium">
+                    {stageDate}
+                  </span>
+                )}
+              </span>
+            )}
           </div>
         )}
+
       </div>
     </div>
   );
@@ -183,9 +210,8 @@ function PipelineCard({
 function PipelineColumn({
   status,
   opportunities,
-  onEdit,
-  onDelete,
   onView,
+  onCreate,
   searchTerm,
 }: PipelineColumnProps) {
   const { setNodeRef } = useDroppable({
@@ -193,43 +219,54 @@ function PipelineColumn({
   });
 
   const statusColor = STATUS_COLORS[status];
-  const statusBgColor = STATUS_BG_COLORS[status];
 
   return (
     <div
       ref={setNodeRef}
-      className="flex-1 min-w-[280px] bg-slate-50 rounded-lg p-4"
+      className="flex-1 min-w-[210px] max-w-[220px] bg-[#F8F8F8] rounded-3xl p-5 border border-[#F0F0F0] shadow-none flex flex-col"
     >
-      <div
-        className="flex items-center justify-between mb-4 p-2 rounded-lg"
-        style={{ backgroundColor: statusBgColor }}
-      >
-        <div className="flex items-center gap-2">
-          <h3
-            className="font-semibold text-sm"
-            style={{ color: statusColor }}
-          >
-            {status}
-          </h3>
+      <div className="flex items-center mb-4">
+        <div className="flex items-center gap-2 flex-1 pr-1">
           <span
-            className="px-2 py-0.5 rounded-full text-xs font-medium"
-            style={{
-              backgroundColor: statusColor,
-              color: "white",
-            }}
-          >
-            {opportunities.length}
+            className="w-2 h-2 rounded-full"
+            style={{ backgroundColor: statusColor }}
+          />
+          <span className="flex items-center gap-2">
+            <h3 className="font-semibold text-slate-800 text-sm whitespace-nowrap">{status}</h3>
+            <span
+              className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold"
+              style={{
+                backgroundColor: "#D3E4FF",
+                color: "#3351FD",
+                borderRadius: "5px",
+                minWidth: "26px",
+              }}
+            >
+              {opportunities.length}
+            </span>
           </span>
         </div>
+        <div className="ml-auto flex items-center pr-3">
+          {onCreate && (
+            <button
+              onClick={() => onCreate(status)}
+              className="text-[#515151] hover:text-[#2f2f2f] transition-colors flex items-center justify-center bg-transparent p-0"
+              title={`Add job to ${status}`}
+            >
+              <Icon icon="mingcute:add-line" width={14} />
+            </button>
+          )}
+        </div>
       </div>
+      <div className="h-px bg-[#E4E4E4] mb-4 -mx-5" />
 
       <SortableContext
         items={opportunities.map((o) => o.id)}
         strategy={verticalListSortingStrategy}
       >
-        <div className="space-y-2 min-h-[100px]">
+        <div className="flex-1 space-y-3 min-h-[120px] overflow-y-auto pr-1.5">
           {opportunities.length === 0 ? (
-            <div className="text-center py-8 text-slate-400 text-sm border-2 border-dashed border-slate-200 rounded-lg">
+            <div className="text-center py-8 px-3 text-slate-400 text-sm border-2 border-dashed border-slate-200 rounded-xl">
               <Icon
                 icon="mingcute:inbox-line"
                 width={24}
@@ -237,18 +274,16 @@ function PipelineColumn({
               />
               Drop jobs here
             </div>
-                ) : (
-                  opportunities.map((opportunity) => (
-                    <PipelineCard
-                      key={opportunity.id}
-                      opportunity={opportunity}
-                      onEdit={onEdit}
-                      onDelete={onDelete}
-                      onView={onView}
-                      searchTerm={searchTerm}
-                    />
-                  ))
-                )}
+          ) : (
+            opportunities.map((opportunity) => (
+              <PipelineCard
+                key={opportunity.id}
+                opportunity={opportunity}
+                onView={onView}
+                searchTerm={searchTerm}
+              />
+            ))
+          )}
         </div>
       </SortableContext>
     </div>
@@ -259,9 +294,8 @@ function PipelineColumn({
 export function JobPipeline({
   opportunities,
   onStatusChange,
-  onEdit,
-  onDelete,
   onView,
+  onCreate,
   searchTerm,
 }: JobPipelineProps) {
   const [, setActiveId] = useState<string | null>(null);
@@ -359,19 +393,21 @@ export function JobPipeline({
         onDragEnd={handleDragEnd}
         onDragOver={handleDragOver}
       >
-        <div className="flex gap-4 overflow-x-auto pb-4">
+        <div
+          className="flex gap-2 overflow-x-auto pb-6 items-stretch"
+          style={{ minHeight: "calc(100vh - 260px)" }}
+        >
           {JOB_STATUSES.map((status) => {
             const statusOpportunities = opportunitiesByStatus[status];
             return (
-                  <PipelineColumn
-                    key={status}
-                    status={status}
-                    opportunities={statusOpportunities}
-                    onEdit={onEdit}
-                    onDelete={onDelete}
-                    onView={onView}
-                    searchTerm={searchTerm}
-                  />
+              <PipelineColumn
+                key={status}
+                status={status}
+                opportunities={statusOpportunities}
+                onView={onView}
+                onCreate={onCreate}
+                searchTerm={searchTerm}
+              />
             );
           })}
         </div>

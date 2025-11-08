@@ -220,9 +220,9 @@ export function JobOpportunityDetailModal({
                 {!opportunity.archived && (
                   <button
                     onClick={() => setIsEditMode(true)}
-                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2"
+                    className="px-3 py-1.5 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors flex items-center gap-1.5 text-sm"
                   >
-                    <Icon icon="mingcute:edit-line" width={18} />
+                    <Icon icon="mingcute:edit-line" width={14} />
                     Edit
                   </button>
                 )}
@@ -238,17 +238,17 @@ export function JobOpportunityDetailModal({
                 {!opportunity.archived && onArchive && (
                   <button
                     onClick={() => onArchive()}
-                    className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors flex items-center gap-2"
+                  className="px-3 py-1.5 bg-[#EC85CA] text-white rounded-md hover:bg-[#D468B1] transition-colors flex items-center gap-1.5 text-sm"
                   >
-                    <Icon icon="mingcute:archive-line" width={18} />
+                    <Icon icon="mingcute:archive-line" width={14} />
                     Archive
                   </button>
                 )}
                 <button
                   onClick={onDelete}
-                  className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors flex items-center gap-2"
+                  className="px-3 py-1.5 border border-red-500 text-red-500 rounded-md hover:bg-red-50 transition-colors flex items-center gap-1.5 text-sm"
                 >
-                  <Icon icon="mingcute:delete-line" width={18} />
+                  <Icon icon="mingcute:delete-line" width={14} />
                   Delete
                 </button>
               </>

@@ -19,15 +19,26 @@ interface JobOpportunityFiltersProps {
   onFiltersChange: (filters: JobOpportunityFilters) => void;
   onClearFilters: () => void;
   showAdvanced?: boolean;
+  hideSearchBar?: boolean;
+  variant?: "card" | "plain";
+  viewMode?: "list" | "pipeline" | "calendar";
+  onViewModeChange?: (mode: "list" | "pipeline" | "calendar") => void;
+  showArchivedValue?: boolean;
+  onArchivedToggle?: (value: boolean) => void;
 }
 
 export function JobOpportunityFilters({
   filters,
   onFiltersChange,
   onClearFilters,
-  showAdvanced: initialShowAdvanced = false,
+  hideSearchBar = false,
+  variant = "card",
+  viewMode,
+  onViewModeChange,
+  showArchivedValue,
+  onArchivedToggle,
 }: JobOpportunityFiltersProps) {
-  const [showAdvanced, setShowAdvanced] = useState(initialShowAdvanced);
+  const showAdvanced = true;
   const [localFilters, setLocalFilters] = useState<JobOpportunityFilters>(filters);
   const [searchInput, setSearchInput] = useState(filters.search || "");
 
@@ -80,39 +91,50 @@ export function JobOpportunityFilters({
     onClearFilters();
   };
 
+  const wrapperClasses =
+    variant === "card"
+      ? "bg-white rounded-xl p-6 border border-slate-200 shadow-sm"
+      : "space-y-4";
+
   return (
-    <div className="bg-white rounded-xl p-6 mb-6 border border-slate-200 shadow-sm">
+    <div className={wrapperClasses}>
       {/* Search Bar */}
-      <div className="mb-4">
-        <div className="relative">
-          <Icon
-            icon="mingcute:search-line"
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-            width={20}
-          />
-          <input
-            type="text"
-            placeholder="Search by job title, company name, or keywords..."
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-          {searchInput && (
-            <button
-              onClick={() => {
-                setSearchInput("");
-                updateFilter("search", "");
-              }}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-            >
-              <Icon icon="mingcute:close-line" width={20} />
-            </button>
-          )}
+      {!hideSearchBar && (
+        <div className="mb-4">
+          <div className="relative">
+            <Icon
+              icon="mingcute:search-line"
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+              width={20}
+            />
+            <input
+              type="text"
+              placeholder="Search by job title, company name, or keywords..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="w-full pl-12 pr-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            {searchInput && (
+              <button
+                onClick={() => {
+                  setSearchInput("");
+                  updateFilter("search", "");
+                }}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                <Icon icon="mingcute:close-line" width={20} />
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Quick Filters Row */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+      <div
+        className={`grid grid-cols-1 md:grid-cols-4 gap-4 ${
+          hideSearchBar ? "" : "mb-4"
+        }`}
+      >
         {/* Status Filter */}
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -191,16 +213,7 @@ export function JobOpportunityFilters({
 
       {/* Advanced Filters Toggle */}
       <div className="flex items-center justify-between">
-        <button
-          onClick={() => setShowAdvanced(!showAdvanced)}
-          className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-2"
-        >
-          <Icon
-            icon={showAdvanced ? "mingcute:up-line" : "mingcute:down-line"}
-            width={16}
-          />
-          {showAdvanced ? "Hide" : "Show"} Advanced Filters
-        </button>
+        <div />
 
         {hasActiveFilters() && (
           <button
@@ -248,33 +261,83 @@ export function JobOpportunityFilters({
                 </div>
               </div>
             </div>
-
-            {/* Deadline Date Range */}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Application Deadline Range
-              </label>
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <input
-                    type="date"
-                    value={localFilters.deadlineFrom || ""}
-                    onChange={(e) => updateFilter("deadlineFrom", e.target.value)}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                <span className="self-center text-slate-500">to</span>
-                <div className="flex-1">
-                  <input
-                    type="date"
-                    value={localFilters.deadlineTo || ""}
-                    onChange={(e) => updateFilter("deadlineTo", e.target.value)}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-              </div>
+          </div>
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Application Deadline Range
+            </label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <input
+                type="date"
+                value={localFilters.deadlineFrom || ""}
+                onChange={(e) => updateFilter("deadlineFrom", e.target.value)}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <input
+                type="date"
+                value={localFilters.deadlineTo || ""}
+                onChange={(e) => updateFilter("deadlineTo", e.target.value)}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
             </div>
           </div>
+        </div>
+      )}
+
+      {(onViewModeChange || onArchivedToggle) && (
+        <div className="mt-6 space-y-4 pt-4 border-t border-slate-200">
+          {onArchivedToggle !== undefined && (
+            <div>
+              <span className="block text-sm font-medium text-slate-700 mb-2">
+                Data Set
+              </span>
+              <div className="inline-flex rounded-xl bg-slate-100 p-1">
+                <button
+                  onClick={() => onArchivedToggle(false)}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    !showArchivedValue
+                      ? "bg-white text-slate-900 shadow"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  Active
+                </button>
+                <button
+                  onClick={() => onArchivedToggle(true)}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    showArchivedValue
+                      ? "bg-[#F89000] text-white shadow"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  Archived
+                </button>
+              </div>
+            </div>
+          )}
+
+          {onViewModeChange && viewMode && (
+            <div>
+              <span className="block text-sm font-medium text-slate-700 mb-2">
+                View Mode
+              </span>
+              <div className="inline-flex rounded-xl bg-slate-100 p-1">
+                {(["pipeline", "list", "calendar"] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => onViewModeChange(mode)}
+                    className={`px-4 py-2 text-sm font-medium rounded-lg capitalize transition-colors ${
+                      viewMode === mode
+                        ? "bg-white text-slate-900 shadow"
+                        : "text-slate-500 hover:text-slate-700"
+                    }`}
+                  >
+                    {mode.replace("-", " ")}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

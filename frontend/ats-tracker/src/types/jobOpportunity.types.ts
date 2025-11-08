@@ -86,21 +86,21 @@ export const JOB_STATUSES: JobStatus[] = [
 ];
 
 export const STATUS_COLORS: Record<JobStatus, string> = {
-  Interested: "#3B82F6", // Blue
-  Applied: "#10B981", // Green
-  "Phone Screen": "#F59E0B", // Amber
-  Interview: "#8B5CF6", // Purple
-  Offer: "#10B981", // Green (success color for offers)
-  Rejected: "#6B7280", // Gray
+  Interested: "#5490FF",
+  Applied: "#858CE7",
+  "Phone Screen": "#B05FFF",
+  Interview: "#F67DF0",
+  Offer: "#4DF744",
+  Rejected: "#FF0000",
 };
 
 export const STATUS_BG_COLORS: Record<JobStatus, string> = {
-  Interested: "#DBEAFE", // Blue 100
-  Applied: "#D1FAE5", // Green 100
-  "Phone Screen": "#FEF3C7", // Amber 100
-  Interview: "#EDE9FE", // Purple 100
-  Offer: "#D1FAE5", // Green 100 (success background for offers)
-  Rejected: "#F3F4F6", // Gray 100
+  Interested: "#E8F1FF",
+  Applied: "#ECECFF",
+  "Phone Screen": "#F2E8FF",
+  Interview: "#FFE9F8",
+  Offer: "#E7FFE9",
+  Rejected: "#FFE5E5",
 };
 
 // Common job types

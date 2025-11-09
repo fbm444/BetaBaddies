@@ -368,7 +368,10 @@ class ResumeService {
         FROM resume
         WHERE parent_resume_id = $1 AND user_id = $2
       `;
-      const childrenResult = await database.query(checkChildrenQuery, [resumeId, userId]);
+      const childrenResult = await database.query(checkChildrenQuery, [
+        resumeId,
+        userId,
+      ]);
 
       // If this resume has children, prevent deletion
       // This prevents the CASCADE from deleting children when deleting the parent
@@ -376,7 +379,7 @@ class ResumeService {
       if (childrenResult.rows.length > 0) {
         throw new Error(
           `Cannot delete this resume because it has ${childrenResult.rows.length} version(s). ` +
-          `Please delete the version(s) first before deleting the original resume.`
+            `Please delete the version(s) first before deleting the original resume.`
         );
       }
 
@@ -388,11 +391,18 @@ class ResumeService {
         // This is a duplicate/version - safe to delete
         // The CASCADE won't affect the parent when deleting a child
         // Verify the parent still exists (sanity check)
-        const parentCheck = await this.getResumeById(existingResume.parentResumeId, userId);
+        const parentCheck = await this.getResumeById(
+          existingResume.parentResumeId,
+          userId
+        );
         if (!parentCheck) {
-          console.warn(`⚠️ Parent resume ${existingResume.parentResumeId} not found for duplicate ${resumeId}`);
+          console.warn(
+            `⚠️ Parent resume ${existingResume.parentResumeId} not found for duplicate ${resumeId}`
+          );
         }
-        console.log(`Deleting duplicate resume ${resumeId} (parent: ${existingResume.parentResumeId})`);
+        console.log(
+          `Deleting duplicate resume ${resumeId} (parent: ${existingResume.parentResumeId})`
+        );
       } else {
         // This is a master/original resume - verify it has no children (already checked above)
         console.log(`Deleting master resume ${resumeId}`);

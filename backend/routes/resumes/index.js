@@ -36,4 +36,3 @@ router.use("/", tailoringRoutes);
 router.use("/", parseRoutes);
 
 export default router;
-

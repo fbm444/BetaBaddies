@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Icon } from "@iconify/react";
 import { api } from "../services/api";
 import type { JobOpportunityData } from "../types";
 import {
@@ -12,7 +11,15 @@ import {
 } from "../utils/deadlineUtils";
 import { ROUTES } from "../config/routes";
 
-export function UpcomingDeadlinesWidget() {
+interface UpcomingDeadlinesWidgetProps {
+  variant?: "default" | "analytics";
+  className?: string;
+}
+
+export function UpcomingDeadlinesWidget({
+  variant = "default",
+  className = "",
+}: UpcomingDeadlinesWidgetProps) {
   const navigate = useNavigate();
   const [upcomingDeadlines, setUpcomingDeadlines] = useState<JobOpportunityData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -26,7 +33,7 @@ export function UpcomingDeadlinesWidget() {
           sort: "application_deadline",
           limit: 10,
         });
-        
+
         if (response.ok && response.data) {
           // Filter to only opportunities with deadlines and get next 5
           const withDeadlines = response.data.jobOpportunities
@@ -36,7 +43,7 @@ export function UpcomingDeadlinesWidget() {
               return days !== null && days <= 30; // Show deadlines within 30 days
             })
             .slice(0, 5);
-          
+
           setUpcomingDeadlines(withDeadlines);
         }
       } catch (err) {
@@ -58,16 +65,21 @@ export function UpcomingDeadlinesWidget() {
     });
   };
 
+  const baseCardClasses =
+    variant === "analytics"
+      ? "bg-white rounded-3xl p-5 md:p-6 shadow-sm font-poppins h-full flex flex-col"
+      : "bg-white rounded-xl p-6 shadow-sm border border-slate-200 font-poppins";
+
   if (isLoading) {
     return (
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200 font-poppins">
-        <div className="flex items-center gap-3 mb-4">
-          <Icon
-            icon="mingcute:calendar-line"
-            className="text-blue-600"
-            width={24}
-          />
-          <h3 className="text-lg font-semibold text-slate-900">
+      <div className={`${baseCardClasses} ${className}`}>
+        <div className="flex items-center justify-between mb-4">
+          <h3
+            className={`text-slate-900 ${
+              variant === "analytics" ? "text-[25px]" : "text-lg"
+            } font-normal`}
+            style={variant === "analytics" ? { fontFamily: "Poppins" } : undefined}
+          >
             Upcoming Deadlines
           </h3>
         </div>
@@ -78,21 +90,23 @@ export function UpcomingDeadlinesWidget() {
 
   if (upcomingDeadlines.length === 0) {
     return (
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200 font-poppins">
+      <div className={`${baseCardClasses} ${className}`}>
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <Icon
-              icon="mingcute:calendar-line"
-              className="text-blue-600"
-              width={24}
-            />
-            <h3 className="text-lg font-semibold text-slate-900">
-              Upcoming Deadlines
-            </h3>
-          </div>
+          <h3
+            className={`text-slate-900 ${
+              variant === "analytics" ? "text-[25px]" : "text-lg"
+            } font-normal`}
+            style={variant === "analytics" ? { fontFamily: "Poppins" } : undefined}
+          >
+            Upcoming Deadlines
+          </h3>
           <button
             onClick={() => navigate(ROUTES.JOB_OPPORTUNITIES)}
-            className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+            className={`font-medium transition-colors ${
+              variant === "analytics"
+                ? "text-white bg-gradient-to-r from-[#1B39FF] to-[#102299] text-xs px-4 py-2 rounded-full hover:opacity-90"
+                : "text-sm text-blue-600 hover:text-blue-700"
+            }`}
           >
             View All
           </button>
@@ -105,26 +119,28 @@ export function UpcomingDeadlinesWidget() {
   }
 
   return (
-    <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200 font-poppins">
+    <div className={`${baseCardClasses} ${className}`}>
       <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <Icon
-            icon="mingcute:calendar-line"
-            className="text-blue-600"
-            width={24}
-          />
-          <h3 className="text-lg font-semibold text-slate-900">
-            Upcoming Deadlines
-          </h3>
-        </div>
+        <h3
+          className={`text-slate-900 ${
+            variant === "analytics" ? "text-[25px]" : "text-lg"
+          } font-normal`}
+          style={variant === "analytics" ? { fontFamily: "Poppins" } : undefined}
+        >
+          Upcoming Deadlines
+        </h3>
         <button
           onClick={() => navigate(ROUTES.JOB_OPPORTUNITIES)}
-          className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+          className={`font-medium transition-colors ${
+            variant === "analytics"
+              ? "text-white bg-[#1B39FF] text-xs px-4 py-2 rounded-full hover:bg-[#102299]"
+              : "text-sm text-blue-600 hover:text-blue-700"
+          }`}
         >
           View All
         </button>
       </div>
-      <div className="space-y-3">
+      <div className="space-y-2 flex-1">
         {upcomingDeadlines.map((opportunity) => {
           const daysRemaining = getDaysRemaining(opportunity.applicationDeadline!);
           const urgency = getDeadlineUrgency(daysRemaining);
@@ -134,22 +150,36 @@ export function UpcomingDeadlinesWidget() {
           return (
             <div
               key={opportunity.id}
-              className="flex items-start justify-between p-3 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors"
+              className={`flex items-center justify-between gap-4 rounded-2xl border transition-colors ${
+                variant === "analytics"
+                  ? "border-transparent bg-[#F8FAFF] px-5 py-4 hover:bg-[#F1F4FF]"
+                  : "border-slate-200 p-3 hover:bg-slate-50"
+              } cursor-pointer`}
               onClick={() => navigate(ROUTES.JOB_OPPORTUNITIES)}
             >
               <div className="flex-1 min-w-0">
-                <h4 className="font-medium text-slate-900 truncate text-sm">
+                <p
+                  className={`truncate font-medium text-slate-900 ${
+                    variant === "analytics" ? "text-sm md:text-base" : "text-sm"
+                  }`}
+                >
                   {opportunity.title}
-                </h4>
-                <p className="text-xs text-slate-600 truncate mt-0.5">
+                </p>
+                <p
+                  className={`truncate text-slate-500 ${
+                    variant === "analytics" ? "text-xs md:text-sm" : "text-xs"
+                  }`}
+                >
                   {opportunity.company}
                 </p>
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="text-xs text-slate-400 mt-1">
                   {formatDate(opportunity.applicationDeadline!)}
                 </p>
               </div>
               <div
-                className="ml-3 px-2 py-1 rounded text-xs font-medium whitespace-nowrap"
+                className={`rounded-full text-xs font-semibold whitespace-nowrap px-3 py-1 ${
+                  variant === "analytics" ? "shadow-sm" : ""
+                }`}
                 style={{
                   backgroundColor: deadlineBgColor,
                   color: deadlineColor,

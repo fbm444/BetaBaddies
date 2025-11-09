@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Icon } from "@iconify/react";
 import { api } from "../services/api";
 import type { JobOpportunityStatistics } from "../types";
-import { JOB_STATUSES, STATUS_COLORS, STATUS_BG_COLORS } from "../types";
+import { JOB_STATUSES, STATUS_COLORS } from "../types";
 import { exportStatisticsToCSV } from "../utils/csvExport";
+import { UpcomingDeadlinesWidget } from "./UpcomingDeadlinesWidget";
 
 interface JobStatisticsSectionProps {
   scrollRef?: React.RefObject<HTMLDivElement | null> | React.RefObject<HTMLDivElement>;
@@ -44,13 +45,14 @@ export function JobStatisticsSection({ scrollRef }: JobStatisticsSectionProps) {
 
   if (isLoading) {
     return (
-      <div
-        ref={scrollRef}
-        className="mt-12 pt-8 border-t border-slate-200 w-full max-w-[1320px] mx-auto font-poppins"
-      >
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-          <p className="mt-4 text-slate-600">Loading statistics...</p>
+      <div ref={scrollRef} className="mt-16 w-full font-poppins">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex min-h-[260px] items-center justify-center rounded-[30px] bg-[#F8F8F8]">
+            <div className="text-center">
+              <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-blue-500" />
+              <p className="text-sm text-[#6D7A99]">Loading job analytics...</p>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -58,255 +60,264 @@ export function JobStatisticsSection({ scrollRef }: JobStatisticsSectionProps) {
 
   if (error || !statistics) {
     return (
-      <div
-        ref={scrollRef}
-        className="mt-12 pt-8 border-t border-slate-200 w-full max-w-[1320px] mx-auto font-poppins"
-      >
-        <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
-          <Icon icon="mingcute:alert-line" className="mx-auto text-red-600 mb-2" width={48} />
-          <p className="text-red-800">{error || "Failed to load statistics"}</p>
+      <div ref={scrollRef} className="mt-16 w-full font-poppins">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="rounded-[30px] border border-[#F5C4C4] bg-[#FDECEC] p-10 text-center">
+            <Icon icon="mingcute:alert-line" className="mx-auto mb-3 text-red-500" width={40} />
+            <p className="text-sm font-medium text-red-700">
+              {error || "Failed to load your job analytics. Please try again later."}
+            </p>
+          </div>
         </div>
       </div>
     );
   }
 
+  const monthlyVolume = statistics.monthlyVolume.slice(-7);
+  const maxMonthlyCount = Math.max(...monthlyVolume.map((v) => v.count || 0), 1);
+  const midMonthlyCount = Math.max(Math.round(maxMonthlyCount / 2), 1);
+
   return (
-    <div
-      ref={scrollRef}
-      className="mt-12 pt-8 border-t border-slate-200 w-full max-w-[1320px] mx-auto font-poppins"
-    >
-      {/* Header */}
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold text-slate-900 mb-2">Job Search Statistics</h2>
-          <p className="text-slate-600">Track your progress and identify patterns</p>
-        </div>
-        <button
-          onClick={handleExportCSV}
-          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2"
-        >
-          <Icon icon="mingcute:download-line" width={20} />
-          Export to CSV
-        </button>
-      </div>
-
-      {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-          <div className="flex items-center gap-3 mb-2">
-            <Icon icon="mingcute:briefcase-line" className="text-blue-600" width={24} />
-            <h3 className="text-sm font-medium text-slate-600">Total Jobs</h3>
+    <div ref={scrollRef} className="mt-16 w-full font-poppins">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="mb-8 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h2 className="text-4xl font-bold text-[#0F1D3A]">Job Search Statistics</h2>
+            <p className="mt-2 text-sm text-[#6D7A99]">
+              Track your progress and identify patterns
+            </p>
           </div>
-          <p className="text-3xl font-bold text-slate-900">{statistics.totalJobs}</p>
+          <button
+            onClick={handleExportCSV}
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-[#3351FD] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#3351FD1A] transition-transform hover:-translate-y-0.5 hover:bg-[#1E3097]"
+          >
+            <Icon icon="mingcute:download-3-line" width={20} />
+            Export to CSV
+          </button>
         </div>
 
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-          <div className="flex items-center gap-3 mb-2">
-            <Icon icon="mingcute:mail-line" className="text-green-600" width={24} />
-            <h3 className="text-sm font-medium text-slate-600">Response Rate</h3>
-          </div>
-          <p className="text-3xl font-bold text-slate-900">{statistics.responseRate}%</p>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-          <div className="flex items-center gap-3 mb-2">
-            <Icon icon="mingcute:calendar-line" className="text-purple-600" width={24} />
-            <h3 className="text-sm font-medium text-slate-600">Deadline Adherence</h3>
-          </div>
-          <p className="text-3xl font-bold text-slate-900">
-            {statistics.deadlineAdherence.percentage}%
-          </p>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-          <div className="flex items-center gap-3 mb-2">
-            <Icon icon="mingcute:time-line" className="text-amber-600" width={24} />
-            <h3 className="text-sm font-medium text-slate-600">Avg. Time to Offer</h3>
-          </div>
-          <p className="text-3xl font-bold text-slate-900">
-            {statistics.timeToOffer.averageDays > 0
-              ? `${statistics.timeToOffer.averageDays} days`
-              : "N/A"}
-          </p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Status Distribution */}
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-          <h2 className="text-xl font-bold text-slate-900 mb-6">Jobs by Status</h2>
-          <div className="space-y-4">
-            {JOB_STATUSES.map((status) => {
-              const count = statistics.statusCounts[status] || 0;
-              const percentage =
-                statistics.totalJobs > 0
-                  ? Math.round((count / statistics.totalJobs) * 100)
-                  : 0;
-
-              return (
-                <div key={status}>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: STATUS_COLORS[status] }}
-                      />
-                      <span className="text-sm font-medium text-slate-700">{status}</span>
+        <div className="rounded-[30px] border border-[#E4E8F5] bg-[#F8F8F8] p-6 sm:p-8 lg:p-12 shadow-sm">
+          <div className="flex flex-col gap-5">
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-[2fr_0.7fr]">
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="flex flex-col justify-between rounded-2xl bg-gradient-to-b from-[#1E3097] to-[#3351FD] p-5 text-white">
+                  <div className="flex items-start justify-between">
+                      <p className="text-[22px] font-normal" style={{ fontFamily: "Poppins" }}>
+                        Total Jobs
+                      </p>
+                      <Icon icon="mingcute:briefcase-2-fill" width={24} height={24} className="text-white" />
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-semibold text-slate-900">{count}</span>
-                      <span className="text-sm text-slate-500 w-12 text-right">{percentage}%</span>
-                    </div>
+                    <p
+                      className="text-6xl font-medium leading-none text-[#E7EFFF]"
+                      style={{ fontFamily: "Poppins" }}
+                    >
+                      {statistics.totalJobs}
+                    </p>
                   </div>
-                  <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{
-                        width: `${percentage}%`,
-                        backgroundColor: STATUS_COLORS[status],
-                      }}
-                    />
+
+                  <div className="flex flex-col justify-between rounded-2xl bg-white p-5">
+                  <div className="flex items-start justify-between">
+                      <p
+                        className="text-[22px] font-normal text-[#0F1D3A]"
+                        style={{ fontFamily: "Poppins" }}
+                      >
+                        Response Rate
+                      </p>
+                      <Icon icon="mingcute:mail-line" width={20} height={20} className="text-[#09244B]" />
+                    </div>
+                    <p
+                      className="text-3xl font-extralight text-[#5A87E6]"
+                      style={{ fontFamily: "Poppins", fontWeight: 200 }}
+                    >
+                      {Math.round(statistics.responseRate)}%
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col justify-between rounded-2xl bg-white p-5">
+                  <div className="flex items-start justify-between">
+                      <p
+                        className="text-[22px] font-normal text-[#0F1D3A]"
+                        style={{ fontFamily: "Poppins" }}
+                      >
+                        Deadline Adherence
+                      </p>
+                      <Icon icon="mingcute:calendar-line" width={24} height={24} className="text-[#0F2B5C]" />
+                    </div>
+                    <p
+                      className="text-3xl font-extralight text-[#5A87E6]"
+                      style={{ fontFamily: "Poppins", fontWeight: 200 }}
+                    >
+                      {statistics.deadlineAdherence.percentage}%
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col justify-between rounded-2xl bg-white p-5">
+                  <div className="flex items-start justify-between">
+                      <p
+                        className="text-[22px] font-normal text-[#0F1D3A]"
+                        style={{ fontFamily: "Poppins" }}
+                      >
+                        Avg. Time to Offer
+                      </p>
+                      <Icon icon="mingcute:time-line" width={24} height={24} className="text-[#0F2B5C]" />
+                    </div>
+                    <p
+                      className="text-3xl font-extralight text-[#5A87E6]"
+                      style={{ fontFamily: "Poppins", fontWeight: 200 }}
+                    >
+                      {statistics.timeToOffer.averageDays > 0
+                        ? `${statistics.timeToOffer.averageDays} Days`
+                        : "N/A"}
+                    </p>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        </div>
 
-        {/* Monthly Application Volume */}
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-          <h2 className="text-xl font-bold text-slate-900 mb-6">Monthly Application Volume</h2>
-          <div className="h-64 flex items-end justify-between gap-2">
-            {statistics.monthlyVolume.length > 0 ? (
-              statistics.monthlyVolume.map((item, index) => {
-                const maxCount = Math.max(
-                  ...statistics.monthlyVolume.map((v) => v.count),
-                  1
-                );
-                const height = (item.count / maxCount) * 100;
-
-                return (
-                  <div key={index} className="flex-1 flex flex-col items-center gap-2">
-                    <div className="relative w-full flex items-end justify-center" style={{ height: '200px' }}>
-                      <div
-                        className="w-full bg-blue-500 rounded-t transition-all hover:bg-blue-600"
-                        style={{ height: `${height}%`, minHeight: item.count > 0 ? '4px' : '0' }}
-                        title={`${item.count} applications in ${new Date(item.month).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`}
-                      />
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.3fr_0.75fr] items-stretch">
+                  <div className="rounded-3xl bg-white p-5 flex flex-col h-full">
+                    <div className="mb-3 flex items-center justify-between">
+                      <h3
+                        className="text-[25px] font-normal text-[#0F1D3A]"
+                        style={{ fontFamily: "Poppins" }}
+                      >
+                        Jobs Tracked by Status
+                      </h3>
                     </div>
-                    <span className="text-xs text-slate-600 transform -rotate-45 origin-top-left whitespace-nowrap">
-                      {new Date(item.month).toLocaleDateString('en-US', { month: 'short' })}
-                    </span>
-                    <span className="text-xs font-medium text-slate-900">{item.count}</span>
+                    <div className="mt-2 flex-1 flex flex-col justify-between gap-4">
+                      {JOB_STATUSES.map((status) => {
+                        const count = statistics.statusCounts[status] || 0;
+                        const percentage =
+                          statistics.totalJobs > 0
+                            ? Math.round((count / statistics.totalJobs) * 100)
+                            : 0;
+
+                        return (
+                          <div key={status} className="flex flex-col gap-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <span
+                                  className="inline-flex h-2.5 w-2.5 rounded-full"
+                                  style={{ backgroundColor: STATUS_COLORS[status] }}
+                                />
+                                <span className="text-sm font-medium text-[#1B2C4B]">{status}</span>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <span className="text-sm font-semibold text-[#0F1D3A]">{count}</span>
+                                <span className="text-sm font-medium text-[#94A3C0]">{percentage}%</span>
+                              </div>
+                            </div>
+                            <div className="h-2.5 w-full overflow-hidden rounded-full bg-[#EEF0FB]">
+                              <div
+                                className="h-full rounded-full transition-all"
+                                style={{
+                                  width: `${percentage}%`,
+                                  backgroundColor: STATUS_COLORS[status],
+                                }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                );
-              })
-            ) : (
-              <div className="w-full text-center text-slate-500 py-12">
-                No application data available
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
 
-      {/* Detailed Statistics */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Deadline Adherence Details */}
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-          <h2 className="text-xl font-bold text-slate-900 mb-6">Deadline Adherence</h2>
-          <div className="space-y-4">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-slate-700">Total with Deadlines</span>
-                <span className="text-sm font-semibold text-slate-900">
-                  {statistics.deadlineAdherence.totalWithDeadlines}
-                </span>
-              </div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-slate-700">Met Deadlines</span>
-                <span className="text-sm font-semibold text-green-600">
-                  {statistics.deadlineAdherence.metDeadlines}
-                </span>
-              </div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-slate-700">Overdue</span>
-                <span className="text-sm font-semibold text-red-600">
-                  {statistics.deadlineAdherence.overdueCount}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-700">Upcoming</span>
-                <span className="text-sm font-semibold text-blue-600">
-                  {statistics.deadlineAdherence.upcomingCount}
-                </span>
-              </div>
-            </div>
-            <div className="pt-4 border-t border-slate-200">
-              <div className="flex items-center justify-between">
-                <span className="text-base font-semibold text-slate-900">Adherence Rate</span>
-                <span className="text-2xl font-bold text-slate-900">
-                  {statistics.deadlineAdherence.percentage}%
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
+                  <div className="flex flex-col gap-3">
+                    <div className="rounded-3xl bg-white p-5">
+                    <div className="mb-3 flex items-center justify-between">
+                      <h3
+                        className="text-[25px] font-normal text-[#0F1D3A]"
+                        style={{ fontFamily: "Poppins" }}
+                      >
+                        Monthly Application Volume
+                      </h3>
+                    </div>
+                    {monthlyVolume.length > 0 ? (
+                      <>
+                        <div className="grid grid-cols-[32px_minmax(0,1fr)] gap-3">
+                          <div className="flex flex-col justify-between text-[11px] font-medium text-[#737DA3]">
+                            <span>{maxMonthlyCount}</span>
+                            <span>{midMonthlyCount}</span>
+                            <span>0</span>
+                          </div>
+                          <div className="flex h-40 items-end justify-between gap-3">
+                            {monthlyVolume.map((item, index) => {
+                              const barHeight = Math.max(
+                                (item.count / maxMonthlyCount) * 100,
+                                item.count > 0 ? 10 : 0
+                              );
+                              const monthLabel = new Date(item.month).toLocaleDateString("en-US", {
+                                month: "short",
+                              });
 
-        {/* Time-to-Offer Analytics */}
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-          <h2 className="text-xl font-bold text-slate-900 mb-6">Time-to-Offer Analytics</h2>
-          <div className="space-y-4">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-slate-700">Total Offers</span>
-                <span className="text-sm font-semibold text-slate-900">
-                  {statistics.timeToOffer.totalOffers}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-700">Average Time</span>
-                <span className="text-sm font-semibold text-slate-900">
-                  {statistics.timeToOffer.averageDays > 0
-                    ? `${statistics.timeToOffer.averageDays} days`
-                    : "N/A"}
-                </span>
-              </div>
-            </div>
-            {statistics.timeToOffer.totalOffers === 0 && (
-              <div className="pt-4 text-sm text-slate-500 text-center">
-                No offers received yet
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+                              return (
+                                <div
+                                  key={`${item.month}-${index}`}
+                                  className="flex min-w-[40px] flex-1 flex-col items-center gap-3"
+                                >
+                                  <div className="relative flex w-full max-w-[48px] flex-1 items-end justify-center">
+                                    <div className="absolute inset-0 rounded-[16px] bg-[#F0F5FC]" />
+                                    <div
+                                      className="relative w-full rounded-[16px] bg-gradient-to-b from-[#3351FD] to-[#1E3097]"
+                                      style={{ height: `${barHeight}%` }}
+                                      title={`${item.count} applications in ${monthLabel}`}
+                                    />
+                                  </div>
+                                  <div className="text-xs font-medium text-[#727EA2]">{monthLabel}</div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="rounded-2xl bg-[#F6F8FE] p-10 text-center text-sm text-[#7A89AF]">
+                        No application data available yet.
+                      </div>
+                    )}
+                    </div>
 
-      {/* Average Time in Stage */}
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-        <h2 className="text-xl font-bold text-slate-900 mb-6">Average Time in Each Stage</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {JOB_STATUSES.map((status) => {
-            const avgDays = statistics.averageTimeInStage[status] || 0;
-            return (
-              <div
-                key={status}
-                className="p-4 rounded-lg border border-slate-200"
-                style={{ borderLeftColor: STATUS_COLORS[status], borderLeftWidth: '4px' }}
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  <div
-                    className="w-2 h-2 rounded-full"
-                    style={{ backgroundColor: STATUS_COLORS[status] }}
-                  />
-                  <span className="text-sm font-medium text-slate-700">{status}</span>
+                    <UpcomingDeadlinesWidget variant="analytics" className="h-full min-h-[180px]" />
+                  </div>
                 </div>
-                <p className="text-2xl font-bold text-slate-900">
-                  {avgDays > 0 ? `${avgDays} days` : "N/A"}
-                </p>
               </div>
-            );
-          })}
+
+              <div className="rounded-3xl bg-white p-5 shadow-sm xl:h-full flex flex-col">
+                <div className="mb-3">
+                  <h3
+                    className="text-[25px] font-normal text-[#0F1D3A]"
+                    style={{ fontFamily: "Poppins" }}
+                  >
+                    Average Time in Stage
+                  </h3>
+                </div>
+                <div className="flex-1 flex flex-col justify-between gap-3">
+                  {JOB_STATUSES.map((status) => {
+                    const avgDays = statistics.averageTimeInStage[status] || 0;
+                    return (
+                      <div
+                        key={status}
+                        className="flex items-center justify-between rounded-xl border border-[#E8EBF8] bg-[#FDFDFF] px-3 py-2.5"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="inline-flex h-2.5 w-2.5 rounded-full"
+                            style={{ backgroundColor: STATUS_COLORS[status] }}
+                          />
+                          <span className="text-[11px] font-medium text-[#0F1D3A]">{status}</span>
+                        </div>
+                        <div className="flex items-end gap-1 text-[#0F1D3A]">
+                          <span className="text-lg font-semibold">
+                            {avgDays > 0 ? avgDays : "--"}
+                          </span>
+                          <span className="text-[10px] font-medium text-[#6D7A99]">Days</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

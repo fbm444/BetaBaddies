@@ -5,7 +5,6 @@ import { DashboardProfileData } from "../types";
 import { dashboardService } from "../services/dashboardService";
 import { ROUTES } from "../config/routes";
 import { exportProfileToPDF } from "../utils/pdfExport";
-import { UpcomingDeadlinesWidget } from "../components/UpcomingDeadlinesWidget";
 
 // Icon component for professional icons using Mingcute
 function MingcuteIcon({ type }: { type: string }) {
@@ -295,11 +294,6 @@ export function Dashboard() {
 
             {/* Right Main Content - Bento Grid */}
             <div className="lg:-ml-6 relative z-10">
-              {/* Upcoming Deadlines Widget */}
-              <div className="mb-6">
-                <UpcomingDeadlinesWidget />
-              </div>
-              
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 auto-rows-auto">
                 {/* Profile Completion Card - Row 1 */}
                 <div className="bg-white rounded-2xl p-6 shadow-lg border border-slate-200 sm:col-span-2 xl:col-span-2">

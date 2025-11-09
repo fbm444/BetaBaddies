@@ -22,10 +22,11 @@ router.use("/shared", sharedRoutes);
 router.use(isAuthenticated);
 
 // Mount feature-specific routes
+// IMPORTANT: aiRoutes must come BEFORE coreRoutes to avoid /:id catching /ai/tailor
+router.use("/", aiRoutes);
 router.use("/", coreRoutes);
 router.use("/templates", templateRoutes);
 router.use("/", exportRoutes);
-router.use("/", aiRoutes);
 router.use("/", versionRoutes);
 router.use("/", validationRoutes);
 router.use("/", sectionRoutes);

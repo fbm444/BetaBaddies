@@ -115,6 +115,7 @@ export interface SkillEntry {
   id: string;
   name: string;
   category: string;
+  group?: string; // Custom group name (e.g., "Frontend", "Backend", "DevOps")
   proficiency?: string;
 }
 

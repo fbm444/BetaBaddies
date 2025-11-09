@@ -4,6 +4,7 @@ import { Icon } from "@iconify/react";
 import { ROUTES } from "../config/routes";
 import { ResumeTemplate, Resume } from "../types";
 import { resumeService } from "../services/resumeService";
+import { Toast } from "../components/resume/Toast";
 
 export function ResumeTemplates() {
   const navigate = useNavigate();
@@ -21,6 +22,7 @@ export function ResumeTemplates() {
   const [availableResumes, setAvailableResumes] = useState<Resume[]>([]);
   const [isLoadingResumes, setIsLoadingResumes] = useState(false);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
 
   // Fetch templates from API (or use mock data if API fails)
   useEffect(() => {
@@ -228,8 +230,15 @@ export function ResumeTemplates() {
 
   const handleSelectTemplate = (templateId: string) => {
     const createNew = searchParams.get("create") === "true";
+    const jobId = searchParams.get("jobId");
     if (createNew) {
-      navigate(`${ROUTES.RESUME_BUILDER}?templateId=${templateId}`);
+      if (jobId) {
+        // Navigate to AI tailoring loader for job-based resumes
+        navigate(`${ROUTES.RESUME_AI_TAILORING}?templateId=${templateId}&jobId=${jobId}`);
+      } else {
+        // Regular resume creation
+        navigate(`${ROUTES.RESUME_BUILDER}?templateId=${templateId}`);
+      }
     } else {
       // Preview template
       setPreviewTemplateId(templateId);
@@ -285,7 +294,10 @@ export function ResumeTemplates() {
       }
     } catch (err: any) {
       console.error("Failed to parse uploaded resume:", err);
-      alert(err.message || "Failed to parse resume. Please try again.");
+      setToast({
+        message: err.message || "Failed to parse resume. Please try again.",
+        type: "error",
+      });
     } finally {
       setIsUploadingFile(false);
     }
@@ -350,6 +362,13 @@ export function ResumeTemplates() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">

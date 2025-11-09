@@ -4,6 +4,8 @@ import { Icon } from "@iconify/react";
 import { ROUTES } from "../config/routes";
 import { Resume } from "../types";
 import { resumeService } from "../services/resumeService";
+import { prospectiveJobService, ProspectiveJob } from "../services/prospectiveJobService";
+import { Toast } from "../components/resume/Toast";
 
 export function Resumes() {
   const navigate = useNavigate();
@@ -13,7 +15,12 @@ export function Resumes() {
   const [filter, setFilter] = useState<'all' | 'master' | 'versions'>('all');
   const [searchQuery, setSearchQuery] = useState("");
   const [exportingId, setExportingId] = useState<string | null>(null);
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [showExportMenu, setShowExportMenu] = useState<string | null>(null);
+  const [prospectiveJobs, setProspectiveJobs] = useState<ProspectiveJob[]>([]);
+  const [showJobPipeline, setShowJobPipeline] = useState(true);
+  const [jobFilterStage, setJobFilterStage] = useState<string>("all");
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
 
   // Fetch resumes from API (or use mock data if API fails)
   useEffect(() => {
@@ -23,7 +30,70 @@ export function Resumes() {
         setError(null);
         const response = await resumeService.getResumes();
         if (response.ok && response.data) {
-          setResumes(response.data.resumes);
+          const allResumes = response.data.resumes;
+          
+          // Deduplicate resumes: Remove true duplicates (same name, jobId, and created within 5 seconds)
+          // This handles cases where the same resume was created twice due to race conditions
+          const seenResumes = new Map<string, Resume>();
+          const resumeIds = new Set<string>(); // Track unique IDs
+          
+          allResumes.forEach((resume: Resume) => {
+            // Skip if we've already seen this exact ID (shouldn't happen, but be safe)
+            if (resumeIds.has(resume.id)) {
+              return;
+            }
+            
+            // Create a unique key based on name, jobId, and creation time (within 5 seconds)
+            const resumeName = resume.name || resume.versionName || '';
+            const jobId = resume.jobId || 'no-job';
+            const createdAt = new Date(resume.createdAt).getTime();
+            
+            // Round creation time to nearest 5 seconds to catch duplicates created close together
+            const timeBucket = Math.floor(createdAt / 5000) * 5000;
+            const key = `${resumeName}_${jobId}_${timeBucket}`;
+            
+            if (!seenResumes.has(key)) {
+              // First time seeing this resume - add it
+              seenResumes.set(key, resume);
+              resumeIds.add(resume.id);
+            } else {
+              // Potential duplicate found - keep the one that is:
+              // 1. Master (if one is master and the other isn't)
+              // 2. Most recently updated (if both are same type)
+              const existing = seenResumes.get(key)!;
+              const existingIsMaster = existing.isMaster ?? false;
+              const currentIsMaster = resume.isMaster ?? false;
+              
+              // If they're the same ID, skip (shouldn't happen)
+              if (existing.id === resume.id) {
+                return;
+              }
+              
+              if (currentIsMaster && !existingIsMaster) {
+                // Current is master, existing is not - replace
+                resumeIds.delete(existing.id);
+                seenResumes.set(key, resume);
+                resumeIds.add(resume.id);
+              } else if (!currentIsMaster && existingIsMaster) {
+                // Existing is master, current is not - keep existing, skip current
+                // Do nothing
+              } else {
+                // Both are same type - keep the most recently updated
+                const existingDate = new Date(existing.updatedAt).getTime();
+                const currentDate = new Date(resume.updatedAt).getTime();
+                if (currentDate > existingDate) {
+                  resumeIds.delete(existing.id);
+                  seenResumes.set(key, resume);
+                  resumeIds.add(resume.id);
+                }
+              }
+            }
+          });
+          
+          // Convert map back to array
+          const deduplicatedResumes = Array.from(seenResumes.values());
+          
+          setResumes(deduplicatedResumes);
         }
       } catch (err: any) {
         // If API fails, use mock data for preview
@@ -90,7 +160,26 @@ export function Resumes() {
     };
 
     fetchResumes();
+    fetchProspectiveJobs();
   }, []);
+
+  const fetchProspectiveJobs = async () => {
+    try {
+      console.log("Fetching prospective jobs...");
+      const response = await prospectiveJobService.getProspectiveJobs();
+      console.log("Prospective jobs response:", response);
+      if (response.ok && response.data) {
+        console.log("Setting jobs:", response.data.jobs);
+        setProspectiveJobs(response.data.jobs || []);
+      } else {
+        console.warn("Response not ok:", response);
+      }
+    } catch (err: any) {
+      console.error("Failed to fetch prospective jobs:", err);
+      // Set empty array on error so UI doesn't break
+      setProspectiveJobs([]);
+    }
+  };
 
   const filteredResumes = resumes.filter((resume) => {
     if (filter === 'master' && !resume.isMaster) return false;
@@ -106,6 +195,27 @@ export function Resumes() {
     navigate(`${ROUTES.RESUME_TEMPLATES}?create=true`);
   };
 
+  const handleCreateResumeForJob = (jobId: string) => {
+    navigate(`${ROUTES.RESUME_TEMPLATES}?create=true&jobId=${jobId}`);
+  };
+
+  const getStageColor = (stage: string) => {
+    const colors: Record<string, string> = {
+      Interested: "bg-blue-100 text-blue-700 border-blue-200",
+      Applied: "bg-purple-100 text-purple-700 border-purple-200",
+      "Phone Screen": "bg-yellow-100 text-yellow-700 border-yellow-200",
+      Interview: "bg-orange-100 text-orange-700 border-orange-200",
+      Offer: "bg-green-100 text-green-700 border-green-200",
+      Rejected: "bg-red-100 text-red-700 border-red-200",
+    };
+    return colors[stage] || "bg-gray-100 text-gray-700 border-gray-200";
+  };
+
+  const filteredJobs = prospectiveJobs.filter((job) => {
+    if (jobFilterStage !== "all" && job.stage !== jobFilterStage) return false;
+    return true;
+  });
+
   const handleEditResume = (id: string) => {
     navigate(`${ROUTES.RESUME_BUILDER}?id=${id}`);
   };
@@ -115,36 +225,277 @@ export function Resumes() {
   };
 
   const handleDuplicateResume = async (id: string) => {
+    // Prevent duplicate clicks
+    if (duplicatingId === id) {
+      return;
+    }
+
     try {
+      setDuplicatingId(id);
       const response = await resumeService.duplicateResume(id);
       if (response.ok && response.data) {
-        // Refresh resumes list
+        // Refresh resumes list immediately after duplication
         const resumesResponse = await resumeService.getResumes();
         if (resumesResponse.ok && resumesResponse.data) {
-          setResumes(resumesResponse.data.resumes);
+          const allResumes = resumesResponse.data.resumes;
+          
+          // Deduplicate resumes: Remove true duplicates (same name, jobId, and created within 5 seconds)
+          const seenResumes = new Map<string, Resume>();
+          const resumeIds = new Set<string>();
+          
+          allResumes.forEach((resume: Resume) => {
+            if (resumeIds.has(resume.id)) {
+              return;
+            }
+            
+            const resumeName = resume.name || resume.versionName || '';
+            const jobId = resume.jobId || 'no-job';
+            const createdAt = new Date(resume.createdAt).getTime();
+            const timeBucket = Math.floor(createdAt / 5000) * 5000;
+            const key = `${resumeName}_${jobId}_${timeBucket}`;
+            
+            if (!seenResumes.has(key)) {
+              seenResumes.set(key, resume);
+              resumeIds.add(resume.id);
+            } else {
+              const existing = seenResumes.get(key)!;
+              const existingIsMaster = existing.isMaster ?? false;
+              const currentIsMaster = resume.isMaster ?? false;
+              
+              if (existing.id === resume.id) {
+                return;
+              }
+              
+              if (currentIsMaster && !existingIsMaster) {
+                resumeIds.delete(existing.id);
+                seenResumes.set(key, resume);
+                resumeIds.add(resume.id);
+              } else if (!currentIsMaster && existingIsMaster) {
+                // Keep existing
+              } else {
+                const existingDate = new Date(existing.updatedAt).getTime();
+                const currentDate = new Date(resume.updatedAt).getTime();
+                if (currentDate > existingDate) {
+                  resumeIds.delete(existing.id);
+                  seenResumes.set(key, resume);
+                  resumeIds.add(resume.id);
+                }
+              }
+            }
+          });
+          
+          setResumes(Array.from(seenResumes.values()));
         }
         // Show success message
         const duplicatedResume = response.data.resume;
-        alert(`Resume duplicated successfully! Created: ${duplicatedResume.name || duplicatedResume.versionName}`);
+        setToast({
+          message: `Resume duplicated successfully! Created: ${duplicatedResume.name || duplicatedResume.versionName}`,
+          type: "success",
+        });
       } else {
-        alert(response.error?.message || "Failed to duplicate resume. Please try again.");
+        setToast({
+          message: response.error?.message || "Failed to duplicate resume. Please try again.",
+          type: "error",
+        });
+        // Still try to refresh the list in case the duplicate partially succeeded
+        const resumesResponse = await resumeService.getResumes();
+        if (resumesResponse.ok && resumesResponse.data) {
+          const allResumes = resumesResponse.data.resumes;
+          
+          // Deduplicate resumes
+          const seenResumes = new Map<string, Resume>();
+          const resumeIds = new Set<string>();
+          
+          allResumes.forEach((resume: Resume) => {
+            if (resumeIds.has(resume.id)) {
+              return;
+            }
+            
+            const resumeName = resume.name || resume.versionName || '';
+            const jobId = resume.jobId || 'no-job';
+            const createdAt = new Date(resume.createdAt).getTime();
+            const timeBucket = Math.floor(createdAt / 5000) * 5000;
+            const key = `${resumeName}_${jobId}_${timeBucket}`;
+            
+            if (!seenResumes.has(key)) {
+              seenResumes.set(key, resume);
+              resumeIds.add(resume.id);
+            } else {
+              const existing = seenResumes.get(key)!;
+              const existingIsMaster = existing.isMaster ?? false;
+              const currentIsMaster = resume.isMaster ?? false;
+              
+              if (existing.id === resume.id) {
+                return;
+              }
+              
+              if (currentIsMaster && !existingIsMaster) {
+                resumeIds.delete(existing.id);
+                seenResumes.set(key, resume);
+                resumeIds.add(resume.id);
+              } else if (!currentIsMaster && existingIsMaster) {
+                // Keep existing
+              } else {
+                const existingDate = new Date(existing.updatedAt).getTime();
+                const currentDate = new Date(resume.updatedAt).getTime();
+                if (currentDate > existingDate) {
+                  resumeIds.delete(existing.id);
+                  seenResumes.set(key, resume);
+                  resumeIds.add(resume.id);
+                }
+              }
+            }
+          });
+          
+          setResumes(Array.from(seenResumes.values()));
+        }
       }
     } catch (err: any) {
       console.error("Error duplicating resume:", err);
-      alert(err.message || "Failed to duplicate resume. Please try again.");
+      setToast({
+        message: err.message || "Failed to duplicate resume. Please try again.",
+        type: "error",
+      });
+      // Try to refresh the list anyway in case the duplicate succeeded but response failed
+      try {
+        const resumesResponse = await resumeService.getResumes();
+        if (resumesResponse.ok && resumesResponse.data) {
+          const allResumes = resumesResponse.data.resumes;
+          
+          // Deduplicate resumes
+          const seenResumes = new Map<string, Resume>();
+          const resumeIds = new Set<string>();
+          
+          allResumes.forEach((resume: Resume) => {
+            if (resumeIds.has(resume.id)) {
+              return;
+            }
+            
+            const resumeName = resume.name || resume.versionName || '';
+            const jobId = resume.jobId || 'no-job';
+            const createdAt = new Date(resume.createdAt).getTime();
+            const timeBucket = Math.floor(createdAt / 5000) * 5000;
+            const key = `${resumeName}_${jobId}_${timeBucket}`;
+            
+            if (!seenResumes.has(key)) {
+              seenResumes.set(key, resume);
+              resumeIds.add(resume.id);
+            } else {
+              const existing = seenResumes.get(key)!;
+              const existingIsMaster = existing.isMaster ?? false;
+              const currentIsMaster = resume.isMaster ?? false;
+              
+              if (existing.id === resume.id) {
+                return;
+              }
+              
+              if (currentIsMaster && !existingIsMaster) {
+                resumeIds.delete(existing.id);
+                seenResumes.set(key, resume);
+                resumeIds.add(resume.id);
+              } else if (!currentIsMaster && existingIsMaster) {
+                // Keep existing
+              } else {
+                const existingDate = new Date(existing.updatedAt).getTime();
+                const currentDate = new Date(resume.updatedAt).getTime();
+                if (currentDate > existingDate) {
+                  resumeIds.delete(existing.id);
+                  seenResumes.set(key, resume);
+                  resumeIds.add(resume.id);
+                }
+              }
+            }
+          });
+          
+          setResumes(Array.from(seenResumes.values()));
+        }
+      } catch (refreshErr) {
+        console.error("Failed to refresh resumes after duplicate:", refreshErr);
+      }
+    } finally {
+      setDuplicatingId(null);
     }
   };
 
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+
   const handleDeleteResume = async (id: string) => {
-    if (confirm("Are you sure you want to delete this resume?")) {
-      try {
-        await resumeService.deleteResume(id);
-        setResumes(resumes.filter((r) => r.id !== id));
-      } catch (err: any) {
-        // Mock mode - remove from local state
-        setResumes(resumes.filter((r) => r.id !== id));
-        console.log("Would delete resume:", id);
+    setShowDeleteConfirm(id);
+  };
+
+  const confirmDeleteResume = async () => {
+    if (!showDeleteConfirm) return;
+    // Capture the ID before clearing the state to avoid race conditions
+    const idToDelete = showDeleteConfirm;
+    setShowDeleteConfirm(null);
+    
+    try {
+      await resumeService.deleteResume(idToDelete);
+      // Refresh the resumes list to ensure it's up to date
+      const resumesResponse = await resumeService.getResumes();
+      if (resumesResponse.ok && resumesResponse.data) {
+        const allResumes = resumesResponse.data.resumes;
+        
+        // Deduplicate resumes: Remove true duplicates (same name, jobId, and created within 5 seconds)
+        const seenResumes = new Map<string, Resume>();
+        const resumeIds = new Set<string>();
+        
+        allResumes.forEach((resume: Resume) => {
+          if (resumeIds.has(resume.id)) {
+            return;
+          }
+          
+          const resumeName = resume.name || resume.versionName || '';
+          const jobId = resume.jobId || 'no-job';
+          const createdAt = new Date(resume.createdAt).getTime();
+          const timeBucket = Math.floor(createdAt / 5000) * 5000;
+          const key = `${resumeName}_${jobId}_${timeBucket}`;
+          
+          if (!seenResumes.has(key)) {
+            seenResumes.set(key, resume);
+            resumeIds.add(resume.id);
+          } else {
+            const existing = seenResumes.get(key)!;
+            const existingIsMaster = existing.isMaster ?? false;
+            const currentIsMaster = resume.isMaster ?? false;
+            
+            if (existing.id === resume.id) {
+              return;
+            }
+            
+            if (currentIsMaster && !existingIsMaster) {
+              resumeIds.delete(existing.id);
+              seenResumes.set(key, resume);
+              resumeIds.add(resume.id);
+            } else if (!currentIsMaster && existingIsMaster) {
+              // Keep existing
+            } else {
+              const existingDate = new Date(existing.updatedAt).getTime();
+              const currentDate = new Date(resume.updatedAt).getTime();
+              if (currentDate > existingDate) {
+                resumeIds.delete(existing.id);
+                seenResumes.set(key, resume);
+                resumeIds.add(resume.id);
+              }
+            }
+          }
+        });
+        
+        setResumes(Array.from(seenResumes.values()));
+      } else {
+        // Fallback: remove from local state using the captured ID
+        setResumes(resumes.filter((r) => r.id !== idToDelete));
       }
+      setToast({
+        message: "Resume deleted successfully",
+        type: "success",
+      });
+    } catch (err: any) {
+      console.error("Failed to delete resume:", err);
+      setToast({
+        message: err.message || "Failed to delete resume. Please try again.",
+        type: "error",
+      });
     }
   };
 
@@ -176,8 +527,11 @@ export function Resumes() {
           break;
       }
     } catch (err: any) {
-      // Mock mode - show alert
-      alert(`Export to ${format.toUpperCase()} will work once database is set up. For now, this is just a preview.`);
+      // Mock mode - show toast
+      setToast({
+        message: `Export to ${format.toUpperCase()} will work once database is set up. For now, this is just a preview.`,
+        type: "info",
+      });
       console.log("Would export resume:", resumeId, "as", format);
     } finally {
       setExportingId(null);
@@ -214,6 +568,38 @@ export function Resumes() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-in zoom-in-95 duration-300">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Delete Resume</h2>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete this resume? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(null)}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteResume}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
@@ -222,13 +608,31 @@ export function Resumes() {
               <h1 className="text-3xl font-bold text-gray-900">My Resumes</h1>
               <p className="text-gray-600 mt-1">Manage and create tailored resumes for different positions</p>
             </div>
-            <button
-              onClick={handleCreateResume}
-              className="flex items-center gap-2 bg-black text-white px-6 py-3 rounded-lg hover:bg-gray-800 transition-colors font-medium"
-            >
-              <Icon icon="mingcute:add-line" className="w-5 h-5" />
-              Create New Resume
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowJobPipeline(!showJobPipeline)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-medium ${
+                  showJobPipeline
+                    ? "bg-[#3351FD] text-white"
+                    : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                }`}
+              >
+                <Icon icon="mingcute:briefcase-line" className="w-5 h-5" />
+                Job Pipeline
+                {prospectiveJobs.length > 0 && (
+                  <span className="px-2 py-0.5 bg-white/20 rounded text-xs font-medium">
+                    {prospectiveJobs.length}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={handleCreateResume}
+                className="flex items-center gap-2 bg-black text-white px-6 py-3 rounded-lg hover:bg-gray-800 transition-colors font-medium"
+              >
+                <Icon icon="mingcute:add-line" className="w-5 h-5" />
+                Create New Resume
+              </button>
+            </div>
           </div>
 
           {/* Filters and Search */}
@@ -282,6 +686,94 @@ export function Resumes() {
             </div>
           </div>
         </div>
+
+        {/* Job Pipeline Section */}
+        {showJobPipeline && (
+          <div className="mb-8 bg-white rounded-lg border border-gray-200 shadow-sm">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <Icon icon="mingcute:briefcase-line" className="w-6 h-6 text-[#3351FD]" />
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900">Job Pipeline</h2>
+                    <p className="text-sm text-gray-600">Select a job to create a tailored resume version</p>
+                  </div>
+                </div>
+                <select
+                  value={jobFilterStage}
+                  onChange={(e) => setJobFilterStage(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent text-sm"
+                >
+                  <option value="all">All Stages</option>
+                  <option value="Interested">Interested</option>
+                  <option value="Applied">Applied</option>
+                  <option value="Phone Screen">Phone Screen</option>
+                  <option value="Interview">Interview</option>
+                  <option value="Offer">Offer</option>
+                  <option value="Rejected">Rejected</option>
+                </select>
+              </div>
+            </div>
+            <div className="p-6">
+              {filteredJobs.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <Icon icon="mingcute:briefcase-line" className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p className="text-sm">
+                    {prospectiveJobs.length === 0
+                      ? "No jobs in your pipeline. Add jobs to create tailored resume versions."
+                      : "No jobs match the selected stage filter."}
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredJobs.map((job) => (
+                    <div
+                      key={job.id}
+                      className="border border-gray-200 rounded-lg p-4 hover:border-[#3351FD] hover:shadow-md transition-all cursor-pointer group"
+                      onClick={() => handleCreateResumeForJob(job.id)}
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-gray-900 truncate group-hover:text-[#3351FD] transition-colors">
+                            {job.jobTitle}
+                          </h3>
+                          <p className="text-sm text-gray-700 truncate">{job.company}</p>
+                          {job.location && (
+                            <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                              <Icon icon="mingcute:map-pin-line" className="w-3 h-3" />
+                              {job.location}
+                            </p>
+                          )}
+                        </div>
+                        <span
+                          className={`px-2 py-1 rounded text-xs font-medium border flex-shrink-0 ${getStageColor(
+                            job.stage
+                          )}`}
+                        >
+                          {job.stage}
+                        </span>
+                      </div>
+                      {job.description && (
+                        <p className="text-xs text-gray-600 mt-2 line-clamp-2">
+                          {job.description}
+                        </p>
+                      )}
+                      <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
+                        <span className="text-xs text-gray-500">
+                          {new Date(job.dateAdded).toLocaleDateString()}
+                        </span>
+                        <div className="flex items-center gap-1 text-xs text-[#3351FD] font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                          <span>Create Resume</span>
+                          <Icon icon="mingcute:arrow-right-line" className="w-3 h-3" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Resumes Grid */}
         {filteredResumes.length === 0 ? (
@@ -339,16 +831,24 @@ export function Resumes() {
                 <div className="border-t border-gray-200 p-4 bg-gray-50">
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => handleEditResume(resume.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEditResume(resume.id);
+                      }}
                       className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors text-sm font-medium"
+                      type="button"
                     >
                       <Icon icon="mingcute:edit-line" className="w-4 h-4" />
                       Edit
                     </button>
                     <button
-                      onClick={() => handlePreviewResume(resume.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePreviewResume(resume.id);
+                      }}
                       className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
                       title="Preview"
+                      type="button"
                     >
                       <Icon icon="mingcute:eye-line" className="w-4 h-4 text-gray-700" />
                     </button>
@@ -399,16 +899,29 @@ export function Resumes() {
                       )}
                     </div>
                     <button
-                      onClick={() => handleDuplicateResume(resume.id)}
-                      className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDuplicateResume(resume.id);
+                      }}
+                      disabled={duplicatingId === resume.id}
+                      className="p-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       title="Duplicate"
+                      type="button"
                     >
-                      <Icon icon="mingcute:file-copy-line" className="w-4 h-4 text-gray-700" />
+                      {duplicatingId === resume.id ? (
+                        <Icon icon="mingcute:loading-line" className="w-4 h-4 text-gray-700 animate-spin" />
+                      ) : (
+                        <Icon icon="mingcute:add-line" className="w-4 h-4 text-gray-700" />
+                      )}
                     </button>
                     <button
-                      onClick={() => handleDeleteResume(resume.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteResume(resume.id);
+                      }}
                       className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-red-50 transition-colors"
                       title="Delete"
+                      type="button"
                     >
                       <Icon icon="mingcute:delete-line" className="w-4 h-4 text-red-600" />
                     </button>

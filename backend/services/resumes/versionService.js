@@ -12,30 +12,92 @@ class ResumeVersionService {
         throw new Error("Resume not found");
       }
 
-      // Get all versions (resumes with same parent_resume_id or resume itself)
+      // Determine the parent resume ID (the root of the version tree)
+      // If this resume has a parent, use that. Otherwise, use this resume's ID as the parent.
+      const parentResumeId = resume.parentResumeId || resumeId;
+
+      console.log(`🔍 Getting versions for resume ${resumeId}, parent: ${parentResumeId}`);
+
+      // Get all versions that share the same parent (or are the parent itself)
+      // This includes:
+      // 1. The parent resume itself (id = parentResumeId)
+      // 2. All versions with parent_resume_id = parentResumeId
       const query = `
         SELECT id, user_id, version_name, description, created_at, updated_at, 
-               version_number, parent_resume_id, is_master
+               version_number, parent_resume_id, is_master, template_id, job_id,
+               content, section_config, customizations, file, comments_id
         FROM resume
-        WHERE (id = $1 OR parent_resume_id = $1 OR 
-               (parent_resume_id IS NULL AND id = $1))
+        WHERE (id = $1 OR parent_resume_id = $1)
           AND user_id = $2
         ORDER BY version_number ASC, created_at ASC
       `;
 
-      const result = await database.query(query, [resumeId, userId]);
+      const result = await database.query(query, [parentResumeId, userId]);
+      
+      console.log(`✅ Found ${result.rows.length} versions:`, result.rows.map(r => ({
+        id: r.id,
+        versionName: r.version_name,
+        versionNumber: r.version_number,
+        parentResumeId: r.parent_resume_id
+      })));
 
-      return result.rows.map((row) => ({
-        id: row.id,
-        userId: row.user_id,
-        versionName: row.version_name,
-        description: row.description,
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-        versionNumber: row.version_number || 1,
-        parentResumeId: row.parent_resume_id,
-        isMaster: row.is_master || false,
-      }));
+      // Return full resume objects (mapped like getResumeById does)
+      return result.rows.map((row) => {
+        const resume = {
+          id: row.id,
+          userId: row.user_id,
+          versionName: row.version_name,
+          description: row.description,
+          createdAt: row.created_at,
+          updatedAt: row.updated_at,
+          versionNumber: row.version_number || 1,
+          parentResumeId: row.parent_resume_id,
+          isMaster: row.is_master || false,
+          templateId: row.template_id || null,
+          jobId: row.job_id || null,
+          file: row.file || null,
+          commentsId: row.comments_id || null,
+        };
+
+        // Parse JSONB fields
+        if (row.content) {
+          try {
+            resume.content = typeof row.content === 'string' 
+              ? JSON.parse(row.content) 
+              : row.content;
+          } catch {
+            resume.content = null;
+          }
+        } else {
+          resume.content = null;
+        }
+
+        if (row.section_config) {
+          try {
+            resume.sectionConfig = typeof row.section_config === 'string'
+              ? JSON.parse(row.section_config)
+              : row.section_config;
+          } catch {
+            resume.sectionConfig = null;
+          }
+        } else {
+          resume.sectionConfig = null;
+        }
+
+        if (row.customizations) {
+          try {
+            resume.customizations = typeof row.customizations === 'string'
+              ? JSON.parse(row.customizations)
+              : row.customizations;
+          } catch {
+            resume.customizations = null;
+          }
+        } else {
+          resume.customizations = null;
+        }
+
+        return resume;
+      });
     } catch (error) {
       console.error("❌ Error getting versions:", error);
       throw error;
@@ -45,7 +107,7 @@ class ResumeVersionService {
   // Create new version from existing resume
   async createVersion(resumeId, userId, versionData) {
     try {
-      const { versionName, description } = versionData;
+      const { versionName, description, jobId } = versionData;
 
       const originalResume = await resumeService.getResumeById(resumeId, userId);
       if (!originalResume) {
@@ -62,12 +124,13 @@ class ResumeVersionService {
       const parentResumeId = originalResume.parentResumeId || resumeId;
 
       // Create new version with all content
+      // Allow jobId to be overridden for different job types
       const newResumeData = {
         versionName: versionName || `${originalResume.versionName} v${nextVersionNumber}`,
         description: description || originalResume.description,
         file: originalResume.file,
         templateId: originalResume.templateId,
-        jobId: originalResume.jobId,
+        jobId: jobId !== undefined ? jobId : originalResume.jobId, // Allow jobId override
         content: originalResume.content,
         sectionConfig: originalResume.sectionConfig,
         customizations: originalResume.customizations,

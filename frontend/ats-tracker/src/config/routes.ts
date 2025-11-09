@@ -17,6 +17,7 @@ export const ROUTES = {
   RESUME_BUILDER: '/resumes/builder',
   RESUME_TEMPLATES: '/resumes/templates',
   RESUME_PREVIEW: '/resumes/preview',
+  RESUME_AI_TAILORING: '/resumes/ai-tailoring',
 } as const
 
 // Navigation menu configuration

@@ -360,6 +360,47 @@ class ResumeService {
         throw new Error("Resume not found");
       }
 
+      // Check if this resume has any child resumes (versions/duplicates)
+      // We need to prevent deletion of parent resumes that have children
+      // to avoid accidentally deleting the original when trying to delete a duplicate
+      const checkChildrenQuery = `
+        SELECT id, version_name, version_number
+        FROM resume
+        WHERE parent_resume_id = $1 AND user_id = $2
+      `;
+      const childrenResult = await database.query(checkChildrenQuery, [resumeId, userId]);
+
+      // If this resume has children, prevent deletion
+      // This prevents the CASCADE from deleting children when deleting the parent
+      // Users should delete children (duplicates) first, then the parent (original)
+      if (childrenResult.rows.length > 0) {
+        throw new Error(
+          `Cannot delete this resume because it has ${childrenResult.rows.length} version(s). ` +
+          `Please delete the version(s) first before deleting the original resume.`
+        );
+      }
+
+      // IMPORTANT: Before deleting, check if this resume is a child (duplicate)
+      // If it is, we need to ensure we're not accidentally deleting the parent
+      // The CASCADE constraint only works when deleting the parent, not the child
+      // So deleting a child should be safe, but let's verify the relationship
+      if (existingResume.parentResumeId) {
+        // This is a duplicate/version - safe to delete
+        // The CASCADE won't affect the parent when deleting a child
+        // Verify the parent still exists (sanity check)
+        const parentCheck = await this.getResumeById(existingResume.parentResumeId, userId);
+        if (!parentCheck) {
+          console.warn(`⚠️ Parent resume ${existingResume.parentResumeId} not found for duplicate ${resumeId}`);
+        }
+        console.log(`Deleting duplicate resume ${resumeId} (parent: ${existingResume.parentResumeId})`);
+      } else {
+        // This is a master/original resume - verify it has no children (already checked above)
+        console.log(`Deleting master resume ${resumeId}`);
+      }
+
+      // Safe to delete - this is either:
+      // 1. A duplicate/version (has a parent, but no children itself) - CASCADE won't affect parent
+      // 2. An original resume with no versions/duplicates - safe to delete
       const query = `
         DELETE FROM resume
         WHERE id = $1 AND user_id = $2

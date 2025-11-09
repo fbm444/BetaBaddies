@@ -76,7 +76,7 @@ Your role is to:
 - Be concise but thorough
 - Reference specific information from the user's profile when relevant
 
-**IMPORTANT - Actionable Suggestions (CRITICAL):**
+**IMPORTANT - Actionable Suggestions (CRITICAL - READ CAREFULLY):**
 
 You MUST ALWAYS include structured JSON suggestions in a code block at the end of your response when:
 - User asks about adding skills, sections, or content
@@ -85,9 +85,14 @@ You MUST ALWAYS include structured JSON suggestions in a code block at the end o
 - User asks what's missing or what they should add
 - User uses action verbs: "make", "apply", "update", "improve", "fix", "modify", "change", "add", "do", "implement", "execute", "proceed"
 - User asks to "make changes", "apply changes", "update it", "improve it", "fix it", "do it", "make it", "apply it", "go ahead", "yes", "sure", "okay", "please"
+- User asks "what should I add", "what's missing", "how can I improve", "what skills", "what experience"
+- User provides new content or asks you to write/rewrite something
 - ANY request that involves modifying, adding, or changing resume content
+- ANY time you provide specific text, content, or recommendations that could be applied to the resume
 
-**CRITICAL RULE:** If the user asks you to make changes, improve something, add something, or update something, you MUST include the JSON suggestions block at the end of your response. This is non-negotiable - even if you're just providing advice, if it involves changes, include the suggestions.
+**CRITICAL RULE:** If the user asks you to make changes, improve something, add something, update something, OR if you provide specific content/text that could be applied to their resume, you MUST include the JSON suggestions block at the end of your response. This is non-negotiable - even if you're just providing advice, if it involves actionable content, include the suggestions.
+
+**DOUBLE-CHECK:** Before sending your response, ask yourself: "Did I provide any specific text, content, or recommendations that the user could apply to their resume?" If YES, you MUST include the JSON suggestions block.
 
 This JSON is for internal processing only - DO NOT explain this technical detail to the user. Simply provide your advice naturally, and include the JSON silently at the end.
 
@@ -360,19 +365,73 @@ You: "Here's an improved summary that better highlights your experience: [Provid
   }
 
   /**
+   * Get job context for AI tailoring
+   */
+  getJobContext(prospectiveJob) {
+    if (!prospectiveJob) return "";
+
+    const context = [];
+    context.push("=== TARGET JOB POSTING ===");
+    context.push(`Job Title: ${prospectiveJob.jobTitle || "N/A"}`);
+    context.push(`Company: ${prospectiveJob.company || "N/A"}`);
+    if (prospectiveJob.location)
+      context.push(`Location: ${prospectiveJob.location}`);
+    if (prospectiveJob.industry)
+      context.push(`Industry: ${prospectiveJob.industry}`);
+    if (prospectiveJob.jobType)
+      context.push(`Job Type: ${prospectiveJob.jobType}`);
+    if (prospectiveJob.description) {
+      context.push(`\nJob Description:\n${prospectiveJob.description}`);
+    }
+    if (prospectiveJob.salaryLow || prospectiveJob.salaryHigh) {
+      const salaryRange = [];
+      if (prospectiveJob.salaryLow)
+        salaryRange.push(`$${prospectiveJob.salaryLow}`);
+      if (prospectiveJob.salaryHigh)
+        salaryRange.push(`$${prospectiveJob.salaryHigh}`);
+      context.push(`Salary Range: ${salaryRange.join(" - ")}`);
+    }
+    if (prospectiveJob.deadline)
+      context.push(`Application Deadline: ${prospectiveJob.deadline}`);
+    context.push("");
+
+    return context.join("\n");
+  }
+
+  /**
    * Chat with AI assistant
    */
-  async chat(messages, resume = null, userData = null) {
+  async chat(messages, resume = null, userData = null, prospectiveJob = null) {
     if (!this.openaiApiKey || !this.openai) {
       throw new Error("OpenAI API key not configured");
     }
 
     try {
       // Build conversation with system prompt and resume context
+      let systemPrompt = this.getSystemPrompt();
+
+      // Add job tailoring instructions if prospective job is provided
+      if (prospectiveJob) {
+        systemPrompt += `\n\n**CRITICAL - JOB TAILORING MODE:**\nYou are currently tailoring this resume for a specific job posting. The job details will be provided below. When making suggestions:\n- Prioritize keywords and skills mentioned in the job description\n- Emphasize relevant experience that matches the job requirements\n- **IMPORTANT: When suggesting skills, include a "reorder" action type** - suggest reordering existing skills to highlight those most relevant to the job (put job-relevant skills first)\n- Tailor bullet points to match job responsibilities and requirements\n- Focus on aligning the resume content with what the employer is looking for\n- When suggesting skills optimization, prioritize skills that appear in the job description\n- For skills reordering, use type: "skill" with action: "reorder" and provide the skill names in the desired order (most relevant first)\n\n`;
+      }
+
       const systemMessage = {
         role: "system",
-        content: this.getSystemPrompt(),
+        content: systemPrompt,
       };
+
+      // Add prospective job context if available
+      if (prospectiveJob) {
+        const jobContext = this.getJobContext(prospectiveJob);
+        if (jobContext && jobContext.trim().length > 0) {
+          systemMessage.content += `\n\n**TARGET JOB POSTING (tailor all suggestions to this job):**\n${jobContext}`;
+          console.log(
+            "✅ AI Context - Prospective job context added (length:",
+            jobContext.length,
+            "chars)"
+          );
+        }
+      }
 
       // Add user context if available
       if (userData) {

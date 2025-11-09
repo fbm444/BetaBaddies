@@ -183,7 +183,7 @@ export function Projects() {
   };
 
   const handleDeleteProject = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this project?")) return;
+    if (!window.confirm("Are you sure you want to delete this project?")) return;
     try {
       await api.deleteProject(id);
       fetchProjects();

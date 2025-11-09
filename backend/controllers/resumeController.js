@@ -18,6 +18,7 @@ import educationService from "../services/educationService.js";
 import projectService from "../services/projectService.js";
 import certificationService from "../services/certificationService.js";
 import fileUploadService from "../services/fileUploadService.js";
+import prospectiveJobService from "../services/prospectiveJobService.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 import fs from "fs/promises";
 import path from "path";
@@ -867,7 +868,41 @@ class ResumeController {
 
   // Export Management
 
-  // Export to PDF
+  // Export to PDF from HTML (new method - receives HTML from frontend)
+  // Note: HTML is ignored, we use resumeData.id to fetch from database
+  exportPDFFromHTML = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { html, filename, resumeData } = req.body;
+
+    // Require resumeData for reliable export
+    if (!resumeData || !resumeData.id) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: "MISSING_RESUME_DATA",
+          message: "Resume data with ID is required for export",
+        },
+      });
+    }
+
+    // Use existing exportService - it already does direct PDF generation
+    const result = await resumeExportService.exportPDF(resumeData.id, userId, {
+      filename,
+    });
+
+    // Read file content and send it
+    const fileContent = await fs.readFile(result.filePath);
+
+    // Send file content with proper headers
+    res.setHeader("Content-Type", result.contentType || "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${result.fileName}"`
+    );
+    res.send(fileContent);
+  });
+
+  // Export to PDF (legacy method - kept for backward compatibility)
   exportPDF = asyncHandler(async (req, res) => {
     const userId = req.session.userId;
     const { id } = req.params;
@@ -921,7 +956,45 @@ class ResumeController {
     res.send(fileContent);
   });
 
-  // Export to DOCX
+  // Export to DOCX from HTML (new method - receives HTML from frontend)
+  // Note: HTML is ignored, we use resumeData.id to fetch from database
+  exportDOCXFromHTML = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { html, filename, resumeData } = req.body;
+
+    // Require resumeData for reliable export
+    if (!resumeData || !resumeData.id) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: "MISSING_RESUME_DATA",
+          message: "Resume data with ID is required for export",
+        },
+      });
+    }
+
+    // Use existing exportService - it already does direct DOCX generation
+    const result = await resumeExportService.exportDOCX(resumeData.id, userId, {
+      filename,
+    });
+
+    // Read file content and send it
+    const fileContent = await fs.readFile(result.filePath);
+
+    // Send file content with proper headers
+    res.setHeader(
+      "Content-Type",
+      result.contentType ||
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${result.fileName}"`
+    );
+    res.send(fileContent);
+  });
+
+  // Export to DOCX (legacy method - kept for backward compatibility)
   exportDOCX = asyncHandler(async (req, res) => {
     const userId = req.session.userId;
     const { id } = req.params;
@@ -1287,7 +1360,8 @@ class ResumeController {
     res.status(200).json({
       ok: true,
       data: {
-        versions,
+        resumes: versions, // Frontend expects 'resumes' not 'versions'
+        versions: versions, // Keep both for backward compatibility
         count: versions.length,
       },
     });
@@ -1297,11 +1371,12 @@ class ResumeController {
   createVersion = asyncHandler(async (req, res) => {
     const userId = req.session.userId;
     const { id } = req.params;
-    const { versionName, description } = req.body;
+    const { versionName, description, jobId } = req.body;
 
     const newVersion = await resumeVersionService.createVersion(id, userId, {
       versionName,
       description,
+      jobId, // Support jobId for different job types
     });
 
     res.status(201).json({
@@ -1635,7 +1710,7 @@ class ResumeController {
   chat = asyncHandler(async (req, res) => {
     const userId = req.session.userId;
     const { resumeId } = req.params;
-    const { messages } = req.body;
+    const { messages, jobId } = req.body;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({
@@ -1656,6 +1731,19 @@ class ResumeController {
         } catch (err) {
           // Resume not found or not accessible, continue without context
           console.log("Resume not found for AI context:", err.message);
+        }
+      }
+
+      // Get prospective job if jobId is provided
+      let prospectiveJob = null;
+      if (jobId) {
+        try {
+          const jobResponse = await prospectiveJobService.getProspectiveJobById(jobId, userId);
+          if (jobResponse) {
+            prospectiveJob = jobResponse;
+          }
+        } catch (err) {
+          console.log("Failed to fetch prospective job for AI context:", err.message);
         }
       }
 
@@ -1698,7 +1786,8 @@ class ResumeController {
       const response = await resumeAIAssistantService.chat(
         messages,
         resume,
-        userData
+        userData,
+        prospectiveJob
       );
 
       res.status(200).json({
@@ -1768,6 +1857,547 @@ class ResumeController {
         error: {
           code: "AI_GENERATE_ERROR",
           message: error.message || "Failed to generate content",
+        },
+      });
+    }
+  });
+
+  // AI Tailoring - Complete resume tailoring flow
+  tailorResume = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { templateId, jobId } = req.body;
+
+    if (!templateId || !jobId) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: "INVALID_INPUT",
+          message: "templateId and jobId are required",
+        },
+      });
+    }
+
+    try {
+      // Step 1: Fetch job details
+      const prospectiveJob = await prospectiveJobService.getProspectiveJobById(jobId, userId);
+      if (!prospectiveJob) {
+        return res.status(404).json({
+          ok: false,
+          error: {
+            code: "JOB_NOT_FOUND",
+            message: "Job not found",
+          },
+        });
+      }
+
+      // Step 2: Fetch user profile data and all related data
+      const [profile, skills, jobs, education, projects, certifications] =
+        await Promise.allSettled([
+          profileService.getProfileByUserId(userId),
+          skillService.getSkillsByUserId(userId),
+          jobService.getJobsByUserId(userId),
+          educationService.getEducationsByUserId(userId),
+          projectService.getProjectsByUserId(userId),
+          certificationService.getCertifications(userId),
+        ]);
+
+      const profileData = profile.status === "fulfilled" ? profile.value : null;
+      const employment = jobs.status === "fulfilled" ? jobs.value : [];
+      const educationData = education.status === "fulfilled" ? education.value : [];
+      const skillsData = skills.status === "fulfilled" ? skills.value : [];
+      const projectsData = projects.status === "fulfilled" ? projects.value : [];
+      const certificationsData = certifications.status === "fulfilled" ? certifications.value : [];
+
+      // Step 3: Create initial resume
+      const resumeName = `Resume for ${prospectiveJob.jobTitle} at ${prospectiveJob.company}`;
+      const resumeDescription = `Tailored for ${prospectiveJob.jobTitle} at ${prospectiveJob.company}`;
+
+      const newResume = await resumeService.createResume(userId, {
+        versionName: resumeName,
+        description: resumeDescription,
+        templateId: templateId,
+        jobId: jobId,
+        content: {
+          personalInfo: {
+            firstName: profileData?.first_name || "",
+            lastName: profileData?.last_name || "",
+            email: profileData?.email || "",
+            phone: profileData?.phone || "",
+            location: profileData?.city && profileData?.state
+              ? `${profileData.city}, ${profileData.state}`
+              : profileData?.city || profileData?.state || "",
+            linkedIn: "",
+            portfolio: "",
+          },
+          summary: "",
+          experience: [],
+          education: [],
+          skills: [],
+          projects: [],
+          certifications: [],
+        },
+        sectionConfig: {},
+        customizations: {},
+        versionNumber: 1,
+        isMaster: true,
+      });
+
+      // Step 4: Build comprehensive user data strings for AI prompt
+      const employmentText = employment.length > 0
+        ? employment.map((job) =>
+            `- ${job.title} at ${job.company}${job.startDate ? ` (${job.startDate} - ${job.endDate || 'Present'})` : ''}\n  ${job.description || ''}`
+          ).join('\n')
+        : 'No employment history';
+
+      const educationText = educationData.length > 0
+        ? educationData.map((edu) =>
+            `- ${edu.degreeType || ''} in ${edu.field || ''} from ${edu.school || ''}${edu.endDate ? ` (${edu.endDate})` : ''}`
+          ).join('\n')
+        : 'No education entries';
+
+      // Format skills with categories for better context
+      const skillsText = skillsData.length > 0
+        ? skillsData.map((skill) => {
+            const skillName = skill.name || skill.skillName || '';
+            const category = skill.category || 'Technical';
+            return `${skillName} (${category})`;
+          }).join(', ')
+        : 'No skills listed';
+
+      const projectsText = projectsData.length > 0
+        ? projectsData.map((proj) =>
+            `- ${proj.name}${proj.description ? `: ${proj.description}` : ''}${proj.technologies ? ` (${proj.technologies})` : ''}`
+          ).join('\n')
+        : 'No projects listed';
+
+      const certificationsText = certificationsData.length > 0
+        ? certificationsData.map((cert) =>
+            `${cert.name}${cert.org_name ? ` from ${cert.org_name}` : ''}${cert.date_earned ? ` (${cert.date_earned})` : ''}`
+          ).join('\n')
+        : 'No certifications';
+
+      // Step 5: Construct AI prompt
+      const analysisPrompt = `You are a professional resume tailoring AI. Analyze this job posting and the user's complete profile, then provide:
+
+1. A structured JSON response with resume updates for ALL sections (summary, experience, skills, education, projects, certifications)
+2. A human-readable explanation written in FIRST PERSON, as if you're talking directly to the user (use "I", "your", "you" - NOT third person)
+
+Job Posting:
+Title: ${prospectiveJob.jobTitle || 'N/A'}
+Company: ${prospectiveJob.company || 'N/A'}
+${prospectiveJob.location ? `Location: ${prospectiveJob.location}` : ''}
+${prospectiveJob.industry ? `Industry: ${prospectiveJob.industry}` : ''}
+${prospectiveJob.jobType ? `Job Type: ${prospectiveJob.jobType}` : ''}
+${prospectiveJob.description ? `\nDescription:\n${prospectiveJob.description}` : ''}
+
+User Profile:
+Name: ${profileData?.first_name || ''} ${profileData?.last_name || ''}
+Email: ${profileData?.email || ''}
+${profileData?.phone ? `Phone: ${profileData.phone}` : ''}
+${profileData?.city && profileData?.state ? `Location: ${profileData.city}, ${profileData.state}` : profileData?.city ? `City: ${profileData.city}` : profileData?.state ? `State: ${profileData.state}` : ''}
+${profileData?.job_title ? `Current Job Title: ${profileData.job_title}` : ''}
+${profileData?.industry ? `Industry: ${profileData.industry}` : ''}
+${profileData?.bio ? `Bio: ${profileData.bio}` : ''}
+
+Employment History:
+${employmentText}
+
+Education:
+${educationText}
+
+Skills:
+${skillsText}
+
+Projects:
+${projectsText}
+
+Certifications:
+${certificationsText}
+
+Please provide COMPLETE resume content for ALL sections:
+1. A professional summary (2-3 sentences) tailored to this specific job
+2. MULTIPLE experience entries (include ALL relevant work experience from the user's employment history, not just one)
+3. Relevant skills prioritized and reordered based on job requirements, organized into logical groups (e.g., "Frontend", "Backend", "DevOps", "Languages", "Frameworks", "Tools", etc.). You can create custom groups that make sense for the job posting.
+4. Education entries formatted for resume (if user has education data, use it; if not, suggest relevant education or create placeholder entries)
+5. Projects formatted for resume (if user has projects, use them; if not, suggest relevant projects based on their experience or create placeholder entries)
+6. Certifications formatted for resume (if available)
+
+CRITICAL INSTRUCTIONS:
+- Include ALL experience entries from the user's employment history (not just one)
+- If education/projects are missing from user data, either create relevant suggestions based on their experience OR highlight this in the explanation
+- The resume should be FULLY POPULATED with content
+
+IMPORTANT: Format your response as JSON with this exact structure:
+{
+  "resumeUpdates": {
+    "summary": "tailored summary text (2-3 sentences)",
+    "experience": [
+      {
+        "id": "exp_1",
+        "title": "Job Title",
+        "company": "Company Name",
+        "location": "Location (optional)",
+        "startDate": "2020-01", // Format: YYYY-MM
+        "endDate": "2023-12", // Format: YYYY-MM or empty for current
+        "description": ["Bullet point 1", "Bullet point 2", "Bullet point 3"] // Array of achievement bullet points
+      }
+    ],
+    "skills": [
+      {
+        "name": "skill name",
+        "category": "Technical",
+        "group": "Frontend" // Optional: custom group name (e.g., "Frontend", "Backend", "DevOps", "Languages", "Frameworks", "Tools", etc.)
+      }
+    ],
+    "education": [
+      {
+        "id": "edu_1",
+        "degree": "Degree Name",
+        "school": "School Name",
+        "field": "Field of Study",
+        "graduationDate": "2020-05", // Format: YYYY-MM
+        "startDate": "2016-09" // Optional: Format: YYYY-MM
+      }
+    ],
+    "projects": [
+      {
+        "id": "proj_1",
+        "name": "Project Name",
+        "description": "Project description",
+        "technologies": ["tech1", "tech2"]
+      }
+    ],
+    "certifications": [
+      {
+        "id": "cert_1",
+        "name": "Certification Name",
+        "organization": "Issuing Organization",
+        "issueDate": "2021-03", // Format: YYYY-MM
+        "expirationDate": "2024-03" // Optional: Format: YYYY-MM
+      }
+    ]
+  },
+  "explanation": "Write a conversational explanation in FIRST PERSON (use 'I', 'your', 'you'). Explain: 1) What I've done to tailor your resume for this position, 2) Why these changes make your resume stronger for this specific job, 3) Key highlights that match the job requirements, 4) If education/projects sections are empty or missing, highlight this and suggest what to add. Write as if you're talking directly to the user, not about them."
+}
+
+CRITICAL FORMATTING RULES:
+- Experience descriptions MUST be arrays of strings (bullet points), NOT a single string. Each string should be a separate achievement/description bullet point.
+- Dates MUST be in YYYY-MM format (e.g., "2020-01" for January 2020, "2023-12" for December 2023)
+- Skills MUST include both "category" (Technical, Languages, Soft Skills, or Industry-Specific) and optionally "group" for custom groupings
+- Projects technologies MUST be arrays of strings, not a single string
+- Education "endDate" is the graduation date, "startDate" is optional enrollment date
+- All date fields should use YYYY-MM format for consistency
+- Ensure all sections are fully populated with complete, professional content`;
+
+      // Step 6: Call AI to tailor the resume
+      const userData = {
+        profile: profileData,
+        skills: skillsData,
+        jobs: employment,
+        education: educationData,
+        projects: projectsData,
+        certifications: certificationsData,
+      };
+
+      const aiResponse = await resumeAIAssistantService.chat(
+        [{ role: "user", content: analysisPrompt }],
+        newResume,
+        userData,
+        prospectiveJob
+      );
+
+      if (!aiResponse || !aiResponse.message) {
+        throw new Error("AI analysis failed - no response received");
+      }
+
+      // Step 7: Parse AI response and update resume
+      const aiMessage = aiResponse.message || "";
+
+      let resumeUpdates = {};
+      let explanation = "Your resume has been tailored for this position.";
+
+      try {
+        // Look for JSON code blocks first
+        const jsonMatch = aiMessage.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[1]);
+          resumeUpdates = parsed.resumeUpdates || {};
+          explanation = parsed.explanation || explanation;
+        } else {
+          // Try to parse the entire message as JSON
+          const parsed = JSON.parse(aiMessage);
+          resumeUpdates = parsed.resumeUpdates || {};
+          explanation = parsed.explanation || explanation;
+        }
+      } catch (e) {
+        // If JSON parsing fails, try to extract explanation from markdown or use the message
+        const explanationMatch = aiMessage.match(/explanation["\s:]*([\s\S]*?)(?:\n\n|\n```|$)/i);
+        if (explanationMatch) {
+          explanation = explanationMatch[1].trim();
+        } else {
+          explanation = aiMessage;
+        }
+      }
+
+      // Step 8: Update resume with AI recommendations
+      const updatedContent = { ...newResume.content };
+      
+      // Preserve personalInfo from initial resume (don't overwrite with AI)
+      updatedContent.personalInfo = newResume.content.personalInfo || {
+        firstName: profileData?.first_name || "",
+        lastName: profileData?.last_name || "",
+        email: profileData?.email || "",
+        phone: profileData?.phone || "",
+        location: profileData?.city && profileData?.state
+          ? `${profileData.city}, ${profileData.state}`
+          : profileData?.city || profileData?.state || "",
+        linkedIn: profileData?.linkedin || "",
+        portfolio: profileData?.portfolio || "",
+      };
+
+      // Update summary
+      if (resumeUpdates.summary) {
+        updatedContent.summary = resumeUpdates.summary;
+      }
+
+      // Update skills - support both string array (legacy) and object array (with custom groups)
+      if (resumeUpdates.skills && Array.isArray(resumeUpdates.skills)) {
+        const customGroups = new Set();
+        
+        updatedContent.skills = resumeUpdates.skills.map((skillItem, index) => {
+          // Handle both string format (legacy) and object format (with groups)
+          let skillName, skillCategory, skillGroup;
+          
+          if (typeof skillItem === 'string') {
+            // Legacy format: just skill name
+            skillName = skillItem;
+            skillCategory = 'Technical';
+            skillGroup = undefined;
+          } else {
+            // New format: object with name, category, and optional group
+            skillName = skillItem.name || skillItem;
+            skillCategory = skillItem.category || 'Technical';
+            skillGroup = skillItem.group || undefined;
+            
+            // Track custom groups
+            if (skillGroup && !['Technical', 'Languages', 'Soft Skills', 'Industry-Specific'].includes(skillGroup)) {
+              customGroups.add(skillGroup);
+            }
+          }
+          
+          const matchingSkill = skillsData.find((s) =>
+            (s.name || s.skillName || '').toLowerCase() === skillName.toLowerCase()
+          );
+          
+          return {
+            id: matchingSkill?.id || `skill_${Date.now()}_${index}`,
+            name: skillName,
+            category: skillCategory || matchingSkill?.category || 'Technical',
+            group: skillGroup || undefined, // Custom group if provided
+            proficiency: matchingSkill?.proficiency || 'Intermediate',
+          };
+        });
+        
+        // Store custom groups in sectionConfig (separate from content)
+        if (customGroups.size > 0) {
+          const currentConfig = newResume.sectionConfig || {};
+          const skillsConfig = currentConfig.skills || {};
+          const existingCustomGroups = skillsConfig.customGroups || [];
+          const allCustomGroups = [...new Set([...existingCustomGroups, ...Array.from(customGroups)])];
+          
+          // Store sectionConfig separately (not in content)
+          newResume.sectionConfig = {
+            ...currentConfig,
+            skills: {
+              ...skillsConfig,
+              customGroups: allCustomGroups,
+            },
+          };
+        }
+      }
+
+      // Update experience - include ALL entries
+      if (resumeUpdates.experience && Array.isArray(resumeUpdates.experience) && resumeUpdates.experience.length > 0) {
+        const aiExperienceKeys = new Set(resumeUpdates.experience.map((exp) =>
+          `${exp.title || ''}_${exp.company || ''}`.toLowerCase()
+        ));
+
+        updatedContent.experience = resumeUpdates.experience.map((exp, index) => {
+          const matchingJob = employment.find((job) =>
+            job.title === exp.title && job.company === exp.company
+          );
+          return {
+            id: exp.id || matchingJob?.id || `exp_${Date.now()}_${index}`,
+            title: exp.title || matchingJob?.title || "",
+            company: exp.company || matchingJob?.company || "",
+            location: exp.location || matchingJob?.location || "",
+            startDate: exp.startDate || matchingJob?.startDate || "",
+            endDate: exp.endDate || matchingJob?.endDate || "",
+            isCurrent: !exp.endDate || exp.endDate === 'Present',
+            description: Array.isArray(exp.description) 
+              ? exp.description 
+              : (typeof exp.description === 'string' 
+                  ? exp.description.split('\n').filter((line) => line.trim()).map((line) => line.trim())
+                  : (matchingJob?.description 
+                      ? (Array.isArray(matchingJob.description) 
+                          ? matchingJob.description 
+                          : (typeof matchingJob.description === 'string' 
+                              ? matchingJob.description.split('\n').filter((line) => line.trim()).map((line) => line.trim())
+                              : []))
+                      : [])),
+            achievements: exp.achievements || matchingJob?.achievements || [],
+          };
+        });
+
+        // Add any employment entries not included in AI response
+        employment.forEach((job) => {
+          const key = `${job.title || ''}_${job.company || ''}`.toLowerCase();
+          if (!aiExperienceKeys.has(key)) {
+            updatedContent.experience.push({
+              id: job.id || `exp_${Date.now()}_${updatedContent.experience.length}`,
+              title: job.title || "",
+              company: job.company || "",
+              location: job.location || "",
+              startDate: job.startDate || "",
+              endDate: job.endDate || "",
+              isCurrent: !job.endDate || job.endDate === 'Present',
+              description: Array.isArray(job.description) 
+                ? job.description 
+                : (typeof job.description === 'string' 
+                    ? job.description.split('\n').filter((line) => line.trim()).map((line) => line.trim())
+                    : []),
+              achievements: job.achievements || [],
+            });
+          }
+        });
+      } else {
+        // If no experience updates, populate from ALL employment data
+        updatedContent.experience = employment.map((job, index) => ({
+          id: job.id || `exp_${Date.now()}_${index}`,
+          title: job.title || "",
+          company: job.company || "",
+          location: job.location || "",
+          startDate: job.startDate || "",
+          endDate: job.endDate || "",
+          isCurrent: !job.endDate || job.endDate === 'Present',
+          description: Array.isArray(job.description) 
+            ? job.description 
+            : (typeof job.description === 'string' 
+                ? job.description.split('\n').filter((line) => line.trim()).map((line) => line.trim())
+                : []),
+          achievements: job.achievements || [],
+        }));
+      }
+
+      // Update education
+      if (resumeUpdates.education && Array.isArray(resumeUpdates.education) && resumeUpdates.education.length > 0) {
+        updatedContent.education = resumeUpdates.education.map((edu, index) => {
+          const matchingEdu = educationData.find((e) =>
+            (e.school || '').toLowerCase() === (edu.school || '').toLowerCase() &&
+            (e.degreeType || '').toLowerCase() === (edu.degree || '').toLowerCase()
+          );
+          return {
+            id: edu.id || matchingEdu?.id || `edu_${Date.now()}_${index}`,
+            school: edu.school || matchingEdu?.school || "",
+            degree: edu.degree || matchingEdu?.degreeType || "",
+            field: edu.field || matchingEdu?.field || "",
+            endDate: edu.graduationDate || edu.endDate || matchingEdu?.endDate || "",
+            startDate: edu.startDate || matchingEdu?.startDate || undefined,
+            gpa: edu.gpa || matchingEdu?.gpa || undefined,
+            honors: edu.honors || matchingEdu?.honors || undefined,
+          };
+        });
+      } else if (educationData.length > 0) {
+        updatedContent.education = educationData.map((edu, index) => ({
+          id: edu.id || `edu_${Date.now()}_${index}`,
+          school: edu.school || "",
+          degree: edu.degreeType || "",
+          field: edu.field || "",
+          endDate: edu.endDate || "",
+          startDate: edu.startDate || undefined,
+          gpa: edu.gpa || undefined,
+          honors: edu.honors || undefined,
+        }));
+      }
+
+      // Update projects
+      if (resumeUpdates.projects && Array.isArray(resumeUpdates.projects) && resumeUpdates.projects.length > 0) {
+        updatedContent.projects = resumeUpdates.projects.map((proj, index) => {
+          const matchingProj = projectsData.find((p) =>
+            (p.name || '').toLowerCase() === (proj.name || '').toLowerCase()
+          );
+          return {
+            id: proj.id || matchingProj?.id || `proj_${Date.now()}_${index}`,
+            name: proj.name || matchingProj?.name || "",
+            description: proj.description || matchingProj?.description || "",
+            technologies: Array.isArray(proj.technologies) ? proj.technologies : (matchingProj?.technologies ? matchingProj.technologies.split(',').map(t => t.trim()) : []),
+            link: proj.link || matchingProj?.link || undefined,
+            startDate: proj.startDate || matchingProj?.start_date || undefined,
+            endDate: proj.endDate || matchingProj?.end_date || undefined,
+          };
+        });
+      } else if (projectsData.length > 0) {
+        updatedContent.projects = projectsData.map((proj, index) => ({
+          id: proj.id || `proj_${Date.now()}_${index}`,
+          name: proj.name || "",
+          description: proj.description || "",
+          technologies: proj.technologies ? proj.technologies.split(',').map(t => t.trim()) : [],
+          link: proj.link || undefined,
+          startDate: proj.start_date || undefined,
+          endDate: proj.end_date || undefined,
+        }));
+      }
+
+      // Update certifications
+      if (resumeUpdates.certifications && Array.isArray(resumeUpdates.certifications) && resumeUpdates.certifications.length > 0) {
+        updatedContent.certifications = resumeUpdates.certifications.map((cert, index) => {
+          const matchingCert = certificationsData.find((c) =>
+            (c.name || '').toLowerCase() === (cert.name || '').toLowerCase()
+          );
+          return {
+            id: cert.id || matchingCert?.id || `cert_${Date.now()}_${index}`,
+            name: cert.name || matchingCert?.name || "",
+            organization: cert.organization || matchingCert?.org_name || "",
+            dateEarned: cert.issueDate || matchingCert?.date_earned || "",
+            expirationDate: cert.expiryDate || matchingCert?.expiration_date || undefined,
+          };
+        });
+      } else if (certificationsData.length > 0) {
+        updatedContent.certifications = certificationsData.map((cert, index) => ({
+          id: cert.id || `cert_${Date.now()}_${index}`,
+          name: cert.name || "",
+          organization: cert.org_name || "",
+          dateEarned: cert.date_earned || "",
+          expirationDate: cert.expiration_date || undefined,
+        }));
+      }
+
+      // Step 9: Update the resume with all changes (including sectionConfig for custom groups)
+      const updateData = {
+        content: updatedContent,
+      };
+      
+      // Include sectionConfig if it was updated (for custom groups)
+      if (newResume.sectionConfig) {
+        updateData.sectionConfig = newResume.sectionConfig;
+      }
+      
+      const updatedResume = await resumeService.updateResume(newResume.id, userId, updateData);
+
+      res.status(200).json({
+        ok: true,
+        data: {
+          resume: updatedResume,
+          explanation: explanation,
+        },
+      });
+    } catch (error) {
+      console.error("❌ Error in AI tailoring:", error);
+      res.status(500).json({
+        ok: false,
+        error: {
+          code: "AI_TAILORING_ERROR",
+          message: error.message || "Failed to tailor resume",
         },
       });
     }

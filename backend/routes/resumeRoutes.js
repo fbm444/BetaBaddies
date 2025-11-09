@@ -11,6 +11,14 @@ router.post("/shared/:token/feedback", resumeController.createFeedback);
 // All other resume routes require authentication
 router.use(isAuthenticated);
 
+// Template Management Routes (MUST come before /:id routes to avoid route conflicts)
+router.get("/templates", resumeController.getTemplates);
+router.get("/templates/:id", resumeController.getTemplate);
+router.get("/templates/:id/preview", resumeController.getTemplatePreview);
+router.post("/templates", resumeController.createTemplate);
+router.put("/templates/:id", resumeController.updateTemplate);
+router.delete("/templates/:id", resumeController.deleteTemplate);
+
 // Resume Management Routes
 router.post("/", resumeController.createResume);
 router.get("/", resumeController.getResumes);
@@ -18,14 +26,6 @@ router.get("/:id", resumeController.getResume);
 router.put("/:id", resumeController.updateResume);
 router.delete("/:id", resumeController.deleteResume);
 router.post("/:id/duplicate", resumeController.duplicateResume);
-
-// Template Management Routes
-router.get("/templates", resumeController.getTemplates);
-router.get("/templates/:id", resumeController.getTemplate);
-router.get("/templates/:id/preview", resumeController.getTemplatePreview);
-router.post("/templates", resumeController.createTemplate);
-router.put("/templates/:id", resumeController.updateTemplate);
-router.delete("/templates/:id", resumeController.deleteTemplate);
 
 // Comments Routes
 router.get("/:id/comments", resumeController.getComments);

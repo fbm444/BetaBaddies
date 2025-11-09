@@ -1,12 +1,22 @@
+import { useEffect } from "react";
 import { Icon } from "@iconify/react";
 
 interface ToastProps {
   message: string;
   type: "success" | "error" | "info";
   onClose: () => void;
+  autoDismiss?: number; // Auto-dismiss after milliseconds (default: 3000)
 }
 
-export function Toast({ message, type, onClose }: ToastProps) {
+export function Toast({ message, type, onClose, autoDismiss = 3000 }: ToastProps) {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onClose();
+    }, autoDismiss);
+
+    return () => clearTimeout(timer);
+  }, [onClose, autoDismiss]);
+
   return (
     <div
       className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 min-w-[300px] max-w-[500px] animate-slide-in ${

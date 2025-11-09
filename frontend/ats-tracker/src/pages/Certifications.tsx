@@ -209,7 +209,7 @@ export function Certifications() {
   };
 
   const handleDeleteCertification = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this certification?")) return;
+    if (!window.confirm("Are you sure you want to delete this certification?")) return;
     try {
       await api.deleteCertification(id);
       fetchCertifications();

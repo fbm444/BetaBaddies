@@ -380,7 +380,44 @@ class ResumeService {
     });
   }
 
-  // Export
+  // Export PDF from HTML (new method - sends HTML from preview)
+  async exportPDFFromHTML(
+    html: string,
+    options?: { filename?: string; resumeData?: any }
+  ): Promise<{ blob: Blob; filename: string }> {
+    const response = await fetch(`${API_BASE}/resumes/export/pdf`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({
+        html,
+        filename: options?.filename,
+        resumeData: options?.resumeData, // Send actual resume data
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({
+        error: { message: "Export failed" },
+      }));
+      throw new Error(error.error?.message || "Export failed");
+    }
+
+    // Extract filename from Content-Disposition header
+    const contentDisposition = response.headers.get("Content-Disposition");
+    let filename = options?.filename || `resume_${Date.now()}.pdf`;
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+      if (filenameMatch) {
+        filename = filenameMatch[1];
+      }
+    }
+    return { blob: await response.blob(), filename };
+  }
+
+  // Export (legacy method - kept for backward compatibility)
   async exportPDF(
     resumeId: string,
     options?: { filename?: string; watermark?: boolean }
@@ -413,6 +450,44 @@ class ResumeService {
     return { blob: await response.blob(), filename };
   }
 
+  // Export DOCX from HTML (new method - sends HTML from preview)
+  async exportDOCXFromHTML(
+    html: string,
+    options?: { filename?: string; resumeData?: any }
+  ): Promise<{ blob: Blob; filename: string }> {
+    const response = await fetch(`${API_BASE}/resumes/export/docx`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({
+        html,
+        filename: options?.filename,
+        resumeData: options?.resumeData, // Send actual resume data
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({
+        error: { message: "Export failed" },
+      }));
+      throw new Error(error.error?.message || "Export failed");
+    }
+
+    // Extract filename from Content-Disposition header
+    const contentDisposition = response.headers.get("Content-Disposition");
+    let filename = options?.filename || `resume_${Date.now()}.docx`;
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+      if (filenameMatch) {
+        filename = filenameMatch[1];
+      }
+    }
+    return { blob: await response.blob(), filename };
+  }
+
+  // Export DOCX (legacy method - kept for backward compatibility)
   async exportDOCX(
     resumeId: string,
     options?: { filename?: string }
@@ -627,7 +702,7 @@ class ResumeService {
 
   async createVersion(
     resumeId: string,
-    data: { versionName?: string; description?: string }
+    data: { versionName?: string; description?: string; jobId?: string }
   ): Promise<ApiResponse<{ resume: Resume }>> {
     return this.request<ApiResponse<{ resume: Resume }>>(
       `/resumes/${resumeId}/versions`,
@@ -766,13 +841,14 @@ class ResumeService {
   // AI Assistant - Chat
   async chat(
     resumeId: string,
-    messages: Array<{ role: "user" | "assistant"; content: string }>
+    messages: Array<{ role: "user" | "assistant"; content: string }>,
+    jobId?: string
   ): Promise<ApiResponse<{ message: string; usage?: any }>> {
     return this.request<ApiResponse<{ message: string; usage?: any }>>(
       `/resumes/${resumeId}/ai/chat`,
       {
         method: "POST",
-        body: JSON.stringify({ messages }),
+        body: JSON.stringify({ messages, jobId }),
       }
     );
   }
@@ -789,6 +865,20 @@ class ResumeService {
       {
         method: "POST",
         body: JSON.stringify({ type, context, jobDescription }),
+      }
+    );
+  }
+
+  // AI Tailoring - Complete resume tailoring flow (backend handles everything)
+  async tailorResume(
+    templateId: string,
+    jobId: string
+  ): Promise<ApiResponse<{ resume: any; explanation: string }>> {
+    return this.request<ApiResponse<{ resume: any; explanation: string }>>(
+      `/resumes/ai/tailor`,
+      {
+        method: "POST",
+        body: JSON.stringify({ templateId, jobId }),
       }
     );
   }

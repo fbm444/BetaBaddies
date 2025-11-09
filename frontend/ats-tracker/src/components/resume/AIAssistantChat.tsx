@@ -3,6 +3,7 @@ import { Icon } from "@iconify/react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { resumeService } from "../../services/resumeService";
+import { prospectiveJobService, ProspectiveJob } from "../../services/prospectiveJobService";
 import { Resume } from "../../types";
 
 interface Message {
@@ -18,6 +19,9 @@ interface AIAssistantChatProps {
   onClose: () => void;
   onResumeUpdate?: (updates: Partial<Resume>) => void;
   onPreviewUpdate?: (previewResume: Resume | null) => void;
+  initialJobId?: string | null; // Job ID to auto-select and analyze
+  autoAnalyzeJob?: boolean; // Whether to automatically analyze the job
+  initialMessage?: string; // Initial message to display from AI (e.g., explanation of tailoring)
 }
 
 const SUGGESTED_PROMPTS = [
@@ -36,7 +40,7 @@ const SUGGESTED_PROMPTS = [
 
 interface ParsedSuggestion {
   type: "summary" | "experience" | "skill" | "education" | "project" | "bullet" | "section";
-  action: "update" | "add" | "improve";
+  action: "update" | "add" | "improve" | "reorder";
   content: string;
   targetId?: string;
   targetSection?: string;
@@ -50,6 +54,9 @@ export function AIAssistantChat({
   onClose,
   onResumeUpdate,
   onPreviewUpdate,
+  initialJobId,
+  autoAnalyzeJob = false,
+  initialMessage,
 }: AIAssistantChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -61,9 +68,70 @@ export function AIAssistantChat({
     Map<number, ParsedSuggestion[]>
   >(new Map());
   const [previewResume, setPreviewResume] = useState<Resume | null>(null);
+  const [previewMessageIndex, setPreviewMessageIndex] = useState<number | null>(null); // Track which message has preview active
   const [appliedSuggestions, setAppliedSuggestions] = useState<
     Map<number, ParsedSuggestion[]>
   >(new Map());
+  const [prospectiveJobs, setProspectiveJobs] = useState<ProspectiveJob[]>([]);
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [loadingJobs, setLoadingJobs] = useState(false);
+  const [showClearChatConfirm, setShowClearChatConfirm] = useState(false);
+
+  // Log props when component mounts or props change
+  useEffect(() => {
+    console.log("🔧 AIAssistantChat props:", {
+      isOpen,
+      resumeId,
+      initialJobId,
+      autoAnalyzeJob,
+      hasResume: !!resume,
+      hasInitialMessage: !!initialMessage,
+    });
+  }, [isOpen, resumeId, initialJobId, autoAnalyzeJob, resume, initialMessage]);
+
+  // Track if we've already set the initial message to avoid duplicates
+  const initialMessageSetRef = useRef<string | null>(null);
+
+  // Display initial message if provided (HIGH PRIORITY - runs first)
+  useEffect(() => {
+    if (isOpen && initialMessage) {
+      console.log("💬 Initial message effect triggered:", {
+        isOpen,
+        hasInitialMessage: !!initialMessage,
+        initialMessagePreview: initialMessage.substring(0, 100),
+        alreadySet: initialMessageSetRef.current === initialMessage,
+        currentMessagesLength: messages.length,
+      });
+      
+      // Only set if we haven't set this exact message before
+      if (initialMessageSetRef.current !== initialMessage) {
+        console.log("✅ Setting initial message in chat");
+        const explanationMessage: Message = {
+          role: "assistant",
+          content: initialMessage,
+          timestamp: new Date(),
+        };
+        
+        // Force set the message immediately (replace any existing messages)
+        setMessages([explanationMessage]);
+        console.log("✅ Initial message set, messages array should now have 1 message");
+        
+        // Scroll to bottom after a short delay to ensure DOM is updated
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        }, 100);
+        
+        initialMessageSetRef.current = initialMessage;
+      } else {
+        console.log("⏭️ Initial message already set, skipping");
+      }
+    }
+    
+    // Reset the ref when panel closes
+    if (!isOpen) {
+      initialMessageSetRef.current = null;
+    }
+  }, [isOpen, initialMessage]);
 
   // Parse AI response to extract actionable suggestions
   const parseSuggestions = (
@@ -167,53 +235,136 @@ export function AIAssistantChat({
       }
     }
 
-    console.log("⚠️ No JSON suggestions found in response");
+    console.log("⚠️ No JSON suggestions found in response, trying text-based parsing");
 
-    // Parse text-based suggestions
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
+    // Enhanced text-based suggestion parsing
+    const contentLower = content.toLowerCase();
+    
+    // Check if the response contains action verbs that indicate changes are being suggested
+    const actionIndicators = [
+      "add", "update", "improve", "change", "modify", "enhance", 
+      "revise", "rewrite", "suggest", "recommend", "should", "consider"
+    ];
+    const hasActionIndicators = actionIndicators.some(indicator => 
+      contentLower.includes(indicator)
+    );
 
-      // Detect summary suggestions
-      if (
-        line.toLowerCase().includes("summary") &&
-        (line.toLowerCase().includes("suggest") ||
-          line.toLowerCase().includes("improve"))
-      ) {
-        // Look for the suggested text in following lines
-        for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
-          const nextLine = lines[j].trim();
-          if (
-            nextLine.length > 20 &&
-            !nextLine.startsWith("•") &&
-            !nextLine.startsWith("-")
-          ) {
-            suggestions.push({
-              type: "summary",
-              action: "update",
-              content: nextLine,
-            });
-            break;
-          }
+    // Only parse text-based suggestions if action indicators are present
+    if (!hasActionIndicators) {
+      console.log("⚠️ No action indicators found, skipping text-based parsing");
+      return suggestions;
+    }
+
+    // Parse summary suggestions
+    const summaryPatterns = [
+      /(?:summary|professional summary|resume summary)[\s\S]{0,200}?[:]\s*([^\n]{20,500})/i,
+      /(?:here'?s? (?:an? |the )?improved? summary)[\s\S]{0,100}?[:]\s*([^\n]{20,500})/i,
+      /(?:improved? summary)[\s\S]{0,100}?[:]\s*([^\n]{20,500})/i,
+    ];
+    
+    for (const pattern of summaryPatterns) {
+      const match = content.match(pattern);
+      if (match && match[1]) {
+        const summaryText = match[1].trim();
+        // Remove common prefixes and clean up
+        const cleaned = summaryText
+          .replace(/^["']|["']$/g, '')
+          .replace(/^here'?s? (?:an? |the )?/i, '')
+          .trim();
+        if (cleaned.length > 20 && cleaned.length < 500) {
+          suggestions.push({
+            type: "summary",
+            action: "update",
+            content: cleaned,
+          });
+          break; // Only add one summary suggestion
         }
       }
+    }
 
-      // Detect skill suggestions
-      if (
-        line.toLowerCase().includes("skill") &&
-        (line.toLowerCase().includes("add") ||
-          line.toLowerCase().includes("suggest"))
-      ) {
-        const skillMatch = line.match(/["']([^"']+)["']/);
-        if (skillMatch) {
-          suggestions.push({
-            type: "skill",
-            action: "add",
-            content: skillMatch[1],
+    // Parse skill suggestions - look for skills mentioned after "add", "include", "suggest"
+    const skillPatterns = [
+      /(?:add|include|suggest|recommend).*?skill[s]?[:\s]+([^\n]{5,200})/i,
+      /skill[s]? (?:to add|you should add|to include)[:\s]+([^\n]{5,200})/i,
+      /(?:consider adding|you might want to add).*?skill[s]?[:\s]+([^\n]{5,200})/i,
+    ];
+    
+    for (const pattern of skillPatterns) {
+      const match = content.match(pattern);
+      if (match && match[1]) {
+        const skillsText = match[1].trim();
+        // Extract individual skills (comma-separated, quoted, or listed)
+        const skillMatches = skillsText.match(/(?:["']([^"']+)["']|([A-Za-z][A-Za-z\s&]+?))(?:\s*[,;]|\s*and\s|$)/g);
+        if (skillMatches) {
+          skillMatches.forEach(skillMatch => {
+            const skill = skillMatch
+              .replace(/["',;]|and\s*$/gi, '')
+              .trim();
+            if (skill.length > 2 && skill.length < 50 && !skill.toLowerCase().includes('skill')) {
+              suggestions.push({
+                type: "skill",
+                action: "add",
+                content: skill,
+              });
+            }
           });
         }
       }
     }
 
+    // Parse experience/description improvements
+    const experiencePatterns = [
+      /(?:improved?|better|enhanced?|revised?).*?(?:description|bullet point|experience)[\s\S]{0,200}?[:]\s*([^\n]{30,1000})/i,
+      /(?:here'?s? (?:an? |the )?improved?)[\s\S]{0,100}?[:]\s*([^\n]{30,1000})/i,
+    ];
+    
+    for (const pattern of experiencePatterns) {
+      const match = content.match(pattern);
+      if (match && match[1]) {
+        const expText = match[1].trim();
+        // Split into bullet points if multiple lines
+        const bullets = expText.split(/\n+/).filter(line => line.trim().length > 10);
+        if (bullets.length > 0) {
+          suggestions.push({
+            type: "experience",
+            action: "update",
+            content: bullets.join('\n'),
+          });
+          break;
+        }
+      }
+    }
+
+    // Look for quoted text that might be suggestions
+    const quotedTextPattern = /["']([^"']{20,500})["']/g;
+    let quotedMatch;
+    while ((quotedMatch = quotedTextPattern.exec(content)) !== null && suggestions.length < 3) {
+      const quoted = quotedMatch[1].trim();
+      // Skip if it looks like a skill name (too short) or is clearly not a suggestion
+      if (quoted.length > 20 && quoted.length < 500 && 
+          !quoted.toLowerCase().includes('example') &&
+          !quoted.toLowerCase().includes('for instance')) {
+        // Try to determine type based on context
+        const beforeQuote = content.substring(0, quotedMatch.index);
+        if (beforeQuote.toLowerCase().includes('summary')) {
+          if (!suggestions.some(s => s.type === 'summary')) {
+            suggestions.push({
+              type: "summary",
+              action: "update",
+              content: quoted,
+            });
+          }
+        } else if (beforeQuote.toLowerCase().includes('skill')) {
+          suggestions.push({
+            type: "skill",
+            action: "add",
+            content: quoted,
+          });
+        }
+      }
+    }
+
+    console.log("📝 Text-based parsing found", suggestions.length, "suggestions");
     return suggestions;
   };
 
@@ -242,6 +393,9 @@ export function AIAssistantChat({
         console.log("⚠️ Suggestion already applied, skipping duplicate");
         return; // Don't apply the same suggestion twice
       }
+      
+      // Track which message index has preview active
+      setPreviewMessageIndex(messageIndex);
     }
 
     // Start from current preview resume if it exists, otherwise start from actual resume
@@ -318,6 +472,49 @@ export function AIAssistantChat({
               skills: [...existingSkills, newSkill],
             };
           }
+        } else if (suggestion.action === "reorder") {
+          // Reorder skills based on the comma-separated list in content
+          const existingSkills = baseResume.content.skills || [];
+          const orderedSkillNames = suggestion.content
+            .split(",")
+            .map((s: string) => s.trim())
+            .filter((s: string) => s.length > 0);
+
+          // Create a map of skill names to skills for quick lookup
+          const skillMap = new Map<string, any>();
+          existingSkills.forEach((skill: any) => {
+            const key = skill.name?.toLowerCase() || "";
+            if (key && !skillMap.has(key)) {
+              skillMap.set(key, skill);
+            }
+          });
+
+          // Build reordered skills array
+          const reorderedSkills: any[] = [];
+          const usedSkills = new Set<string>();
+
+          // First, add skills in the specified order
+          orderedSkillNames.forEach((skillName: string) => {
+            const key = skillName.toLowerCase();
+            const skill = skillMap.get(key);
+            if (skill) {
+              reorderedSkills.push(skill);
+              usedSkills.add(key);
+            }
+          });
+
+          // Then, add any remaining skills that weren't in the reorder list
+          existingSkills.forEach((skill: any) => {
+            const key = skill.name?.toLowerCase() || "";
+            if (key && !usedSkills.has(key)) {
+              reorderedSkills.push(skill);
+            }
+          });
+
+          updates.content = {
+            ...baseResume.content,
+            skills: reorderedSkills,
+          };
         }
         break;
 
@@ -707,7 +904,18 @@ export function AIAssistantChat({
     };
 
     onResumeUpdate(updates);
+    
+    // Remove suggestions from the message that was applied
+    if (previewMessageIndex !== null) {
+      setParsedSuggestions((prev) => {
+        const newMap = new Map(prev);
+        newMap.delete(previewMessageIndex);
+        return newMap;
+      });
+    }
+    
     setPreviewResume(null);
+    setPreviewMessageIndex(null); // Clear preview message index
     setAppliedSuggestions(new Map());
 
     // Clear preview in parent
@@ -719,6 +927,7 @@ export function AIAssistantChat({
   // Revert previewed changes
   const revertPreview = () => {
     setPreviewResume(null);
+    setPreviewMessageIndex(null); // Clear preview message index
     setAppliedSuggestions(new Map());
     // Notify parent component to clear preview
     if (onPreviewUpdate) {
@@ -772,6 +981,236 @@ export function AIAssistantChat({
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [isOpen]);
+
+  // Fetch prospective jobs when component mounts
+  useEffect(() => {
+    const fetchProspectiveJobs = async () => {
+      try {
+        setLoadingJobs(true);
+        console.log("📋 Fetching prospective jobs...");
+        const response = await prospectiveJobService.getProspectiveJobs();
+        console.log("📋 Prospective jobs response:", response);
+        if (response.ok && response.data) {
+          const jobs = response.data.jobs || [];
+          console.log("📋 Loaded", jobs.length, "prospective jobs");
+          setProspectiveJobs(jobs);
+        } else {
+          console.error("📋 Failed to fetch jobs:", response.error);
+        }
+      } catch (error) {
+        console.error("📋 Error fetching prospective jobs:", error);
+      } finally {
+        setLoadingJobs(false);
+      }
+    };
+
+    if (isOpen) {
+      fetchProspectiveJobs();
+    }
+  }, [isOpen]);
+
+  // Auto-select job when initialJobId is provided and auto-analyze
+  const hasAutoAnalyzedRef = useRef(false);
+  
+  // Separate effect to handle job selection
+  useEffect(() => {
+    if (!isOpen) {
+      hasAutoAnalyzedRef.current = false;
+      return;
+    }
+
+    // If we have an initialJobId and jobs are loaded, select it
+    if (initialJobId && isOpen && prospectiveJobs.length > 0 && !loadingJobs) {
+      const jobExists = prospectiveJobs.some(job => job.id === initialJobId);
+      if (jobExists && selectedJobId !== initialJobId) {
+        console.log("📌 Auto-selecting job:", initialJobId);
+        setSelectedJobId(initialJobId);
+        // Reset the flag when job changes so we can analyze the new job
+        hasAutoAnalyzedRef.current = false;
+      }
+    }
+  }, [initialJobId, isOpen, prospectiveJobs, selectedJobId, loadingJobs]);
+
+  // Separate effect to trigger auto-analysis when job is selected
+  useEffect(() => {
+    console.log("🔄 Auto-analysis effect running with:", {
+      autoAnalyzeJob,
+      isOpen,
+      resumeId,
+      selectedJobId,
+      initialJobId,
+      hasAutoAnalyzed: hasAutoAnalyzedRef.current,
+      isLoading,
+      messagesLength: messages.length,
+      prospectiveJobsLength: prospectiveJobs.length,
+      loadingJobs,
+    });
+
+    // Reset flag when panel closes
+    if (!isOpen) {
+      hasAutoAnalyzedRef.current = false;
+      return;
+    }
+
+    // Auto-analyze when conditions are met
+    const conditions = {
+      autoAnalyzeJob: !!autoAnalyzeJob,
+      isOpen: !!isOpen,
+      resumeIdExists: !!resumeId,
+      resumeIdNotNew: resumeId !== "new",
+      selectedJobIdExists: !!selectedJobId,
+      selectedJobMatchesInitial: selectedJobId === initialJobId,
+      notAlreadyAnalyzed: !hasAutoAnalyzedRef.current,
+      notLoading: !isLoading,
+      noMessages: messages.length === 0,
+      hasJobs: prospectiveJobs.length > 0,
+      notLoadingJobs: !loadingJobs,
+    };
+
+    const allConditionsMet = Object.values(conditions).every(v => v === true);
+
+    console.log("🔍 Condition check:", conditions);
+    console.log("✅ All conditions met:", allConditionsMet);
+
+    if (allConditionsMet) {
+      const selectedJob = prospectiveJobs.find(job => job.id === selectedJobId);
+      if (selectedJob) {
+        console.log("🎯 All conditions met, triggering auto-analysis for:", selectedJob.jobTitle);
+        hasAutoAnalyzedRef.current = true;
+        
+        // Trigger analysis immediately
+        const triggerAnalysis = async () => {
+          console.log("🚀 Executing auto-analysis...");
+          const analysisPrompt = `Analyze this job posting and provide specific recommendations to tailor my resume:
+
+Job Title: ${selectedJob.jobTitle || 'N/A'}
+Company: ${selectedJob.company || 'N/A'}
+${selectedJob.location ? `Location: ${selectedJob.location}` : ''}
+${selectedJob.industry ? `Industry: ${selectedJob.industry}` : ''}
+${selectedJob.jobType ? `Job Type: ${selectedJob.jobType}` : ''}
+${selectedJob.description ? `\nJob Description:\n${selectedJob.description}` : ''}
+
+Please:
+1. Identify the key skills and qualifications required
+2. Suggest specific improvements to my resume content (bullet points, summary, skills)
+3. Recommend which skills to emphasize or reorder based on relevance
+4. Provide tailored suggestions for experience descriptions that match the job requirements
+
+Be specific and actionable with your recommendations.`;
+
+          // Add user message
+          const userMessage: Message = {
+            role: "user",
+            content: analysisPrompt,
+            timestamp: new Date(),
+          };
+          
+          // Add initial loading message to show user what's happening
+          const loadingMessage: Message = {
+            role: "assistant",
+            content: "🤖 Analyzing job posting and generating tailored resume recommendations... This may take a moment.",
+            timestamp: new Date(),
+          };
+          
+          // Set initial messages with user prompt and loading indicator
+          setMessages([userMessage, loadingMessage]);
+          setIsLoading(true);
+
+          // Send to AI
+          try {
+            console.log("📤 Sending prompt to backend for job:", selectedJob.jobTitle);
+            console.log("📤 Resume ID:", resumeId);
+            console.log("📤 Job ID:", selectedJobId);
+            console.log("📤 Prompt length:", analysisPrompt.length);
+            const response = await resumeService.chat(
+              resumeId!,
+              [{ role: "user", content: analysisPrompt }],
+              selectedJobId
+            );
+
+            console.log("📥 Auto-analysis response:", response);
+            console.log("📥 Response data:", response.data);
+
+            if (response.ok && response.data) {
+              const assistantMessage: Message = {
+                role: "assistant",
+                content: response.data.message || response.data.content || "I've analyzed the job posting. Here are my recommendations to tailor your resume.",
+                timestamp: new Date(),
+              };
+              
+              console.log("💬 Assistant message content length:", assistantMessage.content.length);
+              console.log("💬 Assistant message preview:", assistantMessage.content.substring(0, 100));
+              
+              // Replace the loading message with the actual response
+              // We know the structure: [userMessage, loadingMessage]
+              // So we replace index 1 with the actual response
+              const updatedMessages = [userMessage, assistantMessage];
+              setMessages(updatedMessages);
+              console.log("📝 Set messages array with", updatedMessages.length, "messages");
+              console.log("📝 Messages:", updatedMessages.map(m => ({ role: m.role, contentLength: m.content.length })));
+              
+              // Force a re-render by updating a state that triggers useEffect
+              // The scroll effect will trigger when messages.length changes or when we force it
+              setTimeout(() => {
+                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+              }, 100);
+              
+              // Parse suggestions - use index 1 since assistant message is at index 1
+              const messageContent = response.data.message || response.data.content || "";
+              const suggestions = parseSuggestions(messageContent, 1);
+              console.log("💡 Parsed suggestions:", suggestions.length);
+              if (suggestions.length > 0) {
+                setParsedSuggestions(new Map([[1, suggestions]]));
+              }
+              console.log("✅ Auto-analysis completed successfully");
+            } else {
+              console.error("❌ Auto-analysis failed - response not ok:", response);
+              const errorMessage: Message = {
+                role: "assistant",
+                content: `I encountered an issue analyzing the job posting. ${response.error?.message || "Please try again or ask me a specific question about the job."}`,
+                timestamp: new Date(),
+              };
+              // Replace loading message with error message
+              setMessages([userMessage, errorMessage]);
+              setTimeout(() => {
+                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+              }, 100);
+              hasAutoAnalyzedRef.current = false; // Reset flag on error so user can retry
+            }
+          } catch (error: any) {
+            console.error("❌ Auto-analysis error:", error);
+            const errorMessage: Message = {
+              role: "assistant",
+              content: `I apologize, but I'm having trouble analyzing the job posting right now. ${error.message ? `Error: ${error.message}` : "Please try again or ask me a specific question."}`,
+              timestamp: new Date(),
+            };
+            // Replace loading message with error message
+            setMessages([userMessage, errorMessage]);
+            setTimeout(() => {
+              messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+            }, 100);
+            hasAutoAnalyzedRef.current = false; // Reset flag on error so user can retry
+          } finally {
+            setIsLoading(false);
+          }
+        };
+
+        // Small delay to ensure UI is ready
+        const timer = setTimeout(triggerAnalysis, 300);
+        return () => clearTimeout(timer);
+      } else {
+        console.error("❌ Selected job not found in prospectiveJobs:", selectedJobId);
+      }
+    } else {
+      // Log which conditions are failing
+      const failingConditions = Object.entries(conditions)
+        .filter(([_, met]) => !met)
+        .map(([name]) => name);
+      if (autoAnalyzeJob && isOpen && failingConditions.length > 0) {
+        console.log("⏸️ Auto-analysis blocked by:", failingConditions);
+      }
+    }
+  }, [autoAnalyzeJob, isOpen, resumeId, selectedJobId, initialJobId, prospectiveJobs, isLoading, messages.length, loadingJobs]);
 
   // Generate context-aware suggested prompts
   const generateSuggestedPrompts = useCallback(async () => {
@@ -853,9 +1292,10 @@ Generate 4 relevant prompts:`;
     }
   }, [resumeId, messages, isGeneratingPrompts]);
 
-  // Initialize with welcome message
+  // Initialize with welcome message (only if no initialMessage is provided)
   useEffect(() => {
-    if (isOpen && messages.length === 0) {
+    // Don't show welcome message if we have an initialMessage - that will be handled by the initialMessage effect
+    if (isOpen && messages.length === 0 && !initialMessage) {
       setMessages([
         {
           role: "assistant",
@@ -869,7 +1309,122 @@ Generate 4 relevant prompts:`;
       // Reset user message count tracker
       lastUserMessageCountRef.current = 0;
     }
-  }, [isOpen]);
+  }, [isOpen, initialMessage, messages.length]);
+
+  // Generate context-aware suggested prompts when panel opens
+  useEffect(() => {
+    if (isOpen && suggestedPrompts.length === 0 && resumeId && resumeId !== "new") {
+      const generateContextualPrompts = async () => {
+        try {
+          setIsGeneratingPrompts(true);
+
+          // Build context from resume, job, and initial message
+          let context = "User is working on their resume.";
+          
+          if (resume) {
+            const hasSummary = resume.content?.summary && resume.content.summary.trim().length > 0;
+            const hasExperience = resume.content?.experience && resume.content.experience.length > 0;
+            const hasSkills = resume.content?.skills && resume.content.skills.length > 0;
+            const hasEducation = resume.content?.education && resume.content.education.length > 0;
+            const hasProjects = resume.content?.projects && resume.content.projects.length > 0;
+            
+            context += `\nResume status: ${hasSummary ? 'Has summary' : 'Needs summary'}, ${hasExperience ? `${resume.content.experience.length} experience entries` : 'No experience'}, ${hasSkills ? `${resume.content.skills.length} skills` : 'No skills'}, ${hasEducation ? `${resume.content.education.length} education entries` : 'No education'}, ${hasProjects ? `${resume.content.projects.length} projects` : 'No projects'}.`;
+          }
+
+          // Use selectedJobId or fallback to initialJobId
+          const jobIdToUse = selectedJobId || initialJobId;
+          if (jobIdToUse) {
+            const selectedJob = prospectiveJobs.find(job => job.id === jobIdToUse);
+            if (selectedJob) {
+              context += `\nUser is tailoring resume for: ${selectedJob.jobTitle} at ${selectedJob.company}.`;
+            } else if (jobIdToUse === initialJobId) {
+              // If job not loaded yet but we have initialJobId, mention it
+              context += `\nUser is tailoring resume for a specific job posting.`;
+            }
+          }
+
+          if (initialMessage) {
+            // Extract key information from the AI's explanation
+            const explanationPreview = initialMessage.substring(0, 300);
+            context += `\nAI has just tailored the resume. Explanation preview: ${explanationPreview}`;
+          }
+
+          const promptRequest = `Based on the following context, generate 4 short, actionable prompts (each 5-8 words max) that would be helpful for the user to continue improving their resume. The prompts should be specific, relevant, and actionable based on the context. Return ONLY a JSON array of strings, no other text.
+
+Context: ${context}
+
+Example format: ["Write a professional summary", "Improve my work experience", "Suggest skills to add", "Optimize for ATS"]
+
+Generate 4 relevant, context-aware prompts:`;
+
+          const response = await resumeService.chat(resumeId, [
+            {
+              role: "user",
+              content: promptRequest,
+            },
+          ], jobIdToUse || undefined);
+
+          if (response.ok && response.data) {
+            try {
+              // Try to parse JSON from the response
+              const content = response.data.message.trim();
+              // Remove markdown code blocks if present
+              const cleaned = content
+                .replace(/```json\n?/g, "")
+                .replace(/```\n?/g, "")
+                .trim();
+              const parsed = JSON.parse(cleaned);
+
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                setSuggestedPrompts(parsed.slice(0, 4));
+                console.log("✅ Generated contextual prompts:", parsed);
+              } else {
+                // Fallback to default prompts
+                setSuggestedPrompts(SUGGESTED_PROMPTS.slice(0, 4));
+              }
+            } catch (parseError) {
+              // If parsing fails, try to extract prompts from text
+              const lines = response.data.message
+                .split("\n")
+                .filter((line: string) => line.trim().length > 0);
+              const extracted = lines
+                .map((line: string) =>
+                  line
+                    .replace(/^[-•*]\s*/, "")
+                    .replace(/^["']|["']$/g, "")
+                    .trim()
+                )
+                .filter((line: string) => line.length > 0 && line.length < 50)
+                .slice(0, 4);
+
+              if (extracted.length > 0) {
+                setSuggestedPrompts(extracted);
+              } else {
+                setSuggestedPrompts(SUGGESTED_PROMPTS.slice(0, 4));
+              }
+            }
+          } else {
+            setSuggestedPrompts(SUGGESTED_PROMPTS.slice(0, 4));
+          }
+        } catch (error) {
+          console.error("Error generating contextual prompts:", error);
+          setSuggestedPrompts(SUGGESTED_PROMPTS.slice(0, 4));
+        } finally {
+          setIsGeneratingPrompts(false);
+        }
+      };
+
+      // Small delay to ensure resume and jobs are loaded
+      const timer = setTimeout(() => {
+        generateContextualPrompts();
+      }, 500);
+
+      return () => clearTimeout(timer);
+    } else if (isOpen && suggestedPrompts.length === 0) {
+      // Fallback to default prompts if no resume ID
+      setSuggestedPrompts(SUGGESTED_PROMPTS.slice(0, 4));
+    }
+  }, [isOpen, resumeId, resume, selectedJobId, initialJobId, prospectiveJobs, initialMessage, suggestedPrompts.length]);
 
   // Generate prompts only after a user message is sent (not on every message change)
   useEffect(() => {
@@ -993,7 +1548,8 @@ Generate 4 relevant prompts:`;
 
         const response = await resumeService.chat(
           resumeId,
-          conversationHistory
+          conversationHistory,
+          selectedJobId || undefined
         );
 
         if (response.ok && response.data) {
@@ -1002,19 +1558,42 @@ Generate 4 relevant prompts:`;
           console.log("🔍 Parsed suggestions:", suggestions);
 
           // Check if user explicitly asked to apply/make changes
-          const userInputLower = userInput.toLowerCase();
-          const actionVerbs = [
+          // Only auto-apply for explicit confirmation phrases, not questions or general action verbs
+          const userInputLower = userInput.toLowerCase().trim();
+          
+          // Explicit confirmation phrases that indicate user wants to apply changes
+          const explicitConfirmations = [
             "make the changes", "apply the changes", "make changes", "apply changes",
             "do it", "make it", "apply it", "go ahead", "yes, apply", "yes apply",
-            "update", "update it", "improve", "improve it", "fix", "fix it",
-            "modify", "modify it", "change", "change it", "apply", "apply them",
-            "make", "make them", "do", "do them", "yes", "sure", "okay", "ok",
-            "please", "please do", "please apply", "please make", "go for it",
-            "proceed", "execute", "implement", "add", "add it", "add them"
+            "apply them", "make them", "do them", "please apply", "please make",
+            "go for it", "proceed", "execute", "implement", "apply", "make",
+            "yes", "sure", "okay", "ok", "do it", "let's do it", "let's apply",
+            "apply these", "make these changes", "apply these changes"
           ];
-          const shouldAutoApply = suggestions.length > 0 && actionVerbs.some(verb => 
-            userInputLower.includes(verb)
-          );
+          
+          // Question words that indicate the user is asking, not confirming
+          const questionIndicators = [
+            "what", "how", "which", "when", "where", "why", "should", "could", "would",
+            "can you", "will you", "what should", "how can", "how do", "what can"
+          ];
+          
+          // Check if input is a question (starts with question word or contains question mark)
+          const isQuestion = questionIndicators.some(indicator => 
+            userInputLower.startsWith(indicator) || userInputLower.includes("?")
+          ) || userInputLower.endsWith("?");
+          
+          // Only auto-apply if:
+          // 1. There are suggestions
+          // 2. User input matches an explicit confirmation phrase
+          // 3. It's NOT a question
+          const shouldAutoApply = suggestions.length > 0 && 
+            !isQuestion && 
+            explicitConfirmations.some(phrase => 
+              userInputLower === phrase || 
+              userInputLower.startsWith(phrase + " ") ||
+              userInputLower.endsWith(" " + phrase) ||
+              userInputLower.includes(" " + phrase + " ")
+            );
           
           console.log("🔍 Auto-apply check:", {
             userInput: userInput,
@@ -1563,10 +2142,13 @@ Generate 4 relevant prompts:`;
   };
 
   const handleClearChat = () => {
-    if (confirm("Are you sure you want to clear the chat history?")) {
-      setMessages([]);
-      setInput("");
-    }
+    setShowClearChatConfirm(true);
+  };
+
+  const confirmClearChat = () => {
+    setShowClearChatConfirm(false);
+    setMessages([]);
+    setInput("");
   };
 
   if (!isOpen) return null;
@@ -1582,6 +2164,31 @@ Generate 4 relevant prompts:`;
         flexDirection: "column",
       }}
     >
+      {/* Clear Chat Confirmation Modal */}
+      {showClearChatConfirm && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-in zoom-in-95 duration-300">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Clear Chat History</h2>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to clear the chat history? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowClearChatConfirm(false)}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmClearChat}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div className="flex-shrink-0 flex items-center justify-between p-4 border-b border-gray-200 bg-white">
         <div className="flex items-center gap-3">
@@ -1603,12 +2210,71 @@ Generate 4 relevant prompts:`;
         </button>
       </div>
 
+      {/* Job Selector */}
+      <div className="flex-shrink-0 px-4 py-3 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+        <div className="flex items-center gap-3">
+          <Icon icon="mingcute:briefcase-line" className="w-4 h-4 text-[#3351FD] flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <label className="block text-xs font-semibold text-gray-700 mb-1">
+              Tailor for Job Posting (Optional)
+            </label>
+            {loadingJobs ? (
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <Icon icon="mingcute:loading-line" className="w-3 h-3 animate-spin" />
+                <span>Loading jobs...</span>
+              </div>
+            ) : (
+              <select
+                value={selectedJobId || ""}
+                onChange={(e) => setSelectedJobId(e.target.value || null)}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent bg-white"
+              >
+                <option value="">No specific job - General advice</option>
+                {prospectiveJobs.map((job) => (
+                  <option key={job.id} value={job.id}>
+                    {job.jobTitle} at {job.company}
+                    {job.location ? ` (${job.location})` : ""}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+          {selectedJobId && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                setSelectedJobId(null);
+              }}
+              className="p-1.5 hover:bg-white/50 rounded-lg transition-colors flex-shrink-0"
+              title="Clear job selection"
+              type="button"
+            >
+              <Icon icon="mingcute:close-line" className="w-4 h-4 text-gray-600" />
+            </button>
+          )}
+        </div>
+        {selectedJobId && (
+          <div className="mt-2 text-xs text-gray-600">
+            <Icon icon="mingcute:information-line" className="w-3 h-3 inline mr-1" />
+            AI suggestions will be tailored to match this job's requirements
+          </div>
+        )}
+      </div>
+
       {/* Messages */}
       <div
         ref={messagesContainerRef}
         className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 bg-white"
         style={{ flex: "1 1 auto", overflowY: "auto", minHeight: 0 }}
       >
+        {(() => {
+          console.log("🎨 Rendering messages:", messages.length, "messages");
+          if (messages.length === 0 && initialMessage) {
+            console.warn("⚠️ No messages but initialMessage exists:", initialMessage.substring(0, 100));
+          }
+          return null;
+        })()}
         {messages.map((message, index) => (
           <div
             key={index}
@@ -1771,8 +2437,10 @@ Generate 4 relevant prompts:`;
                                   <p className="text-xs font-semibold text-gray-900 truncate">
                                     {suggestion.type === "summary" &&
                                       "Update Summary"}
-                                    {suggestion.type === "skill" &&
+                                    {suggestion.type === "skill" && suggestion.action === "add" &&
                                       `Add Skill: ${suggestion.content.length > 20 ? suggestion.content.substring(0, 20) + '...' : suggestion.content}`}
+                                    {suggestion.type === "skill" && suggestion.action === "reorder" &&
+                                      `Reorder Skills: ${suggestion.content.split(",").slice(0, 3).map((s: string) => s.trim()).join(", ")}${suggestion.content.split(",").length > 3 ? "..." : ""}`}
                                     {suggestion.type === "experience" &&
                                       "Update Experience"}
                                     {suggestion.type === "education" &&
@@ -1792,11 +2460,16 @@ Generate 4 relevant prompts:`;
                                 </div>
                                 {suggestion.content &&
                                   suggestion.content.length < 100 &&
-                                  suggestion.type !== "skill" && (
+                                  suggestion.type !== "skill" && suggestion.action !== "reorder" && (
                                     <p className="text-xs text-gray-600 mt-0.5 line-clamp-2">
                                       {suggestion.content}
                                     </p>
                                   )}
+                                {suggestion.type === "skill" && suggestion.action === "reorder" && (
+                                  <p className="text-xs text-gray-600 mt-0.5">
+                                    Skills will be reordered to prioritize job-relevant skills
+                                  </p>
+                                )}
                               </div>
                               <button
                                 onClick={() => previewSuggestion(suggestion)}
@@ -1822,8 +2495,8 @@ Generate 4 relevant prompts:`;
                   );
                 })()}
 
-              {/* Preview Banner - Show when changes are previewed */}
-              {previewResume && (
+              {/* Preview Banner - Show only for the message with active preview */}
+              {previewResume && previewMessageIndex === index && (
                 <div className="mt-3 pt-3 border-t border-gray-200">
                   <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-3 shadow-sm">
                     <div className="flex items-start gap-2 mb-2">
@@ -1869,29 +2542,33 @@ Generate 4 relevant prompts:`;
 
         {isLoading && (
           <div className="flex justify-start">
-            <div className="bg-white border border-gray-200 rounded-lg p-3 max-w-[80%]">
-              <div className="flex items-center gap-2">
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 max-w-[85%] shadow-sm">
+              <div className="flex items-center gap-2 mb-2">
                 <Icon
                   icon="mingcute:ai-fill"
-                  className="w-4 h-4 text-[#3351FD]"
+                  className="w-5 h-5 text-[#3351FD] animate-pulse"
                 />
-                <span className="text-xs font-semibold text-gray-600">
+                <span className="text-sm font-semibold text-gray-900">
                   AI Assistant
                 </span>
               </div>
-              <div className="flex items-center gap-1 mt-2">
+              <p className="text-xs text-gray-700 mb-3">
+                Analyzing job posting and generating tailored resume recommendations...
+              </p>
+              <div className="flex items-center gap-1.5">
                 <div
-                  className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                  className="w-2 h-2 bg-[#3351FD] rounded-full animate-bounce"
                   style={{ animationDelay: "0ms" }}
                 ></div>
                 <div
-                  className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                  className="w-2 h-2 bg-[#3351FD] rounded-full animate-bounce"
                   style={{ animationDelay: "150ms" }}
                 ></div>
                 <div
-                  className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                  className="w-2 h-2 bg-[#3351FD] rounded-full animate-bounce"
                   style={{ animationDelay: "300ms" }}
                 ></div>
+                <span className="text-xs text-gray-600 ml-2">Please wait...</span>
               </div>
             </div>
           </div>
@@ -1948,19 +2625,24 @@ Generate 4 relevant prompts:`;
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder="Type your message..."
-                className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent resize-none"
+                className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent resize-none overflow-y-auto"
                 rows={1}
                 style={{
                   minHeight: "48px",
                   maxHeight: "120px",
+                  overflowY: "auto",
                 }}
                 onInput={(e) => {
                   const target = e.target as HTMLTextAreaElement;
                   target.style.height = "auto";
-                  target.style.height = `${Math.min(
-                    target.scrollHeight,
-                    120
-                  )}px`;
+                  const newHeight = Math.min(target.scrollHeight, 120);
+                  target.style.height = `${newHeight}px`;
+                  // Enable scrolling if content exceeds max height
+                  if (target.scrollHeight > 120) {
+                    target.style.overflowY = "auto";
+                  } else {
+                    target.style.overflowY = "hidden";
+                  }
                 }}
               />
               <button

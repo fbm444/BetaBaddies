@@ -15,6 +15,7 @@ import { Resumes } from './pages/Resumes'
 import { ResumeBuilder } from './pages/ResumeBuilder'
 import { ResumeTemplates } from './pages/ResumeTemplates'
 import { ResumePreview } from './pages/ResumePreview'
+import { AITailoringPage } from './pages/AITailoringPage'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { ROUTES } from './config/routes'
@@ -88,6 +89,7 @@ function App() {
 		  <Route path={ROUTES.RESUME_BUILDER} element={<ResumeBuilder />} />
 		  <Route path={ROUTES.RESUME_TEMPLATES} element={<ResumeTemplates />} />
 		  <Route path={ROUTES.RESUME_PREVIEW} element={<ResumePreview />} />
+		  <Route path={ROUTES.RESUME_AI_TAILORING} element={<AITailoringPage />} />
 		</Route>
 	      </Routes>
 	    </div>

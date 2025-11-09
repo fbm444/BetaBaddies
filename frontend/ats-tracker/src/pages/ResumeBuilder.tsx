@@ -13,9 +13,14 @@ import {
 } from "../types";
 import { resumeService } from "../services/resumeService";
 import { api } from "../services/api";
+import {
+  prospectiveJobService,
+  ProspectiveJob,
+} from "../services/prospectiveJobService";
 import { AIAssistantChat } from "../components/resume/AIAssistantChat";
 import { Toast } from "../components/resume/Toast";
 import { ResumeTopBar } from "../components/resume/ResumeTopBar";
+import { VersionControl } from "../components/resume/VersionControl";
 
 export function ResumeBuilder() {
   const navigate = useNavigate();
@@ -24,11 +29,66 @@ export function ResumeBuilder() {
   const templateId = searchParams.get("templateId");
   const importFromId = searchParams.get("importFromId");
   const uploaded = searchParams.get("uploaded");
+  const jobId = searchParams.get("jobId");
+  const aiExplanation = searchParams.get("aiExplanation");
 
   // Helper function to validate UUID format
   const isValidUUID = (id: string | null): boolean => {
     if (!id || id === "new") return false;
-    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      id
+    );
+  };
+
+  // Helper function to safely get decoded explanation
+  // URLSearchParams.get() already decodes the parameter, so we use it as-is
+  const getDecodedExplanation = (str: string | null): string | undefined => {
+    if (!str) return undefined;
+    return str;
+  };
+
+  // Helper function to format date as "Month Year" (e.g., "January 2020")
+  const formatDateMonthYear = (
+    dateString: string | undefined | null
+  ): string => {
+    if (!dateString) return "";
+
+    // Handle formats like "2020-01", "2020-01-15", or "2020-01-15T00:00:00Z"
+    const dateMatch = dateString.match(/^(\d{4})-(\d{2})/);
+    if (dateMatch) {
+      const year = dateMatch[1];
+      const month = parseInt(dateMatch[2], 10);
+      const monthNames = [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+      ];
+      return `${monthNames[month - 1]} ${year}`;
+    }
+
+    // Fallback: try to parse as Date
+    try {
+      const date = new Date(dateString);
+      if (!isNaN(date.getTime())) {
+        return date.toLocaleDateString("en-US", {
+          month: "long",
+          year: "numeric",
+        });
+      }
+    } catch (e) {
+      // If parsing fails, return original string
+    }
+
+    return dateString;
   };
 
   const [resume, setResume] = useState<Resume | null>(null);
@@ -56,6 +116,7 @@ export function ResumeBuilder() {
   const [draggedDocumentSection, setDraggedDocumentSection] = useState<
     string | null
   >(null);
+  const [dragOverSection, setDragOverSection] = useState<string | null>(null); // Track which section is being dragged over
   const [selectedSectionForFormatting, setSelectedSectionForFormatting] =
     useState<string | null>(null);
   const [showYourData, setShowYourData] = useState(true);
@@ -76,8 +137,16 @@ export function ResumeBuilder() {
   const [showVersionModal, setShowVersionModal] = useState(false);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [showVersionCompare, setShowVersionCompare] = useState(false);
+  const [showVersionControl, setShowVersionControl] = useState(false);
   const [newVersionName, setNewVersionName] = useState("");
   const [newVersionDescription, setNewVersionDescription] = useState("");
+  const [newVersionJobId, setNewVersionJobId] = useState<string>("");
+  const [showDeleteItemConfirm, setShowDeleteItemConfirm] = useState<{
+    sectionId: string;
+    itemId: string;
+  } | null>(null);
+  const [showResetFormattingConfirm, setShowResetFormattingConfirm] =
+    useState(false);
   const [selectedVersion1, setSelectedVersion1] = useState<string | null>(null);
   const [selectedVersion2, setSelectedVersion2] = useState<string | null>(null);
   const [versionComparison, setVersionComparison] = useState<any>(null);
@@ -90,7 +159,7 @@ export function ResumeBuilder() {
   const [historyIndex, setHistoryIndex] = useState(-1);
   const maxHistorySize = 50; // Limit history to prevent memory issues
   const maxLocalStorageSize = 10; // Limit localStorage history (smaller due to size constraints)
-  const localStorageKey = `resume_history_${resumeId || 'new'}`;
+  const localStorageKey = `resume_history_${resumeId || "new"}`;
   const isUndoingRef = useRef(false); // Track if we're currently undoing to prevent saving to history
 
   // Toast notifications
@@ -117,6 +186,11 @@ export function ResumeBuilder() {
   const [userEducation, setUserEducation] = useState<EducationData[]>([]);
   const [userProjects, setUserProjects] = useState<ProjectData[]>([]);
   const [showImportModal, setShowImportModal] = useState(false);
+
+  // Prospective job data
+  const [prospectiveJob, setProspectiveJob] = useState<ProspectiveJob | null>(
+    null
+  );
   const [importSection, setImportSection] = useState<string | null>(null);
   const [selectedItems, setSelectedItems] = useState<{
     skills: string[];
@@ -175,24 +249,223 @@ export function ResumeBuilder() {
     fetchUserData();
   }, []);
 
+  // Fetch prospective job details if jobId is provided
+  useEffect(() => {
+    const fetchJob = async () => {
+      if (jobId && isValidUUID(jobId)) {
+        try {
+          const response = await prospectiveJobService.getProspectiveJobById(
+            jobId
+          );
+          if (response.ok && response.data?.job) {
+            setProspectiveJob(response.data.job);
+          }
+        } catch (err) {
+          console.error("Failed to fetch job details:", err);
+        }
+      }
+    };
+
+    fetchJob();
+  }, [jobId]);
+
+  // Auto-save refs (declared before useEffects that use them)
+  const hasAutoSavedRef = useRef(false);
+  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Update resume name when job is loaded (for new resumes)
+  useEffect(() => {
+    if (!resumeId && resume && prospectiveJob && resume.id === "new") {
+      let resumeName = "New Resume";
+      if (prospectiveJob.jobTitle && prospectiveJob.company) {
+        resumeName = `Resume for ${prospectiveJob.jobTitle} at ${prospectiveJob.company}`;
+      } else if (prospectiveJob.jobTitle) {
+        resumeName = `Resume for ${prospectiveJob.jobTitle}`;
+      } else if (prospectiveJob.company) {
+        resumeName = `Resume for ${prospectiveJob.company}`;
+      }
+
+      if (
+        resume.name !== resumeName ||
+        resume.jobId !== (jobId && isValidUUID(jobId) ? jobId : undefined)
+      ) {
+        const updatedResume = {
+          ...resume,
+          name: resumeName,
+          description: `Tailored for ${
+            prospectiveJob.jobTitle || "position"
+          } at ${prospectiveJob.company || "company"}`,
+          jobId: jobId && isValidUUID(jobId) ? jobId : resume.jobId,
+        };
+        setResume(updatedResume);
+        // Note: Auto-save is handled by the separate useEffect below
+        // This effect only updates the resume name/description when job loads
+      }
+    }
+  }, [
+    prospectiveJob,
+    resumeId,
+    jobId,
+    resume,
+    isLoading,
+    showImportResumeModal,
+    importingResume,
+    navigate,
+  ]);
+
+  // Auto-save new resume after creation
+  useEffect(() => {
+    // Clear any existing timer
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
+
+    // CRITICAL: Don't auto-save if resumeId is in URL (means we're loading an existing resume)
+    // This prevents duplicate creation when coming from AI tailoring or loading existing resumes
+    if (resumeId && isValidUUID(resumeId)) {
+      hasAutoSavedRef.current = true;
+      return; // Exit early - don't auto-save existing resumes
+    }
+
+    // Only auto-save if:
+    // 1. Resume exists
+    // 2. Resume ID is "new" (not yet saved)
+    // 3. No resumeId in URL (meaning it's truly a new resume, not loading an existing one)
+    // 4. Resume ID is actually "new" (not a valid UUID)
+    // 5. Not currently loading
+    // 6. Haven't auto-saved this resume yet
+    // 7. Not importing a resume (wait for user confirmation)
+    if (
+      resume &&
+      resume.id === "new" &&
+      !resumeId && // No resumeId in URL
+      !isValidUUID(resume?.id || "") && // Resume ID is not a valid UUID
+      !isLoading &&
+      !hasAutoSavedRef.current &&
+      !showImportResumeModal &&
+      !importingResume
+    ) {
+      // If jobId is provided, wait for job to load (or timeout after 3 seconds)
+      // Otherwise, wait 1 second to ensure resume is fully initialized
+      const delay = jobId && !prospectiveJob ? 3000 : 1000;
+
+      autoSaveTimerRef.current = setTimeout(async () => {
+        // Double-check conditions before saving
+        // CRITICAL: Also check resumeId in URL - if it exists, don't save (existing resume)
+        if (
+          resume &&
+          resume.id === "new" &&
+          !resumeId && // No resumeId in URL
+          !isValidUUID(resume?.id || "") && // Resume ID is not a valid UUID
+          !hasAutoSavedRef.current
+        ) {
+          hasAutoSavedRef.current = true;
+          try {
+            setIsAutoSaving(true);
+            const response = await resumeService.createResume({
+              name: resume.name || "New Resume",
+              description: resume.description,
+              templateId: resume.templateId,
+              jobId: resume.jobId,
+              content: resume.content,
+              sectionConfig: resume.sectionConfig,
+              customizations: resume.customizations,
+              versionNumber: resume.versionNumber || 1,
+              isMaster: resume.isMaster ?? true,
+            });
+
+            if (response.ok && response.data?.resume) {
+              const newResume = response.data.resume;
+              setResume(newResume);
+              // Update URL with new resume ID
+              navigate(`${ROUTES.RESUME_BUILDER}?id=${newResume.id}`, {
+                replace: true,
+              });
+              setLastSaved(new Date());
+              // Auto-open AI panel if resume is for a job
+              if (jobId && isValidUUID(jobId)) {
+                setTimeout(() => {
+                  setShowAIPanel(true);
+                }, 500);
+              }
+              // Don't show toast for auto-save to avoid interrupting user
+            } else {
+              // Reset flag on error so it can retry
+              hasAutoSavedRef.current = false;
+              console.error("Auto-save failed:", response.error);
+            }
+          } catch (err: any) {
+            // Reset flag on error so it can retry
+            hasAutoSavedRef.current = false;
+            console.error("Auto-save error:", err);
+          } finally {
+            setIsAutoSaving(false);
+          }
+        }
+      }, delay);
+
+      return () => {
+        if (autoSaveTimerRef.current) {
+          clearTimeout(autoSaveTimerRef.current);
+          autoSaveTimerRef.current = null;
+        }
+      };
+    }
+  }, [
+    resume,
+    resumeId, // Add resumeId to dependencies to prevent auto-save when loading existing resume
+    isLoading,
+    showImportResumeModal,
+    importingResume,
+    navigate,
+    jobId,
+    prospectiveJob,
+  ]);
+
+  // Reset auto-save flag when resumeId changes (new resume created)
+  // IMPORTANT: If resumeId is a valid UUID, it means we're loading an existing resume
+  // so we should set hasAutoSavedRef to true to prevent duplicate creation
+  useEffect(() => {
+    if (resumeId && isValidUUID(resumeId)) {
+      // This is an existing resume from the backend - don't auto-save
+      hasAutoSavedRef.current = true;
+    } else if (!resumeId || resumeId === "new") {
+      // This is a new resume - allow auto-save
+      hasAutoSavedRef.current = false;
+    }
+  }, [resumeId]);
+
   // Fetch resume or use mock data
   useEffect(() => {
     const fetchResume = async () => {
       try {
         setIsLoading(true);
+
+        // CRITICAL: If resumeId exists and is valid, immediately disable auto-save
+        // This prevents race conditions where auto-save might run before resume loads
+        if (resumeId && isValidUUID(resumeId)) {
+          hasAutoSavedRef.current = true;
+        }
+
         // Validate UUID format if resumeId is provided
         if (resumeId) {
           if (!isValidUUID(resumeId) && resumeId !== "new") {
-            showToast("Invalid resume ID format. Please select a valid resume.", "error");
+            showToast(
+              "Invalid resume ID format. Please select a valid resume.",
+              "error"
+            );
             navigate(ROUTES.RESUMES);
             return;
           }
-          
+
           if (isValidUUID(resumeId)) {
             const response = await resumeService.getResume(resumeId);
             if (response.ok && response.data) {
               const loadedResume = response.data.resume;
               setResume(loadedResume);
+              // IMPORTANT: Mark as already saved to prevent auto-save from creating duplicate
+              hasAutoSavedRef.current = true;
               // Initialize history with loaded resume first
               const initialHistory = [JSON.parse(JSON.stringify(loadedResume))];
               setResumeHistory(initialHistory);
@@ -205,8 +478,17 @@ export function ResumeBuilder() {
                   loadedResume.customizations.sectionFormatting
                 );
               }
+              // Auto-open AI panel if explanation is provided (from AI tailoring flow)
+              if (aiExplanation) {
+                setTimeout(() => {
+                  setShowAIPanel(true);
+                }, 500);
+              }
             } else if (response.error?.code === "INVALID_ID") {
-              showToast("Invalid resume ID format. Please select a valid resume.", "error");
+              showToast(
+                "Invalid resume ID format. Please select a valid resume.",
+                "error"
+              );
               navigate(ROUTES.RESUMES);
               return;
             }
@@ -216,7 +498,9 @@ export function ResumeBuilder() {
           if (uploaded === "true") {
             try {
               // Get parsed content from sessionStorage
-              const storedContent = sessionStorage.getItem('uploadedResumeContent');
+              const storedContent = sessionStorage.getItem(
+                "uploadedResumeContent"
+              );
               if (storedContent) {
                 const parsedContent = JSON.parse(storedContent);
                 // Set parsed content to show preview
@@ -228,24 +512,28 @@ export function ResumeBuilder() {
                   "success"
                 );
                 // Clear sessionStorage
-                sessionStorage.removeItem('uploadedResumeContent');
+                sessionStorage.removeItem("uploadedResumeContent");
                 // Remove uploaded parameter from URL
-                navigate(`${ROUTES.RESUME_BUILDER}?templateId=${templateId || "default-chronological"}`, { replace: true });
+                navigate(
+                  `${ROUTES.RESUME_BUILDER}?templateId=${
+                    templateId || "default-chronological"
+                  }`,
+                  { replace: true }
+                );
               }
             } catch (err: any) {
               console.error("Failed to load uploaded resume content:", err);
-              showToast(
-                "Failed to load uploaded resume content.",
-                "error"
-              );
+              showToast("Failed to load uploaded resume content.", "error");
             }
           }
-          
+
           // New resume - check if importing from existing resume
           if (importFromId && isValidUUID(importFromId)) {
             try {
               // Load the resume to import from
-              const importResponse = await resumeService.getResume(importFromId);
+              const importResponse = await resumeService.getResume(
+                importFromId
+              );
               if (importResponse.ok && importResponse.data) {
                 const sourceResume = importResponse.data.resume;
                 // Set parsed content to show preview (same as file upload)
@@ -257,7 +545,12 @@ export function ResumeBuilder() {
                   "success"
                 );
                 // Remove importFromId from URL
-                navigate(`${ROUTES.RESUME_BUILDER}?templateId=${templateId || "default-chronological"}`, { replace: true });
+                navigate(
+                  `${ROUTES.RESUME_BUILDER}?templateId=${
+                    templateId || "default-chronological"
+                  }`,
+                  { replace: true }
+                );
               }
             } catch (importErr: any) {
               console.error("Failed to load resume for import:", importErr);
@@ -267,19 +560,26 @@ export function ResumeBuilder() {
               );
             }
           }
-          
+
           // New resume - check if template has an existing resume file to parse
           if (templateId) {
             try {
               // Get template to check if it has an existing resume file
-              const templateResponse = await resumeService.getTemplate(templateId);
-              if (templateResponse.ok && templateResponse.data?.template?.existingResumeTemplate) {
+              const templateResponse = await resumeService.getTemplate(
+                templateId
+              );
+              if (
+                templateResponse.ok &&
+                templateResponse.data?.template?.existingResumeTemplate
+              ) {
                 // Template has an existing resume file - parse it with AI
                 showToast("Parsing template resume with AI...", "info");
                 setImportingResume(true);
-                
+
                 try {
-                  const parseResponse = await resumeService.parseTemplateResume(templateId);
+                  const parseResponse = await resumeService.parseTemplateResume(
+                    templateId
+                  );
                   if (parseResponse.ok && parseResponse.data) {
                     // Set parsed content to show preview
                     setParsedResumeContent(parseResponse.data.content);
@@ -293,7 +593,8 @@ export function ResumeBuilder() {
                 } catch (parseErr: any) {
                   console.error("Failed to parse template resume:", parseErr);
                   showToast(
-                    parseErr.message || "Failed to parse template resume. Using default template.",
+                    parseErr.message ||
+                      "Failed to parse template resume. Using default template.",
                     "error"
                   );
                 } finally {
@@ -301,18 +602,38 @@ export function ResumeBuilder() {
                 }
               }
             } catch (templateErr: any) {
-              console.log("Template not found or no existing resume file:", templateErr.message);
+              console.log(
+                "Template not found or no existing resume file:",
+                templateErr.message
+              );
               // Continue with default template
             }
           }
 
           // New resume - use mock data for preview
+          // Set resume name based on job if available
+          let resumeName = "New Resume";
+          if (prospectiveJob) {
+            if (prospectiveJob.jobTitle && prospectiveJob.company) {
+              resumeName = `Resume for ${prospectiveJob.jobTitle} at ${prospectiveJob.company}`;
+            } else if (prospectiveJob.jobTitle) {
+              resumeName = `Resume for ${prospectiveJob.jobTitle}`;
+            } else if (prospectiveJob.company) {
+              resumeName = `Resume for ${prospectiveJob.company}`;
+            }
+          }
+
           const newResume = {
             id: "new",
             userId: "user1",
-            name: "New Resume",
-            description: "",
+            name: resumeName,
+            description: prospectiveJob
+              ? `Tailored for ${prospectiveJob.jobTitle || "position"} at ${
+                  prospectiveJob.company || "company"
+                }`
+              : "",
             templateId: templateId || "default-chronological",
+            jobId: jobId && isValidUUID(jobId) ? jobId : undefined,
             content: {
               personalInfo: {
                 firstName: "John",
@@ -426,12 +747,29 @@ export function ResumeBuilder() {
           showToast("Failed to load resume. Please try again.", "error");
           return;
         }
+        // Set resume name based on job if available
+        let fallbackResumeName = "Software Engineer Resume";
+        if (prospectiveJob) {
+          if (prospectiveJob.jobTitle && prospectiveJob.company) {
+            fallbackResumeName = `Resume for ${prospectiveJob.jobTitle} at ${prospectiveJob.company}`;
+          } else if (prospectiveJob.jobTitle) {
+            fallbackResumeName = `Resume for ${prospectiveJob.jobTitle}`;
+          } else if (prospectiveJob.company) {
+            fallbackResumeName = `Resume for ${prospectiveJob.company}`;
+          }
+        }
+
         setResume({
           id: resumeId || "new",
           userId: "user1",
-          name: "Software Engineer Resume",
-          description: "Tailored for tech positions",
+          name: fallbackResumeName,
+          description: prospectiveJob
+            ? `Tailored for ${prospectiveJob.jobTitle || "position"} at ${
+                prospectiveJob.company || "company"
+              }`
+            : "Tailored for tech positions",
           templateId: templateId || "default-chronological",
+          jobId: jobId && isValidUUID(jobId) ? jobId : undefined,
           content: {
             personalInfo: {
               firstName: "John",
@@ -543,7 +881,19 @@ export function ResumeBuilder() {
         ]);
 
         if (versionsRes.status === "fulfilled" && versionsRes.value.ok) {
-          setVersions(versionsRes.value.data?.resumes || []);
+          const fetchedVersions = versionsRes.value.data?.resumes || [];
+          // Ensure current resume is included if not already in versions
+          if (
+            resume &&
+            !fetchedVersions.find((v: Resume) => v.id === resume.id)
+          ) {
+            setVersions([resume, ...fetchedVersions]);
+          } else {
+            setVersions(fetchedVersions);
+          }
+        } else if (resume) {
+          // If API fails but we have a resume, at least show that
+          setVersions([resume]);
         }
 
         if (historyRes.status === "fulfilled" && historyRes.value.ok) {
@@ -608,12 +958,14 @@ export function ResumeBuilder() {
     setDraggedSection(sectionId);
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDragOver = (e: React.DragEvent, sectionId: string) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
+    setDragOverSection(sectionId);
   };
 
   const handleDrop = (targetSectionId: string) => {
+    setDragOverSection(null); // Clear drag over state
     if (!resume || !draggedSection || draggedSection === targetSectionId) {
       setDraggedSection(null);
       return;
@@ -662,6 +1014,7 @@ export function ResumeBuilder() {
 
   const handleDragEnd = () => {
     setDraggedSection(null);
+    setDragOverSection(null);
   };
 
   // Document drag handlers (for actual resume sections)
@@ -669,12 +1022,16 @@ export function ResumeBuilder() {
     setDraggedDocumentSection(sectionId);
   };
 
-  const handleDocumentDragOver = (e: React.DragEvent) => {
+  const handleDocumentDragOver = (e: React.DragEvent, sectionId?: string) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
+    if (sectionId) {
+      setDragOverSection(sectionId);
+    }
   };
 
   const handleDocumentDrop = (targetSectionId: string) => {
+    setDragOverSection(null); // Clear drag over state
     if (
       !resume ||
       !draggedDocumentSection ||
@@ -724,6 +1081,7 @@ export function ResumeBuilder() {
 
   const handleDocumentDragEnd = () => {
     setDraggedDocumentSection(null);
+    setDragOverSection(null);
   };
 
   // Preset management
@@ -857,15 +1215,18 @@ export function ResumeBuilder() {
       console.log("⏭️ Skipping history save during undo operation");
       return;
     }
-    
+
     setHistoryIndex((prevIndex) => {
       setResumeHistory((prevHistory) => {
         // Remove any history after current index (if we're not at the end)
         const newHistory = prevHistory.slice(0, prevIndex + 1);
-        
+
         // Add new state
-        const updatedHistory = [...newHistory, JSON.parse(JSON.stringify(resumeState))];
-        
+        const updatedHistory = [
+          ...newHistory,
+          JSON.parse(JSON.stringify(resumeState)),
+        ];
+
         // Limit history size
         let finalHistory = updatedHistory;
         let newIndex = updatedHistory.length - 1;
@@ -891,7 +1252,7 @@ export function ResumeBuilder() {
 
         return finalHistory;
       });
-      
+
       // Calculate new index
       return prevIndex + 1;
     });
@@ -900,7 +1261,7 @@ export function ResumeBuilder() {
   // Load history from localStorage on mount
   const loadHistoryFromStorage = (currentResume: Resume | null) => {
     if (!resumeId || resumeId === "new") return; // Don't load for new resumes
-    
+
     try {
       const stored = localStorage.getItem(localStorageKey);
       if (stored) {
@@ -941,22 +1302,22 @@ export function ResumeBuilder() {
         console.log("🔄 Undo check:", {
           prevIndex,
           historyLength: prevHistory.length,
-          canUndo: prevIndex > 0 && prevHistory.length > 0
+          canUndo: prevIndex > 0 && prevHistory.length > 0,
         });
-        
+
         if (prevIndex > 0 && prevHistory.length > 0) {
           // Set flag to prevent saving to history during undo
           isUndoingRef.current = true;
-          
+
           const previousState = prevHistory[prevIndex - 1];
           console.log("↩️ Undoing to state at index:", prevIndex - 1);
-          
+
           setResume(previousState);
           setToast({
-            message: `Changes undone (${prevIndex} change${prevIndex > 1 ? 's' : ''} remaining)`,
+            message: "Changes undone",
             type: "success",
           });
-          
+
           // Save to backend if resume exists
           if (resumeId && resumeId !== "new" && previousState) {
             resumeService
@@ -978,7 +1339,7 @@ export function ResumeBuilder() {
               isUndoingRef.current = false;
             }, 200);
           }
-          
+
           // Update localStorage
           try {
             const historyForStorage = prevHistory.slice(-maxLocalStorageSize);
@@ -991,7 +1352,7 @@ export function ResumeBuilder() {
           } catch (error) {
             console.warn("Failed to save undo to localStorage:", error);
           }
-          
+
           return prevHistory; // Don't modify history on undo
         } else {
           setToast({
@@ -1001,7 +1362,7 @@ export function ResumeBuilder() {
           return prevHistory;
         }
       });
-      
+
       // Decrement index if we can undo
       if (prevIndex > 0) {
         const newIndex = prevIndex - 1;
@@ -1032,7 +1393,7 @@ export function ResumeBuilder() {
 
     try {
       setIsSaving(true);
-      
+
       // If resumeId is "new" or invalid, create a new resume
       if (!resumeId || resumeId === "new" || !isValidUUID(resumeId)) {
         const response = await resumeService.createResume({
@@ -1051,7 +1412,9 @@ export function ResumeBuilder() {
           const newResume = response.data.resume;
           setResume(newResume);
           // Update URL with new resume ID
-          navigate(`${ROUTES.RESUME_BUILDER}?id=${newResume.id}`, { replace: true });
+          navigate(`${ROUTES.RESUME_BUILDER}?id=${newResume.id}`, {
+            replace: true,
+          });
           setLastSaved(new Date());
           showToast("Resume created successfully!", "success");
         } else {
@@ -1085,54 +1448,339 @@ export function ResumeBuilder() {
   };
 
   const handleExport = async (format: "pdf" | "docx" | "txt" | "html") => {
-    if (!resumeId || resumeId === "new") {
-      showToast("Please save the resume before exporting", "error");
-      return;
-    }
-
-    // Validate UUID format
-    if (!isValidUUID(resumeId)) {
-      showToast("Invalid resume ID. Please save the resume first.", "error");
-      return;
-    }
-
     try {
       setExporting(true);
       setShowExportMenu(false);
       showToast(`Exporting as ${format.toUpperCase()}...`, "info");
 
-      const filename = resume?.name || `resume_${resumeId}`;
+      const filename = resume?.name || `resume_${resumeId || Date.now()}`;
 
-      switch (format) {
-        case "pdf":
-          const pdfResult = await resumeService.exportPDF(resumeId, {
-            filename: `${filename}.pdf`,
+      // For PDF - use client-side html2canvas + jsPDF
+      if (format === "pdf") {
+        // Find the resume preview element by ID (more reliable)
+        let previewElement = document.getElementById(
+          "resume-export-target"
+        ) as HTMLElement;
+
+        // Fallback to class selector if ID not found
+        if (!previewElement) {
+          previewElement = document.querySelector(
+            '[class*="max-w-4xl"][class*="bg-white"][class*="shadow-lg"]'
+          ) as HTMLElement;
+        }
+
+        if (!previewElement) {
+          showToast(
+            "Could not find preview element. Please try again.",
+            "error"
+          );
+          setExporting(false);
+          return;
+        }
+
+        // Dynamically import html2canvas and jsPDF
+        const html2canvas = (await import("html2canvas")).default;
+        const jsPDFModule = await import("jspdf");
+        // jsPDF is the default export - get the constructor class
+        const jsPDF = (jsPDFModule as any).default || jsPDFModule;
+
+        // Inject a style override to convert oklch CSS variables to RGB before capture
+        const styleOverride = document.createElement("style");
+        styleOverride.id = "pdf-export-oklch-override";
+        styleOverride.textContent = `
+          :root {
+            --background: #ffffff;
+            --foreground: #1a1a1a;
+            --card: #ffffff;
+            --card-foreground: #1a1a1a;
+            --popover: #ffffff;
+            --popover-foreground: #1a1a1a;
+            --primary: #1a1a1a;
+            --primary-foreground: #fafafa;
+            --secondary: #f5f5f5;
+            --secondary-foreground: #1a1a1a;
+            --muted: #f5f5f5;
+            --muted-foreground: #737373;
+            --accent: #f5f5f5;
+            --accent-foreground: #1a1a1a;
+            --destructive: #dc2626;
+            --border: #e5e5e5;
+            --input: #e5e5e5;
+            --ring: #a3a3a3;
+          }
+        `;
+        document.head.appendChild(styleOverride);
+
+        try {
+          // Capture the element as canvas
+          const canvas = await html2canvas(previewElement, {
+            scale: 2, // Higher quality
+            useCORS: true,
+            logging: false,
+            backgroundColor: "#ffffff",
+            width: previewElement.scrollWidth,
+            height: previewElement.scrollHeight,
           });
-          resumeService.downloadBlob(pdfResult.blob, pdfResult.filename);
-          break;
-        case "docx":
-          const docxResult = await resumeService.exportDOCX(resumeId, {
-            filename: `${filename}.docx`,
-          });
-          resumeService.downloadBlob(docxResult.blob, docxResult.filename);
-          break;
-        case "txt":
-          const txtResult = await resumeService.exportTXT(resumeId, {
-            filename: `${filename}.txt`,
-          });
-          resumeService.downloadBlob(txtResult.blob, txtResult.filename);
-          break;
-        case "html":
-          const htmlResult = await resumeService.exportHTML(resumeId, {
-            filename: `${filename}.html`,
-          });
-          resumeService.downloadBlob(htmlResult.blob, htmlResult.filename);
-          break;
+
+          // Calculate PDF dimensions (A4: 210mm x 297mm)
+          const imgWidth = 210; // A4 width in mm
+          const pageHeight = 297; // A4 height in mm
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+          const pdf = new jsPDF("p", "mm", "a4");
+
+          // If content fits on one page
+          if (imgHeight <= pageHeight) {
+            pdf.addImage(
+              canvas.toDataURL("image/png"),
+              "PNG",
+              0,
+              0,
+              imgWidth,
+              imgHeight
+            );
+          } else {
+            // Split across multiple pages
+            const pageCount = Math.ceil(imgHeight / pageHeight);
+
+            for (let i = 0; i < pageCount; i++) {
+              if (i > 0) {
+                pdf.addPage();
+              }
+
+              // Calculate the portion of the image to show on this page
+              const sourceY = (canvas.height / imgHeight) * (i * pageHeight);
+              const sourceHeight = Math.min(
+                (canvas.height / imgHeight) * pageHeight,
+                canvas.height - sourceY
+              );
+
+              // Create a temporary canvas for this page's portion
+              const pageCanvas = document.createElement("canvas");
+              pageCanvas.width = canvas.width;
+              pageCanvas.height = sourceHeight;
+              const pageCtx = pageCanvas.getContext("2d");
+
+              if (pageCtx) {
+                pageCtx.drawImage(
+                  canvas,
+                  0,
+                  sourceY,
+                  canvas.width,
+                  sourceHeight,
+                  0,
+                  0,
+                  canvas.width,
+                  sourceHeight
+                );
+
+                const pageImgHeight = (sourceHeight * imgWidth) / canvas.width;
+                pdf.addImage(
+                  pageCanvas.toDataURL("image/png"),
+                  "PNG",
+                  0,
+                  0,
+                  imgWidth,
+                  pageImgHeight
+                );
+              }
+            }
+          }
+
+          // Save the PDF
+          pdf.save(`${filename}.pdf`);
+          showToast("Resume exported as PDF successfully!", "success");
+        } finally {
+          // Remove the style override
+          const overrideStyle = document.getElementById(
+            "pdf-export-oklch-override"
+          );
+          if (overrideStyle) {
+            overrideStyle.remove();
+          }
+        }
       }
-      showToast(
-        `Resume exported as ${format.toUpperCase()} successfully!`,
-        "success"
-      );
+      // For DOCX - send HTML to backend
+      else if (format === "docx") {
+        // Find the resume preview element
+        const previewElement = document.querySelector(
+          '[class*="max-w-4xl"][class*="bg-white"][class*="shadow-lg"]'
+        ) as HTMLElement;
+
+        if (!previewElement) {
+          showToast(
+            "Could not find preview element. Please try again.",
+            "error"
+          );
+          setExporting(false);
+          return;
+        }
+
+        // Capture HTML from preview element
+        const html = previewElement.outerHTML;
+
+        // Add styles from the document
+        const styles = Array.from(document.styleSheets)
+          .map((sheet) => {
+            try {
+              return Array.from(sheet.cssRules)
+                .map((rule) => rule.cssText)
+                .join("\n");
+            } catch (e) {
+              return "";
+            }
+          })
+          .join("\n");
+
+        // Create complete HTML document
+        const completeHTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${filename}</title>
+    <style>
+        ${styles}
+        body { margin: 0; padding: 0; }
+        @media print { body { padding: 0; } }
+    </style>
+</head>
+<body>
+    ${html}
+</body>
+</html>`;
+
+        // Get current resume data to send to backend
+        const currentResumeData = previewResume || resume;
+
+        const docxResult = await resumeService.exportDOCXFromHTML(
+          completeHTML,
+          {
+            filename: `${filename}.docx`,
+            resumeData: currentResumeData,
+          }
+        );
+        resumeService.downloadBlob(docxResult.blob, docxResult.filename);
+        showToast("Resume exported as DOCX successfully!", "success");
+      }
+      // For HTML - use client-side export with all styles
+      else if (format === "html") {
+        // Find the resume preview element
+        let previewElement = document.getElementById(
+          "resume-export-target"
+        ) as HTMLElement;
+
+        // Fallback to class selector if ID not found
+        if (!previewElement) {
+          previewElement = document.querySelector(
+            '[class*="max-w-4xl"][class*="bg-white"][class*="shadow-lg"]'
+          ) as HTMLElement;
+        }
+
+        if (!previewElement) {
+          showToast(
+            "Could not find preview element. Please try again.",
+            "error"
+          );
+          setExporting(false);
+          return;
+        }
+
+        // Get all stylesheets from the document
+        const styles = Array.from(document.styleSheets)
+          .map((sheet) => {
+            try {
+              return Array.from(sheet.cssRules)
+                .map((rule) => rule.cssText)
+                .join("\n");
+            } catch (e) {
+              // Cross-origin stylesheets will throw an error, skip them
+              return "";
+            }
+          })
+          .filter(Boolean)
+          .join("\n");
+
+        // Capture HTML from preview element
+        const html = previewElement.outerHTML;
+
+        // Create complete HTML document with all styles
+        const completeHTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${filename}</title>
+    <style>
+        ${styles}
+        body { 
+            margin: 0; 
+            padding: 20px; 
+            background-color: #f5f5f5;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+        }
+        .resume-container {
+            max-width: 210mm;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        @media print { 
+            body { 
+                padding: 0; 
+                background: white;
+            }
+            .resume-container {
+                box-shadow: none;
+                padding: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="resume-container">
+        ${html}
+    </div>
+</body>
+</html>`;
+
+        // Create blob and download
+        const blob = new Blob([completeHTML], { type: "text/html" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `${filename}.html`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        showToast("Resume exported as HTML successfully!", "success");
+      }
+      // For TXT, use backend method (requires resumeId)
+      else if (format === "txt") {
+        if (!resumeId || resumeId === "new") {
+          showToast("Please save the resume before exporting", "error");
+          setExporting(false);
+          return;
+        }
+
+        // Validate UUID format
+        if (!isValidUUID(resumeId)) {
+          showToast(
+            "Invalid resume ID. Please save the resume first.",
+            "error"
+          );
+          setExporting(false);
+          return;
+        }
+
+        const txtResult = await resumeService.exportTXT(resumeId, {
+          filename: `${filename}.txt`,
+        });
+        resumeService.downloadBlob(txtResult.blob, txtResult.filename);
+        showToast("Resume exported as TXT successfully!", "success");
+      }
     } catch (err: any) {
       showToast(
         err.message ||
@@ -1159,7 +1807,7 @@ export function ResumeBuilder() {
     }
     const updatedResume = { ...resume, content: newContent };
     setResume(updatedResume);
-    
+
     // Auto-save to backend
     if (resumeId && resumeId !== "new" && isValidUUID(resumeId)) {
       saveToHistory(resume); // Save to history before updating
@@ -1174,7 +1822,7 @@ export function ResumeBuilder() {
           console.error("Auto-save failed:", err);
         });
     }
-    
+
     if (closeEdit) {
       setEditingSection(null);
     }
@@ -1196,7 +1844,7 @@ export function ResumeBuilder() {
         (newContent as any)[sectionId] = [...section];
         const updatedResume = { ...resume, content: newContent };
         setResume(updatedResume);
-        
+
         // Auto-save to backend
         if (resumeId && resumeId !== "new") {
           saveToHistory(resume); // Save to history before updating
@@ -1226,7 +1874,7 @@ export function ResumeBuilder() {
       (newContent as any)[sectionId] = [...section, newItem];
       const updatedResume = { ...resume, content: newContent };
       setResume(updatedResume);
-      
+
       // Auto-save to backend
       if (resumeId && resumeId !== "new") {
         saveToHistory(resume); // Save to history before updating
@@ -1247,7 +1895,13 @@ export function ResumeBuilder() {
 
   const deleteItem = (sectionId: string, itemId: string) => {
     if (!resume) return;
-    if (!confirm("Are you sure you want to delete this item?")) return;
+    setShowDeleteItemConfirm({ sectionId, itemId });
+  };
+
+  const confirmDeleteItem = () => {
+    if (!resume || !showDeleteItemConfirm) return;
+    const { sectionId, itemId } = showDeleteItemConfirm;
+    setShowDeleteItemConfirm(null);
     const newContent = { ...resume.content };
     const section = (newContent as any)[sectionId];
     if (Array.isArray(section)) {
@@ -1256,7 +1910,7 @@ export function ResumeBuilder() {
       );
       const updatedResume = { ...resume, content: newContent };
       setResume(updatedResume);
-      
+
       // Auto-save to backend
       if (resumeId && resumeId !== "new") {
         saveToHistory(resume); // Save to history before updating
@@ -1606,15 +2260,35 @@ export function ResumeBuilder() {
       const response = await resumeService.createVersion(resumeId, {
         versionName: newVersionName,
         description: newVersionDescription || undefined,
+        jobId: newVersionJobId || undefined, // Support jobId for different job types
       });
 
       if (response.ok && response.data) {
         const newVersion = response.data.resume;
+        // Refresh versions list - use parent ID to get all versions
+        try {
+          const parentId = newVersion.parentResumeId || resumeId;
+          const versionsResponse = await resumeService.getVersions(parentId);
+          if (versionsResponse.ok && versionsResponse.data) {
+            const fetchedVersions =
+              versionsResponse.data.resumes ||
+              versionsResponse.data.versions ||
+              [];
+            setVersions(fetchedVersions);
+          }
+        } catch (err) {
+          console.log("Failed to refresh versions:", err);
+          // If refresh fails, add new version to existing list
+          if (versions.length > 0) {
+            setVersions([...versions, newVersion]);
+          }
+        }
         // Navigate to the new version
         navigate(`${ROUTES.RESUME_BUILDER}?id=${newVersion.id}`);
         setShowVersionModal(false);
         setNewVersionName("");
         setNewVersionDescription("");
+        setNewVersionJobId("");
         showToast("Version created successfully!", "success");
       }
     } catch (err: any) {
@@ -1629,6 +2303,8 @@ export function ResumeBuilder() {
   const handleSwitchVersion = (versionId: string) => {
     navigate(`${ROUTES.RESUME_BUILDER}?id=${versionId}`);
     setShowVersionHistory(false);
+    setShowVersionCompare(false);
+    setShowVersionControl(false);
   };
 
   // Mock data for comparison demo
@@ -2274,6 +2950,63 @@ export function ResumeBuilder() {
 
   const enabledSections = getEnabledSections();
 
+  // Confirmation modals
+  const DeleteItemModal = () =>
+    showDeleteItemConfirm ? (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-in zoom-in-95 duration-300">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Delete Item</h2>
+          <p className="text-gray-600 mb-6">
+            Are you sure you want to delete this item? This action cannot be
+            undone.
+          </p>
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={() => setShowDeleteItemConfirm(null)}
+              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={confirmDeleteItem}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    ) : null;
+
+  const ResetFormattingModal = () =>
+    showResetFormattingConfirm ? (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-in zoom-in-95 duration-300">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">
+            Reset Formatting
+          </h2>
+          <p className="text-gray-600 mb-6">
+            Are you sure you want to reset all formatting to default? This will
+            remove all custom colors, fonts, spacing, and section formatting.
+          </p>
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={() => setShowResetFormattingConfirm(false)}
+              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={confirmResetFormatting}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+            >
+              Reset
+            </button>
+          </div>
+        </div>
+      </div>
+    ) : null;
+
   // Ensure customizations are always fully initialized
   const ensureCustomizations = () => {
     if (!resume) return null;
@@ -2315,6 +3048,35 @@ export function ResumeBuilder() {
 
   const currentCustomizations = ensureCustomizations();
 
+  // Helper function to auto-save customizations
+  const autoSaveCustomizations = (newCustomizations: any) => {
+    if (!resume) return;
+
+    // Update local state
+    setResume({
+      ...resume,
+      customizations: newCustomizations,
+    });
+
+    // Auto-save to backend if resume exists
+    if (resumeId && resumeId !== "new" && isValidUUID(resumeId)) {
+      setIsAutoSaving(true);
+      resumeService
+        .updateResume(resumeId, {
+          customizations: newCustomizations,
+        })
+        .then(() => {
+          setLastSaved(new Date());
+        })
+        .catch((err) => {
+          console.error("Auto-save customizations failed:", err);
+        })
+        .finally(() => {
+          setTimeout(() => setIsAutoSaving(false), 500);
+        });
+    }
+  };
+
   // Default customizations
   const defaultCustomizations = {
     colors: {
@@ -2337,16 +3099,14 @@ export function ResumeBuilder() {
   };
 
   // Reset all formatting to defaults
-  const handleResetFormatting = async () => {
+  const handleResetFormatting = () => {
     if (!resume) return;
+    setShowResetFormattingConfirm(true);
+  };
 
-    if (
-      !window.confirm(
-        "Are you sure you want to reset all formatting to default? This will remove all custom colors, fonts, spacing, and section formatting."
-      )
-    ) {
-      return;
-    }
+  const confirmResetFormatting = async () => {
+    if (!resume) return;
+    setShowResetFormattingConfirm(false);
 
     try {
       // Reset section formatting
@@ -2399,6 +3159,8 @@ export function ResumeBuilder() {
 
   return (
     <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
+      <DeleteItemModal />
+      <ResetFormattingModal />
       {/* Top Bar */}
       <ResumeTopBar
         resume={resume}
@@ -2433,6 +3195,10 @@ export function ResumeBuilder() {
           setSelectedVersion1(resumeId);
           setSelectedVersion2(null);
           setShowVersionCompare(true);
+          setShowVersionHistory(false);
+        }}
+        onShowVersionControl={() => {
+          setShowVersionControl(true);
           setShowVersionHistory(false);
         }}
       />
@@ -2560,12 +3326,17 @@ export function ResumeBuilder() {
                       key={section.id}
                       draggable
                       onDragStart={() => handleDragStart(section.id)}
-                      onDragOver={handleDragOver}
+                      onDragOver={(e) => handleDragOver(e, section.id)}
                       onDrop={() => handleDrop(section.id)}
                       onDragEnd={handleDragEnd}
+                      onDragLeave={() => setDragOverSection(null)}
                       className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all cursor-move ${
                         isDragging
                           ? "opacity-50 bg-blue-50 border-2 border-[#3351FD]"
+                          : dragOverSection === section.id &&
+                            draggedSection &&
+                            draggedSection !== section.id
+                          ? "bg-blue-100 border-2 border-blue-400 border-dashed"
                           : "bg-gray-50 hover:bg-gray-100 border border-transparent"
                       }`}
                     >
@@ -2973,6 +3744,7 @@ export function ResumeBuilder() {
               </div>
             )}
             <div
+              id="resume-export-target"
               className="max-w-4xl mx-auto bg-white shadow-lg p-12 print:shadow-none print:p-8"
               style={{
                 fontFamily: fonts.body,
@@ -2995,19 +3767,26 @@ export function ResumeBuilder() {
                       key={sectionId}
                       draggable
                       onDragStart={() => handleDocumentDragStart("personal")}
-                      onDragOver={handleDocumentDragOver}
+                      onDragOver={(e) => handleDocumentDragOver(e, "personal")}
                       onDrop={() => handleDocumentDrop("personal")}
                       onDragEnd={handleDocumentDragEnd}
+                      onDragLeave={() => setDragOverSection(null)}
                       className={`relative group transition-all ${
                         draggedDocumentSection === "personal"
                           ? "opacity-50 border-2 border-dashed border-[#3351FD] rounded-lg p-2"
+                          : dragOverSection === "personal" &&
+                            draggedDocumentSection &&
+                            draggedDocumentSection !== "personal"
+                          ? "border-2 border-dashed border-blue-400 bg-blue-50 rounded-lg p-2"
                           : "hover:border-2 hover:border-dashed hover:border-gray-300 rounded-lg p-2"
                       }`}
                       style={{
                         ...getSectionStyle("personal"),
                         marginBottom:
                           getSectionFormatting("personal").marginBottom ||
-                          `${displayResume.customizations?.spacing?.section || 24}px`,
+                          `${
+                            displayResume.customizations?.spacing?.section || 24
+                          }px`,
                         marginTop:
                           getSectionFormatting("personal").marginTop ||
                           undefined,
@@ -3016,11 +3795,12 @@ export function ResumeBuilder() {
                     >
                       <div
                         className={`border-b pb-6 mb-6 ${
-                          displayResume.customizations?.headerStyle === "centered"
-                            ? "text-center"
-                            : displayResume.customizations?.headerStyle === "right"
+                          displayResume.customizations?.headerStyle === "right"
                             ? "text-right"
-                            : "text-left"
+                            : displayResume.customizations?.headerStyle ===
+                              "left"
+                            ? "text-left"
+                            : "text-center" // Default to centered
                         }`}
                         style={{
                           borderColor: colors.primary,
@@ -3116,34 +3896,39 @@ export function ResumeBuilder() {
                                 fontFamily: fonts.heading,
                               }}
                             >
-                              {resume.content.personalInfo.firstName}{" "}
-                              {resume.content.personalInfo.lastName}
+                              {displayResume.content.personalInfo.firstName}{" "}
+                              {displayResume.content.personalInfo.lastName}
                             </h1>
                             <div
                               className="flex items-center justify-center gap-4 mt-3 text-sm flex-wrap"
                               style={{ color: colors.secondary }}
                             >
-                              {resume.content.personalInfo.email && (
-                                <span>{resume.content.personalInfo.email}</span>
-                              )}
-                              {resume.content.personalInfo.phone && (
+                              {displayResume.content.personalInfo.email && (
                                 <span>
-                                  • {resume.content.personalInfo.phone}
+                                  {displayResume.content.personalInfo.email}
                                 </span>
                               )}
-                              {resume.content.personalInfo.location && (
+                              {displayResume.content.personalInfo.phone && (
                                 <span>
-                                  • {resume.content.personalInfo.location}
+                                  • {displayResume.content.personalInfo.phone}
                                 </span>
                               )}
-                              {resume.content.personalInfo.linkedIn && (
+                              {displayResume.content.personalInfo.location && (
                                 <span>
-                                  • {resume.content.personalInfo.linkedIn}
+                                  •{" "}
+                                  {displayResume.content.personalInfo.location}
                                 </span>
                               )}
-                              {resume.content.personalInfo.portfolio && (
+                              {displayResume.content.personalInfo.linkedIn && (
                                 <span>
-                                  • {resume.content.personalInfo.portfolio}
+                                  •{" "}
+                                  {displayResume.content.personalInfo.linkedIn}
+                                </span>
+                              )}
+                              {displayResume.content.personalInfo.portfolio && (
+                                <span>
+                                  •{" "}
+                                  {displayResume.content.personalInfo.portfolio}
                                 </span>
                               )}
                             </div>
@@ -3162,6 +3947,19 @@ export function ResumeBuilder() {
                                   />
                                 </button>
                               )}
+                              <button
+                                className="p-2 hover:bg-gray-100 rounded-lg"
+                                onClick={() => {
+                                  setShowCustomization(true);
+                                  setSelectedSectionForFormatting("personal");
+                                }}
+                                title="Customize this section"
+                              >
+                                <Icon
+                                  icon="mingcute:settings-3-line"
+                                  className="w-4 h-4 text-purple-600"
+                                />
+                              </button>
                               <button
                                 className="p-2 hover:bg-gray-100 rounded-lg"
                                 onClick={() => setEditingSection("personal")}
@@ -3187,19 +3985,26 @@ export function ResumeBuilder() {
                       key={sectionId}
                       draggable
                       onDragStart={() => handleDocumentDragStart("summary")}
-                      onDragOver={handleDocumentDragOver}
+                      onDragOver={(e) => handleDocumentDragOver(e, "summary")}
                       onDrop={() => handleDocumentDrop("summary")}
                       onDragEnd={handleDocumentDragEnd}
+                      onDragLeave={() => setDragOverSection(null)}
                       className={`relative group transition-all ${
                         draggedDocumentSection === "summary"
                           ? "opacity-50 border-2 border-dashed border-[#3351FD] rounded-lg p-2"
+                          : dragOverSection === "summary" &&
+                            draggedDocumentSection &&
+                            draggedDocumentSection !== "summary"
+                          ? "border-2 border-dashed border-blue-400 bg-blue-50 rounded-lg p-2"
                           : "hover:border-2 hover:border-dashed hover:border-gray-300 rounded-lg p-2"
                       } ${previewResume ? "ring-2 ring-yellow-400" : ""}`}
                       style={{
                         ...getSectionStyle("summary"),
                         marginBottom:
                           getSectionFormatting("summary").marginBottom ||
-                          `${displayResume.customizations?.spacing?.section || 24}px`,
+                          `${
+                            displayResume.customizations?.spacing?.section || 24
+                          }px`,
                         marginTop:
                           getSectionFormatting("summary").marginTop ||
                           undefined,
@@ -3251,30 +4056,47 @@ export function ResumeBuilder() {
                             }),
                           }}
                         >
-                          <h2
-                            className="text-2xl font-semibold mb-3"
-                            style={{
-                              color:
-                                getSectionFormatting("summary").color ||
-                                colors.primary,
-                              fontFamily: fonts.heading,
-                            }}
-                          >
-                            Summary
-                          </h2>
+                          <div className="flex items-center justify-between mb-3">
+                            <h2
+                              className="text-2xl font-semibold"
+                              style={{
+                                color:
+                                  getSectionFormatting("summary").color ||
+                                  colors.primary,
+                                fontFamily: fonts.heading,
+                              }}
+                            >
+                              Summary
+                            </h2>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => {
+                                  setShowCustomization(true);
+                                  setSelectedSectionForFormatting("summary");
+                                }}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-gray-100 rounded-lg"
+                                title="Customize this section"
+                              >
+                                <Icon
+                                  icon="mingcute:settings-3-line"
+                                  className="w-4 h-4 text-purple-600"
+                                />
+                              </button>
+                              <button
+                                className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-gray-100 rounded-lg"
+                                onClick={() => setEditingSection("summary")}
+                                title="Edit"
+                              >
+                                <Icon
+                                  icon="mingcute:edit-line"
+                                  className="w-4 h-4 text-gray-600"
+                                />
+                              </button>
+                            </div>
+                          </div>
                           <p className="leading-relaxed">
                             {displayResume.content.summary}
                           </p>
-                          <button
-                            className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-gray-100 rounded-lg"
-                            onClick={() => setEditingSection("summary")}
-                            title="Edit"
-                          >
-                            <Icon
-                              icon="mingcute:edit-line"
-                              className="w-4 h-4 text-gray-600"
-                            />
-                          </button>
                         </div>
                       )}
                     </div>
@@ -3288,19 +4110,28 @@ export function ResumeBuilder() {
                       key={sectionId}
                       draggable
                       onDragStart={() => handleDocumentDragStart("experience")}
-                      onDragOver={handleDocumentDragOver}
+                      onDragOver={(e) =>
+                        handleDocumentDragOver(e, "experience")
+                      }
                       onDrop={() => handleDocumentDrop("experience")}
                       onDragEnd={handleDocumentDragEnd}
+                      onDragLeave={() => setDragOverSection(null)}
                       className={`relative group transition-all ${
                         draggedDocumentSection === "experience"
                           ? "opacity-50 border-2 border-dashed border-[#3351FD] rounded-lg p-2"
+                          : dragOverSection === "experience" &&
+                            draggedDocumentSection &&
+                            draggedDocumentSection !== "experience"
+                          ? "border-2 border-dashed border-blue-400 bg-blue-50 rounded-lg p-2"
                           : "hover:border-2 hover:border-dashed hover:border-gray-300 rounded-lg p-2"
                       }`}
                       style={{
                         ...getSectionStyle("experience"),
                         marginBottom:
                           getSectionFormatting("experience").marginBottom ||
-                          `${displayResume.customizations?.spacing?.section || 24}px`,
+                          `${
+                            displayResume.customizations?.spacing?.section || 24
+                          }px`,
                         marginTop:
                           getSectionFormatting("experience").marginTop ||
                           undefined,
@@ -3361,6 +4192,19 @@ export function ResumeBuilder() {
                                 Import
                               </button>
                             )}
+                            <button
+                              onClick={() => {
+                                setShowCustomization(true);
+                                setSelectedSectionForFormatting("experience");
+                              }}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-gray-100 rounded-lg"
+                              title="Customize this section"
+                            >
+                              <Icon
+                                icon="mingcute:settings-3-line"
+                                className="w-4 h-4 text-purple-600"
+                              />
+                            </button>
                             <button
                               onClick={() =>
                                 setEditingItem({
@@ -3540,10 +4384,10 @@ export function ResumeBuilder() {
                                         {exp.title}
                                       </h3>
                                       <span className="text-sm text-gray-600">
-                                        {exp.startDate} -{" "}
+                                        {formatDateMonthYear(exp.startDate)} -{" "}
                                         {exp.isCurrent
                                           ? "Present"
-                                          : exp.endDate || ""}
+                                          : formatDateMonthYear(exp.endDate)}
                                       </span>
                                     </div>
                                     <p className="text-gray-700 font-medium mb-2">
@@ -3738,19 +4582,26 @@ export function ResumeBuilder() {
                       key={sectionId}
                       draggable
                       onDragStart={() => handleDocumentDragStart("education")}
-                      onDragOver={handleDocumentDragOver}
+                      onDragOver={(e) => handleDocumentDragOver(e, "education")}
                       onDrop={() => handleDocumentDrop("education")}
                       onDragEnd={handleDocumentDragEnd}
+                      onDragLeave={() => setDragOverSection(null)}
                       className={`relative group transition-all ${
                         draggedDocumentSection === "education"
                           ? "opacity-50 border-2 border-dashed border-[#3351FD] rounded-lg p-2"
+                          : dragOverSection === "education" &&
+                            draggedDocumentSection &&
+                            draggedDocumentSection !== "education"
+                          ? "border-2 border-dashed border-blue-400 bg-blue-50 rounded-lg p-2"
                           : "hover:border-2 hover:border-dashed hover:border-gray-300 rounded-lg p-2"
                       }`}
                       style={{
                         ...getSectionStyle("education"),
                         marginBottom:
                           getSectionFormatting("education").marginBottom ||
-                          `${displayResume.customizations?.spacing?.section || 24}px`,
+                          `${
+                            displayResume.customizations?.spacing?.section || 24
+                          }px`,
                         marginTop:
                           getSectionFormatting("education").marginTop ||
                           undefined,
@@ -3810,6 +4661,19 @@ export function ResumeBuilder() {
                                 Import
                               </button>
                             )}
+                            <button
+                              onClick={() => {
+                                setShowCustomization(true);
+                                setSelectedSectionForFormatting("education");
+                              }}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-gray-100 rounded-lg"
+                              title="Customize this section"
+                            >
+                              <Icon
+                                icon="mingcute:settings-3-line"
+                                className="w-4 h-4 text-purple-600"
+                              />
+                            </button>
                             <button
                               onClick={() =>
                                 setEditingItem({
@@ -3989,7 +4853,8 @@ export function ResumeBuilder() {
                                     )}
                                     {edu.endDate && (
                                       <p className="text-sm text-gray-600">
-                                        Graduated: {edu.endDate}
+                                        Graduated:{" "}
+                                        {formatDateMonthYear(edu.endDate)}
                                       </p>
                                     )}
                                     {edu.gpa && (
@@ -4170,19 +5035,26 @@ export function ResumeBuilder() {
                       key={sectionId}
                       draggable
                       onDragStart={() => handleDocumentDragStart("skills")}
-                      onDragOver={handleDocumentDragOver}
+                      onDragOver={(e) => handleDocumentDragOver(e, "skills")}
                       onDrop={() => handleDocumentDrop("skills")}
                       onDragEnd={handleDocumentDragEnd}
+                      onDragLeave={() => setDragOverSection(null)}
                       className={`relative group transition-all ${
                         draggedDocumentSection === "skills"
                           ? "opacity-50 border-2 border-dashed border-[#3351FD] rounded-lg p-2"
+                          : dragOverSection === "skills" &&
+                            draggedDocumentSection &&
+                            draggedDocumentSection !== "skills"
+                          ? "border-2 border-dashed border-blue-400 bg-blue-50 rounded-lg p-2"
                           : "hover:border-2 hover:border-dashed hover:border-gray-300 rounded-lg p-2"
                       }`}
                       style={{
                         ...getSectionStyle("skills"),
                         marginBottom:
                           getSectionFormatting("skills").marginBottom ||
-                          `${displayResume.customizations?.spacing?.section || 24}px`,
+                          `${
+                            displayResume.customizations?.spacing?.section || 24
+                          }px`,
                         marginTop:
                           getSectionFormatting("skills").marginTop || undefined,
                       }}
@@ -4242,6 +5114,19 @@ export function ResumeBuilder() {
                                 </button>
                               )}
                               <button
+                                onClick={() => {
+                                  setShowCustomization(true);
+                                  setSelectedSectionForFormatting("skills");
+                                }}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-gray-100 rounded-lg"
+                                title="Customize this section"
+                              >
+                                <Icon
+                                  icon="mingcute:settings-3-line"
+                                  className="w-4 h-4 text-purple-600"
+                                />
+                              </button>
+                              <button
                                 onClick={() => setEditingSection("skills")}
                                 className="opacity-0 group-hover:opacity-100 transition-opacity px-3 py-1 text-sm bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4]"
                               >
@@ -4256,75 +5141,330 @@ export function ResumeBuilder() {
                         </div>
                         {editingSection === "skills" ? (
                           <div className="space-y-3 p-4 bg-gray-50 rounded-lg">
-                            <div className="flex flex-wrap gap-2 mb-3">
-                              {resume.content.skills &&
-                                resume.content.skills.map((skill) => (
-                                  <span
-                                    key={skill.id}
-                                    className="px-3 py-1 rounded-lg text-sm font-medium flex items-center gap-2"
-                                    style={{
-                                      backgroundColor: colors.primary,
-                                      color: "white",
-                                    }}
-                                  >
-                                    {skill.name}
-                                    <button
-                                      onClick={() =>
-                                        deleteItem("skills", skill.id)
+                            {/* Custom Groups Section */}
+                            <div className="mb-4 pb-4 border-b border-gray-300">
+                              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                Add Skill Group
+                              </label>
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  id="new-skill-group"
+                                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent text-sm"
+                                  placeholder="Group name (e.g., Frontend, Backend, DevOps)"
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      const input =
+                                        e.target as HTMLInputElement;
+                                      const groupName = input.value.trim();
+                                      if (groupName) {
+                                        if (!resume) return;
+                                        const currentConfig =
+                                          resume.sectionConfig || {};
+                                        const skillsConfig =
+                                          (currentConfig.skills as any) || {};
+                                        const customGroups =
+                                          (skillsConfig.customGroups as string[]) ||
+                                          [];
+                                        if (!customGroups.includes(groupName)) {
+                                          const newConfig = {
+                                            ...currentConfig,
+                                            skills: {
+                                              ...skillsConfig,
+                                              customGroups: [
+                                                ...customGroups,
+                                                groupName,
+                                              ],
+                                            },
+                                          };
+                                          setResume({
+                                            ...resume,
+                                            sectionConfig: newConfig,
+                                          });
+                                          if (
+                                            resumeId &&
+                                            resumeId !== "new" &&
+                                            isValidUUID(resumeId)
+                                          ) {
+                                            resumeService
+                                              .updateResume(resumeId, {
+                                                sectionConfig: newConfig,
+                                              })
+                                              .catch((err) => {
+                                                console.error(
+                                                  "Failed to save custom group:",
+                                                  err
+                                                );
+                                              });
+                                          }
+                                        }
+                                        input.value = "";
                                       }
-                                      className="hover:bg-white/20 rounded p-0.5"
-                                    >
-                                      <Icon
-                                        icon="mingcute:close-line"
-                                        className="w-3 h-3"
-                                      />
-                                    </button>
-                                  </span>
-                                ))}
-                            </div>
-                            <div className="flex gap-2">
-                              <input
-                                type="text"
-                                id="new-skill"
-                                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
-                                placeholder="Add skill"
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") {
-                                    const input = e.target as HTMLInputElement;
-                                    const skillName = input.value.trim();
-                                    if (skillName) {
-                                      addItem("skills", {
-                                        id: `skill-${Date.now()}`,
-                                        name: skillName,
-                                        category: "Technical",
-                                        proficiency: "",
-                                      });
+                                    }
+                                  }}
+                                />
+                                <button
+                                  onClick={() => {
+                                    const input = document.getElementById(
+                                      "new-skill-group"
+                                    ) as HTMLInputElement;
+                                    const groupName = input.value.trim();
+                                    if (groupName && resume) {
+                                      const currentConfig =
+                                        resume.sectionConfig || {};
+                                      const skillsConfig =
+                                        (currentConfig.skills as any) || {};
+                                      const customGroups =
+                                        (skillsConfig.customGroups as string[]) ||
+                                        [];
+                                      if (!customGroups.includes(groupName)) {
+                                        const newConfig = {
+                                          ...currentConfig,
+                                          skills: {
+                                            ...skillsConfig,
+                                            customGroups: [
+                                              ...customGroups,
+                                              groupName,
+                                            ],
+                                          },
+                                        };
+                                        setResume({
+                                          ...resume,
+                                          sectionConfig: newConfig,
+                                        });
+                                        if (
+                                          resumeId &&
+                                          resumeId !== "new" &&
+                                          isValidUUID(resumeId)
+                                        ) {
+                                          resumeService
+                                            .updateResume(resumeId, {
+                                              sectionConfig: newConfig,
+                                            })
+                                            .catch((err) => {
+                                              console.error(
+                                                "Failed to save custom group:",
+                                                err
+                                              );
+                                            });
+                                        }
+                                      }
                                       input.value = "";
                                     }
-                                  }
-                                }}
-                              />
-                              <button
-                                onClick={() => {
-                                  const input = document.getElementById(
-                                    "new-skill"
-                                  ) as HTMLInputElement;
-                                  const skillName = input.value.trim();
-                                  if (skillName) {
-                                    addItem("skills", {
-                                      id: `skill-${Date.now()}`,
-                                      name: skillName,
-                                      category: "Technical",
-                                      proficiency: "",
-                                    });
-                                    input.value = "";
-                                  }
-                                }}
-                                className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors"
-                              >
-                                Add
-                              </button>
+                                  }}
+                                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm"
+                                >
+                                  Add Group
+                                </button>
+                              </div>
                             </div>
+
+                            {/* Skills by Group */}
+                            {(() => {
+                              const sectionConfig = resume?.sectionConfig || {};
+                              const skillsConfig =
+                                (sectionConfig.skills as any) || {};
+                              const customGroups =
+                                (skillsConfig.customGroups as string[]) || [];
+                              const allGroups = [
+                                "Technical",
+                                "Languages",
+                                "Soft Skills",
+                                "Industry-Specific",
+                                ...customGroups,
+                              ];
+
+                              // Group skills by their category/group
+                              const skillsByGroup = (
+                                resume?.content.skills || []
+                              ).reduce(
+                                (
+                                  acc: Record<
+                                    string,
+                                    typeof resume.content.skills
+                                  >,
+                                  skill
+                                ) => {
+                                  const group =
+                                    skill.category ||
+                                    skill.group ||
+                                    "Technical";
+                                  if (!acc[group]) {
+                                    acc[group] = [];
+                                  }
+                                  acc[group].push(skill);
+                                  return acc;
+                                },
+                                {}
+                              );
+
+                              return (
+                                <div className="space-y-4">
+                                  {allGroups.map((group) => {
+                                    const groupSkills =
+                                      skillsByGroup[group] || [];
+                                    return (
+                                      <div
+                                        key={group}
+                                        className="border border-gray-200 rounded-lg p-3 bg-white"
+                                      >
+                                        <div className="flex items-center justify-between mb-2">
+                                          <label className="text-sm font-semibold text-gray-700">
+                                            {group}
+                                          </label>
+                                          {customGroups.includes(group) && (
+                                            <button
+                                              onClick={() => {
+                                                if (!resume) return;
+                                                const currentConfig =
+                                                  resume.sectionConfig || {};
+                                                const skillsConfig =
+                                                  (currentConfig.skills as any) ||
+                                                  {};
+                                                const customGroups =
+                                                  (skillsConfig.customGroups as string[]) ||
+                                                  [];
+                                                const newConfig = {
+                                                  ...currentConfig,
+                                                  skills: {
+                                                    ...skillsConfig,
+                                                    customGroups:
+                                                      customGroups.filter(
+                                                        (g) => g !== group
+                                                      ),
+                                                  },
+                                                };
+                                                setResume({
+                                                  ...resume,
+                                                  sectionConfig: newConfig,
+                                                });
+                                                if (
+                                                  resumeId &&
+                                                  resumeId !== "new" &&
+                                                  isValidUUID(resumeId)
+                                                ) {
+                                                  resumeService
+                                                    .updateResume(resumeId, {
+                                                      sectionConfig: newConfig,
+                                                    })
+                                                    .catch((err) => {
+                                                      console.error(
+                                                        "Failed to delete custom group:",
+                                                        err
+                                                      );
+                                                    });
+                                                }
+                                              }}
+                                              className="text-xs text-red-600 hover:text-red-700"
+                                              title="Delete group"
+                                            >
+                                              <Icon
+                                                icon="mingcute:delete-line"
+                                                className="w-4 h-4"
+                                              />
+                                            </button>
+                                          )}
+                                        </div>
+                                        <div className="flex flex-wrap gap-2 mb-2">
+                                          {groupSkills.map((skill) => (
+                                            <span
+                                              key={skill.id}
+                                              className="px-3 py-1 rounded-lg text-sm font-medium flex items-center gap-2"
+                                              style={{
+                                                backgroundColor: colors.primary,
+                                                color: "white",
+                                              }}
+                                            >
+                                              {skill.name}
+                                              <button
+                                                onClick={() =>
+                                                  deleteItem("skills", skill.id)
+                                                }
+                                                className="hover:bg-white/20 rounded p-0.5 flex items-center justify-center bg-transparent border-0 cursor-pointer"
+                                                style={{
+                                                  minWidth: "16px",
+                                                  minHeight: "16px",
+                                                  padding: "2px",
+                                                }}
+                                                type="button"
+                                              >
+                                                <Icon
+                                                  icon="mingcute:close-line"
+                                                  className="w-3 h-3"
+                                                  style={{
+                                                    color: "white",
+                                                    display: "block",
+                                                    opacity: 1,
+                                                  }}
+                                                />
+                                              </button>
+                                            </span>
+                                          ))}
+                                        </div>
+                                        <div className="flex gap-2">
+                                          <input
+                                            type="text"
+                                            id={`new-skill-${group}`}
+                                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent text-sm"
+                                            placeholder={`Add skill to ${group}`}
+                                            onKeyDown={(e) => {
+                                              if (e.key === "Enter") {
+                                                const input =
+                                                  e.target as HTMLInputElement;
+                                                const skillName =
+                                                  input.value.trim();
+                                                if (skillName) {
+                                                  addItem("skills", {
+                                                    id: `skill-${Date.now()}`,
+                                                    name: skillName,
+                                                    category: group,
+                                                    group:
+                                                      customGroups.includes(
+                                                        group
+                                                      )
+                                                        ? group
+                                                        : undefined,
+                                                    proficiency: "",
+                                                  });
+                                                  input.value = "";
+                                                }
+                                              }
+                                            }}
+                                          />
+                                          <button
+                                            onClick={() => {
+                                              const input =
+                                                document.getElementById(
+                                                  `new-skill-${group}`
+                                                ) as HTMLInputElement;
+                                              const skillName =
+                                                input.value.trim();
+                                              if (skillName) {
+                                                addItem("skills", {
+                                                  id: `skill-${Date.now()}`,
+                                                  name: skillName,
+                                                  category: group,
+                                                  group: customGroups.includes(
+                                                    group
+                                                  )
+                                                    ? group
+                                                    : undefined,
+                                                  proficiency: "",
+                                                });
+                                                input.value = "";
+                                              }
+                                            }}
+                                            className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors text-sm"
+                                          >
+                                            Add
+                                          </button>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              );
+                            })()}
                             <button
                               onClick={() => setEditingSection(null)}
                               className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors"
@@ -4336,20 +5476,229 @@ export function ResumeBuilder() {
                           <>
                             {displayResume.content.skills &&
                             displayResume.content.skills.length > 0 ? (
-                              <div className="flex flex-wrap gap-2">
-                                {displayResume.content.skills.map((skill) => (
-                                  <span
-                                    key={skill.id}
-                                    className="px-3 py-1 rounded-lg text-sm font-medium"
-                                    style={{
-                                      backgroundColor: colors.primary,
-                                      color: "white",
-                                    }}
-                                  >
-                                    {skill.name}
-                                  </span>
-                                ))}
-                              </div>
+                              (() => {
+                                // Group skills by category/group (support custom groups)
+                                const skillsByCategory =
+                                  displayResume.content.skills.reduce(
+                                    (
+                                      acc: Record<
+                                        string,
+                                        typeof displayResume.content.skills
+                                      >,
+                                      skill
+                                    ) => {
+                                      // Use custom group if available, otherwise use category
+                                      const group =
+                                        skill.group ||
+                                        skill.category ||
+                                        "Technical";
+                                      if (!acc[group]) {
+                                        acc[group] = [];
+                                      }
+                                      acc[group].push(skill);
+                                      return acc;
+                                    },
+                                    {}
+                                  );
+
+                                // Get visible categories from sectionConfig (default: all visible)
+                                const sectionConfig =
+                                  displayResume.sectionConfig || {};
+                                const skillsConfig =
+                                  (sectionConfig.skills as any) || {};
+                                const visibleCategories =
+                                  (skillsConfig.visibleCategories as string[]) ||
+                                  Object.keys(skillsByCategory);
+
+                                // Get custom groups
+                                const customGroups =
+                                  (skillsConfig.customGroups as string[]) || [];
+
+                                // Category display order (include custom groups)
+                                const categoryOrder = [
+                                  "Technical",
+                                  "Languages",
+                                  "Soft Skills",
+                                  "Industry-Specific",
+                                  ...customGroups,
+                                ];
+                                const sortedCategories = Object.keys(
+                                  skillsByCategory
+                                ).sort((a, b) => {
+                                  const indexA = categoryOrder.indexOf(a);
+                                  const indexB = categoryOrder.indexOf(b);
+                                  if (indexA === -1 && indexB === -1)
+                                    return a.localeCompare(b);
+                                  if (indexA === -1) return 1;
+                                  if (indexB === -1) return -1;
+                                  return indexA - indexB;
+                                });
+
+                                const hiddenCategories =
+                                  sortedCategories.filter(
+                                    (cat) => !visibleCategories.includes(cat)
+                                  );
+
+                                return (
+                                  <div className="space-y-3">
+                                    {sortedCategories.map((category) => {
+                                      const categorySkills =
+                                        skillsByCategory[category];
+                                      const isVisible =
+                                        visibleCategories.includes(category);
+
+                                      if (!isVisible) return null;
+
+                                      return (
+                                        <div key={category} className="mb-2">
+                                          <div className="flex items-center gap-2 mb-1">
+                                            <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                                              {category}:
+                                            </span>
+                                            <button
+                                              onClick={() => {
+                                                if (!resume) return;
+                                                const currentConfig =
+                                                  resume.sectionConfig || {};
+                                                const skillsConfig =
+                                                  (currentConfig.skills as any) ||
+                                                  {};
+                                                const allCategories =
+                                                  Object.keys(skillsByCategory);
+                                                const currentVisible =
+                                                  (skillsConfig.visibleCategories as string[]) ||
+                                                  allCategories;
+                                                const newVisibleCategories =
+                                                  currentVisible.filter(
+                                                    (cat: string) =>
+                                                      cat !== category
+                                                  );
+
+                                                const newConfig = {
+                                                  ...currentConfig,
+                                                  skills: {
+                                                    ...skillsConfig,
+                                                    visibleCategories:
+                                                      newVisibleCategories,
+                                                  },
+                                                };
+
+                                                setResume({
+                                                  ...resume,
+                                                  sectionConfig: newConfig,
+                                                });
+
+                                                // Auto-save
+                                                if (
+                                                  resumeId &&
+                                                  resumeId !== "new" &&
+                                                  isValidUUID(resumeId)
+                                                ) {
+                                                  resumeService
+                                                    .updateResume(resumeId, {
+                                                      sectionConfig: newConfig,
+                                                    })
+                                                    .catch((err) => {
+                                                      console.error(
+                                                        "Failed to save category toggle:",
+                                                        err
+                                                      );
+                                                    });
+                                                }
+                                              }}
+                                              className="text-xs text-gray-400 hover:text-gray-600 transition-colors opacity-0 group-hover:opacity-100"
+                                              title="Hide this category"
+                                            >
+                                              <Icon
+                                                icon="mingcute:eye-off-line"
+                                                className="w-3.5 h-3.5"
+                                              />
+                                            </button>
+                                          </div>
+                                          <div className="text-sm text-gray-700 leading-relaxed ml-0">
+                                            {categorySkills
+                                              .map((skill) => skill.name)
+                                              .join(", ")}
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+
+                                    {/* Show hidden categories with option to show them */}
+                                    {hiddenCategories.length > 0 && (
+                                      <div className="pt-2 border-t border-gray-200">
+                                        <div className="text-xs text-gray-500 mb-2">
+                                          Hidden categories:
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                          {hiddenCategories.map((category) => (
+                                            <button
+                                              key={category}
+                                              onClick={() => {
+                                                if (!resume) return;
+                                                const currentConfig =
+                                                  resume.sectionConfig || {};
+                                                const skillsConfig =
+                                                  (currentConfig.skills as any) ||
+                                                  {};
+                                                const allCategories =
+                                                  Object.keys(skillsByCategory);
+                                                const currentVisible =
+                                                  (skillsConfig.visibleCategories as string[]) ||
+                                                  allCategories;
+                                                const newVisibleCategories = [
+                                                  ...currentVisible,
+                                                  category,
+                                                ];
+
+                                                const newConfig = {
+                                                  ...currentConfig,
+                                                  skills: {
+                                                    ...skillsConfig,
+                                                    visibleCategories:
+                                                      newVisibleCategories,
+                                                  },
+                                                };
+
+                                                setResume({
+                                                  ...resume,
+                                                  sectionConfig: newConfig,
+                                                });
+
+                                                // Auto-save
+                                                if (
+                                                  resumeId &&
+                                                  resumeId !== "new" &&
+                                                  isValidUUID(resumeId)
+                                                ) {
+                                                  resumeService
+                                                    .updateResume(resumeId, {
+                                                      sectionConfig: newConfig,
+                                                    })
+                                                    .catch((err) => {
+                                                      console.error(
+                                                        "Failed to save category toggle:",
+                                                        err
+                                                      );
+                                                    });
+                                                }
+                                              }}
+                                              className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors flex items-center gap-1"
+                                              title="Show this category"
+                                            >
+                                              <Icon
+                                                icon="mingcute:eye-line"
+                                                className="w-3 h-3"
+                                              />
+                                              {category}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })()
                             ) : (
                               <p className="text-gray-500 text-sm italic">
                                 No skills yet. Click Edit to add skills.
@@ -4369,19 +5718,26 @@ export function ResumeBuilder() {
                       key={sectionId}
                       draggable
                       onDragStart={() => handleDocumentDragStart("projects")}
-                      onDragOver={handleDocumentDragOver}
+                      onDragOver={(e) => handleDocumentDragOver(e, "projects")}
                       onDrop={() => handleDocumentDrop("projects")}
                       onDragEnd={handleDocumentDragEnd}
+                      onDragLeave={() => setDragOverSection(null)}
                       className={`relative group transition-all ${
                         draggedDocumentSection === "projects"
                           ? "opacity-50 border-2 border-dashed border-[#3351FD] rounded-lg p-2"
+                          : dragOverSection === "projects" &&
+                            draggedDocumentSection &&
+                            draggedDocumentSection !== "projects"
+                          ? "border-2 border-dashed border-blue-400 bg-blue-50 rounded-lg p-2"
                           : "hover:border-2 hover:border-dashed hover:border-gray-300 rounded-lg p-2"
                       }`}
                       style={{
                         ...getSectionStyle("projects"),
                         marginBottom:
                           getSectionFormatting("projects").marginBottom ||
-                          `${displayResume.customizations?.spacing?.section || 24}px`,
+                          `${
+                            displayResume.customizations?.spacing?.section || 24
+                          }px`,
                         marginTop:
                           getSectionFormatting("projects").marginTop ||
                           undefined,
@@ -4440,6 +5796,19 @@ export function ResumeBuilder() {
                                 Import
                               </button>
                             )}
+                            <button
+                              onClick={() => {
+                                setShowCustomization(true);
+                                setSelectedSectionForFormatting("projects");
+                              }}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-gray-100 rounded-lg"
+                              title="Customize this section"
+                            >
+                              <Icon
+                                icon="mingcute:settings-3-line"
+                                className="w-4 h-4 text-purple-600"
+                              />
+                            </button>
                             <button
                               onClick={() =>
                                 setEditingItem({
@@ -4711,19 +6080,28 @@ export function ResumeBuilder() {
                       onDragStart={() =>
                         handleDocumentDragStart("certifications")
                       }
-                      onDragOver={handleDocumentDragOver}
+                      onDragOver={(e) =>
+                        handleDocumentDragOver(e, "certifications")
+                      }
                       onDrop={() => handleDocumentDrop("certifications")}
                       onDragEnd={handleDocumentDragEnd}
+                      onDragLeave={() => setDragOverSection(null)}
                       className={`relative group transition-all ${
                         draggedDocumentSection === "certifications"
                           ? "opacity-50 border-2 border-dashed border-[#3351FD] rounded-lg p-2"
+                          : dragOverSection === "certifications" &&
+                            draggedDocumentSection &&
+                            draggedDocumentSection !== "certifications"
+                          ? "border-2 border-dashed border-blue-400 bg-blue-50 rounded-lg p-2"
                           : "hover:border-2 hover:border-dashed hover:border-gray-300 rounded-lg p-2"
                       }`}
                       style={{
                         ...getSectionStyle("certifications"),
                         marginBottom:
                           getSectionFormatting("certifications").marginBottom ||
-                          `${displayResume.customizations?.spacing?.section || 24}px`,
+                          `${
+                            displayResume.customizations?.spacing?.section || 24
+                          }px`,
                         marginTop:
                           getSectionFormatting("certifications").marginTop ||
                           undefined,
@@ -4787,6 +6165,21 @@ export function ResumeBuilder() {
                                 Import
                               </button>
                             )}
+                            <button
+                              onClick={() => {
+                                setShowCustomization(true);
+                                setSelectedSectionForFormatting(
+                                  "certifications"
+                                );
+                              }}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-gray-100 rounded-lg"
+                              title="Customize this section"
+                            >
+                              <Icon
+                                icon="mingcute:settings-3-line"
+                                className="w-4 h-4 text-purple-600"
+                              />
+                            </button>
                             <button
                               onClick={() =>
                                 setEditingItem({
@@ -5046,11 +6439,22 @@ export function ResumeBuilder() {
                 resumeId={resumeId}
                 isOpen={showAIPanel}
                 onClose={() => setShowAIPanel(false)}
+                initialJobId={jobId && isValidUUID(jobId) ? jobId : null}
+                initialMessage={getDecodedExplanation(aiExplanation)}
+                autoAnalyzeJob={
+                  !!(
+                    jobId &&
+                    isValidUUID(jobId) &&
+                    resumeId &&
+                    resumeId !== "new" &&
+                    !aiExplanation
+                  )
+                }
                 onResumeUpdate={(updates) => {
                   if (resume) {
                     // Save current state to history before applying changes
                     saveToHistory(resume);
-                    
+
                     const updatedResume = { ...resume, ...updates };
                     setResume(updatedResume);
                     // Auto-save to backend
@@ -5177,10 +6581,7 @@ export function ResumeBuilder() {
                                   background: currentColors.background,
                                 },
                               };
-                              setResume({
-                                ...resume,
-                                customizations: newCustomizations,
-                              });
+                              autoSaveCustomizations(newCustomizations);
                             }}
                             className="w-16 h-10 rounded-lg border border-gray-300 cursor-pointer"
                           />
@@ -5202,10 +6603,7 @@ export function ResumeBuilder() {
                                   background: currentColors.background,
                                 },
                               };
-                              setResume({
-                                ...resume,
-                                customizations: newCustomizations,
-                              });
+                              autoSaveCustomizations(newCustomizations);
                             }}
                             className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
                             placeholder="#3351FD"
@@ -5235,10 +6633,7 @@ export function ResumeBuilder() {
                                   background: currentColors.background,
                                 },
                               };
-                              setResume({
-                                ...resume,
-                                customizations: newCustomizations,
-                              });
+                              autoSaveCustomizations(newCustomizations);
                             }}
                             className="w-16 h-10 rounded-lg border border-gray-300 cursor-pointer"
                           />
@@ -5260,10 +6655,7 @@ export function ResumeBuilder() {
                                   background: currentColors.background,
                                 },
                               };
-                              setResume({
-                                ...resume,
-                                customizations: newCustomizations,
-                              });
+                              autoSaveCustomizations(newCustomizations);
                             }}
                             className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
                             placeholder="#000000"
@@ -5293,10 +6685,7 @@ export function ResumeBuilder() {
                                   background: currentColors.background,
                                 },
                               };
-                              setResume({
-                                ...resume,
-                                customizations: newCustomizations,
-                              });
+                              autoSaveCustomizations(newCustomizations);
                             }}
                             className="w-16 h-10 rounded-lg border border-gray-300 cursor-pointer"
                           />
@@ -5318,10 +6707,7 @@ export function ResumeBuilder() {
                                   background: currentColors.background,
                                 },
                               };
-                              setResume({
-                                ...resume,
-                                customizations: newCustomizations,
-                              });
+                              autoSaveCustomizations(newCustomizations);
                             }}
                             className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
                             placeholder="#000000"
@@ -5351,10 +6737,7 @@ export function ResumeBuilder() {
                                   background: e.target.value,
                                 },
                               };
-                              setResume({
-                                ...resume,
-                                customizations: newCustomizations,
-                              });
+                              autoSaveCustomizations(newCustomizations);
                             }}
                             className="w-16 h-10 rounded-lg border border-gray-300 cursor-pointer"
                           />
@@ -5376,10 +6759,7 @@ export function ResumeBuilder() {
                                   background: e.target.value,
                                 },
                               };
-                              setResume({
-                                ...resume,
-                                customizations: newCustomizations,
-                              });
+                              autoSaveCustomizations(newCustomizations);
                             }}
                             className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
                             placeholder="#FFFFFF"
@@ -5412,10 +6792,7 @@ export function ResumeBuilder() {
                                 body: currentFonts.body,
                               },
                             };
-                            setResume({
-                              ...resume,
-                              customizations: newCustomizations,
-                            });
+                            autoSaveCustomizations(newCustomizations);
                           }}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                         >
@@ -5448,10 +6825,7 @@ export function ResumeBuilder() {
                                 body: e.target.value,
                               },
                             };
-                            setResume({
-                              ...resume,
-                              customizations: newCustomizations,
-                            });
+                            autoSaveCustomizations(newCustomizations);
                           }}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                         >
@@ -5486,10 +6860,7 @@ export function ResumeBuilder() {
                               ...currentCustomizations,
                               alignment: e.target.value,
                             };
-                            setResume({
-                              ...resume,
-                              customizations: newCustomizations,
-                            });
+                            autoSaveCustomizations(newCustomizations);
                           }}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                         >
@@ -5515,10 +6886,7 @@ export function ResumeBuilder() {
                               ...currentCustomizations,
                               headerStyle: e.target.value,
                             };
-                            setResume({
-                              ...resume,
-                              customizations: newCustomizations,
-                            });
+                            autoSaveCustomizations(newCustomizations);
                           }}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                         >
@@ -5563,10 +6931,7 @@ export function ResumeBuilder() {
                                       12,
                                   },
                                 };
-                                setResume({
-                                  ...resume,
-                                  customizations: newCustomizations,
-                                });
+                                autoSaveCustomizations(newCustomizations);
                               }}
                               className="w-full"
                             />
@@ -5596,10 +6961,7 @@ export function ResumeBuilder() {
                                     item: parseInt(e.target.value),
                                   },
                                 };
-                                setResume({
-                                  ...resume,
-                                  customizations: newCustomizations,
-                                });
+                                autoSaveCustomizations(newCustomizations);
                               }}
                               className="w-full"
                             />
@@ -6366,6 +7728,27 @@ export function ResumeBuilder() {
                   placeholder="Describe what changes you plan to make in this version"
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Link to Job Posting (Optional)
+                </label>
+                <select
+                  value={newVersionJobId}
+                  onChange={(e) => setNewVersionJobId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                >
+                  <option value="">No specific job (General resume)</option>
+                  {userJobs.map((job) => (
+                    <option key={job.id} value={job.id}>
+                      {job.title} at {job.company}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Link this version to a specific job posting for tailored
+                  content
+                </p>
+              </div>
             </div>
             <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
               <button
@@ -6373,6 +7756,7 @@ export function ResumeBuilder() {
                   setShowVersionModal(false);
                   setNewVersionName("");
                   setNewVersionDescription("");
+                  setNewVersionJobId("");
                 }}
                 className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
               >
@@ -6390,17 +7774,70 @@ export function ResumeBuilder() {
         </div>
       )}
 
+      {/* Version Control Modal */}
+      {showVersionControl &&
+        (versions.length > 0 || resume ? (
+          <VersionControl
+            versions={versions.length > 0 ? versions : resume ? [resume] : []}
+            currentVersionId={resumeId}
+            onSelectVersion={(versionId) => {
+              handleSwitchVersion(versionId);
+              setShowVersionControl(false);
+            }}
+            onClose={() => setShowVersionControl(false)}
+          />
+        ) : (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-in zoom-in-95 duration-300">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-900">
+                  No Versions Available
+                </h2>
+                <button
+                  onClick={() => setShowVersionControl(false)}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <Icon
+                    icon="mingcute:close-line"
+                    className="w-5 h-5 text-gray-600"
+                  />
+                </button>
+              </div>
+              <p className="text-gray-600 mb-6">
+                Create at least one version to use version control.
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setShowVersionControl(false)}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => {
+                    setShowVersionControl(false);
+                    setShowVersionModal(true);
+                  }}
+                  className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors font-medium shadow-md"
+                >
+                  Create Version
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+
       {/* Version Comparison Modal */}
       {showVersionCompare && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-[95vw] max-h-[95vh] overflow-hidden flex flex-col">
-            <div className="p-6 border-b border-gray-200">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[95vw] max-h-[95vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-300">
+            <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-xl font-semibold text-gray-900">
+                  <h2 className="text-2xl font-bold text-gray-900 tracking-tight">
                     Compare Versions
                   </h2>
-                  <p className="text-sm text-gray-600 mt-1">
+                  <p className="text-sm text-gray-600 mt-1.5">
                     {resume1Data && resume2Data
                       ? "Side-by-side comparison of resume content"
                       : "Select two versions to compare their differences"}
@@ -6415,11 +7852,11 @@ export function ResumeBuilder() {
                     setSelectedVersion1(null);
                     setSelectedVersion2(null);
                   }}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors group"
                 >
                   <Icon
                     icon="mingcute:close-line"
-                    className="w-5 h-5 text-gray-600"
+                    className="w-5 h-5 text-gray-600 group-hover:text-gray-900"
                   />
                 </button>
               </div>
@@ -6436,85 +7873,332 @@ export function ResumeBuilder() {
                   </div>
                 </div>
               ) : !resume1Data || !resume2Data ? (
-                <div className="p-6 flex-1 overflow-y-auto">
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Version 1
-                      </label>
-                      <select
-                        value={selectedVersion1 || ""}
-                        onChange={(e) => setSelectedVersion1(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
-                      >
-                        <option value="">Select a version</option>
-                        {versions.map((version) => (
-                          <option key={version.id} value={version.id}>
-                            {version.name || `Version ${version.versionNumber}`}{" "}
-                            (v{version.versionNumber || 1})
-                          </option>
-                        ))}
-                      </select>
+                <div className="p-8 flex-1 overflow-y-auto bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/30">
+                  <div className="max-w-4xl mx-auto">
+                    <div className="text-center mb-8">
+                      <div className="inline-flex items-center justify-center w-16 h-16 bg-[#3351FD]/10 rounded-full mb-4">
+                        <Icon
+                          icon="mingcute:git-compare-line"
+                          className="w-8 h-8 text-[#3351FD]"
+                        />
+                      </div>
+                      <h3 className="text-xl font-bold text-gray-900 mb-2">
+                        Select Two Versions to Compare
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        Choose different versions to see side-by-side
+                        differences
+                      </p>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Version 2
-                      </label>
-                      <select
-                        value={selectedVersion2 || ""}
-                        onChange={(e) => setSelectedVersion2(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
-                      >
-                        <option value="">Select a version</option>
-                        {versions.map((version) => (
-                          <option key={version.id} value={version.id}>
-                            {version.name || `Version ${version.versionNumber}`}{" "}
-                            (v{version.versionNumber || 1})
-                          </option>
-                        ))}
-                      </select>
+
+                    <div className="grid md:grid-cols-2 gap-6 mb-6">
+                      {/* Version 1 Selection */}
+                      <div className="bg-white rounded-xl p-6 shadow-lg border-2 border-transparent transition-all hover:border-blue-200 hover:shadow-xl">
+                        <div className="flex items-center justify-between mb-4">
+                          <label className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                            <span className="w-3 h-3 rounded-full bg-blue-500"></span>
+                            Version 1
+                          </label>
+                          {selectedVersion1 && (
+                            <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded font-medium">
+                              Selected
+                            </span>
+                          )}
+                        </div>
+                        {versions.length === 0 ? (
+                          <div className="text-center py-8 text-gray-500">
+                            <Icon
+                              icon="mingcute:file-line"
+                              className="w-8 h-8 mx-auto mb-2 opacity-50"
+                            />
+                            <p className="text-sm">No versions available</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-2 max-h-64 overflow-y-auto">
+                            {versions.map((version) => {
+                              const isSelected =
+                                selectedVersion1 === version.id;
+                              const isDisabled =
+                                selectedVersion2 === version.id;
+                              return (
+                                <button
+                                  key={version.id}
+                                  onClick={() =>
+                                    !isDisabled &&
+                                    setSelectedVersion1(version.id)
+                                  }
+                                  disabled={isDisabled}
+                                  className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
+                                    isSelected
+                                      ? "border-[#3351FD] bg-blue-50 shadow-md"
+                                      : isDisabled
+                                      ? "border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed"
+                                      : "border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50/50"
+                                  }`}
+                                >
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <span className="font-semibold text-gray-900">
+                                          {version.name ||
+                                            `Version ${
+                                              version.versionNumber || 1
+                                            }`}
+                                        </span>
+                                        {version.isMaster && (
+                                          <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+                                            Master
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="flex items-center gap-3 text-xs text-gray-500">
+                                        <span>
+                                          v{version.versionNumber || 1}
+                                        </span>
+                                        {version.jobId && (
+                                          <span className="flex items-center gap-1">
+                                            <Icon
+                                              icon="mingcute:briefcase-line"
+                                              className="w-3 h-3"
+                                            />
+                                            Job Linked
+                                          </span>
+                                        )}
+                                        <span>
+                                          {new Date(
+                                            version.createdAt
+                                          ).toLocaleDateString()}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    {isSelected && (
+                                      <Icon
+                                        icon="mingcute:check-circle-fill"
+                                        className="w-5 h-5 text-[#3351FD] flex-shrink-0"
+                                      />
+                                    )}
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Version 2 Selection */}
+                      <div className="bg-white rounded-xl p-6 shadow-lg border-2 border-transparent transition-all hover:border-purple-200 hover:shadow-xl">
+                        <div className="flex items-center justify-between mb-4">
+                          <label className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                            <span className="w-3 h-3 rounded-full bg-purple-500"></span>
+                            Version 2
+                          </label>
+                          {selectedVersion2 && (
+                            <span className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded font-medium">
+                              Selected
+                            </span>
+                          )}
+                        </div>
+                        {versions.length === 0 ? (
+                          <div className="text-center py-8 text-gray-500">
+                            <Icon
+                              icon="mingcute:file-line"
+                              className="w-8 h-8 mx-auto mb-2 opacity-50"
+                            />
+                            <p className="text-sm">No versions available</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-2 max-h-64 overflow-y-auto">
+                            {versions.map((version) => {
+                              const isSelected =
+                                selectedVersion2 === version.id;
+                              const isDisabled =
+                                selectedVersion1 === version.id;
+                              return (
+                                <button
+                                  key={version.id}
+                                  onClick={() =>
+                                    !isDisabled &&
+                                    setSelectedVersion2(version.id)
+                                  }
+                                  disabled={isDisabled}
+                                  className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
+                                    isSelected
+                                      ? "border-purple-500 bg-purple-50 shadow-md"
+                                      : isDisabled
+                                      ? "border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed"
+                                      : "border-gray-200 bg-white hover:border-purple-300 hover:bg-purple-50/50"
+                                  }`}
+                                >
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <span className="font-semibold text-gray-900">
+                                          {version.name ||
+                                            `Version ${
+                                              version.versionNumber || 1
+                                            }`}
+                                        </span>
+                                        {version.isMaster && (
+                                          <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+                                            Master
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="flex items-center gap-3 text-xs text-gray-500">
+                                        <span>
+                                          v{version.versionNumber || 1}
+                                        </span>
+                                        {version.jobId && (
+                                          <span className="flex items-center gap-1">
+                                            <Icon
+                                              icon="mingcute:briefcase-line"
+                                              className="w-3 h-3"
+                                            />
+                                            Job Linked
+                                          </span>
+                                        )}
+                                        <span>
+                                          {new Date(
+                                            version.createdAt
+                                          ).toLocaleDateString()}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    {isSelected && (
+                                      <Icon
+                                        icon="mingcute:check-circle-fill"
+                                        className="w-5 h-5 text-purple-500 flex-shrink-0"
+                                      />
+                                    )}
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <button
-                        onClick={() => handleCompareVersions(false)}
-                        disabled={
-                          !selectedVersion1 ||
-                          !selectedVersion2 ||
-                          loadingComparison
-                        }
-                        className="w-full px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {loadingComparison
-                          ? "Loading..."
-                          : "Compare Selected Versions"}
-                      </button>
-                      <button
-                        onClick={() => handleCompareVersions(true)}
-                        disabled={loadingComparison}
-                        className="w-full px-4 py-2 bg-gray-100 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                      >
-                        <Icon icon="mingcute:eye-line" className="w-4 h-4" />
-                        View Demo Comparison (Mock Data)
-                      </button>
+
+                    {/* Action Buttons */}
+                    <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-200">
+                      <div className="space-y-3">
+                        <button
+                          onClick={() => handleCompareVersions(false)}
+                          disabled={
+                            !selectedVersion1 ||
+                            !selectedVersion2 ||
+                            loadingComparison ||
+                            selectedVersion1 === selectedVersion2
+                          }
+                          className="w-full px-6 py-4 bg-gradient-to-r from-[#3351FD] to-[#2a45d4] text-white rounded-lg hover:from-[#2a45d4] hover:to-[#3351FD] transition-all disabled:opacity-50 disabled:cursor-not-allowed font-bold shadow-lg hover:shadow-xl flex items-center justify-center gap-3"
+                        >
+                          {loadingComparison ? (
+                            <>
+                              <Icon
+                                icon="mingcute:loading-line"
+                                className="w-5 h-5 animate-spin"
+                              />
+                              Loading Comparison...
+                            </>
+                          ) : (
+                            <>
+                              <Icon
+                                icon="mingcute:git-compare-line"
+                                className="w-6 h-6"
+                              />
+                              Compare Selected Versions
+                            </>
+                          )}
+                        </button>
+                        {selectedVersion1 === selectedVersion2 &&
+                          selectedVersion1 && (
+                            <div className="flex items-center justify-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                              <Icon
+                                icon="mingcute:alert-line"
+                                className="w-4 h-4 text-amber-600"
+                              />
+                              <p className="text-sm text-amber-700 font-medium">
+                                Please select two different versions to compare
+                              </p>
+                            </div>
+                          )}
+                        <div className="flex gap-3 pt-2">
+                          <button
+                            onClick={() => {
+                              setShowVersionCompare(false);
+                              setShowVersionControl(true);
+                            }}
+                            disabled={versions.length === 0}
+                            className="flex-1 px-4 py-2.5 text-[#3351FD] bg-blue-50 border border-[#3351FD] rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium"
+                          >
+                            <Icon
+                              icon="mingcute:git-branch-line"
+                              className="w-4 h-4"
+                            />
+                            Version Control
+                          </button>
+                          <button
+                            onClick={() => handleCompareVersions(true)}
+                            disabled={loadingComparison}
+                            className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium"
+                          >
+                            <Icon
+                              icon="mingcute:eye-line"
+                              className="w-4 h-4"
+                            />
+                            View Demo
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="flex-1 overflow-hidden flex">
+                <div className="flex-1 overflow-hidden flex relative">
+                  {/* Divider */}
+                  <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-gray-300 z-20 transform -translate-x-1/2"></div>
+
                   {/* Side-by-side resume comparison */}
-                  <div className="flex-1 overflow-y-auto bg-gray-100 p-4 border-r border-gray-300">
-                    <div className="sticky top-0 bg-white border-b border-gray-200 p-3 mb-4 z-10">
-                      <h3 className="font-semibold text-gray-900">
-                        {resume1Data.name} (v{resume1Data.versionNumber || 1})
-                      </h3>
-                      {resume1Data.isMaster && (
-                        <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded mt-1 inline-block">
-                          Master
-                        </span>
-                      )}
+                  <div className="flex-1 overflow-y-auto bg-gradient-to-br from-blue-50/30 to-gray-50 p-6 border-r border-gray-200">
+                    <div className="sticky top-0 bg-white/90 backdrop-blur-md border-b border-gray-200 px-4 py-2 mb-4 z-10 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"></span>
+                          <span className="text-sm font-semibold text-gray-900 truncate">
+                            {resume1Data.name ||
+                              `v${resume1Data.versionNumber || 1}`}
+                          </span>
+                          {resume1Data.isMaster && (
+                            <span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded font-medium flex-shrink-0">
+                              Master
+                            </span>
+                          )}
+                          {resume1Data.jobId && (
+                            <Icon
+                              icon="mingcute:briefcase-line"
+                              className="w-3.5 h-3.5 text-green-600 flex-shrink-0"
+                              title="Job Linked"
+                            />
+                          )}
+                        </div>
+                        <button
+                          onClick={() => {
+                            setShowVersionCompare(false);
+                            handleSwitchVersion(resume1Data.id);
+                          }}
+                          className="px-2.5 py-1 text-xs bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors font-medium flex items-center gap-1.5 flex-shrink-0 ml-2"
+                          title="View this version"
+                        >
+                          <Icon
+                            icon="mingcute:eye-line"
+                            className="w-3.5 h-3.5"
+                          />
+                          View
+                        </button>
+                      </div>
                     </div>
                     <div
-                      className="max-w-2xl mx-auto bg-white shadow-lg p-8"
+                      className="max-w-2xl mx-auto bg-white shadow-xl p-8 rounded-xl border border-gray-100"
                       style={{
                         fontFamily:
                           resume1Data.customizations?.fonts?.body || "Inter",
@@ -6693,19 +8377,46 @@ export function ResumeBuilder() {
                     </div>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto bg-gray-100 p-4">
-                    <div className="sticky top-0 bg-white border-b border-gray-200 p-3 mb-4 z-10">
-                      <h3 className="font-semibold text-gray-900">
-                        {resume2Data.name} (v{resume2Data.versionNumber || 1})
-                      </h3>
-                      {resume2Data.isMaster && (
-                        <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded mt-1 inline-block">
-                          Master
-                        </span>
-                      )}
+                  <div className="flex-1 overflow-y-auto bg-gradient-to-br from-purple-50/30 to-gray-50 p-6">
+                    <div className="sticky top-0 bg-white/90 backdrop-blur-md border-b border-gray-200 px-4 py-2 mb-4 z-10 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <span className="w-2 h-2 rounded-full bg-purple-500 flex-shrink-0"></span>
+                          <span className="text-sm font-semibold text-gray-900 truncate">
+                            {resume2Data.name ||
+                              `v${resume2Data.versionNumber || 1}`}
+                          </span>
+                          {resume2Data.isMaster && (
+                            <span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded font-medium flex-shrink-0">
+                              Master
+                            </span>
+                          )}
+                          {resume2Data.jobId && (
+                            <Icon
+                              icon="mingcute:briefcase-line"
+                              className="w-3.5 h-3.5 text-green-600 flex-shrink-0"
+                              title="Job Linked"
+                            />
+                          )}
+                        </div>
+                        <button
+                          onClick={() => {
+                            setShowVersionCompare(false);
+                            handleSwitchVersion(resume2Data.id);
+                          }}
+                          className="px-2.5 py-1 text-xs bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors font-medium flex items-center gap-1.5 flex-shrink-0 ml-2"
+                          title="View this version"
+                        >
+                          <Icon
+                            icon="mingcute:eye-line"
+                            className="w-3.5 h-3.5"
+                          />
+                          View
+                        </button>
+                      </div>
                     </div>
                     <div
-                      className="max-w-2xl mx-auto bg-white shadow-lg p-8"
+                      className="max-w-2xl mx-auto bg-white shadow-xl p-8 rounded-xl border border-gray-100"
                       style={{
                         fontFamily:
                           resume2Data.customizations?.fonts?.body || "Inter",
@@ -6887,7 +8598,7 @@ export function ResumeBuilder() {
               )}
             </div>
             {(!resume1Data || !resume2Data) && (
-              <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+              <div className="p-6 border-t border-gray-200 bg-white flex justify-end gap-3">
                 <button
                   onClick={() => {
                     setShowVersionCompare(false);
@@ -6897,14 +8608,14 @@ export function ResumeBuilder() {
                     setSelectedVersion1(null);
                     setSelectedVersion2(null);
                   }}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  className="px-5 py-2.5 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors font-medium"
                 >
                   Cancel
                 </button>
               </div>
             )}
             {resume1Data && resume2Data && (
-              <div className="p-4 border-t border-gray-200 bg-white flex justify-between items-center">
+              <div className="p-5 border-t border-gray-200 bg-white flex justify-between items-center">
                 <button
                   onClick={() => {
                     setResume1Data(null);
@@ -6913,23 +8624,39 @@ export function ResumeBuilder() {
                     setSelectedVersion1(null);
                     setSelectedVersion2(null);
                   }}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  className="px-5 py-2.5 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors font-medium flex items-center gap-2"
                 >
+                  <Icon
+                    icon="mingcute:arrow-go-back-line"
+                    className="w-4 h-4"
+                  />
                   Compare Different Versions
                 </button>
-                <button
-                  onClick={() => {
-                    setShowVersionCompare(false);
-                    setVersionComparison(null);
-                    setResume1Data(null);
-                    setResume2Data(null);
-                    setSelectedVersion1(null);
-                    setSelectedVersion2(null);
-                  }}
-                  className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors"
-                >
-                  Close
-                </button>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      setShowVersionCompare(false);
+                      setShowVersionControl(true);
+                    }}
+                    className="px-5 py-2.5 text-[#3351FD] bg-blue-50 border border-[#3351FD] rounded-lg hover:bg-blue-100 transition-colors flex items-center gap-2 font-medium shadow-sm"
+                  >
+                    <Icon icon="mingcute:git-branch-line" className="w-4 h-4" />
+                    Version Control
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowVersionCompare(false);
+                      setVersionComparison(null);
+                      setResume1Data(null);
+                      setResume2Data(null);
+                      setSelectedVersion1(null);
+                      setSelectedVersion2(null);
+                    }}
+                    className="px-5 py-2.5 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors font-medium shadow-md hover:shadow-lg"
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -7155,7 +8882,9 @@ export function ResumeBuilder() {
                                     </div>
                                     <p className="text-xs text-gray-600 whitespace-nowrap ml-2">
                                       {exp.startDate} -{" "}
-                                      {exp.isCurrent ? "Present" : exp.endDate || ""}
+                                      {exp.isCurrent
+                                        ? "Present"
+                                        : exp.endDate || ""}
                                     </p>
                                   </div>
                                   {exp.description &&
@@ -7280,7 +9009,10 @@ export function ResumeBuilder() {
                                       {proj.description && (
                                         <p className="text-sm text-gray-700 mt-1">
                                           {proj.description.length > 150
-                                            ? `${proj.description.substring(0, 150)}...`
+                                            ? `${proj.description.substring(
+                                                0,
+                                                150
+                                              )}...`
                                             : proj.description}
                                         </p>
                                       )}
@@ -7320,8 +9052,8 @@ export function ResumeBuilder() {
                               ))}
                             {parsedResumeContent.projects.length > 3 && (
                               <p className="text-xs text-gray-500 text-center pt-2 border-t border-gray-200">
-                                +{parsedResumeContent.projects.length - 3}{" "}
-                                more projects
+                                +{parsedResumeContent.projects.length - 3} more
+                                projects
                               </p>
                             )}
                           </div>

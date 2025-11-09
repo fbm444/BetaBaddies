@@ -306,9 +306,8 @@ class ResumeExportService {
             const pageWidth = doc.page.width;
             const pageHeight = doc.page.height;
             doc.save();
-            doc.rect(0, 0, pageWidth, pageHeight)
-               .fillColor(backgroundRgb.r, backgroundRgb.g, backgroundRgb.b)
-               .fill();
+            doc.fillColor(backgroundRgb.r, backgroundRgb.g, backgroundRgb.b);
+            doc.rect(0, 0, pageWidth, pageHeight).fill();
             doc.restore();
             // Always reset fill color to text color after drawing background
             doc.fillColor(textRgb.r, textRgb.g, textRgb.b);
@@ -319,10 +318,10 @@ class ResumeExportService {
           
           // Draw background on new pages
           doc.on('pageAdded', drawBackground);
-        } else {
-          // For white background, just set the default fill color
-          doc.fillColor(textRgb.r, textRgb.g, textRgb.b);
         }
+        
+        // Always set default fill color to text color (even for white background)
+        doc.fillColor(textRgb.r, textRgb.g, textRgb.b);
 
         // Add watermark if requested
         if (watermark) {
@@ -339,14 +338,15 @@ class ResumeExportService {
         const lastName = content.personalInfo?.lastName || '';
         const fullName = `${firstName} ${lastName}`.trim() || 'Resume';
         
-        // Header - Name (with primary color and heading font) - Compact size
-        doc.fillColor(primaryRgb.r, primaryRgb.g, primaryRgb.b)
-           .fontSize(18)  // Reduced from 24
-           .font(this.getPDFFont(fonts.heading, 'Bold'))
-           .text(fullName, {
-             align: 'center'
-           })
-           .moveDown(0.3);  // Reduced from 0.5
+        // Header - Name (with primary color and heading font)
+        // IMPORTANT: Set color, font, and size BEFORE text() call
+        doc.fillColor(primaryRgb.r, primaryRgb.g, primaryRgb.b);
+        doc.fontSize(24);  // Increased from 18 for better visibility
+        doc.font(this.getPDFFont(fonts.heading, 'Bold'));
+        doc.text(fullName, {
+          align: 'center'
+        });
+        doc.moveDown(0.5);
 
         // Contact Information
         const contactInfo = [];
@@ -357,26 +357,27 @@ class ResumeExportService {
         if (content.personalInfo?.portfolio) contactInfo.push(`Portfolio: ${content.personalInfo.portfolio}`);
 
         if (contactInfo.length > 0) {
-          doc.fillColor(secondaryRgb.r, secondaryRgb.g, secondaryRgb.b)
-             .fontSize(8)  // Reduced from 10
-             .font(this.getPDFFont(fonts.body))
-             .text(contactInfo.join(' • '), {
-               align: 'center'
-             })
-             .moveDown(0.4);  // Reduced from 1
+          // IMPORTANT: Set color, font, and size BEFORE text() call
+          doc.fillColor(secondaryRgb.r, secondaryRgb.g, secondaryRgb.b);
+          doc.fontSize(10);  // Increased from 8 for better visibility
+          doc.font(this.getPDFFont(fonts.body));
+          doc.text(contactInfo.join(' • '), {
+            align: 'center'
+          });
+          doc.moveDown(0.5);
         } else {
           // Add some spacing even if no contact info
-          doc.moveDown(0.3);
+          doc.moveDown(0.5);
         }
         
-        // Draw border line under header (using primary color) - thinner line
+        // Draw border line under header (using primary color)
         const currentY = doc.y;
-        doc.strokeColor(primaryRgb.r, primaryRgb.g, primaryRgb.b)
-           .lineWidth(1)  // Reduced from 2
-           .moveTo(36, currentY)  // Use margin
-           .lineTo(doc.page.width - 36, currentY)
-           .stroke()
-           .moveDown(8);  // Fixed compact spacing instead of spacing.section / 2
+        doc.strokeColor(primaryRgb.r, primaryRgb.g, primaryRgb.b);
+        doc.lineWidth(2);  // Increased from 1 for better visibility
+        doc.moveTo(36, currentY);  // Use margin
+        doc.lineTo(doc.page.width - 36, currentY);
+        doc.stroke();
+        doc.moveDown(spacing.section / 2 || 12);  // Use spacing from customizations
 
         // Summary
         if (content.summary) {
@@ -386,20 +387,22 @@ class ResumeExportService {
             ? this.hexToRgb(summaryFormatting.color)
             : primaryRgb;
           
-          doc.fillColor(summaryColor.r, summaryColor.g, summaryColor.b)
-             .fontSize(11)  // Reduced from 14
-             .font(this.getPDFFont(fonts.heading, 'Bold'))
-             .text('SUMMARY', { underline: true })
-             .moveDown(0.2);  // Reduced from 0.3
+          // Section heading - IMPORTANT: Set color, font, and size BEFORE text() call
+          doc.fillColor(summaryColor.r, summaryColor.g, summaryColor.b);
+          doc.fontSize(14);  // Increased from 11 for better visibility
+          doc.font(this.getPDFFont(fonts.heading, 'Bold'));
+          doc.text('SUMMARY', { underline: true });
+          doc.moveDown(0.3);
           
-          doc.fillColor(textRgb.r, textRgb.g, textRgb.b)
-             .fontSize(9)  // Reduced from 11
-             .font(this.getPDFFont(fonts.body))
-             .text(content.summary, {
-               align: 'justify',
-               lineGap: 2  // Compact line spacing
-             })
-             .moveDown(6);  // Fixed compact spacing
+          // Section content - IMPORTANT: Reset color before text
+          doc.fillColor(textRgb.r, textRgb.g, textRgb.b);
+          doc.fontSize(11);  // Increased from 9 for better visibility
+          doc.font(this.getPDFFont(fonts.body));
+          doc.text(content.summary, {
+            align: 'justify',
+            lineGap: 2
+          });
+          doc.moveDown(spacing.section / 2 || 12);
         }
 
         // Experience
@@ -410,11 +413,12 @@ class ResumeExportService {
             ? this.hexToRgb(expFormatting.color)
             : primaryRgb;
           
-          doc.fillColor(expColor.r, expColor.g, expColor.b)
-             .fontSize(11)  // Reduced from 14
-             .font(this.getPDFFont(fonts.heading, 'Bold'))
-             .text('EXPERIENCE', { underline: true })
-             .moveDown(0.3);  // Reduced from 0.5
+          // Section heading - IMPORTANT: Set color, font, and size BEFORE text() call
+          doc.fillColor(expColor.r, expColor.g, expColor.b);
+          doc.fontSize(14);  // Increased from 11 for better visibility
+          doc.font(this.getPDFFont(fonts.heading, 'Bold'));
+          doc.text('EXPERIENCE', { underline: true });
+          doc.moveDown(0.5);
 
           content.experience.forEach((exp) => {
             if (!exp) return; // Skip null/undefined entries
@@ -423,43 +427,43 @@ class ResumeExportService {
             const title = exp.title || 'Position';
             const company = exp.company || 'Company';
             
-            // Title and company - compact
-            doc.fillColor(textRgb.r, textRgb.g, textRgb.b)
-               .fontSize(10)  // Reduced from 12
-               .font(this.getPDFFont(fonts.body, 'Bold'))
-               .text(title, { continued: true })
-               .font(this.getPDFFont(fonts.body))
-               .text(` | ${company}`);
+            // Title and company - IMPORTANT: Set color before text
+            doc.fillColor(textRgb.r, textRgb.g, textRgb.b);
+            doc.fontSize(12);  // Increased from 10 for better visibility
+            doc.font(this.getPDFFont(fonts.body, 'Bold'));
+            doc.text(title, { continued: true });
+            doc.font(this.getPDFFont(fonts.body));
+            doc.text(` | ${company}`);
             
             // Date range on next line (right aligned)
-            doc.fontSize(8)  // Reduced from 10
-               .font(this.getPDFFont(fonts.body, 'Oblique'))
-               .text(dateRange, {
-                 align: 'right'
-               })
-               .moveDown(0.1);  // Reduced from 0.2
+            doc.fontSize(10);  // Increased from 8 for better visibility
+            doc.font(this.getPDFFont(fonts.body, 'Oblique'));
+            doc.text(dateRange, {
+              align: 'right'
+            });
+            doc.moveDown(0.2);
 
             if (exp.location) {
-              doc.fontSize(8)
-                 .font(this.getPDFFont(fonts.body, 'Oblique'))
-                 .text(exp.location)
-                 .moveDown(0.1);
+              doc.fontSize(10);  // Increased from 8
+              doc.font(this.getPDFFont(fonts.body, 'Oblique'));
+              doc.text(exp.location);
+              doc.moveDown(0.2);
             }
 
             if (exp.description && exp.description.length > 0) {
               exp.description.forEach((desc) => {
-                doc.fontSize(8)  // Reduced from 10
-                   .font(this.getPDFFont(fonts.body))
-                   .text(`• ${desc}`, {
-                     indent: 15,  // Reduced from 20
-                     align: 'left',
-                     lineGap: 1  // Compact line spacing
-                   })
-                   .moveDown(0.1);  // Reduced from 0.15
+                doc.fontSize(10);  // Increased from 8 for better visibility
+                doc.font(this.getPDFFont(fonts.body));
+                doc.text(`• ${desc}`, {
+                  indent: 20,  // Increased from 15
+                  align: 'left',
+                  lineGap: 1
+                });
+                doc.moveDown(0.15);
               });
             }
             
-            doc.moveDown(4);  // Fixed compact spacing
+            doc.moveDown(spacing.item || 8);
           });
         }
 
@@ -471,11 +475,12 @@ class ResumeExportService {
             ? this.hexToRgb(eduFormatting.color)
             : primaryRgb;
           
-          doc.fillColor(eduColor.r, eduColor.g, eduColor.b)
-             .fontSize(11)  // Reduced from 14
-             .font(this.getPDFFont(fonts.heading, 'Bold'))
-             .text('EDUCATION', { underline: true })
-             .moveDown(0.3);  // Reduced from 0.5
+          // Section heading - IMPORTANT: Set color, font, and size BEFORE text() call
+          doc.fillColor(eduColor.r, eduColor.g, eduColor.b);
+          doc.fontSize(14);  // Increased from 11 for better visibility
+          doc.font(this.getPDFFont(fonts.heading, 'Bold'));
+          doc.text('EDUCATION', { underline: true });
+          doc.moveDown(0.5);
 
           content.education.forEach((edu) => {
             if (!edu) return; // Skip null/undefined entries
@@ -483,34 +488,36 @@ class ResumeExportService {
             const degree = edu.degree || 'Degree';
             const school = edu.school || 'School';
             
-            doc.fontSize(10)  // Reduced from 12
-               .font(this.getPDFFont(fonts.body, 'Bold'))
-               .text(`${degree} - ${school}`);
+            // IMPORTANT: Set color before text
+            doc.fillColor(textRgb.r, textRgb.g, textRgb.b);
+            doc.fontSize(12);  // Increased from 10 for better visibility
+            doc.font(this.getPDFFont(fonts.body, 'Bold'));
+            doc.text(`${degree} - ${school}`);
             
             if (edu.endDate) {
-              doc.fontSize(8)  // Reduced from 10
-                 .font(this.getPDFFont(fonts.body, 'Oblique'))
-                 .text(edu.endDate, {
-                   align: 'right'
-                 });
+              doc.fontSize(10);  // Increased from 8 for better visibility
+              doc.font(this.getPDFFont(fonts.body, 'Oblique'));
+              doc.text(edu.endDate, {
+                align: 'right'
+              });
             }
-            doc.moveDown(0.1);  // Reduced from 0.2
+            doc.moveDown(0.2);
 
             if (edu.gpa) {
-              doc.fontSize(8)
-                 .font(this.getPDFFont(fonts.body))
-                 .text(`GPA: ${edu.gpa}`)
-                 .moveDown(0.1);
+              doc.fontSize(10);  // Increased from 8
+              doc.font(this.getPDFFont(fonts.body));
+              doc.text(`GPA: ${edu.gpa}`);
+              doc.moveDown(0.2);
             }
 
             if (edu.honors) {
-              doc.fontSize(8)
-                 .font(this.getPDFFont(fonts.body))
-                 .text(edu.honors)
-                 .moveDown(0.1);
+              doc.fontSize(10);  // Increased from 8
+              doc.font(this.getPDFFont(fonts.body));
+              doc.text(edu.honors);
+              doc.moveDown(0.2);
             }
             
-            doc.moveDown(4);  // Fixed compact spacing
+            doc.moveDown(spacing.item || 8);
           });
         }
 
@@ -522,18 +529,20 @@ class ResumeExportService {
             ? this.hexToRgb(skillsFormatting.color)
             : primaryRgb;
           
-          doc.fillColor(skillsColor.r, skillsColor.g, skillsColor.b)
-             .fontSize(11)  // Reduced from 14
-             .font(this.getPDFFont(fonts.heading, 'Bold'))
-             .text('SKILLS', { underline: true })
-             .moveDown(0.2);  // Reduced from 0.3
+          // Section heading - IMPORTANT: Set color, font, and size BEFORE text() call
+          doc.fillColor(skillsColor.r, skillsColor.g, skillsColor.b);
+          doc.fontSize(14);  // Increased from 11 for better visibility
+          doc.font(this.getPDFFont(fonts.heading, 'Bold'));
+          doc.text('SKILLS', { underline: true });
+          doc.moveDown(0.3);
 
           const skillNames = content.skills.map((s) => s.name).join(', ');
-          doc.fillColor(textRgb.r, textRgb.g, textRgb.b)
-             .fontSize(8)  // Reduced from 10
-             .font(this.getPDFFont(fonts.body))
-             .text(skillNames)
-             .moveDown(6);  // Fixed compact spacing
+          // IMPORTANT: Set color before text
+          doc.fillColor(textRgb.r, textRgb.g, textRgb.b);
+          doc.fontSize(10);  // Increased from 8 for better visibility
+          doc.font(this.getPDFFont(fonts.body));
+          doc.text(skillNames);
+          doc.moveDown(spacing.section / 2 || 12);
         }
 
         // Projects
@@ -544,52 +553,55 @@ class ResumeExportService {
             ? this.hexToRgb(projectsFormatting.color)
             : primaryRgb;
           
-          doc.fillColor(projectsColor.r, projectsColor.g, projectsColor.b)
-             .fontSize(11)  // Reduced from 14
-             .font(this.getPDFFont(fonts.heading, 'Bold'))
-             .text('PROJECTS', { underline: true })
-             .moveDown(0.3);  // Reduced from 0.5
+          // Section heading - IMPORTANT: Set color, font, and size BEFORE text() call
+          doc.fillColor(projectsColor.r, projectsColor.g, projectsColor.b);
+          doc.fontSize(14);  // Increased from 11 for better visibility
+          doc.font(this.getPDFFont(fonts.heading, 'Bold'));
+          doc.text('PROJECTS', { underline: true });
+          doc.moveDown(0.5);
 
           content.projects.forEach((project) => {
             if (!project) return; // Skip null/undefined entries
             
             const projectName = project.name || 'Project';
             
-            doc.fontSize(10)  // Reduced from 12
-               .font(this.getPDFFont(fonts.body, 'Bold'))
-               .text(projectName)
-               .moveDown(0.1);  // Reduced from 0.2
+            // IMPORTANT: Set color before text
+            doc.fillColor(textRgb.r, textRgb.g, textRgb.b);
+            doc.fontSize(12);  // Increased from 10 for better visibility
+            doc.font(this.getPDFFont(fonts.body, 'Bold'));
+            doc.text(projectName);
+            doc.moveDown(0.2);
 
             if (project.description) {
-              doc.fontSize(8)  // Reduced from 10
-                 .font(this.getPDFFont(fonts.body))
-                 .text(project.description, {
-                   align: 'justify',
-                   lineGap: 1
-                 })
-                 .moveDown(0.1);
+              doc.fontSize(10);  // Increased from 8 for better visibility
+              doc.font(this.getPDFFont(fonts.body));
+              doc.text(project.description, {
+                align: 'justify',
+                lineGap: 1
+              });
+              doc.moveDown(0.2);
             }
 
             if (project.technologies && project.technologies.length > 0) {
-              doc.fontSize(8)
-                 .font(this.getPDFFont(fonts.body, 'Oblique'))
-                 .text(`Technologies: ${project.technologies.join(', ')}`)
-                 .moveDown(0.1);
+              doc.fontSize(10);  // Increased from 8
+              doc.font(this.getPDFFont(fonts.body, 'Oblique'));
+              doc.text(`Technologies: ${project.technologies.join(', ')}`);
+              doc.moveDown(0.2);
             }
 
             if (project.link) {
-              doc.fontSize(8)
-                 .font(this.getPDFFont(fonts.body))
-                 .fillColor(primaryRgb.r, primaryRgb.g, primaryRgb.b)
-                 .text(project.link, {
-                   link: project.link,
-                   underline: true
-                 })
-                 .fillColor(textRgb.r, textRgb.g, textRgb.b)
-                 .moveDown(0.1);
+              doc.fontSize(10);  // Increased from 8
+              doc.font(this.getPDFFont(fonts.body));
+              doc.fillColor(primaryRgb.r, primaryRgb.g, primaryRgb.b);
+              doc.text(project.link, {
+                link: project.link,
+                underline: true
+              });
+              doc.fillColor(textRgb.r, textRgb.g, textRgb.b);  // Reset to text color
+              doc.moveDown(0.2);
             }
             
-            doc.moveDown(4);  // Fixed compact spacing
+            doc.moveDown(spacing.item || 8);
           });
         }
 
@@ -601,11 +613,12 @@ class ResumeExportService {
             ? this.hexToRgb(certsFormatting.color)
             : primaryRgb;
           
-          doc.fillColor(certsColor.r, certsColor.g, certsColor.b)
-             .fontSize(11)  // Reduced from 14
-             .font(this.getPDFFont(fonts.heading, 'Bold'))
-             .text('CERTIFICATIONS', { underline: true })
-             .moveDown(0.3);  // Reduced from 0.5
+          // Section heading - IMPORTANT: Set color, font, and size BEFORE text() call
+          doc.fillColor(certsColor.r, certsColor.g, certsColor.b);
+          doc.fontSize(14);  // Increased from 11 for better visibility
+          doc.font(this.getPDFFont(fonts.heading, 'Bold'));
+          doc.text('CERTIFICATIONS', { underline: true });
+          doc.moveDown(0.5);
 
           content.certifications.forEach((cert) => {
             if (!cert) return; // Skip null/undefined entries
@@ -614,11 +627,12 @@ class ResumeExportService {
             const org = cert.organization || 'Organization';
             const date = cert.dateEarned || '';
             
-            doc.fillColor(textRgb.r, textRgb.g, textRgb.b)
-               .fontSize(8)  // Reduced from 10
-               .font(this.getPDFFont(fonts.body))
-               .text(`${certName} - ${org}${date ? ` (${date})` : ''}`)
-               .moveDown(0.2);  // Reduced from 0.3
+            // IMPORTANT: Set color before text
+            doc.fillColor(textRgb.r, textRgb.g, textRgb.b);
+            doc.fontSize(10);  // Increased from 8 for better visibility
+            doc.font(this.getPDFFont(fonts.body));
+            doc.text(`${certName} - ${org}${date ? ` (${date})` : ''}`);
+            doc.moveDown(0.3);
           });
         }
 
@@ -698,16 +712,48 @@ class ResumeExportService {
 
       // Helper to convert hex to RGB for docx (expects hex string without #)
       const hexToDocxColor = (hex) => {
-        const rgb = this.hexToRgb(hex);
-        // docx expects hex color without #, e.g., "3351FD"
-        return hex.replace('#', '').toUpperCase();
+        if (!hex || typeof hex !== 'string') {
+          console.warn("⚠️ Invalid hex color for DOCX:", hex);
+          return '000000'; // Default to black
+        }
+        // Remove # if present and uppercase
+        const cleanHex = hex.replace('#', '').toUpperCase();
+        
+        // Handle 3-digit hex colors
+        if (cleanHex.length === 3) {
+          return cleanHex.split('').map(c => c + c).join('');
+        }
+        
+        // Handle 6-digit hex colors
+        if (cleanHex.length === 6) {
+          return cleanHex;
+        }
+        
+        console.warn("⚠️ Could not parse hex color for DOCX:", hex);
+        return '000000'; // Default to black
       };
 
-      // Helper to convert hex to RGB for docx shading (expects hex string)
+      // Helper to convert hex to RGB for docx shading (expects hex string with #)
       const hexToDocxShading = (hex) => {
-        const rgb = this.hexToRgb(hex);
-        // docx shading expects hex with #, e.g., "#FFFFFF"
-        return hex.toUpperCase();
+        if (!hex || typeof hex !== 'string') {
+          console.warn("⚠️ Invalid hex color for DOCX shading:", hex);
+          return '#FFFFFF'; // Default to white
+        }
+        // Ensure # is present and uppercase
+        const cleanHex = hex.replace('#', '').toUpperCase();
+        
+        // Handle 3-digit hex colors
+        if (cleanHex.length === 3) {
+          return '#' + cleanHex.split('').map(c => c + c).join('');
+        }
+        
+        // Handle 6-digit hex colors
+        if (cleanHex.length === 6) {
+          return '#' + cleanHex;
+        }
+        
+        console.warn("⚠️ Could not parse hex color for DOCX shading:", hex);
+        return '#FFFFFF'; // Default to white
       };
 
       const primaryColor = hexToDocxColor(colors.primary);
@@ -724,7 +770,6 @@ class ResumeExportService {
 
       children.push(
         new Paragraph({
-          text: fullName,
           heading: HeadingLevel.TITLE,
           alignment: AlignmentType.CENTER,
           spacing: { after: 120 },  // Reduced from 200
@@ -751,7 +796,6 @@ class ResumeExportService {
       if (contactInfo.length > 0) {
         children.push(
           new Paragraph({
-            text: contactInfo.join(' • '),
             alignment: AlignmentType.CENTER,
             spacing: { after: 200 },  // Reduced from 400
             children: [
@@ -775,7 +819,6 @@ class ResumeExportService {
 
         children.push(
           new Paragraph({
-            text: 'SUMMARY',
             heading: HeadingLevel.HEADING_1,
             spacing: { before: 120, after: 100 },  // Compact spacing
             children: [
@@ -790,7 +833,6 @@ class ResumeExportService {
             ],
           }),
           new Paragraph({
-            text: content.summary,
             spacing: { after: 120 },  // Compact spacing
             children: [
               new TextRun({
@@ -813,7 +855,6 @@ class ResumeExportService {
 
         children.push(
           new Paragraph({
-            text: 'EXPERIENCE',
             heading: HeadingLevel.HEADING_1,
             spacing: { before: 120, after: 200 },  // Compact spacing
             children: [
@@ -923,7 +964,6 @@ class ResumeExportService {
 
         children.push(
           new Paragraph({
-            text: 'EDUCATION',
             heading: HeadingLevel.HEADING_1,
             spacing: { before: 120, after: 200 },  // Compact spacing
             children: [
@@ -1029,7 +1069,6 @@ class ResumeExportService {
 
         children.push(
           new Paragraph({
-            text: 'SKILLS',
             heading: HeadingLevel.HEADING_1,
             spacing: { before: 120, after: 120 },  // Compact spacing
             children: [
@@ -1044,7 +1083,6 @@ class ResumeExportService {
             ],
           }),
           new Paragraph({
-            text: skillNames,
             spacing: { after: 120 },  // Compact spacing
             children: [
               new TextRun({
@@ -1067,7 +1105,6 @@ class ResumeExportService {
 
         children.push(
           new Paragraph({
-            text: 'PROJECTS',
             heading: HeadingLevel.HEADING_1,
             spacing: { before: 120, after: 200 },  // Compact spacing
             children: [
@@ -1170,7 +1207,6 @@ class ResumeExportService {
 
         children.push(
           new Paragraph({
-            text: 'CERTIFICATIONS',
             heading: HeadingLevel.HEADING_1,
             spacing: { before: 120, after: 200 },  // Compact spacing
             children: [
@@ -1209,7 +1245,7 @@ class ResumeExportService {
         });
       }
 
-      // Create document
+      // Create document with proper formatting
       const doc = new Document({
         sections: [
           {
@@ -1221,10 +1257,10 @@ class ResumeExportService {
                   height: 16838, // A4 height in twips (11.69 inches * 1440)
                 },
                 margin: {
-                  top: 1440, // 1 inch = 1440 twips
-                  right: 1080, // 0.75 inch
-                  bottom: 1440,
-                  left: 1080,
+                  top: 720, // 0.5 inch = 720 twips (reduced for compact layout)
+                  right: 720, // 0.5 inch
+                  bottom: 720,
+                  left: 720,
                 },
               },
             },

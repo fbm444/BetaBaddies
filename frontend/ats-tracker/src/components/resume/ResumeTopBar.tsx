@@ -29,6 +29,7 @@ interface ResumeTopBarProps {
   onSwitchVersion: (versionId: string) => void;
   onSetMasterVersion: (versionId: string) => void;
   onShowVersionCompare: () => void;
+  onShowVersionControl?: () => void;
 }
 
 export function ResumeTopBar({
@@ -57,6 +58,7 @@ export function ResumeTopBar({
   onSwitchVersion,
   onSetMasterVersion,
   onShowVersionCompare,
+  onShowVersionControl,
 }: ResumeTopBarProps) {
   const navigate = useNavigate();
 
@@ -88,50 +90,59 @@ export function ResumeTopBar({
                   )}
                 </p>
               </div>
-              {versions.length > 0 && (
-                <div className="relative">
-                  <button
-                    onClick={onToggleVersionHistory}
-                    className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2"
-                  >
-                    <Icon
-                      icon="mingcute:git-branch-line"
-                      className="w-4 h-4"
-                    />
-                    Versions ({versions.length})
-                    <Icon
-                      icon={
-                        showVersionHistory
-                          ? "mingcute:up-line"
-                          : "mingcute:down-line"
-                      }
-                      className="w-3 h-3"
-                    />
-                  </button>
-                  {showVersionHistory && (
-                    <div className="absolute left-0 top-full mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-[280px] max-h-[400px] overflow-y-auto">
-                      <div className="p-3 border-b border-gray-200">
-                        <div className="flex items-center justify-between mb-2">
-                          <h3 className="text-sm font-semibold text-gray-900">
-                            Versions
-                          </h3>
-                          <button
-                            onClick={() => {
-                              onShowVersionModal();
-                              onToggleVersionHistory();
-                            }}
-                            className="text-xs px-2 py-1 bg-[#3351FD] text-white rounded hover:bg-[#2a45d4] transition-colors flex items-center gap-1"
-                          >
-                            <Icon
-                              icon="mingcute:add-line"
-                              className="w-3 h-3"
-                            />
-                            New
-                          </button>
-                        </div>
+              <div className="relative">
+                <button
+                  onClick={onToggleVersionHistory}
+                  className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2 relative"
+                >
+                  <Icon
+                    icon="mingcute:git-branch-line"
+                    className="w-4 h-4"
+                  />
+                  Version Control
+                  {versions.length > 0 && (
+                    <span className="text-xs px-1.5 py-0.5 bg-[#3351FD] text-white rounded font-medium">
+                      {versions.length}
+                    </span>
+                  )}
+                  <Icon
+                    icon={
+                      showVersionHistory
+                        ? "mingcute:up-line"
+                        : "mingcute:down-line"
+                    }
+                    className="w-3 h-3"
+                  />
+                </button>
+                {showVersionHistory && (
+                  <div className="absolute left-0 top-full mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-[280px] max-h-[400px] overflow-y-auto">
+                    <div className="p-3 border-b border-gray-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-sm font-semibold text-gray-900">
+                          Versions
+                        </h3>
+                        <button
+                          onClick={() => {
+                            onShowVersionModal();
+                            onToggleVersionHistory();
+                          }}
+                          className="text-xs px-2 py-1 bg-[#3351FD] text-white rounded hover:bg-[#2a45d4] transition-colors flex items-center gap-1"
+                        >
+                          <Icon
+                            icon="mingcute:add-line"
+                            className="w-3 h-3"
+                          />
+                          New
+                        </button>
                       </div>
-                      <div className="p-2">
-                        {versions.map((version) => (
+                    </div>
+                    <div className="p-2">
+                      {versions.length === 0 ? (
+                        <p className="text-sm text-gray-500 text-center py-4">
+                          No versions yet. Create one to get started.
+                        </p>
+                      ) : (
+                        versions.map((version) => (
                           <button
                             key={version.id}
                             onClick={() => onSwitchVersion(version.id)}
@@ -175,132 +186,143 @@ export function ResumeTopBar({
                               )}
                             </div>
                           </button>
-                        ))}
-                      </div>
-                      <div className="p-3 border-t border-gray-200">
+                        ))
+                      )}
+                    </div>
+                    <div className="p-3 border-t border-gray-200 space-y-1">
+                      {onShowVersionControl && versions.length > 0 && (
                         <button
                           onClick={() => {
-                            onShowVersionCompare();
+                            onShowVersionControl();
                             onToggleVersionHistory();
                           }}
-                          className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors flex items-center gap-2"
+                          className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors flex items-center gap-2 mb-1 font-medium"
                         >
                           <Icon
-                            icon="mingcute:git-compare-line"
+                            icon="mingcute:git-branch-line"
                             className="w-4 h-4"
                           />
-                          Compare Versions
+                          Version Control
                         </button>
-                      </div>
+                      )}
+                      <button
+                        onClick={() => {
+                          onShowVersionCompare();
+                          onToggleVersionHistory();
+                        }}
+                        className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors flex items-center gap-2 font-medium"
+                      >
+                        <Icon
+                          icon="mingcute:git-compare-line"
+                          className="w-4 h-4"
+                        />
+                        Compare Versions
+                      </button>
                     </div>
-                  )}
-                </div>
-              )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {/* Undo button */}
-            <button
-              onClick={onUndo}
-              disabled={!canUndo}
-              className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Undo last change"
-            >
-              <Icon icon="mingcute:arrow-go-back-line" className="w-4 h-4" />
-              Undo
-            </button>
-            {/* Auto-save indicator */}
-            {isAutoSaving && (
-              <div className="flex items-center gap-2 px-3 py-1.5 text-xs text-gray-600 bg-gray-50 rounded-lg">
+            {/* Save Status - Compact */}
+            {isAutoSaving ? (
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-gray-600 bg-gray-50 rounded-lg">
                 <Icon
                   icon="mingcute:loading-line"
-                  className="w-3 h-3 animate-spin text-[#3351FD]"
+                  className="w-3.5 h-3.5 animate-spin text-[#3351FD]"
                 />
                 <span>Saving...</span>
               </div>
-            )}
-            {lastSaved && !isAutoSaving && (
-              <div className="flex items-center gap-2 px-3 py-1.5 text-xs text-gray-500 bg-gray-50 rounded-lg">
+            ) : lastSaved ? (
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-gray-500 bg-gray-50 rounded-lg">
                 <Icon
                   icon="mingcute:check-circle-line"
-                  className="w-3 h-3 text-green-600"
+                  className="w-3.5 h-3.5 text-green-600"
                 />
                 <span>
-                  Saved{" "}
                   {lastSaved.toLocaleTimeString([], {
                     hour: "2-digit",
                     minute: "2-digit",
                   })}
                 </span>
               </div>
-            )}
+            ) : null}
+
+            {/* Undo button */}
+            <button
+              onClick={onUndo}
+              disabled={!canUndo}
+              className="px-3 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+              title="Undo last change"
+            >
+              <Icon icon="mingcute:arrow-go-back-line" className="w-4 h-4" />
+              <span className="text-sm font-medium">Undo</span>
+            </button>
+
+            {/* Import - Icon only */}
             <button
               onClick={onShowImportResumeModal}
-              className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium flex items-center gap-2"
+              className="p-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               title="Import existing resume (PDF/DOCX)"
             >
               <Icon icon="mingcute:upload-line" className="w-4 h-4" />
-              Import Resume
             </button>
+
+            {/* Create Version - Icon only */}
             {resumeId && resumeId !== "new" && (
               <button
                 onClick={onShowVersionModal}
-                className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium flex items-center gap-2"
+                className="p-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                title="Create new version"
               >
                 <Icon icon="mingcute:git-branch-line" className="w-4 h-4" />
-                Create Version
               </button>
             )}
+
+            {/* Customize - Icon only */}
             <button
               onClick={onToggleCustomization}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              className={`p-2 rounded-lg transition-colors ${
                 showCustomization
                   ? "bg-[#3351FD] text-white"
                   : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
               }`}
+              title="Customize resume"
             >
-              <Icon
-                icon="mingcute:palette-line"
-                className="w-4 h-4 inline mr-2"
-              />
-              Customize
+              <Icon icon="mingcute:palette-line" className="w-4 h-4" />
             </button>
+
+            {/* Validate - Icon only */}
             <button
               onClick={onToggleValidationPanel}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              className={`p-2 rounded-lg transition-colors ${
                 showValidationPanel
                   ? "bg-[#3351FD] text-white"
                   : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
               }`}
+              title="Validate resume"
             >
-              <Icon
-                icon="mingcute:check-line"
-                className="w-4 h-4 inline mr-2"
-              />
-              Validate
+              <Icon icon="mingcute:check-line" className="w-4 h-4" />
             </button>
+
+            {/* Export */}
             <div className="relative">
               <button
                 onClick={onToggleExportMenu}
                 disabled={exporting}
-                className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium flex items-center gap-2"
+                className="px-3 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium flex items-center gap-2 disabled:opacity-50"
+                title="Export resume"
               >
                 {exporting ? (
-                  <>
-                    <Icon
-                      icon="mingcute:loading-line"
-                      className="w-4 h-4 animate-spin"
-                    />
-                    Exporting...
-                  </>
+                  <Icon
+                    icon="mingcute:loading-line"
+                    className="w-4 h-4 animate-spin"
+                  />
                 ) : (
                   <>
                     <Icon icon="mingcute:download-line" className="w-4 h-4" />
                     Export
-                    <Icon
-                      icon="mingcute:arrow-down-line"
-                      className="w-3 h-3"
-                    />
                   </>
                 )}
               </button>
@@ -349,10 +371,12 @@ export function ResumeTopBar({
                 </div>
               )}
             </div>
+
+            {/* Save button */}
             <button
               onClick={onSave}
               disabled={isSaving}
-              className="px-6 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-5 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {isSaving ? (
                 <>

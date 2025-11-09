@@ -171,12 +171,13 @@ export function JobOpportunityDetailModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 font-poppins">
+      <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto font-poppins">
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-slate-200 px-8 py-6 flex justify-between items-start">
-          <div className="flex-1">
-            <div className="flex items-center gap-3 mb-2">
+        <div className="sticky top-0 bg-white border-b border-slate-200 px-8 py-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-3 mb-2">
               {isEditMode ? (
                 <input
                   type="text"
@@ -216,13 +217,13 @@ export function JobOpportunityDetailModal({
               <p className="text-lg text-slate-600">{opportunity.company}</p>
             )}
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap justify-end">
             {!isEditMode && (
               <>
                 {opportunity.jobPostingUrl && (
                   <button
                     onClick={() => setShowCompanyInfo(true)}
-                    className="px-3 py-1.5 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition-colors flex items-center gap-1.5 text-sm"
+                    className="px-2.5 py-1 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition-colors flex items-center gap-1 text-xs font-medium"
                   >
                     <Icon icon="mingcute:building-line" width={14} />
                     Company Info
@@ -231,7 +232,7 @@ export function JobOpportunityDetailModal({
                 {!opportunity.archived && (
                   <button
                     onClick={() => setIsEditMode(true)}
-                    className="px-3 py-1.5 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors flex items-center gap-1.5 text-sm"
+                    className="px-2.5 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors flex items-center gap-1 text-xs font-medium"
                   >
                     <Icon icon="mingcute:edit-line" width={14} />
                     Edit
@@ -249,7 +250,7 @@ export function JobOpportunityDetailModal({
                 {!opportunity.archived && onArchive && (
                   <button
                     onClick={() => onArchive()}
-                  className="px-3 py-1.5 bg-[#EC85CA] text-white rounded-md hover:bg-[#D468B1] transition-colors flex items-center gap-1.5 text-sm"
+                    className="px-2.5 py-1 bg-[#EC85CA] text-white rounded-md hover:bg-[#D468B1] transition-colors flex items-center gap-1 text-xs font-medium"
                   >
                     <Icon icon="mingcute:archive-line" width={14} />
                     Archive
@@ -257,7 +258,7 @@ export function JobOpportunityDetailModal({
                 )}
                 <button
                   onClick={onDelete}
-                  className="px-3 py-1.5 border border-red-500 text-red-500 rounded-md hover:bg-red-50 transition-colors flex items-center gap-1.5 text-sm"
+                  className="px-2.5 py-1 border border-red-500 text-red-500 rounded-md hover:bg-red-50 transition-colors flex items-center gap-1 text-xs font-medium"
                 >
                   <Icon icon="mingcute:delete-line" width={14} />
                   Delete
@@ -272,6 +273,7 @@ export function JobOpportunityDetailModal({
             </button>
           </div>
         </div>
+      </div>
 
         {/* Content */}
         <form onSubmit={handleSubmit} className="px-8 py-6">

@@ -74,7 +74,7 @@ export function DeadlineCalendar({
 
   if (opportunitiesWithDeadlines.length === 0) {
     return (
-      <div className="bg-white rounded-xl p-12 text-center shadow-sm border border-slate-200">
+      <div className="bg-white rounded-xl p-12 text-center shadow-sm border border-slate-200 font-poppins">
         <Icon
           icon="mingcute:calendar-line"
           width={64}
@@ -91,7 +91,7 @@ export function DeadlineCalendar({
   }
 
   return (
-    <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
+    <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200 font-poppins">
       <h2 className="text-2xl font-bold text-slate-900 mb-6">Upcoming Deadlines</h2>
       <div className="space-y-8">
         {groupedByMonth.map((group) => (

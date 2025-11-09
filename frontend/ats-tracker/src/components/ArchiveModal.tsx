@@ -41,8 +41,8 @@ export function ArchiveModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 font-poppins">
+      <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl font-poppins">
         <div className="flex items-center gap-3 mb-4">
           <div className="p-2 bg-amber-100 rounded-lg">
             <Icon icon="mingcute:archive-line" className="text-amber-600" width={24} />

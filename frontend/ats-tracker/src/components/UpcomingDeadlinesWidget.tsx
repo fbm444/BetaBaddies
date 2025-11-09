@@ -60,7 +60,7 @@ export function UpcomingDeadlinesWidget() {
 
   if (isLoading) {
     return (
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
+      <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200 font-poppins">
         <div className="flex items-center gap-3 mb-4">
           <Icon
             icon="mingcute:calendar-line"
@@ -78,7 +78,7 @@ export function UpcomingDeadlinesWidget() {
 
   if (upcomingDeadlines.length === 0) {
     return (
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
+      <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200 font-poppins">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <Icon
@@ -105,7 +105,7 @@ export function UpcomingDeadlinesWidget() {
   }
 
   return (
-    <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
+    <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200 font-poppins">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <Icon

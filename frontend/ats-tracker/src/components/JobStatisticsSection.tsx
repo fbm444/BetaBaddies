@@ -46,7 +46,7 @@ export function JobStatisticsSection({ scrollRef }: JobStatisticsSectionProps) {
     return (
       <div
         ref={scrollRef}
-        className="mt-12 pt-8 border-t border-slate-200 w-full max-w-[1320px] mx-auto"
+        className="mt-12 pt-8 border-t border-slate-200 w-full max-w-[1320px] mx-auto font-poppins"
       >
         <div className="text-center py-12">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
@@ -60,7 +60,7 @@ export function JobStatisticsSection({ scrollRef }: JobStatisticsSectionProps) {
     return (
       <div
         ref={scrollRef}
-        className="mt-12 pt-8 border-t border-slate-200 w-full max-w-[1320px] mx-auto"
+        className="mt-12 pt-8 border-t border-slate-200 w-full max-w-[1320px] mx-auto font-poppins"
       >
         <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
           <Icon icon="mingcute:alert-line" className="mx-auto text-red-600 mb-2" width={48} />
@@ -73,7 +73,7 @@ export function JobStatisticsSection({ scrollRef }: JobStatisticsSectionProps) {
   return (
     <div
       ref={scrollRef}
-      className="mt-12 pt-8 border-t border-slate-200 w-full max-w-[1320px] mx-auto"
+      className="mt-12 pt-8 border-t border-slate-200 w-full max-w-[1320px] mx-auto font-poppins"
     >
       {/* Header */}
       <div className="mb-8 flex items-center justify-between">

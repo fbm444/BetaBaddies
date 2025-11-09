@@ -93,8 +93,8 @@ export function JobOpportunityFilters({
 
   const wrapperClasses =
     variant === "card"
-      ? "bg-white rounded-xl p-6 border border-slate-200 shadow-sm"
-      : "space-y-4";
+      ? "bg-white rounded-xl p-6 border border-slate-200 shadow-sm font-poppins"
+      : "space-y-4 font-poppins";
 
   return (
     <div className={wrapperClasses}>

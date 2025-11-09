@@ -11,12 +11,13 @@
     "test:user-api": "node tests/user-api.test.js",
     "test:jobs-service": "node tests/jobs-service.test.js",
     "test:jobs-api": "node tests/jobs-api.test.js",
+    "test:job-opportunities-api": "node tests/job-opportunities-api.test.js",
     "test:certifications": "node tests/certifications-functionality.test.js",
     "test:certifications-api": "node tests/certifications-api.test.js",
     "test:profile-api": "node tests/profile-api.test.js",
     "test:reset-password": "node tests/reset-password-functionality.test.js",
     "test:reset-password-api": "node tests/reset-password-api.test.js",
-    "test:all": "npm run test && npm run test:user-api && npm run test:jobs-service && npm run test:jobs-api && npm run test:certifications && npm run test:certifications-api && npm run test:profile-api"
+    "test:all": "npm run test && npm run test:user-api && npm run test:jobs-service && npm run test:jobs-api && npm run test:job-opportunities-api && npm run test:certifications && npm run test:certifications-api && npm run test:profile-api"
   },
   "keywords": [],
   "author": "",
@@ -26,6 +27,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@iconify/react": "^6.0.2",
+    "axios": "^1.13.2",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "docx": "^9.5.1",

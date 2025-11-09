@@ -42,6 +42,24 @@ class FileUploadService {
     };
   }
 
+  resolveFilePath(filePath) {
+    if (!filePath) {
+      return null;
+    }
+
+    // Treat stored /uploads paths as relative to project root
+    if (filePath.startsWith("/uploads") || filePath.startsWith("\\uploads")) {
+      const relative = filePath.replace(/^[/\\]+/, "");
+      return path.join(process.cwd(), relative);
+    }
+
+    if (path.isAbsolute(filePath)) {
+      return filePath;
+    }
+
+    return path.join(process.cwd(), filePath);
+  }
+
   /**
    * Upload a profile picture with automatic resizing
    */
@@ -272,22 +290,26 @@ class FileUploadService {
       const file = await this.getFileById(fileId, userId);
 
       // Delete file from disk
-      const fullPath = path.join(process.cwd(), file.filePath);
-      try {
-        await fs.unlink(fullPath);
-      } catch (fsError) {
-        console.warn(`⚠️ Could not delete file from disk: ${fsError.message}`);
+      const fullPath = this.resolveFilePath(file.filePath);
+      if (fullPath) {
+        try {
+          await fs.unlink(fullPath);
+        } catch (fsError) {
+          console.warn(`⚠️ Could not delete file from disk: ${fsError.message}`);
+        }
       }
 
       // Delete thumbnail if exists
       if (file.thumbnailPath) {
-        const thumbnailFullPath = path.join(process.cwd(), file.thumbnailPath);
-        try {
-          await fs.unlink(thumbnailFullPath);
-        } catch (fsError) {
-          console.warn(
-            `⚠️ Could not delete thumbnail from disk: ${fsError.message}`
-          );
+        const thumbnailFullPath = this.resolveFilePath(file.thumbnailPath);
+        if (thumbnailFullPath) {
+          try {
+            await fs.unlink(thumbnailFullPath);
+          } catch (fsError) {
+            console.warn(
+              `⚠️ Could not delete thumbnail from disk: ${fsError.message}`
+            );
+          }
         }
       }
 
@@ -421,7 +443,7 @@ class FileUploadService {
       u: fileData.userId, // userId
       t: fileData.fileType, // fileType
       s: fileData.fileSize, // fileSize
-      m: fileData.mimeType.split('/')[1], // Just extension (jpeg, png, etc)
+      m: fileData.mimeType, // full mime type
       c: new Date().toISOString().split("T")[0], // createdAt (date only)
     };
 
@@ -530,7 +552,7 @@ class FileUploadService {
       thumbnailPath: thumbnailPath,
       fileType: metadata.t,
       fileSize: metadata.s,
-      mimeType: `image/${metadata.m}`, // Reconstruct full mime type
+      mimeType: metadata.m || "application/octet-stream",
       createdAt: metadata.c,
     };
   }
@@ -540,7 +562,10 @@ class FileUploadService {
    */
   async getFileContent(filePath) {
     try {
-      const fullPath = path.join(process.cwd(), filePath);
+      const fullPath = this.resolveFilePath(filePath);
+      if (!fullPath) {
+        throw new Error("File not found");
+      }
       return await fs.readFile(fullPath);
     } catch (error) {
       console.error(`❌ Error reading file ${filePath}:`, error);
@@ -553,7 +578,10 @@ class FileUploadService {
    */
   async fileExists(filePath) {
     try {
-      const fullPath = path.join(process.cwd(), filePath);
+      const fullPath = this.resolveFilePath(filePath);
+      if (!fullPath) {
+        return false;
+      }
       await fs.access(fullPath);
       return true;
     } catch (error) {

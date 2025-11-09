@@ -8,6 +8,8 @@ export const ROUTES = {
   DASHBOARD: '/dashboard',
   BASIC_INFO: '/basic-information',
   EMPLOYMENT: '/employment',
+  JOB_OPPORTUNITIES: '/job-opportunities',
+  JOB_STATISTICS: '/job-opportunities/statistics',
   SKILLS: '/skills',
   EDUCATION: '/education',
   PROJECTS: '/projects',
@@ -39,6 +41,12 @@ export const navigationItems = [
     label: 'Employment', 
     icon: 'mingcute:briefcase-line', 
     path: ROUTES.EMPLOYMENT 
+  },
+  { 
+    id: 'job-opportunities', 
+    label: 'Job Opportunities', 
+    icon: 'mingcute:search-line', 
+    path: ROUTES.JOB_OPPORTUNITIES 
   },
   { 
     id: 'skills', 

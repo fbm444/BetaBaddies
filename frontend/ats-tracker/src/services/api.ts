@@ -16,6 +16,12 @@ import {
   CategoryCounts,
   ProfilePictureData,
   FileUploadResponse,
+  JobOpportunityData,
+  JobOpportunityInput,
+  JobStatus,
+  StatusCounts,
+  JobOpportunityStatistics,
+  CompanyInfo,
 } from "../types";
 
 // In development, use proxy (relative path). In production, use env variable or full URL
@@ -263,6 +269,196 @@ class ApiService {
 
   async getJobStatistics() {
     return this.request<ApiResponse<{ statistics: any }>>("/jobs/statistics");
+  }
+
+  // Job Opportunities endpoints
+  async getJobOpportunities(filters?: {
+    sort?: string;
+    limit?: number;
+    offset?: number;
+    status?: JobStatus;
+    search?: string;
+    industry?: string;
+    location?: string;
+    salaryMin?: number;
+    salaryMax?: number;
+    deadlineFrom?: string;
+    deadlineTo?: string;
+  }) {
+    const params = new URLSearchParams();
+    if (filters?.sort) params.append("sort", filters.sort);
+    if (filters?.limit) params.append("limit", filters.limit.toString());
+    if (filters?.offset) params.append("offset", filters.offset.toString());
+    if (filters?.status) params.append("status", filters.status);
+    if (filters?.search) params.append("search", filters.search);
+    if (filters?.industry) params.append("industry", filters.industry);
+    if (filters?.location) params.append("location", filters.location);
+    if (filters?.salaryMin !== undefined)
+      params.append("salaryMin", filters.salaryMin.toString());
+    if (filters?.salaryMax !== undefined)
+      params.append("salaryMax", filters.salaryMax.toString());
+    if (filters?.deadlineFrom) params.append("deadlineFrom", filters.deadlineFrom);
+    if (filters?.deadlineTo) params.append("deadlineTo", filters.deadlineTo);
+
+    const query = params.toString() ? `?${params.toString()}` : "";
+    return this.request<
+      ApiResponse<{
+        jobOpportunities: JobOpportunityData[];
+        pagination: {
+          total: number;
+          limit: number;
+          offset: number;
+          hasMore: boolean;
+        };
+      }>
+    >(`/job-opportunities${query}`);
+  }
+
+  async getJobOpportunity(id: string) {
+    return this.request<
+      ApiResponse<{ jobOpportunity: JobOpportunityData }>
+    >(`/job-opportunities/${id}`);
+  }
+
+  async createJobOpportunity(data: JobOpportunityInput) {
+    return this.request<
+      ApiResponse<{ jobOpportunity: JobOpportunityData; message: string }>
+    >("/job-opportunities", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateJobOpportunity(id: string, data: Partial<JobOpportunityInput>) {
+    return this.request<
+      ApiResponse<{ jobOpportunity: JobOpportunityData; message: string }>
+    >(`/job-opportunities/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteJobOpportunity(id: string) {
+    return this.request<ApiResponse<{ message: string }>>(
+      `/job-opportunities/${id}`,
+      {
+        method: "DELETE",
+      }
+    );
+  }
+
+  async bulkUpdateJobOpportunityStatus(opportunityIds: string[], status: JobStatus) {
+    return this.request<
+      ApiResponse<{
+        updatedOpportunities: Array<{
+          id: string;
+          title: string;
+          company: string;
+          status: JobStatus;
+          statusUpdatedAt: string;
+        }>;
+        message: string;
+      }>
+    >("/job-opportunities/bulk-update-status", {
+      method: "POST",
+      body: JSON.stringify({ opportunityIds, status }),
+    });
+  }
+
+  async getJobOpportunityStatusCounts() {
+    return this.request<ApiResponse<{ statusCounts: StatusCounts }>>(
+      "/job-opportunities/status/counts"
+    );
+  }
+
+  async getJobOpportunityStatistics() {
+    return this.request<ApiResponse<JobOpportunityStatistics>>(
+      "/job-opportunities/statistics"
+    );
+  }
+
+  async archiveJobOpportunity(id: string, archiveReason?: string) {
+    return this.request<ApiResponse<{ jobOpportunity: JobOpportunityData; message: string }>>(
+      `/job-opportunities/${id}/archive`,
+      {
+        method: "POST",
+        body: JSON.stringify({ archiveReason }),
+      }
+    );
+  }
+
+  async unarchiveJobOpportunity(id: string) {
+    return this.request<ApiResponse<{ jobOpportunity: JobOpportunityData; message: string }>>(
+      `/job-opportunities/${id}/unarchive`,
+      {
+        method: "POST",
+      }
+    );
+  }
+
+  async bulkArchiveJobOpportunities(opportunityIds: string[], archiveReason?: string) {
+    return this.request<ApiResponse<{ archivedOpportunities: JobOpportunityData[]; message: string }>>(
+      "/job-opportunities/bulk-archive",
+      {
+        method: "POST",
+        body: JSON.stringify({ opportunityIds, archiveReason }),
+      }
+    );
+  }
+
+  async getArchivedJobOpportunities(options?: {
+    limit?: number;
+    offset?: number;
+    sort?: string;
+  }) {
+    const params = new URLSearchParams();
+    if (options?.limit) params.append("limit", options.limit.toString());
+    if (options?.offset) params.append("offset", options.offset.toString());
+    if (options?.sort) params.append("sort", options.sort);
+
+    const queryString = params.toString();
+    return this.request<ApiResponse<{ jobOpportunities: JobOpportunityData[] }>>(
+      `/job-opportunities/archived${queryString ? `?${queryString}` : ""}`
+    );
+  }
+
+  async getCompanyInformation(opportunityId: string) {
+    return this.request<
+      ApiResponse<{
+        companyInfo: CompanyInfo;
+        jobOpportunity: {
+          id: string;
+          title: string;
+          company: string;
+          location: string;
+          industry?: string;
+        };
+      }>
+    >(`/job-opportunities/${opportunityId}/company`);
+  }
+
+  async importJobFromUrl(url: string) {
+    return this.request<
+      ApiResponse<{
+        importResult: {
+          success: boolean;
+          error?: string | null;
+          data?: {
+            url: string;
+            title?: string | null;
+            company?: string | null;
+            location?: string | null;
+            description?: string | null;
+            jobBoard?: string | null;
+            importStatus: "success" | "partial" | "failed";
+          };
+        };
+        message: string;
+      }>
+    >("/job-opportunities/import", {
+      method: "POST",
+      body: JSON.stringify({ url }),
+    });
   }
 
   // Education endpoints

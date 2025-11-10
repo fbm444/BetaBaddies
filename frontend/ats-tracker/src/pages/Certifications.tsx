@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Icon } from "@iconify/react";
-import { CertificationData, CertificationInput } from "../types";
+import { CertificationData } from "../types";
 import { api } from "../services/api";
 
 export function Certifications() {
@@ -48,7 +48,7 @@ export function Certifications() {
 
   // Filter and sort whenever relevant state changes
   useEffect(() => {
-    let filtered = certifications.map((cert) => ({
+    let filtered: CertificationData[] = certifications.map((cert) => ({
       ...cert,
       ...calculateCertificationStatus(cert),
     }));
@@ -91,7 +91,9 @@ export function Certifications() {
     setFilteredCertifications(filtered);
   }, [certifications, searchTerm, statusFilter, sortBy]);
 
-  const calculateCertificationStatus = (cert: CertificationData) => {
+  const calculateCertificationStatus = (
+    cert: CertificationData
+  ): Pick<CertificationData, "status" | "daysUntilExpiration"> => {
     if (cert.never_expires) {
       return { status: "permanent" as const, daysUntilExpiration: null };
     }
@@ -141,7 +143,12 @@ export function Certifications() {
       setIsLoading(true);
       setError(null);
       const response = await api.getCertifications();
-      setCertifications(response.data.certifications || []);
+      if (response.ok && response.data) {
+        setCertifications(response.data.certifications || []);
+      } else {
+        setCertifications([]);
+        setError("Failed to load certifications");
+      }
     } catch (err: any) {
       console.error("Failed to fetch certifications:", err);
       setError(err.message || "Failed to load certifications");
@@ -540,6 +547,7 @@ export function Certifications() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredCertifications.map((cert) => {
             const badge = getStatusBadge(cert.status || "active");
+            const daysUntilExpiration = cert.daysUntilExpiration ?? null;
             return (
               <div
                 key={cert.id}
@@ -588,17 +596,17 @@ export function Certifications() {
                 </div>
 
                 {/* Days Until Expiration */}
-                {cert.daysUntilExpiration !== null && !cert.never_expires && (
+                {daysUntilExpiration !== null && !cert.never_expires && (
                   <div
                     className={`text-sm font-medium mb-4 ${
-                      (cert.daysUntilExpiration || 0) < 0
+                      daysUntilExpiration < 0
                         ? "text-red-600"
-                        : (cert.daysUntilExpiration || 0) <= 30
+                        : daysUntilExpiration <= 30
                         ? "text-amber-600"
                         : "text-green-600"
                     }`}
                   >
-                    ⏰ {formatDaysUntilExpiration(cert.daysUntilExpiration)}
+                    ⏰ {formatDaysUntilExpiration(daysUntilExpiration)}
                   </div>
                 )}
 
@@ -632,6 +640,7 @@ export function Certifications() {
         <div className="space-y-4">
           {filteredCertifications.map((cert) => {
             const badge = getStatusBadge(cert.status || "active");
+            const daysUntilExpiration = cert.daysUntilExpiration ?? null;
             return (
               <div
                 key={cert.id}
@@ -672,19 +681,17 @@ export function Certifications() {
                               Expires: {formatDate(cert.expiration_date || "")}
                             </span>
                           </div>
-                          {cert.daysUntilExpiration !== null && (
+                          {daysUntilExpiration !== null && (
                             <span
                               className={`font-medium ${
-                                cert.daysUntilExpiration < 0
+                                daysUntilExpiration < 0
                                   ? "text-red-600"
-                                  : cert.daysUntilExpiration <= 30
+                                  : daysUntilExpiration <= 30
                                   ? "text-amber-600"
                                   : "text-green-600"
                               }`}
                             >
-                              {formatDaysUntilExpiration(
-                                cert.daysUntilExpiration
-                              )}
+                              {formatDaysUntilExpiration(daysUntilExpiration)}
                             </span>
                           )}
                         </>
@@ -919,29 +926,34 @@ export function Certifications() {
                     </div>
 
                     {/* Days Until Expiration */}
-                    {selectedCertification.daysUntilExpiration !== null &&
-                      !selectedCertification.never_expires && (
+                    {(() => {
+                      const daysUntilExpiration =
+                        selectedCertification.daysUntilExpiration ?? null;
+                      if (
+                        daysUntilExpiration === null ||
+                        selectedCertification.never_expires
+                      ) {
+                        return null;
+                      }
+                      return (
                         <div>
                           <h4 className="text-sm font-medium text-slate-500 mb-1">
                             Status
                           </h4>
                           <p
                             className={`font-medium ${
-                              (selectedCertification.daysUntilExpiration || 0) <
-                              0
+                              daysUntilExpiration < 0
                                 ? "text-red-600"
-                                : (selectedCertification.daysUntilExpiration ||
-                                    0) <= 30
+                                : daysUntilExpiration <= 30
                                 ? "text-amber-600"
                                 : "text-green-600"
                             }`}
                           >
-                            {formatDaysUntilExpiration(
-                              selectedCertification.daysUntilExpiration
-                            )}
+                            {formatDaysUntilExpiration(daysUntilExpiration)}
                           </p>
                         </div>
-                      )}
+                      );
+                    })()}
                   </div>
 
                   {/* Actions */}

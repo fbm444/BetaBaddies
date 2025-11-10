@@ -1,3 +1,5 @@
+import type { SkillGapHistoryEntry } from "./skillGap.types";
+
 export type JobStatus =
   | "Interested"
   | "Applied"
@@ -6,11 +8,17 @@ export type JobStatus =
   | "Offer"
   | "Rejected";
 
-export interface ApplicationHistoryEntry {
+export interface StatusHistoryEntry {
+  type?: "status_change";
   timestamp: string;
   status: JobStatus;
   notes?: string;
 }
+
+export type ApplicationHistoryEntry =
+  | StatusHistoryEntry
+  | SkillGapHistoryEntry
+  | Record<string, unknown>;
 
 export interface JobOpportunityData {
   id: string;

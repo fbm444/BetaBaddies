@@ -1,6 +1,24 @@
 import { v4 as uuidv4 } from "uuid";
 import database from "./database.js";
 
+function parseJsonArray(rawValue) {
+  if (!rawValue) {
+    return [];
+  }
+  if (Array.isArray(rawValue)) {
+    return rawValue;
+  }
+  if (typeof rawValue === "object") {
+    return rawValue;
+  }
+  try {
+    const parsed = JSON.parse(rawValue);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    return [];
+  }
+}
+
 class JobOpportunityService {
   constructor() {
     this.maxDescriptionLength = 2000;
@@ -260,7 +278,7 @@ class JobOpportunityService {
         hiringManagerPhone: row.hiring_manager_phone,
         salaryNegotiationNotes: row.salary_negotiation_notes,
         interviewNotes: row.interview_notes,
-        applicationHistory: row.application_history || [],
+        applicationHistory: parseJsonArray(row.application_history),
         statusUpdatedAt: row.status_updated_at,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
@@ -295,7 +313,7 @@ class JobOpportunityService {
       hiringManagerPhone: row.hiring_manager_phone,
       salaryNegotiationNotes: row.salary_negotiation_notes,
       interviewNotes: row.interview_notes,
-      applicationHistory: row.application_history || [],
+      applicationHistory: parseJsonArray(row.application_history),
       statusUpdatedAt: row.status_updated_at,
       archived: row.archived || false,
       archivedAt: row.archived_at,
@@ -1133,6 +1151,73 @@ class JobOpportunityService {
       console.error("❌ Error getting archived job opportunities:", error);
       throw error;
     }
+  }
+
+  async appendApplicationHistoryEntry(jobId, userId, entry) {
+    try {
+      const entryJson = JSON.stringify([entry]);
+      const result = await database.query(
+        `
+        UPDATE job_opportunities
+        SET application_history = COALESCE(application_history, '[]'::jsonb) || $3::jsonb,
+            updated_at = NOW()
+        WHERE id = $1 AND user_id = $2
+        RETURNING application_history
+      `,
+        [jobId, userId, entryJson]
+      );
+
+      if (result.rows.length === 0) {
+        throw new Error("Job opportunity not found");
+      }
+
+      let history = parseJsonArray(result.rows[0].application_history);
+
+      if (history.length > 25) {
+        history = history.slice(history.length - 25);
+        await database.query(
+          `
+          UPDATE job_opportunities
+          SET application_history = $3::jsonb,
+              updated_at = NOW()
+          WHERE id = $1 AND user_id = $2
+        `,
+          [jobId, userId, JSON.stringify(history)]
+        );
+      }
+
+      return history;
+    } catch (error) {
+      console.error("❌ Error appending application history entry:", error);
+      throw error;
+    }
+  }
+
+  async getSkillGapSnapshots(jobId, userId) {
+    const job = await this.getJobOpportunityById(jobId, userId);
+    if (!job) {
+      return null;
+    }
+    const history = parseJsonArray(job.applicationHistory);
+    const snapshots = history.filter((entry) => entry?.type === "skill_gap_snapshot");
+    return {
+      job,
+      snapshots,
+    };
+  }
+
+  async getJobsWithSkillGapSnapshots(userId) {
+    const jobs = await this.getJobOpportunitiesByUserId(userId, {
+      includeArchived: true,
+      limit: 500,
+      offset: 0,
+      sort: "-created_at",
+    });
+
+    return jobs.filter((job) => {
+      const history = parseJsonArray(job.applicationHistory);
+      return history.some((entry) => entry?.type === "skill_gap_snapshot");
+    });
   }
 }
 

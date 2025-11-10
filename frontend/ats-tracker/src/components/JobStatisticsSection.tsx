@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Icon } from "@iconify/react";
 import { api } from "../services/api";
-import type { JobOpportunityStatistics } from "../types";
+import type { JobOpportunityStatistics, SkillGapTrendSummary } from "../types";
 import { JOB_STATUSES, STATUS_COLORS } from "../types";
 import { exportStatisticsToCSV } from "../utils/csvExport";
 import { UpcomingDeadlinesWidget } from "./UpcomingDeadlinesWidget";
@@ -12,6 +12,7 @@ interface JobStatisticsSectionProps {
 
 export function JobStatisticsSection({ scrollRef }: JobStatisticsSectionProps) {
   const [statistics, setStatistics] = useState<JobOpportunityStatistics | null>(null);
+  const [skillGapTrends, setSkillGapTrends] = useState<SkillGapTrendSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,15 +21,30 @@ export function JobStatisticsSection({ scrollRef }: JobStatisticsSectionProps) {
       try {
         setIsLoading(true);
         setError(null);
-        const response = await api.getJobOpportunityStatistics();
-        if (response.ok && response.data) {
-          setStatistics(response.data);
+        const statsResponse = await api.getJobOpportunityStatistics();
+        if (statsResponse.ok && statsResponse.data) {
+          setStatistics(statsResponse.data);
         } else {
           setError("Failed to load statistics");
+          setStatistics(null);
+        }
+
+        try {
+          const trendsResponse = await api.getSkillGapTrends();
+          if (trendsResponse.ok && trendsResponse.data) {
+            setSkillGapTrends(trendsResponse.data);
+          } else {
+            setSkillGapTrends(null);
+          }
+        } catch (trendError) {
+          console.warn("Failed to fetch skill gap trends:", trendError);
+          setSkillGapTrends(null);
         }
       } catch (err: any) {
         console.error("Failed to fetch statistics:", err);
         setError(err.message || "Failed to load statistics");
+        setStatistics(null);
+        setSkillGapTrends(null);
       } finally {
         setIsLoading(false);
       }
@@ -76,6 +92,8 @@ export function JobStatisticsSection({ scrollRef }: JobStatisticsSectionProps) {
   const monthlyVolume = statistics.monthlyVolume.slice(-7);
   const maxMonthlyCount = Math.max(...monthlyVolume.map((v) => v.count || 0), 1);
   const midMonthlyCount = Math.max(Math.round(maxMonthlyCount / 2), 1);
+  const topSkillGaps = (skillGapTrends?.topGaps || []).slice(0, 4);
+  const trendingJobs = (skillGapTrends?.jobSummaries || []).slice(0, 4);
 
   return (
     <div ref={scrollRef} className="mt-16 w-full font-poppins">
@@ -318,6 +336,104 @@ export function JobStatisticsSection({ scrollRef }: JobStatisticsSectionProps) {
               </div>
             </div>
           </div>
+
+          {skillGapTrends && (
+            <div className="rounded-3xl bg-white p-5 shadow-sm">
+              <div className="mb-3 flex items-center justify-between">
+                <h3
+                  className="text-[25px] font-normal text-[#0F1D3A]"
+                  style={{ fontFamily: "Poppins" }}
+                >
+                  Skill Gap Trends
+                </h3>
+                {skillGapTrends.totalJobsWithSnapshots > 0 && (
+                  <span className="text-xs font-medium text-[#6D7A99]">
+                    Across {skillGapTrends.totalJobsWithSnapshots} job
+                    {skillGapTrends.totalJobsWithSnapshots === 1 ? "" : "s"}
+                  </span>
+                )}
+              </div>
+              {skillGapTrends.totalJobsWithSnapshots === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-[#6D7A99]">
+                  Run a skill gap analysis on a job to start tracking recurring gaps and recommended learning paths.
+                </div>
+              ) : (
+                <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+                  <div className="space-y-3">
+                    {topSkillGaps.length === 0 ? (
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                        No recurring gaps yet. Keep refreshing analyses as you apply to more roles.
+                      </div>
+                    ) : (
+                      topSkillGaps.map((gap) => {
+                        const previewJobs = gap.jobs.slice(0, 2);
+                        const remainingJobs = Math.max(gap.jobs.length - previewJobs.length, 0);
+                        return (
+                          <div
+                            key={gap.skillName}
+                            className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <p className="text-sm font-semibold text-slate-800">
+                                  {gap.skillName}
+                                </p>
+                                <p className="text-xs text-slate-500">
+                                  {gap.occurrences} occurrence{gap.occurrences === 1 ? "" : "s"} •{" "}
+                                  {gap.criticalCount} critical
+                                </p>
+                              </div>
+                              <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-0.5 text-[10px] font-semibold text-blue-700">
+                                <Icon icon="mingcute:analysis-line" width={12} />
+                                {gap.jobs.length} job{gap.jobs.length === 1 ? "" : "s"}
+                              </span>
+                            </div>
+                            {previewJobs.length > 0 && (
+                              <p className="mt-2 text-xs text-slate-500">
+                                {previewJobs.map((job) => job.company).join(", ")}
+                                {remainingJobs > 0 ? ` +${remainingJobs} more` : ""}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+                    {trendingJobs.length === 0 ? (
+                      <p className="text-xs text-slate-600">
+                        No recent skill gap snapshots yet.
+                      </p>
+                    ) : (
+                      trendingJobs.map((job) => (
+                        <div
+                          key={job.snapshotId}
+                          className="flex items-center justify-between rounded-xl bg-white px-3 py-2 shadow-sm border border-slate-200"
+                        >
+                          <div>
+                            <p className="text-sm font-semibold text-slate-800">
+                              {job.company}
+                            </p>
+                            <p className="text-xs text-slate-500">{job.title}</p>
+                          </div>
+                          <div className="text-right">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+                              <Icon icon="mingcute:warning-line" width={12} />
+                              {job.totalGaps} gap{job.totalGaps === 1 ? "" : "s"}
+                            </span>
+                            <p className="mt-1 text-[10px] text-slate-400">
+                              {new Date(job.generatedAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

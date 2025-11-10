@@ -10,8 +10,8 @@ export interface CertificationData {
   created_at?: string;
   updated_at?: string;
   // Computed fields (frontend only)
-  status?: 'active' | 'expiring' | 'expired' | 'permanent';
-  daysUntilExpiration?: number;
+  status?: "active" | "expiring" | "expired" | "permanent";
+  daysUntilExpiration?: number | null;
 }
 
 export interface CertificationInput {

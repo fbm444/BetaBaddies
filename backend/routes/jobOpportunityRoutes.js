@@ -22,6 +22,12 @@ router.get("/status/counts", jobOpportunityController.getStatusCounts);
 // Get statistics (must be before :id)
 router.get("/statistics", jobOpportunityController.getStatistics);
 
+// Skill gap analytics and operations
+router.get("/skill-gaps/trends", jobOpportunityController.getSkillGapTrends);
+router.get("/:id/skill-gaps", jobOpportunityController.getSkillGapAnalysis);
+router.post("/:id/skill-gaps/refresh", jobOpportunityController.refreshSkillGapAnalysis);
+router.post("/:id/skill-gaps/:skillName/progress", jobOpportunityController.updateSkillGapProgress);
+
 // Get archived job opportunities (must be before :id)
 router.get("/archived", jobOpportunityController.getArchivedJobOpportunities);
 

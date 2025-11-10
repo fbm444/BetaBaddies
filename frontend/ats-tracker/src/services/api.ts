@@ -22,6 +22,10 @@ import {
   StatusCounts,
   JobOpportunityStatistics,
   CompanyInfo,
+  SkillGapSnapshotResponse,
+  SkillGapProgressRequest,
+  SkillGapProgressResponse,
+  SkillGapTrendSummary,
 } from "../types";
 
 // In development, use proxy (relative path). In production, use env variable or full URL
@@ -374,6 +378,42 @@ class ApiService {
   async getJobOpportunityStatistics() {
     return this.request<ApiResponse<JobOpportunityStatistics>>(
       "/job-opportunities/statistics"
+    );
+  }
+
+  async getSkillGapSnapshot(opportunityId: string) {
+    return this.request<ApiResponse<SkillGapSnapshotResponse>>(
+      `/job-opportunities/${opportunityId}/skill-gaps`
+    );
+  }
+
+  async refreshSkillGapSnapshot(opportunityId: string) {
+    return this.request<ApiResponse<SkillGapSnapshotResponse>>(
+      `/job-opportunities/${opportunityId}/skill-gaps/refresh`,
+      {
+        method: "POST",
+      }
+    );
+  }
+
+  async logSkillGapProgress(
+    opportunityId: string,
+    skillName: string,
+    payload: SkillGapProgressRequest
+  ) {
+    const encodedSkill = encodeURIComponent(skillName);
+    return this.request<ApiResponse<SkillGapProgressResponse>>(
+      `/job-opportunities/${opportunityId}/skill-gaps/${encodedSkill}/progress`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }
+    );
+  }
+
+  async getSkillGapTrends() {
+    return this.request<ApiResponse<SkillGapTrendSummary>>(
+      "/job-opportunities/skill-gaps/trends"
     );
   }
 

@@ -419,28 +419,28 @@ export function ResumePreview() {
                           >
                             {resume.content.personalInfo.firstName}{" "}
                             {resume.content.personalInfo.lastName}
-                          </h1>
+            </h1>
                           <div
                             className="flex items-center justify-center gap-4 mt-3 text-sm flex-wrap"
                             style={{ color: colors.secondary }}
                           >
-                            {resume.content.personalInfo.email && (
+              {resume.content.personalInfo.email && (
                               <span>{resume.content.personalInfo.email}</span>
-                            )}
-                            {resume.content.personalInfo.phone && (
+              )}
+              {resume.content.personalInfo.phone && (
                               <span>• {resume.content.personalInfo.phone}</span>
-                            )}
-                            {resume.content.personalInfo.location && (
+              )}
+              {resume.content.personalInfo.location && (
                               <span>• {resume.content.personalInfo.location}</span>
-                            )}
-                            {resume.content.personalInfo.linkedIn && (
+              )}
+              {resume.content.personalInfo.linkedIn && (
                               <span>• {resume.content.personalInfo.linkedIn}</span>
-                            )}
-                            {resume.content.personalInfo.portfolio && (
+              )}
+              {resume.content.personalInfo.portfolio && (
                               <span>• {resume.content.personalInfo.portfolio}</span>
-                            )}
-                          </div>
-                        </div>
+              )}
+            </div>
+          </div>
                       );
                     }
 
@@ -472,7 +472,7 @@ export function ResumePreview() {
                           >
                             {resume.content.summary}
                           </p>
-                        </div>
+            </div>
                       );
                     }
 
@@ -495,19 +495,19 @@ export function ResumePreview() {
                           >
                             Experience
                           </h2>
-                          {resume.content.experience.length === 0 ? (
+            {resume.content.experience.length === 0 ? (
                             <p className="text-gray-500 text-sm italic">
                               No experience entries yet
                             </p>
-                          ) : (
+            ) : (
                             <div className="space-y-6">
-                              {resume.content.experience.map((exp) => (
+                {resume.content.experience.map((exp) => (
                                 <div
                                   key={exp.id}
                                   className="border-l-2 pl-4 relative"
                                   style={{ borderColor: colors.primary }}
                                 >
-                                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center justify-between mb-1">
                                     <h3
                                       className="text-lg font-semibold"
                                       style={{
@@ -525,8 +525,8 @@ export function ResumePreview() {
                                       {exp.isCurrent
                                         ? "Present"
                                         : formatDateMonthYear(exp.endDate)}
-                                    </span>
-                                  </div>
+                      </span>
+                    </div>
                                   <p
                                     className="font-medium mb-2"
                                     style={{
@@ -552,16 +552,16 @@ export function ResumePreview() {
                                         fontFamily: fonts.body,
                                       }}
                                     >
-                                      {exp.description.map((desc, idx) => (
-                                        <li key={idx}>{desc}</li>
-                                      ))}
-                                    </ul>
+                      {exp.description.map((desc, idx) => (
+                        <li key={idx}>{desc}</li>
+                      ))}
+                    </ul>
                                   )}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
                       );
                     }
 
@@ -584,14 +584,14 @@ export function ResumePreview() {
                           >
                             Education
                           </h2>
-                          {resume.content.education.length === 0 ? (
+            {resume.content.education.length === 0 ? (
                             <p className="text-gray-500 text-sm italic">
                               No education entries yet
                             </p>
-                          ) : (
+            ) : (
                             <div className="space-y-4">
-                              {resume.content.education.map((edu) => (
-                                <div key={edu.id}>
+                {resume.content.education.map((edu) => (
+                  <div key={edu.id}>
                                   <h3
                                     className="text-lg font-semibold"
                                     style={{
@@ -625,11 +625,11 @@ export function ResumePreview() {
                                       {formatDateMonthYear(edu.endDate)}
                                     </p>
                                   )}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
                       );
                     }
 
@@ -652,11 +652,11 @@ export function ResumePreview() {
                           >
                             Skills
                           </h2>
-                          {resume.content.skills.length === 0 ? (
+            {resume.content.skills.length === 0 ? (
                             <p className="text-gray-500 text-sm italic">
                               No skills yet
                             </p>
-                          ) : (
+            ) : (
                             (() => {
                               // Group skills by category/group (support custom groups)
                               const skillsByCategory = resume.content.skills.reduce(
@@ -753,15 +753,15 @@ export function ResumePreview() {
                                       >
                                         Hidden categories:
                                       </div>
-                                      <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2">
                                         {hiddenCategories.map((category) => (
-                                          <span
+                  <span
                                             key={category}
                                             className="text-xs px-2 py-1 bg-gray-100 rounded"
                                             style={{ color: colors.secondary }}
-                                          >
+                  >
                                             {category}
-                                          </span>
+                  </span>
                                         ))}
                                       </div>
                                     </div>
@@ -888,9 +888,9 @@ export function ResumePreview() {
                                     </p>
                                   )}
                                 </div>
-                              ))}
-                            </div>
-                          )}
+                ))}
+              </div>
+            )}
                         </div>
                       );
                     }

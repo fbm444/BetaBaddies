@@ -166,20 +166,20 @@ export function Navbar() {
                   if (group.items.length === 1) {
                     const item = group.items[0]
                     const itemIsActive = location.pathname === item.path
-                    return (
+                  return (
                       <MenubarMenu key={group.id}>
-                        <MenubarTrigger
-                          onClick={() => navigate(item.path)}
-                          className={cn(
-                            "cursor-pointer bg-transparent data-[state=open]:bg-transparent focus:bg-transparent text-sm font-medium",
+                      <MenubarTrigger
+                        onClick={() => navigate(item.path)}
+                        className={cn(
+                          "cursor-pointer bg-transparent data-[state=open]:bg-transparent focus:bg-transparent text-sm font-medium",
                             itemIsActive 
-                              ? "bg-black text-white hover:bg-black rounded-md px-4 py-2" 
-                              : "text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-md px-4 py-2"
-                          )}
-                        >
-                          {item.label}
-                        </MenubarTrigger>
-                      </MenubarMenu>
+                            ? "bg-black text-white hover:bg-black rounded-md px-4 py-2" 
+                            : "text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-md px-4 py-2"
+                        )}
+                      >
+                        {item.label}
+                      </MenubarTrigger>
+                    </MenubarMenu>
                     )
                   }
                   
@@ -492,29 +492,29 @@ export function Navbar() {
                       <div className="ml-4 mt-1 flex flex-col gap-1 border-l-2 border-slate-200 pl-4">
                         {group.items.map((item) => {
                           const itemIsActive = location.pathname === item.path
-                          return (
-                            <button
-                              key={item.id}
-                              onClick={() => {
-                                navigate(item.path)
-                                setIsMobileMenuOpen(false)
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      navigate(item.path)
+                      setIsMobileMenuOpen(false)
                                 setExpandedGroup(null)
-                              }}
-                              className={cn(
+                    }}
+                    className={cn(
                                 "flex items-center gap-3 px-4 py-2.5 rounded-lg text-left transition-colors duration-200",
                                 itemIsActive
-                                  ? "bg-black text-white"
-                                  : "text-slate-700 hover:bg-slate-100"
-                              )}
-                            >
-                              <Icon 
-                                icon={item.icon} 
+                        ? "bg-black text-white"
+                        : "text-slate-700 hover:bg-slate-100"
+                    )}
+                  >
+                    <Icon 
+                      icon={item.icon} 
                                 width={18} 
                                 height={18}
                                 className={itemIsActive ? "text-white" : "text-slate-600"}
-                              />
+                    />
                               <span className="font-medium text-sm">{item.label}</span>
-                            </button>
+                  </button>
                           )
                         })}
                       </div>

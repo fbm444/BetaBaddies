@@ -275,9 +275,9 @@ export function AIAssistantChat({
           .replace(/^here'?s? (?:an? |the )?/i, '')
           .trim();
         if (cleaned.length > 20 && cleaned.length < 500) {
-          suggestions.push({
-            type: "summary",
-            action: "update",
+            suggestions.push({
+              type: "summary",
+              action: "update",
             content: cleaned,
           });
           break; // Only add one summary suggestion
@@ -332,11 +332,11 @@ export function AIAssistantChat({
             type: "experience",
             action: "update",
             content: bullets.join('\n'),
-          });
-          break;
+            });
+            break;
+          }
         }
       }
-    }
 
     // Look for quoted text that might be suggestions
     const quotedTextPattern = /["']([^"']{20,500})["']/g;
@@ -1604,7 +1604,7 @@ Generate 4 relevant, context-aware prompts:`;
               userInputLower.startsWith(phrase + " ") ||
               userInputLower.endsWith(" " + phrase) ||
               userInputLower.includes(" " + phrase + " ")
-            );
+          );
           
           console.log("🔍 Auto-apply check:", {
             userInput: userInput,
@@ -2158,8 +2158,8 @@ Generate 4 relevant, context-aware prompts:`;
 
   const confirmClearChat = () => {
     setShowClearChatConfirm(false);
-    setMessages([]);
-    setInput("");
+      setMessages([]);
+      setInput("");
   };
 
   if (!isOpen) return null;
@@ -2225,7 +2225,7 @@ Generate 4 relevant, context-aware prompts:`;
       <div className="flex-shrink-0 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2 flex-1 min-w-0">
-            <Icon icon="mingcute:briefcase-line" className="w-4 h-4 text-[#3351FD] flex-shrink-0" />
+          <Icon icon="mingcute:briefcase-line" className="w-4 h-4 text-[#3351FD] flex-shrink-0" />
             <label className="text-xs font-semibold text-gray-700 cursor-pointer" onClick={() => setIsJobSelectorMinimized(!isJobSelectorMinimized)}>
               Tailor for Job Posting (Optional)
             </label>
@@ -2246,46 +2246,46 @@ Generate 4 relevant, context-aware prompts:`;
           <div className="px-4 pb-3">
             <div className="flex items-center gap-3">
               <div className="flex-1 min-w-0">
-                {loadingJobs ? (
-                  <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <Icon icon="mingcute:loading-line" className="w-3 h-3 animate-spin" />
-                    <span>Loading jobs...</span>
-                  </div>
-                ) : (
-                  <select
-                    value={selectedJobId || ""}
-                    onChange={(e) => setSelectedJobId(e.target.value || null)}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent bg-white"
-                  >
-                    <option value="">No specific job - General advice</option>
-                    {jobOpportunities.map((job) => (
-                      <option key={job.id} value={job.id}>
-                        {job.title} at {job.company}
-                        {job.location ? ` (${job.location})` : ""}
-                      </option>
-                    ))}
-                  </select>
-                )}
+            {loadingJobs ? (
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <Icon icon="mingcute:loading-line" className="w-3 h-3 animate-spin" />
+                <span>Loading jobs...</span>
               </div>
-              {selectedJobId && (
-                <button
+            ) : (
+              <select
+                value={selectedJobId || ""}
+                onChange={(e) => setSelectedJobId(e.target.value || null)}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent bg-white"
+              >
+                <option value="">No specific job - General advice</option>
+                    {jobOpportunities.map((job) => (
+                  <option key={job.id} value={job.id}>
+                        {job.title} at {job.company}
+                    {job.location ? ` (${job.location})` : ""}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+          {selectedJobId && (
+            <button
                   onClick={(e) => {
                     e.stopPropagation();
                     e.preventDefault();
                     setSelectedJobId(null);
                   }}
                   className="p-1.5 hover:bg-white/50 rounded-lg transition-colors flex-shrink-0"
-                  title="Clear job selection"
+              title="Clear job selection"
                   type="button"
-                >
-                  <Icon icon="mingcute:close-line" className="w-4 h-4 text-gray-600" />
-                </button>
-              )}
-            </div>
-            {selectedJobId && (
-              <div className="mt-2 text-xs text-gray-600">
-                <Icon icon="mingcute:information-line" className="w-3 h-3 inline mr-1" />
-                AI suggestions will be tailored to match this job's requirements
+            >
+              <Icon icon="mingcute:close-line" className="w-4 h-4 text-gray-600" />
+            </button>
+          )}
+        </div>
+        {selectedJobId && (
+          <div className="mt-2 text-xs text-gray-600">
+            <Icon icon="mingcute:information-line" className="w-3 h-3 inline mr-1" />
+            AI suggestions will be tailored to match this job's requirements
               </div>
             )}
           </div>
@@ -2616,16 +2616,16 @@ Generate 4 relevant, context-aware prompts:`;
         <div className="border-b border-gray-200">
           <div className="flex items-center justify-between px-4 pt-2 pb-2">
             <div className="flex items-center gap-2">
-              <p className="text-xs font-semibold text-gray-600">
-                Suggested prompts:
-              </p>
-              {isGeneratingPrompts && (
-                <Icon
-                  icon="mingcute:loading-line"
-                  className="w-3 h-3 text-gray-400 animate-spin"
-                />
-              )}
-            </div>
+            <p className="text-xs font-semibold text-gray-600">
+              Suggested prompts:
+            </p>
+            {isGeneratingPrompts && (
+              <Icon
+                icon="mingcute:loading-line"
+                className="w-3 h-3 text-gray-400 animate-spin"
+              />
+            )}
+          </div>
             <button
               onClick={() => setIsSuggestedPromptsMinimized(!isSuggestedPromptsMinimized)}
               className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
@@ -2640,24 +2640,24 @@ Generate 4 relevant, context-aware prompts:`;
           </div>
           {!isSuggestedPromptsMinimized && (
             <div className="px-4 pb-2">
-              <div className="flex flex-wrap gap-2">
-                {suggestedPrompts.length > 0 ? (
-                  suggestedPrompts.map((prompt, index) => (
-                    <button
-                      key={index}
-                      onClick={() => handleSuggestedPrompt(prompt)}
-                      disabled={isLoading}
-                      className="text-xs px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {prompt}
-                    </button>
-                  ))
-                ) : (
-                  <div className="text-xs text-gray-400 italic">
-                    Generating suggestions...
-                  </div>
-                )}
+          <div className="flex flex-wrap gap-2">
+            {suggestedPrompts.length > 0 ? (
+              suggestedPrompts.map((prompt, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleSuggestedPrompt(prompt)}
+                  disabled={isLoading}
+                  className="text-xs px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {prompt}
+                </button>
+              ))
+            ) : (
+              <div className="text-xs text-gray-400 italic">
+                Generating suggestions...
               </div>
+            )}
+          </div>
             </div>
           )}
         </div>

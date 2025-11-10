@@ -117,6 +117,18 @@ export function ResumeBuilder() {
   const [showValidationPanel, setShowValidationPanel] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [aiSectionEnhancement, setAiSectionEnhancement] = useState<{
+    sectionId: string;
+    message: string;
+  } | null>(null);
+  const [isEnhancingSection, setIsEnhancingSection] = useState(false);
+  const [enhancingSectionId, setEnhancingSectionId] = useState<string | null>(
+    null
+  );
+  const [enhancedConversation, setEnhancedConversation] = useState<{
+    user: string;
+    assistant: string;
+  } | null>(null);
   const [draggedSection, setDraggedSection] = useState<string | null>(null);
   const [showPresetMenu, setShowPresetMenu] = useState(false);
   const [sectionPresets, setSectionPresets] = useState<
@@ -990,7 +1002,7 @@ export function ResumeBuilder() {
 
   const sections = [
     { id: "personal", label: "Personal Info", icon: "mingcute:user-line" },
-    { id: "summary", label: "Summary", icon: "mingcute:file-text-line" },
+    { id: "summary", label: "Summary", icon: "mingcute:file-line" },
     { id: "experience", label: "Experience", icon: "mingcute:briefcase-line" },
     { id: "education", label: "Education", icon: "mingcute:school-line" },
     { id: "skills", label: "Skills", icon: "mingcute:star-line" },
@@ -1955,6 +1967,20 @@ export function ResumeBuilder() {
     const updatedResume = { ...resume, content: newContent };
     setResume(updatedResume);
 
+    // Also update previewResume if it exists
+    if (previewResume) {
+      const previewContent = { ...previewResume.content };
+      if (sectionId === "personal") {
+        previewContent.personalInfo = {
+          ...previewContent.personalInfo,
+          ...value,
+        };
+      } else {
+        (previewContent as any)[sectionId] = value;
+      }
+      setPreviewResume({ ...previewResume, content: previewContent });
+    }
+
     // Auto-save to backend
     if (resumeId && resumeId !== "new" && isValidUUID(resumeId)) {
       saveToHistory(resume); // Save to history before updating
@@ -1982,13 +2008,19 @@ export function ResumeBuilder() {
     closeEdit: boolean = false
   ) => {
     if (!resume) return;
+
+    // Create a deep copy to avoid mutation issues
     const newContent = { ...resume.content };
     const section = (newContent as any)[sectionId];
+
     if (Array.isArray(section)) {
       const index = section.findIndex((item: any) => item.id === itemId);
       if (index !== -1) {
-        section[index] = { ...section[index], ...updates };
-        (newContent as any)[sectionId] = [...section];
+        // Create new array with updated item (immutable update)
+        const updatedSection = section.map((item: any, i: number) =>
+          i === index ? { ...item, ...updates } : item
+        );
+        (newContent as any)[sectionId] = updatedSection;
         const updatedResume = { ...resume, content: newContent };
         setResume(updatedResume);
 
@@ -2001,11 +2033,12 @@ export function ResumeBuilder() {
               (item: any) => item.id === itemId
             );
             if (previewIndex !== -1) {
-              previewSection[previewIndex] = {
-                ...previewSection[previewIndex],
-                ...updates,
-              };
-              (previewContent as any)[sectionId] = [...previewSection];
+              // Create new array with updated item (immutable update)
+              const updatedPreviewSection = previewSection.map(
+                (item: any, i: number) =>
+                  i === previewIndex ? { ...item, ...updates } : item
+              );
+              (previewContent as any)[sectionId] = updatedPreviewSection;
               setPreviewResume({ ...previewResume, content: previewContent });
             }
           }
@@ -2025,8 +2058,15 @@ export function ResumeBuilder() {
               console.error("Auto-save failed:", err);
             });
         }
+      } else {
+        console.warn(
+          `Item with id ${itemId} not found in section ${sectionId}`
+        );
       }
+    } else {
+      console.warn(`Section ${sectionId} is not an array`);
     }
+
     if (closeEdit) {
       setEditingItem(null);
     }
@@ -2072,6 +2112,168 @@ export function ResumeBuilder() {
   const deleteItem = (sectionId: string, itemId: string) => {
     if (!resume) return;
     setShowDeleteItemConfirm({ sectionId, itemId });
+  };
+
+  // Handle section enhancement with AI
+  const handleEnhanceSectionWithAI = async (sectionId: string) => {
+    if (!resume) return;
+
+    const sectionNames: Record<string, string> = {
+      personal: "Personal Information",
+      summary: "Summary",
+      experience: "Experience",
+      education: "Education",
+      skills: "Skills",
+      projects: "Projects",
+      certifications: "Certifications",
+    };
+
+    const sectionName = sectionNames[sectionId] || sectionId;
+    const sectionContent = (resume.content as any)[sectionId];
+
+    // Build context message based on section type
+    let contextMessage = `I need help improving my ${sectionName} section.\n\nGuidelines:\n- Respond ONLY with clear, human-readable guidance (paragraphs and bullet points).\n- Do NOT include JSON, code blocks, or any backend/API instructions.\n- Do NOT mention internal system behavior, schemas, or implementation details.\n- Focus on specificity, clarity, actionability, and ATS-friendly phrasing.`;
+
+    if (sectionId === "personal") {
+      const personalInfo = sectionContent || {};
+      contextMessage += `Current information:\n- Name: ${
+        personalInfo.firstName || ""
+      } ${personalInfo.lastName || ""}\n- Email: ${
+        personalInfo.email || ""
+      }\n- Phone: ${personalInfo.phone || ""}\n- Location: ${
+        personalInfo.location || ""
+      }\n- LinkedIn: ${personalInfo.linkedIn || ""}\n- Portfolio: ${
+        personalInfo.portfolio || ""
+      }\n\nPlease suggest improvements for formatting, completeness, and professional presentation.`;
+    } else if (sectionId === "summary") {
+      contextMessage += `Current summary:\n"${
+        sectionContent || ""
+      }"\n\nPlease suggest improvements for clarity, impact, and ATS optimization. Make it more compelling and tailored to my experience.`;
+    } else if (sectionId === "experience") {
+      const experiences = Array.isArray(sectionContent) ? sectionContent : [];
+      contextMessage += `I have ${experiences.length} experience entries. `;
+      if (experiences.length > 0) {
+        contextMessage += `Here's my most recent:\n- ${
+          experiences[0].title || ""
+        } at ${experiences[0].company || ""}\n- Description: ${
+          Array.isArray(experiences[0].description)
+            ? experiences[0].description.join("\n")
+            : experiences[0].description || ""
+        }\n\n`;
+      }
+      contextMessage += `Please suggest improvements for bullet points, action verbs, quantifiable achievements, and overall impact.`;
+    } else if (sectionId === "education") {
+      const educations = Array.isArray(sectionContent) ? sectionContent : [];
+      contextMessage += `I have ${educations.length} education entries. `;
+      if (educations.length > 0) {
+        contextMessage += `Here's my most recent:\n- ${
+          educations[0].degree || ""
+        } from ${educations[0].school || ""}\n- Field: ${
+          educations[0].field || ""
+        }\n- GPA: ${educations[0].gpa || ""}\n- Honors: ${
+          educations[0].honors || ""
+        }\n\n`;
+      }
+      contextMessage += `Please suggest improvements for formatting, completeness, and highlighting achievements.`;
+    } else if (sectionId === "skills") {
+      const skills = Array.isArray(sectionContent) ? sectionContent : [];
+      contextMessage += `I have ${skills.length} skills listed. `;
+      if (skills.length > 0) {
+        const skillNames = skills.map((s: any) => s.name || s).join(", ");
+        contextMessage += `Current skills: ${skillNames}\n\n`;
+      }
+      contextMessage += `Please suggest improvements for organization, categorization, relevance, and ATS optimization. Also suggest any missing skills based on my experience.`;
+    } else if (sectionId === "projects") {
+      const projects = Array.isArray(sectionContent) ? sectionContent : [];
+      contextMessage += `I have ${projects.length} projects listed. `;
+      if (projects.length > 0) {
+        contextMessage += `Here's one example:\n- ${
+          projects[0].name || ""
+        }\n- Description: ${projects[0].description || ""}\n- Technologies: ${
+          Array.isArray(projects[0].technologies)
+            ? projects[0].technologies.join(", ")
+            : projects[0].technologies || ""
+        }\n\n`;
+      }
+      contextMessage += `Please suggest improvements for descriptions, impact, technologies, and overall presentation.`;
+    } else if (sectionId === "certifications") {
+      const certifications = Array.isArray(sectionContent)
+        ? sectionContent
+        : [];
+      contextMessage += `I have ${certifications.length} certifications listed. `;
+      if (certifications.length > 0) {
+        const certNames = certifications
+          .map((c: any) => `${c.name || ""} from ${c.organization || ""}`)
+          .join(", ");
+        contextMessage += `Current certifications: ${certNames}\n\n`;
+      }
+      contextMessage += `Please suggest improvements for formatting, relevance, and any additional certifications I should consider.`;
+    }
+
+    // Show enhancing loader and call AI
+    setIsEnhancingSection(true);
+    setEnhancingSectionId(sectionId);
+    setEnhancedConversation(null);
+    try {
+      // If resumeId is "new" or invalid, we need to create the resume first or use a different approach
+      if (!resumeId || resumeId === "new" || !isValidUUID(resumeId)) {
+        console.error("Cannot enhance section: Resume must be saved first");
+        showToast(
+          "Please save your resume before using AI enhancement.",
+          "error"
+        );
+        setIsEnhancingSection(false);
+        setEnhancingSectionId(null);
+        return;
+      }
+
+      const jobIdForContext = jobId && isValidUUID(jobId) ? jobId : undefined;
+      console.log("📤 Calling AI chat for section enhancement:", {
+        resumeId,
+        sectionId,
+        jobId: jobIdForContext,
+        messageLength: contextMessage.length,
+      });
+
+      const resp = await resumeService.chat(
+        resumeId,
+        [{ role: "user", content: contextMessage }],
+        jobIdForContext,
+        resume || undefined
+      );
+
+      console.log("📥 AI chat response:", resp);
+
+      if (resp.ok && resp.data?.message) {
+        const assistantReply = resp.data.message || "";
+        console.log("✅ AI response received, length:", assistantReply.length);
+        setEnhancedConversation({
+          user: contextMessage,
+          assistant: assistantReply,
+        });
+        // Open AI panel only after we have the response
+        setShowAIPanel(true);
+      } else {
+        console.error("❌ AI chat failed:", {
+          ok: resp.ok,
+          data: resp.data,
+          error: resp.error,
+        });
+        showToast(
+          resp.error?.message || "AI enhancement failed. Please try again.",
+          "error"
+        );
+      }
+    } catch (e: any) {
+      console.error("❌ Enhance with AI exception:", e);
+      showToast(
+        e?.message || "AI enhancement error. Please try again.",
+        "error"
+      );
+    } finally {
+      setIsEnhancingSection(false);
+      setEnhancingSectionId(null);
+    }
   };
 
   const confirmDeleteItem = () => {
@@ -3150,12 +3352,14 @@ export function ResumeBuilder() {
           </p>
           <div className="flex justify-end gap-3">
             <button
+              type="button"
               onClick={() => setShowDeleteItemConfirm(null)}
               className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors font-medium"
             >
               Cancel
             </button>
             <button
+              type="button"
               onClick={confirmDeleteItem}
               className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
             >
@@ -3481,6 +3685,199 @@ export function ResumeBuilder() {
                   )}
                 </div>
               </div>
+
+              {/* Enhance with AI scanning overlay */}
+              {isEnhancingSection && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center pointer-events-none">
+                  {/* Animated backdrop with particles */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-black/50 via-black/40 to-black/50 backdrop-blur-md transition-all duration-500">
+                    {/* Floating particles */}
+                    {[...Array(12)].map((_, i) => {
+                      // Use index-based values for stable positioning
+                      const left = (i * 7.5 + 5) % 100;
+                      const top = (i * 11.3 + 8) % 100;
+                      const duration = 3 + (i % 3) * 0.5;
+                      const delay = (i * 0.3) % 2;
+                      return (
+                        <div
+                          key={i}
+                          className="absolute w-2 h-2 bg-[#3351FD]/30 rounded-full"
+                          style={{
+                            left: `${left}%`,
+                            top: `${top}%`,
+                            animation: `float ${duration}s ease-in-out infinite`,
+                            animationDelay: `${delay}s`,
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
+
+                  {/* Main modal with entrance animation */}
+                  <div className="relative bg-gradient-to-br from-white via-blue-50/30 to-white rounded-3xl shadow-2xl p-8 max-w-lg w-full mx-4 pointer-events-auto border border-blue-100/50 animate-in zoom-in-95 duration-300">
+                    {/* Glowing border effect */}
+                    <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-[#3351FD]/20 via-purple-500/20 to-[#3351FD]/20 opacity-50 blur-xl -z-10 animate-pulse"></div>
+
+                    {/* Header with animated icon */}
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="relative">
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#3351FD] to-purple-600 flex items-center justify-center shadow-lg animate-pulse">
+                          <Icon
+                            icon="mingcute:sparkles-line"
+                            className="w-6 h-6 text-white animate-spin-slow"
+                          />
+                        </div>
+                        {/* Orbiting dots */}
+                        <div className="absolute inset-0 animate-spin-slow">
+                          <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-[#3351FD] rounded-full"></div>
+                        </div>
+                        <div
+                          className="absolute inset-0 animate-spin-slow"
+                          style={{
+                            animationDirection: "reverse",
+                            animationDuration: "3s",
+                          }}
+                        >
+                          <div className="absolute top-1/2 right-0 translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-purple-500 rounded-full"></div>
+                        </div>
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-xl font-bold bg-gradient-to-r from-[#3351FD] to-purple-600 bg-clip-text text-transparent animate-pulse">
+                          Enhancing with AI
+                        </h3>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {enhancingSectionId &&
+                            sections.find((s) => s.id === enhancingSectionId)
+                              ?.label}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Animated status text */}
+                    <div className="mb-6">
+                      <div className="flex items-center gap-2 text-sm text-gray-700 mb-2">
+                        <div className="flex gap-1">
+                          <div
+                            className="w-2 h-2 rounded-full bg-[#3351FD] animate-bounce"
+                            style={{ animationDelay: "0s" }}
+                          ></div>
+                          <div
+                            className="w-2 h-2 rounded-full bg-purple-500 animate-bounce"
+                            style={{ animationDelay: "0.2s" }}
+                          ></div>
+                          <div
+                            className="w-2 h-2 rounded-full bg-[#3351FD] animate-bounce"
+                            style={{ animationDelay: "0.4s" }}
+                          ></div>
+                        </div>
+                        <span className="font-medium animate-pulse">
+                          Scanning resume section...
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Enhanced resume preview with multiple scanning effects */}
+                    <div className="relative overflow-hidden rounded-xl border-2 border-blue-200/50 bg-gradient-to-br from-blue-50 via-white to-blue-50 shadow-inner">
+                      <div className="h-48 relative">
+                        {/* Multiple scanning beams */}
+                        <div className="absolute inset-0">
+                          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-300/40 to-transparent animate-[scan_2s_ease-in-out_infinite]"></div>
+                          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-purple-300/30 to-transparent animate-[scan_2.5s_ease-in-out_infinite]"></div>
+                        </div>
+
+                        {/* Grid pattern overlay */}
+                        <div
+                          className="absolute inset-0 opacity-20"
+                          style={{
+                            backgroundImage:
+                              "linear-gradient(rgba(51, 81, 253, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(51, 81, 253, 0.1) 1px, transparent 1px)",
+                            backgroundSize: "20px 20px",
+                          }}
+                        ></div>
+
+                        {/* Animated content lines with staggered animations */}
+                        <div className="absolute inset-0 p-5 space-y-3">
+                          {[...Array(6)].map((_, i) => {
+                            // Use index-based values for stable widths
+                            const widths = [65, 75, 70, 80, 68, 72];
+                            return (
+                              <div
+                                key={i}
+                                className="h-2.5 bg-gradient-to-r from-white/80 via-white/90 to-white/80 rounded-full shadow-sm"
+                                style={{
+                                  width: `${widths[i]}%`,
+                                  animation: `shimmer ${
+                                    1.5 + i * 0.2
+                                  }s ease-in-out infinite`,
+                                  animationDelay: `${i * 0.15}s`,
+                                }}
+                              />
+                            );
+                          })}
+                        </div>
+
+                        {/* Corner glow effects */}
+                        <div className="absolute top-0 left-0 w-20 h-20 bg-[#3351FD]/20 rounded-br-full blur-xl animate-pulse"></div>
+                        <div
+                          className="absolute bottom-0 right-0 w-20 h-20 bg-purple-500/20 rounded-tl-full blur-xl animate-pulse"
+                          style={{ animationDelay: "0.5s" }}
+                        ></div>
+                      </div>
+                    </div>
+
+                    {/* Progress indicator */}
+                    <div className="mt-6">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-medium text-gray-600">
+                          Processing...
+                        </span>
+                        <span className="text-xs font-medium text-[#3351FD] animate-pulse">
+                          Analyzing
+                        </span>
+                      </div>
+                      <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-[#3351FD] via-purple-500 to-[#3351FD] rounded-full animate-[progress_2s_ease-in-out_infinite] relative">
+                          <div className="absolute inset-0 bg-white/30 animate-shimmer-slide"></div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Animated status messages */}
+                    <div className="mt-6 space-y-2">
+                      <div className="flex items-center gap-2 text-xs text-gray-600">
+                        <Icon
+                          icon="mingcute:check-line"
+                          className="w-4 h-4 text-green-500 animate-bounce"
+                        />
+                        <span className="animate-fade-in">
+                          Extracting section content...
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-gray-600">
+                        <Icon
+                          icon="mingcute:loading-line"
+                          className="w-4 h-4 text-[#3351FD] animate-spin"
+                        />
+                        <span
+                          className="animate-fade-in"
+                          style={{ animationDelay: "0.3s" }}
+                        >
+                          Generating AI suggestions...
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <div className="w-4 h-4 rounded-full border-2 border-gray-300 border-t-[#3351FD] animate-spin"></div>
+                        <span
+                          className="animate-fade-in"
+                          style={{ animationDelay: "0.6s" }}
+                        >
+                          Optimizing recommendations...
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Job Type Selector */}
               <div className="mb-4">
@@ -4069,7 +4466,12 @@ export function ResumeBuilder() {
                               placeholder="Location"
                             />
                             <button
-                              onClick={() => setEditingSection(null)}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                setEditingSection(null);
+                              }}
                               className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors"
                             >
                               Done
@@ -4150,6 +4552,18 @@ export function ResumeBuilder() {
                               </button>
                               <button
                                 className="p-2 hover:bg-gray-100 rounded-lg"
+                                onClick={() =>
+                                  handleEnhanceSectionWithAI("personal")
+                                }
+                                title="Enhance with AI"
+                              >
+                                <Icon
+                                  icon="mingcute:magic-1-line"
+                                  className="w-4 h-4 text-[#3351FD]"
+                                />
+                              </button>
+                              <button
+                                className="p-2 hover:bg-gray-100 rounded-lg"
                                 onClick={() => setEditingSection("personal")}
                                 title="Edit"
                               >
@@ -4211,7 +4625,12 @@ export function ResumeBuilder() {
                             autoFocus
                           />
                           <button
-                            onClick={() => setEditingSection(null)}
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              setEditingSection(null);
+                            }}
                             className="mt-2 px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors"
                           >
                             Done
@@ -4268,6 +4687,18 @@ export function ResumeBuilder() {
                                 <Icon
                                   icon="mingcute:settings-3-line"
                                   className="w-4 h-4 text-purple-600"
+                                />
+                              </button>
+                              <button
+                                className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-gray-100 rounded-lg"
+                                onClick={() =>
+                                  handleEnhanceSectionWithAI("summary")
+                                }
+                                title="Enhance with AI"
+                              >
+                                <Icon
+                                  icon="mingcute:magic-1-line"
+                                  className="w-4 h-4 text-[#3351FD]"
                                 />
                               </button>
                               <button
@@ -4391,6 +4822,18 @@ export function ResumeBuilder() {
                               <Icon
                                 icon="mingcute:settings-3-line"
                                 className="w-4 h-4 text-purple-600"
+                              />
+                            </button>
+                            <button
+                              onClick={() =>
+                                handleEnhanceSectionWithAI("experience")
+                              }
+                              className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-gray-100 rounded-lg"
+                              title="Enhance with AI"
+                            >
+                              <Icon
+                                icon="mingcute:magic-1-line"
+                                className="w-4 h-4 text-[#3351FD]"
                               />
                             </button>
                             <button
@@ -4548,18 +4991,29 @@ export function ResumeBuilder() {
                                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent min-h-[100px]"
                                       placeholder="Description (one per line)"
                                     />
-                                    <div className="flex gap-2">
+                                    <div
+                                      className="flex gap-2"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
                                       <button
-                                        onClick={() => setEditingItem(null)}
-                                        className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors"
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          e.preventDefault();
+                                          setEditingItem(null);
+                                        }}
+                                        className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors relative z-10"
                                       >
                                         Done
                                       </button>
                                       <button
-                                        onClick={() =>
-                                          deleteItem("experience", exp.id)
-                                        }
-                                        className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          e.preventDefault();
+                                          deleteItem("experience", exp.id);
+                                        }}
+                                        className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors relative z-10"
                                       >
                                         Delete
                                       </button>
@@ -4688,9 +5142,15 @@ export function ResumeBuilder() {
                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent min-h-[100px]"
                                 placeholder="Description (one per line)"
                               />
-                              <div className="flex gap-2">
+                              <div
+                                className="flex gap-2"
+                                onClick={(e) => e.stopPropagation()}
+                              >
                                 <button
-                                  onClick={() => {
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
                                     const title = (
                                       document.getElementById(
                                         "new-exp-title"
@@ -4745,13 +5205,18 @@ export function ResumeBuilder() {
                                       });
                                     }
                                   }}
-                                  className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors"
+                                  className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors relative z-10"
                                 >
                                   Add
                                 </button>
                                 <button
-                                  onClick={() => setEditingItem(null)}
-                                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    setEditingItem(null);
+                                  }}
+                                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors relative z-10"
                                 >
                                   Cancel
                                 </button>
@@ -4860,6 +5325,18 @@ export function ResumeBuilder() {
                               <Icon
                                 icon="mingcute:settings-3-line"
                                 className="w-4 h-4 text-purple-600"
+                              />
+                            </button>
+                            <button
+                              onClick={() =>
+                                handleEnhanceSectionWithAI("education")
+                              }
+                              className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-gray-100 rounded-lg"
+                              title="Enhance with AI"
+                            >
+                              <Icon
+                                icon="mingcute:magic-1-line"
+                                className="w-4 h-4 text-[#3351FD]"
                               />
                             </button>
                             <button
@@ -5209,13 +5686,18 @@ export function ResumeBuilder() {
                                       });
                                     }
                                   }}
-                                  className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors"
+                                  className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors relative z-10"
                                 >
                                   Add
                                 </button>
                                 <button
-                                  onClick={() => setEditingItem(null)}
-                                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    setEditingItem(null);
+                                  }}
+                                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors relative z-10"
                                 >
                                   Cancel
                                 </button>
@@ -5323,6 +5805,18 @@ export function ResumeBuilder() {
                                 <Icon
                                   icon="mingcute:settings-3-line"
                                   className="w-4 h-4 text-purple-600"
+                                />
+                              </button>
+                              <button
+                                onClick={() =>
+                                  handleEnhanceSectionWithAI("skills")
+                                }
+                                className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-gray-100 rounded-lg"
+                                title="Enhance with AI"
+                              >
+                                <Icon
+                                  icon="mingcute:magic-1-line"
+                                  className="w-4 h-4 text-[#3351FD]"
                                 />
                               </button>
                               <button
@@ -5631,7 +6125,10 @@ export function ResumeBuilder() {
                                             }}
                                           />
                                           <button
-                                            onClick={() => {
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              e.preventDefault();
                                               const input =
                                                 document.getElementById(
                                                   `new-skill-${group}`
@@ -5665,7 +6162,12 @@ export function ResumeBuilder() {
                               );
                             })()}
                             <button
-                              onClick={() => setEditingSection(null)}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                setEditingSection(null);
+                              }}
                               className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors"
                             >
                               Done
@@ -6010,6 +6512,18 @@ export function ResumeBuilder() {
                             </button>
                             <button
                               onClick={() =>
+                                handleEnhanceSectionWithAI("projects")
+                              }
+                              className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-gray-100 rounded-lg"
+                              title="Enhance with AI"
+                            >
+                              <Icon
+                                icon="mingcute:magic-1-line"
+                                className="w-4 h-4 text-[#3351FD]"
+                              />
+                            </button>
+                            <button
+                              onClick={() =>
                                 setEditingItem({
                                   section: "projects",
                                   itemId: "new",
@@ -6104,18 +6618,29 @@ export function ResumeBuilder() {
                                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
                                       placeholder="Project Link"
                                     />
-                                    <div className="flex gap-2">
+                                    <div
+                                      className="flex gap-2"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
                                       <button
-                                        onClick={() => setEditingItem(null)}
-                                        className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors"
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          e.preventDefault();
+                                          setEditingItem(null);
+                                        }}
+                                        className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors relative z-10"
                                       >
                                         Done
                                       </button>
                                       <button
-                                        onClick={() =>
-                                          deleteItem("projects", project.id)
-                                        }
-                                        className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          e.preventDefault();
+                                          deleteItem("projects", project.id);
+                                        }}
+                                        className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors relative z-10"
                                       >
                                         Delete
                                       </button>
@@ -6214,9 +6739,15 @@ export function ResumeBuilder() {
                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
                                 placeholder="Project Link"
                               />
-                              <div className="flex gap-2">
+                              <div
+                                className="flex gap-2"
+                                onClick={(e) => e.stopPropagation()}
+                              >
                                 <button
-                                  onClick={() => {
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
                                     const name = (
                                       document.getElementById(
                                         "new-proj-name"
@@ -6252,13 +6783,18 @@ export function ResumeBuilder() {
                                       });
                                     }
                                   }}
-                                  className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors"
+                                  className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors relative z-10"
                                 >
                                   Add
                                 </button>
                                 <button
-                                  onClick={() => setEditingItem(null)}
-                                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    setEditingItem(null);
+                                  }}
+                                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors relative z-10"
                                 >
                                   Cancel
                                 </button>
@@ -6472,18 +7008,29 @@ export function ResumeBuilder() {
                                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
                                       placeholder="Expiration Date (optional)"
                                     />
-                                    <div className="flex gap-2">
+                                    <div
+                                      className="flex gap-2"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
                                       <button
-                                        onClick={() => setEditingItem(null)}
-                                        className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors"
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          e.preventDefault();
+                                          setEditingItem(null);
+                                        }}
+                                        className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors relative z-10"
                                       >
                                         Done
                                       </button>
                                       <button
-                                        onClick={() =>
-                                          deleteItem("certifications", cert.id)
-                                        }
-                                        className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          e.preventDefault();
+                                          deleteItem("certifications", cert.id);
+                                        }}
+                                        className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors relative z-10"
                                       >
                                         Delete
                                       </button>
@@ -6495,11 +7042,15 @@ export function ResumeBuilder() {
                                       {cert.name}
                                     </h3>
                                     <p className="text-gray-700">
-                                      {cert.organization} - {cert.dateEarned}
+                                      {cert.organization} -{" "}
+                                      {formatDateMonthYear(cert.dateEarned)}
                                     </p>
                                     {cert.expirationDate && (
                                       <p className="text-sm text-gray-600">
-                                        Expires: {cert.expirationDate}
+                                        Expires:{" "}
+                                        {formatDateMonthYear(
+                                          cert.expirationDate
+                                        )}
                                       </p>
                                     )}
                                     <button
@@ -6571,9 +7122,15 @@ export function ResumeBuilder() {
                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
                                 placeholder="Expiration Date (optional)"
                               />
-                              <div className="flex gap-2">
+                              <div
+                                className="flex gap-2"
+                                onClick={(e) => e.stopPropagation()}
+                              >
                                 <button
-                                  onClick={() => {
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
                                     const name = (
                                       document.getElementById(
                                         "new-cert-name"
@@ -6604,13 +7161,18 @@ export function ResumeBuilder() {
                                       });
                                     }
                                   }}
-                                  className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors"
+                                  className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors relative z-10"
                                 >
                                   Add
                                 </button>
                                 <button
-                                  onClick={() => setEditingItem(null)}
-                                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    setEditingItem(null);
+                                  }}
+                                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors relative z-10"
                                 >
                                   Cancel
                                 </button>
@@ -6640,6 +7202,7 @@ export function ResumeBuilder() {
                 onClose={() => setShowAIPanel(false)}
                 initialJobId={jobId && isValidUUID(jobId) ? jobId : null}
                 initialMessage={getDecodedExplanation(aiExplanation)}
+                initialUserAndAssistant={enhancedConversation}
                 autoAnalyzeJob={
                   !!(
                     jobId &&
@@ -7646,7 +8209,7 @@ export function ResumeBuilder() {
                             </div>
                             <div className="text-sm text-gray-500">
                               {cert.org_name} •{" "}
-                              {new Date(cert.date_earned).getFullYear()}
+                              {formatDateMonthYear(cert.date_earned)}
                             </div>
                           </div>
                           {isAlreadyInResume && (
@@ -9281,9 +9844,11 @@ export function ResumeBuilder() {
                                       </p>
                                     </div>
                                     <p className="text-xs text-gray-600 whitespace-nowrap ml-2">
-                                      {cert.dateEarned}
+                                      {formatDateMonthYear(cert.dateEarned)}
                                       {cert.expirationDate &&
-                                        ` - ${cert.expirationDate}`}
+                                        ` - ${formatDateMonthYear(
+                                          cert.expirationDate
+                                        )}`}
                                     </p>
                                   </div>
                                 </div>

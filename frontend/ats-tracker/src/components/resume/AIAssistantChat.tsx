@@ -23,8 +23,15 @@ interface AIAssistantChatProps {
   initialJobId?: string | null; // Job ID to auto-select and analyze
   autoAnalyzeJob?: boolean; // Whether to automatically analyze the job
   autoAnalyzeResume?: boolean; // Whether to automatically analyze the resume
+  autoOptimizeSkills?: boolean; // Whether to automatically run skills optimization flow
+  autoSendMessage?: string; // If provided, auto-sends as a user message and fetches AI reply
   initialMessage?: string; // Initial message to display from AI (e.g., explanation of tailoring)
-  onAnalysisComplete?: () => void; // Callback when analysis is complete
+  onAnalysisComplete?: () => void; // Callback when auto-analysis completes
+  // If provided, the chat will open with a user message and an assistant reply already populated
+  initialUserAndAssistant?: {
+    user: string;
+    assistant: string;
+  } | null;
 }
 
 const SUGGESTED_PROMPTS = [
@@ -42,7 +49,14 @@ const SUGGESTED_PROMPTS = [
 ];
 
 interface ParsedSuggestion {
-  type: "summary" | "experience" | "skill" | "education" | "project" | "bullet" | "section";
+  type:
+    | "summary"
+    | "experience"
+    | "skill"
+    | "education"
+    | "project"
+    | "bullet"
+    | "section";
   action: "update" | "add" | "improve" | "reorder";
   content: string;
   targetId?: string;
@@ -60,30 +74,86 @@ export function AIAssistantChat({
   initialJobId,
   autoAnalyzeJob = false,
   autoAnalyzeResume = false,
+  autoOptimizeSkills = false,
+  autoSendMessage,
   initialMessage,
   onAnalysisComplete,
+  initialUserAndAssistant = null,
 }: AIAssistantChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [suggestedPrompts, setSuggestedPrompts] = useState<string[]>([]);
   const [isGeneratingPrompts, setIsGeneratingPrompts] = useState(false);
-  const [isJobSelectorMinimized, setIsJobSelectorMinimized] = useState(false);
-  const [isSuggestedPromptsMinimized, setIsSuggestedPromptsMinimized] = useState(false);
+  // Load minimized preferences from localStorage
+  const loadMinimizedPreferences = () => {
+    try {
+      const savedJobSelector = localStorage.getItem(
+        "ai_chat_job_selector_minimized"
+      );
+      const savedPrompts = localStorage.getItem(
+        "ai_chat_suggested_prompts_minimized"
+      );
+      return {
+        jobSelector: savedJobSelector === "true",
+        prompts: savedPrompts === "true",
+      };
+    } catch (error) {
+      console.error("Failed to load minimized preferences:", error);
+      return { jobSelector: false, prompts: false };
+    }
+  };
+
+  const savedPreferences = loadMinimizedPreferences();
+  const [isJobSelectorMinimized, setIsJobSelectorMinimized] = useState(
+    savedPreferences.jobSelector
+  );
+  const [isSuggestedPromptsMinimized, setIsSuggestedPromptsMinimized] =
+    useState(savedPreferences.prompts);
+
+  // Save preferences to localStorage when they change
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        "ai_chat_job_selector_minimized",
+        String(isJobSelectorMinimized)
+      );
+    } catch (error) {
+      console.error("Failed to save job selector preference:", error);
+    }
+  }, [isJobSelectorMinimized]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        "ai_chat_suggested_prompts_minimized",
+        String(isSuggestedPromptsMinimized)
+      );
+    } catch (error) {
+      console.error("Failed to save suggested prompts preference:", error);
+    }
+  }, [isSuggestedPromptsMinimized]);
   const lastUserMessageCountRef = useRef(0);
   const [parsedSuggestions, setParsedSuggestions] = useState<
     Map<number, ParsedSuggestion[]>
   >(new Map());
   const [previewResume, setPreviewResume] = useState<Resume | null>(null);
-  const [previewMessageIndex, setPreviewMessageIndex] = useState<number | null>(null); // Track which message has preview active
+  const [previewMessageIndex, setPreviewMessageIndex] = useState<number | null>(
+    null
+  ); // Track which message has preview active
   const [appliedSuggestions, setAppliedSuggestions] = useState<
     Map<number, ParsedSuggestion[]>
   >(new Map());
-  const [jobOpportunities, setJobOpportunities] = useState<JobOpportunityData[]>([]);
+  const [jobOpportunities, setJobOpportunities] = useState<
+    JobOpportunityData[]
+  >([]);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [loadingJobs, setLoadingJobs] = useState(false);
   const [showClearChatConfirm, setShowClearChatConfirm] = useState(false);
   const hasAutoAnalyzedResumeRef = useRef(false);
+  const hasAutoOptimizedSkillsRef = useRef(false);
+  const hasAutoSentMessageRef = useRef<string | null>(null);
+  const hasSeededInitialConversationRef = useRef<string | null>(null);
 
   // Log props when component mounts or props change
   useEffect(() => {
@@ -93,10 +163,20 @@ export function AIAssistantChat({
       initialJobId,
       autoAnalyzeJob,
       autoAnalyzeResume,
+      autoOptimizeSkills,
       hasResume: !!resume,
       hasInitialMessage: !!initialMessage,
     });
-  }, [isOpen, resumeId, initialJobId, autoAnalyzeJob, autoAnalyzeResume, resume, initialMessage]);
+  }, [
+    isOpen,
+    resumeId,
+    initialJobId,
+    autoAnalyzeJob,
+    autoAnalyzeResume,
+    autoOptimizeSkills,
+    resume,
+    initialMessage,
+  ]);
 
   // Track if we've already set the initial message to avoid duplicates
   const initialMessageSetRef = useRef<string | null>(null);
@@ -111,7 +191,7 @@ export function AIAssistantChat({
         alreadySet: initialMessageSetRef.current === initialMessage,
         currentMessagesLength: messages.length,
       });
-      
+
       // Only set if we haven't set this exact message before
       if (initialMessageSetRef.current !== initialMessage) {
         console.log("✅ Setting initial message in chat");
@@ -120,27 +200,123 @@ export function AIAssistantChat({
           content: initialMessage,
           timestamp: new Date(),
         };
-        
+
         // Force set the message immediately (replace any existing messages)
         setMessages([explanationMessage]);
-        console.log("✅ Initial message set, messages array should now have 1 message");
-        
+        console.log(
+          "✅ Initial message set, messages array should now have 1 message"
+        );
+
         // Scroll to bottom after a short delay to ensure DOM is updated
         setTimeout(() => {
           messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
         }, 100);
-        
+
         initialMessageSetRef.current = initialMessage;
       } else {
         console.log("⏭️ Initial message already set, skipping");
       }
     }
-    
+
     // Reset the ref when panel closes
     if (!isOpen) {
       initialMessageSetRef.current = null;
     }
   }, [isOpen, initialMessage]);
+
+  // If initialUserAndAssistant is provided, seed chat with both messages once
+  useEffect(() => {
+    if (!isOpen) return;
+    if (!initialUserAndAssistant) return;
+    // Use only assistant message for key since we're not showing the user prompt
+    const key = initialUserAndAssistant.assistant.slice(0, 100);
+    if (hasSeededInitialConversationRef.current === key) return;
+    hasSeededInitialConversationRef.current = key;
+
+    // Only show the assistant message - hide the user prompt (it's internal)
+    const seeded: Message[] = [
+      {
+        role: "assistant",
+        content: initialUserAndAssistant.assistant,
+        timestamp: new Date(),
+      },
+    ];
+    setMessages(seeded);
+    // Scroll to bottom after seeding
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+  }, [isOpen, initialUserAndAssistant]);
+
+  // If autoSendMessage is provided, create a user message and fetch AI response once
+  useEffect(() => {
+    // Skip if we already seeded a conversation (enhance flow) to avoid duplicate sends
+    if (initialUserAndAssistant) return;
+    const run = async () => {
+      if (!isOpen) return;
+      if (!autoSendMessage || autoSendMessage.trim().length === 0) return;
+      if (hasAutoSentMessageRef.current === autoSendMessage) return;
+      hasAutoSentMessageRef.current = autoSendMessage;
+
+      // Don't show the prompt to the user - it's internal
+      try {
+        setIsLoading(true);
+        const jobId = initialJobId || selectedJobId || null;
+        const resp = await resumeService.chat(
+          resumeId || "new",
+          [{ role: "user", content: autoSendMessage }],
+          jobId || undefined,
+          resume || undefined
+        );
+        if (resp.ok && resp.data?.message) {
+          const assistantMessage: Message = {
+            role: "assistant",
+            content: resp.data.message,
+            timestamp: new Date(),
+          };
+          setMessages((prev) => [...prev, assistantMessage]);
+
+          // Parse suggestions for preview/apply
+          setTimeout(() => {
+            setParsedSuggestions((prev) => {
+              const newMap = new Map(prev);
+              const index = prev.size || 0;
+              const parsed = parseSuggestions(assistantMessage.content, index);
+              newMap.set(index, parsed);
+              return newMap;
+            });
+          }, 0);
+        }
+      } catch (error) {
+        console.error("Auto send message failed:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    run();
+  }, [autoSendMessage, isOpen, initialJobId, selectedJobId, resumeId]);
+
+  // Clean up message content by removing JSON code blocks for display
+  const cleanMessageContent = (content: string): string => {
+    // First, try to remove JSON code blocks (```json ... ``` or ``` ... ```)
+    // Match code blocks that contain "suggestions" key
+    let cleaned = content.replace(
+      /```(?:json)?\s*\{[\s\S]*?"suggestions"[\s\S]*?\}\s*```/g,
+      ""
+    );
+    // Also remove standalone JSON objects that look like suggestion blocks (not in code blocks)
+    cleaned = cleaned.replace(/\{\s*"suggestions"\s*:[\s\S]*?\}/g, "");
+    // Remove any trailing JSON-like content that might be left
+    cleaned = cleaned.replace(
+      /\n\s*\{[\s\S]*?"suggestions"[\s\S]*?\}\s*$/g,
+      ""
+    );
+    // Clean up any extra whitespace/newlines left behind
+    cleaned = cleaned.replace(/\n{3,}/g, "\n\n").trim();
+    // Remove any trailing "```" that might be left
+    cleaned = cleaned.replace(/```\s*$/g, "").trim();
+    return cleaned;
+  };
 
   // Parse AI response to extract actionable suggestions
   const parseSuggestions = (
@@ -244,17 +420,29 @@ export function AIAssistantChat({
       }
     }
 
-    console.log("⚠️ No JSON suggestions found in response, trying text-based parsing");
+    console.log(
+      "⚠️ No JSON suggestions found in response, trying text-based parsing"
+    );
 
     // Enhanced text-based suggestion parsing
     const contentLower = content.toLowerCase();
-    
+
     // Check if the response contains action verbs that indicate changes are being suggested
     const actionIndicators = [
-      "add", "update", "improve", "change", "modify", "enhance", 
-      "revise", "rewrite", "suggest", "recommend", "should", "consider"
+      "add",
+      "update",
+      "improve",
+      "change",
+      "modify",
+      "enhance",
+      "revise",
+      "rewrite",
+      "suggest",
+      "recommend",
+      "should",
+      "consider",
     ];
-    const hasActionIndicators = actionIndicators.some(indicator => 
+    const hasActionIndicators = actionIndicators.some((indicator) =>
       contentLower.includes(indicator)
     );
 
@@ -270,20 +458,20 @@ export function AIAssistantChat({
       /(?:here'?s? (?:an? |the )?improved? summary)[\s\S]{0,100}?[:]\s*([^\n]{20,500})/i,
       /(?:improved? summary)[\s\S]{0,100}?[:]\s*([^\n]{20,500})/i,
     ];
-    
+
     for (const pattern of summaryPatterns) {
       const match = content.match(pattern);
       if (match && match[1]) {
         const summaryText = match[1].trim();
         // Remove common prefixes and clean up
         const cleaned = summaryText
-          .replace(/^["']|["']$/g, '')
-          .replace(/^here'?s? (?:an? |the )?/i, '')
+          .replace(/^["']|["']$/g, "")
+          .replace(/^here'?s? (?:an? |the )?/i, "")
           .trim();
         if (cleaned.length > 20 && cleaned.length < 500) {
-            suggestions.push({
-              type: "summary",
-              action: "update",
+          suggestions.push({
+            type: "summary",
+            action: "update",
             content: cleaned,
           });
           break; // Only add one summary suggestion
@@ -297,19 +485,23 @@ export function AIAssistantChat({
       /skill[s]? (?:to add|you should add|to include)[:\s]+([^\n]{5,200})/i,
       /(?:consider adding|you might want to add).*?skill[s]?[:\s]+([^\n]{5,200})/i,
     ];
-    
+
     for (const pattern of skillPatterns) {
       const match = content.match(pattern);
       if (match && match[1]) {
         const skillsText = match[1].trim();
         // Extract individual skills (comma-separated, quoted, or listed)
-        const skillMatches = skillsText.match(/(?:["']([^"']+)["']|([A-Za-z][A-Za-z\s&]+?))(?:\s*[,;]|\s*and\s|$)/g);
+        const skillMatches = skillsText.match(
+          /(?:["']([^"']+)["']|([A-Za-z][A-Za-z\s&]+?))(?:\s*[,;]|\s*and\s|$)/g
+        );
         if (skillMatches) {
-          skillMatches.forEach(skillMatch => {
-            const skill = skillMatch
-              .replace(/["',;]|and\s*$/gi, '')
-              .trim();
-            if (skill.length > 2 && skill.length < 50 && !skill.toLowerCase().includes('skill')) {
+          skillMatches.forEach((skillMatch) => {
+            const skill = skillMatch.replace(/["',;]|and\s*$/gi, "").trim();
+            if (
+              skill.length > 2 &&
+              skill.length < 50 &&
+              !skill.toLowerCase().includes("skill")
+            ) {
               suggestions.push({
                 type: "skill",
                 action: "add",
@@ -326,44 +518,52 @@ export function AIAssistantChat({
       /(?:improved?|better|enhanced?|revised?).*?(?:description|bullet point|experience)[\s\S]{0,200}?[:]\s*([^\n]{30,1000})/i,
       /(?:here'?s? (?:an? |the )?improved?)[\s\S]{0,100}?[:]\s*([^\n]{30,1000})/i,
     ];
-    
+
     for (const pattern of experiencePatterns) {
       const match = content.match(pattern);
       if (match && match[1]) {
         const expText = match[1].trim();
         // Split into bullet points if multiple lines
-        const bullets = expText.split(/\n+/).filter(line => line.trim().length > 10);
+        const bullets = expText
+          .split(/\n+/)
+          .filter((line) => line.trim().length > 10);
         if (bullets.length > 0) {
           suggestions.push({
             type: "experience",
             action: "update",
-            content: bullets.join('\n'),
-            });
-            break;
-          }
+            content: bullets.join("\n"),
+          });
+          break;
         }
       }
+    }
 
     // Look for quoted text that might be suggestions
     const quotedTextPattern = /["']([^"']{20,500})["']/g;
     let quotedMatch;
-    while ((quotedMatch = quotedTextPattern.exec(content)) !== null && suggestions.length < 3) {
+    while (
+      (quotedMatch = quotedTextPattern.exec(content)) !== null &&
+      suggestions.length < 3
+    ) {
       const quoted = quotedMatch[1].trim();
       // Skip if it looks like a skill name (too short) or is clearly not a suggestion
-      if (quoted.length > 20 && quoted.length < 500 && 
-          !quoted.toLowerCase().includes('example') &&
-          !quoted.toLowerCase().includes('for instance')) {
+      if (
+        quoted.length > 20 &&
+        quoted.length < 500 &&
+        !quoted.toLowerCase().includes("example") &&
+        !quoted.toLowerCase().includes("for instance")
+      ) {
         // Try to determine type based on context
         const beforeQuote = content.substring(0, quotedMatch.index);
-        if (beforeQuote.toLowerCase().includes('summary')) {
-          if (!suggestions.some(s => s.type === 'summary')) {
+        if (beforeQuote.toLowerCase().includes("summary")) {
+          if (!suggestions.some((s) => s.type === "summary")) {
             suggestions.push({
               type: "summary",
               action: "update",
               content: quoted,
             });
           }
-        } else if (beforeQuote.toLowerCase().includes('skill')) {
+        } else if (beforeQuote.toLowerCase().includes("skill")) {
           suggestions.push({
             type: "skill",
             action: "add",
@@ -373,7 +573,11 @@ export function AIAssistantChat({
       }
     }
 
-    console.log("📝 Text-based parsing found", suggestions.length, "suggestions");
+    console.log(
+      "📝 Text-based parsing found",
+      suggestions.length,
+      "suggestions"
+    );
     return suggestions;
   };
 
@@ -385,7 +589,7 @@ export function AIAssistantChat({
     const messageIndex = Array.from(parsedSuggestions.entries()).find(
       ([_, suggestions]) => suggestions.includes(suggestion)
     )?.[0];
-    
+
     if (messageIndex !== undefined) {
       const alreadyApplied = appliedSuggestions.get(messageIndex) || [];
       const isAlreadyApplied = alreadyApplied.some((applied) => {
@@ -397,12 +601,12 @@ export function AIAssistantChat({
           applied.targetId === suggestion.targetId
         );
       });
-      
+
       if (isAlreadyApplied) {
         console.log("⚠️ Suggestion already applied, skipping duplicate");
         return; // Don't apply the same suggestion twice
       }
-      
+
       // Track which message index has preview active
       setPreviewMessageIndex(messageIndex);
     }
@@ -427,7 +631,7 @@ export function AIAssistantChat({
     const sectionId = getSectionIdFromType(suggestion.type);
     const sectionConfig = baseResume.sectionConfig || {};
     let updatedSectionConfig = { ...sectionConfig };
-    
+
     if (sectionId) {
       const isEnabled = sectionConfig[sectionId]?.enabled ?? true;
       if (!isEnabled) {
@@ -531,35 +735,37 @@ export function AIAssistantChat({
         if (suggestion.action === "update") {
           const experiences = [...(baseResume.content.experience || [])];
           let expIndex = -1;
-          
+
           // First try to match by targetId if provided
           if (suggestion.targetId) {
             expIndex = experiences.findIndex(
               (e: any) => e.id === suggestion.targetId
             );
           }
-          
+
           // If no targetId or not found, try to match by company name or job title
           if (expIndex === -1 && suggestion.targetSection) {
             // Try to extract company or title from targetSection
             const targetLower = suggestion.targetSection.toLowerCase();
             expIndex = experiences.findIndex((e: any) => {
-              const companyMatch = e.company?.toLowerCase().includes(targetLower);
+              const companyMatch = e.company
+                ?.toLowerCase()
+                .includes(targetLower);
               const titleMatch = e.title?.toLowerCase().includes(targetLower);
               return companyMatch || titleMatch;
             });
           }
-          
+
           // If still not found and there's only one experience, use it
           if (expIndex === -1 && experiences.length === 1) {
             expIndex = 0;
           }
-          
+
           // If still not found, try to match by the most recent experience
           if (expIndex === -1 && experiences.length > 0) {
             expIndex = 0; // Use first (most recent) experience
           }
-          
+
           if (expIndex >= 0 && suggestion.content) {
             experiences[expIndex] = {
               ...experiences[expIndex],
@@ -579,14 +785,14 @@ export function AIAssistantChat({
         if (suggestion.action === "update") {
           const educations = [...(baseResume.content.education || [])];
           let eduIndex = -1;
-          
+
           // First try to match by targetId if provided
           if (suggestion.targetId) {
             eduIndex = educations.findIndex(
               (e: any) => e.id === suggestion.targetId
             );
           }
-          
+
           // If no targetId or not found, try to match by school name or degree
           if (eduIndex === -1 && suggestion.targetSection) {
             const targetLower = suggestion.targetSection.toLowerCase();
@@ -596,21 +802,23 @@ export function AIAssistantChat({
               return schoolMatch || degreeMatch;
             });
           }
-          
+
           // If still not found and there's only one education, use it
           if (eduIndex === -1 && educations.length === 1) {
             eduIndex = 0;
           }
-          
+
           // If still not found, use the first education
           if (eduIndex === -1 && educations.length > 0) {
             eduIndex = 0;
           }
-          
+
           if (eduIndex >= 0 && suggestion.content) {
             // Parse the content - it might be a description or field update
             // For now, we'll update the field if it's a short string, otherwise description
-            const contentLines = suggestion.content.split("\n").filter((l: string) => l.trim());
+            const contentLines = suggestion.content
+              .split("\n")
+              .filter((l: string) => l.trim());
             if (contentLines.length === 1 && contentLines[0].length < 100) {
               // Likely a field update
               educations[eduIndex] = {
@@ -652,14 +860,14 @@ export function AIAssistantChat({
         if (suggestion.action === "update") {
           const projects = [...(baseResume.content.projects || [])];
           let projIndex = -1;
-          
+
           // First try to match by targetId if provided
           if (suggestion.targetId) {
             projIndex = projects.findIndex(
               (p: any) => p.id === suggestion.targetId
             );
           }
-          
+
           // If no targetId or not found, try to match by project name
           if (projIndex === -1 && suggestion.targetSection) {
             const targetLower = suggestion.targetSection.toLowerCase();
@@ -667,20 +875,22 @@ export function AIAssistantChat({
               return p.name?.toLowerCase().includes(targetLower);
             });
           }
-          
+
           // If still not found and there's only one project, use it
           if (projIndex === -1 && projects.length === 1) {
             projIndex = 0;
           }
-          
+
           // If still not found, use the first project
           if (projIndex === -1 && projects.length > 0) {
             projIndex = 0;
           }
-          
+
           if (projIndex >= 0 && suggestion.content) {
             // Parse the content - it might be a description update
-            const contentLines = suggestion.content.split("\n").filter((l: string) => l.trim());
+            const contentLines = suggestion.content
+              .split("\n")
+              .filter((l: string) => l.trim());
             projects[projIndex] = {
               ...projects[projIndex],
               description: contentLines.join("\n"),
@@ -693,7 +903,7 @@ export function AIAssistantChat({
         } else if (suggestion.action === "add") {
           // Add new project entry
           const existingProjects = baseResume.content.projects || [];
-          
+
           // Parse the content to extract project information
           const parseProjectContent = (content: string) => {
             const lines = content.split("\n").filter((l) => l.trim());
@@ -701,15 +911,15 @@ export function AIAssistantChat({
             let description = "";
             let technologies: string[] = [];
             let link = "";
-            
+
             // Try to extract name/title from various patterns
             const namePatterns = [
-              /^(?:name|title|project)[:\s]+(.+)$/i,  // "Name: Project Name" or "Title: Project Name"
-              /^(.+?)[:\s]+(?:description|desc)/i,   // "Project Name: Description"
-              /^(.+?)\s*-\s*(.+)$/,                    // "Project Name - Description"
-              /^(.+?)\s*:\s*(.+)$/,                   // "Project Name: Description"
+              /^(?:name|title|project)[:\s]+(.+)$/i, // "Name: Project Name" or "Title: Project Name"
+              /^(.+?)[:\s]+(?:description|desc)/i, // "Project Name: Description"
+              /^(.+?)\s*-\s*(.+)$/, // "Project Name - Description"
+              /^(.+?)\s*:\s*(.+)$/, // "Project Name: Description"
             ];
-            
+
             // First, try to find explicit name/title patterns
             let foundName = false;
             for (const pattern of namePatterns) {
@@ -724,17 +934,20 @@ export function AIAssistantChat({
                 break;
               }
             }
-            
+
             // If no explicit pattern found, try to extract from first line
             if (!foundName && lines.length > 0) {
               const firstLine = lines[0].trim();
-              
+
               // Check for patterns like "Project Name: Description" or "Project Name - Description"
               if (firstLine.includes(":")) {
                 const parts = firstLine.split(":");
                 const potentialName = parts[0].trim();
                 // If the part before colon is short and looks like a title, use it
-                if (potentialName.length < 60 && !potentialName.toLowerCase().includes("description")) {
+                if (
+                  potentialName.length < 60 &&
+                  !potentialName.toLowerCase().includes("description")
+                ) {
                   name = potentialName;
                   description = parts.slice(1).join(":").trim();
                 } else {
@@ -758,11 +971,13 @@ export function AIAssistantChat({
                   description = lines.slice(1).join("\n").trim();
                 } else {
                   // Otherwise, treat it as description
-                  description = firstLine + (lines.length > 1 ? "\n" + lines.slice(1).join("\n") : "");
+                  description =
+                    firstLine +
+                    (lines.length > 1 ? "\n" + lines.slice(1).join("\n") : "");
                 }
               }
             }
-            
+
             // Extract technologies from content (look for common patterns)
             const techPatterns = [
               /technologies?[:\s]+([^.\n]+)/i,
@@ -770,7 +985,7 @@ export function AIAssistantChat({
               /built with[:\s]+([^.\n]+)/i,
               /using[:\s]+([^.\n]+)/i,
             ];
-            
+
             for (const pattern of techPatterns) {
               const match = content.match(pattern);
               if (match && match[1]) {
@@ -781,14 +996,14 @@ export function AIAssistantChat({
                 break;
               }
             }
-            
+
             // Extract link from content (look for URLs)
             const urlPattern = /(https?:\/\/[^\s]+)/i;
             const urlMatch = content.match(urlPattern);
             if (urlMatch) {
               link = urlMatch[1];
             }
-            
+
             // If no name was extracted, try to extract from description
             if (!name || name.length === 0) {
               // Look for a short first sentence or phrase that could be a title
@@ -798,11 +1013,13 @@ export function AIAssistantChat({
                 // If first line is short and ends with punctuation, it might be a title
                 if (firstDescLine.length < 60 && /[.!?]$/.test(firstDescLine)) {
                   name = firstDescLine.replace(/[.!?]$/, "").trim();
-                  description = descLines.slice(1).join("\n").trim() || firstDescLine;
+                  description =
+                    descLines.slice(1).join("\n").trim() || firstDescLine;
                 } else if (firstDescLine.length < 60) {
                   // If it's short without punctuation, treat as name
                   name = firstDescLine;
-                  description = descLines.slice(1).join("\n").trim() || firstDescLine;
+                  description =
+                    descLines.slice(1).join("\n").trim() || firstDescLine;
                 } else {
                   // Extract first few words as potential name
                   const words = firstDescLine.split(/\s+/);
@@ -819,23 +1036,26 @@ export function AIAssistantChat({
                 name = "New Project";
               }
             }
-            
+
             // If no description, use the content (excluding the name if it was extracted)
             if (!description || description.length === 0) {
               // Remove the name from content if it appears at the start
               let descContent = content;
               if (name && name !== "New Project") {
-                const nameRegex = new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s:,-]*`, "i");
+                const nameRegex = new RegExp(
+                  `^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[\\s:,-]*`,
+                  "i"
+                );
                 descContent = descContent.replace(nameRegex, "").trim();
               }
               description = descContent || content;
             }
-            
+
             return { name, description, technologies, link };
           };
-          
+
           const parsed = parseProjectContent(suggestion.content);
-          
+
           const newProject = {
             id: `proj_${Date.now()}`,
             name: parsed.name,
@@ -913,7 +1133,7 @@ export function AIAssistantChat({
     };
 
     onResumeUpdate(updates);
-    
+
     // Remove suggestions from the message that was applied
     if (previewMessageIndex !== null) {
       setParsedSuggestions((prev) => {
@@ -922,7 +1142,7 @@ export function AIAssistantChat({
         return newMap;
       });
     }
-    
+
     setPreviewResume(null);
     setPreviewMessageIndex(null); // Clear preview message index
     setAppliedSuggestions(new Map());
@@ -997,8 +1217,8 @@ export function AIAssistantChat({
       try {
         setLoadingJobs(true);
         console.log("📋 Fetching job opportunities...");
-        const response = await api.getJobOpportunities({ 
-          sort: "-created_at"
+        const response = await api.getJobOpportunities({
+          sort: "-created_at",
         });
         console.log("📋 Job opportunities response:", response);
         if (response.ok && response.data) {
@@ -1025,7 +1245,7 @@ export function AIAssistantChat({
 
   // Auto-select job when initialJobId is provided and auto-analyze
   const hasAutoAnalyzedRef = useRef(false);
-  
+
   // Separate effect to handle job selection
   useEffect(() => {
     if (!isOpen) {
@@ -1035,7 +1255,7 @@ export function AIAssistantChat({
 
     // If we have an initialJobId and jobs are loaded, select it
     if (initialJobId && isOpen && jobOpportunities.length > 0 && !loadingJobs) {
-      const jobExists = jobOpportunities.some(job => job.id === initialJobId);
+      const jobExists = jobOpportunities.some((job) => job.id === initialJobId);
       if (jobExists && selectedJobId !== initialJobId) {
         console.log("📌 Auto-selecting job:", initialJobId);
         setSelectedJobId(initialJobId);
@@ -1047,7 +1267,7 @@ export function AIAssistantChat({
 
   // Separate effect to trigger auto-analysis when job is selected
   useEffect(() => {
-      console.log("🔄 Auto-analysis effect running with:", {
+    console.log("🔄 Auto-analysis effect running with:", {
       autoAnalyzeJob,
       isOpen,
       resumeId,
@@ -1084,28 +1304,43 @@ export function AIAssistantChat({
       noInitialMessage: !initialMessage, // Don't auto-analyze if initialMessage is present
     };
 
-    const allConditionsMet = Object.values(conditions).every(v => v === true);
+    const allConditionsMet = Object.values(conditions).every((v) => v === true);
 
     console.log("🔍 Condition check:", conditions);
     console.log("✅ All conditions met:", allConditionsMet);
 
     if (allConditionsMet) {
-      const selectedJob = jobOpportunities.find(job => job.id === selectedJobId);
+      const selectedJob = jobOpportunities.find(
+        (job) => job.id === selectedJobId
+      );
       if (selectedJob) {
-        console.log("🎯 All conditions met, triggering auto-analysis for:", selectedJob.title);
+        console.log(
+          "🎯 All conditions met, triggering auto-analysis for:",
+          selectedJob.title
+        );
         hasAutoAnalyzedRef.current = true;
-        
+
         // Trigger analysis immediately
         const triggerAnalysis = async () => {
           console.log("🚀 Executing auto-analysis...");
           const analysisPrompt = `Analyze this job posting and provide specific recommendations to tailor my resume:
 
-Job Title: ${selectedJob.title || 'N/A'}
-Company: ${selectedJob.company || 'N/A'}
-${selectedJob.location ? `Location: ${selectedJob.location}` : ''}
-${selectedJob.industry ? `Industry: ${selectedJob.industry}` : ''}
-${selectedJob.jobType ? `Job Type: ${selectedJob.jobType}` : ''}
-${selectedJob.description ? `\nJob Description:\n${selectedJob.description}` : ''}
+Job Title: ${selectedJob.title || "N/A"}
+Company: ${selectedJob.company || "N/A"}
+${selectedJob.location ? `Location: ${selectedJob.location}` : ""}
+${selectedJob.industry ? `Industry: ${selectedJob.industry}` : ""}
+${selectedJob.jobType ? `Job Type: ${selectedJob.jobType}` : ""}
+${
+  selectedJob.description
+    ? `\nJob Description:\n${selectedJob.description}`
+    : ""
+}
+
+Guidelines:
+- Respond ONLY with clear, human-readable guidance (paragraphs and bullet points).
+- Do NOT include JSON, code blocks, or any backend/API instructions.
+- Do NOT mention internal system behavior, schemas, or implementation details.
+- Focus on specificity, clarity, actionability, and ATS-friendly phrasing.
 
 Please:
 1. Identify the key skills and qualifications required
@@ -1115,27 +1350,25 @@ Please:
 
 Be specific and actionable with your recommendations.`;
 
-          // Add user message
-          const userMessage: Message = {
-            role: "user",
-            content: analysisPrompt,
-            timestamp: new Date(),
-          };
-          
           // Add initial loading message to show user what's happening
+          // Don't show the prompt - it's internal
           const loadingMessage: Message = {
             role: "assistant",
-            content: "🤖 Analyzing job posting and generating tailored resume recommendations... This may take a moment.",
+            content:
+              "🤖 Analyzing job posting and generating tailored resume recommendations... This may take a moment.",
             timestamp: new Date(),
           };
-          
-          // Set initial messages with user prompt and loading indicator
-          setMessages([userMessage, loadingMessage]);
+
+          // Set initial messages with only loading indicator (no user prompt)
+          setMessages([loadingMessage]);
           setIsLoading(true);
 
           // Send to AI
           try {
-            console.log("📤 Sending prompt to backend for job:", selectedJob.title);
+            console.log(
+              "📤 Sending prompt to backend for job:",
+              selectedJob.title
+            );
             console.log("📤 Resume ID:", resumeId);
             console.log("📤 Job ID:", selectedJobId);
             console.log("📤 Prompt length:", analysisPrompt.length);
@@ -1152,29 +1385,49 @@ Be specific and actionable with your recommendations.`;
             if (response.ok && response.data) {
               const assistantMessage: Message = {
                 role: "assistant",
-                content: response.data.message || response.data.content || "I've analyzed the job posting. Here are my recommendations to tailor your resume.",
+                content:
+                  response.data.message ||
+                  response.data.content ||
+                  "I've analyzed the job posting. Here are my recommendations to tailor your resume.",
                 timestamp: new Date(),
               };
-              
-              console.log("💬 Assistant message content length:", assistantMessage.content.length);
-              console.log("💬 Assistant message preview:", assistantMessage.content.substring(0, 100));
-              
+
+              console.log(
+                "💬 Assistant message content length:",
+                assistantMessage.content.length
+              );
+              console.log(
+                "💬 Assistant message preview:",
+                assistantMessage.content.substring(0, 100)
+              );
+
               // Replace the loading message with the actual response
-              // We know the structure: [userMessage, loadingMessage]
-              // So we replace index 1 with the actual response
-              const updatedMessages = [userMessage, assistantMessage];
+              // We know the structure: [loadingMessage]
+              // So we replace index 0 with the actual response
+              const updatedMessages = [assistantMessage];
               setMessages(updatedMessages);
-              console.log("📝 Set messages array with", updatedMessages.length, "messages");
-              console.log("📝 Messages:", updatedMessages.map(m => ({ role: m.role, contentLength: m.content.length })));
-              
+              console.log(
+                "📝 Set messages array with",
+                updatedMessages.length,
+                "messages"
+              );
+              console.log(
+                "📝 Messages:",
+                updatedMessages.map((m) => ({
+                  role: m.role,
+                  contentLength: m.content.length,
+                }))
+              );
+
               // Force a re-render by updating a state that triggers useEffect
               // The scroll effect will trigger when messages.length changes or when we force it
               setTimeout(() => {
                 messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
               }, 100);
-              
+
               // Parse suggestions - use index 1 since assistant message is at index 1
-              const messageContent = response.data.message || response.data.content || "";
+              const messageContent =
+                response.data.message || response.data.content || "";
               const suggestions = parseSuggestions(messageContent, 1);
               console.log("💡 Parsed suggestions:", suggestions.length);
               if (suggestions.length > 0) {
@@ -1182,14 +1435,20 @@ Be specific and actionable with your recommendations.`;
               }
               console.log("✅ Auto-analysis completed successfully");
             } else {
-              console.error("❌ Auto-analysis failed - response not ok:", response);
+              console.error(
+                "❌ Auto-analysis failed - response not ok:",
+                response
+              );
               const errorMessage: Message = {
                 role: "assistant",
-                content: `I encountered an issue analyzing the job posting. ${response.error?.message || "Please try again or ask me a specific question about the job."}`,
+                content: `I encountered an issue analyzing the job posting. ${
+                  response.error?.message ||
+                  "Please try again or ask me a specific question about the job."
+                }`,
                 timestamp: new Date(),
               };
-              // Replace loading message with error message
-              setMessages([userMessage, errorMessage]);
+              // Replace loading message with error message (no user message shown)
+              setMessages([errorMessage]);
               setTimeout(() => {
                 messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
               }, 100);
@@ -1199,11 +1458,15 @@ Be specific and actionable with your recommendations.`;
             console.error("❌ Auto-analysis error:", error);
             const errorMessage: Message = {
               role: "assistant",
-              content: `I apologize, but I'm having trouble analyzing the job posting right now. ${error.message ? `Error: ${error.message}` : "Please try again or ask me a specific question."}`,
+              content: `I apologize, but I'm having trouble analyzing the job posting right now. ${
+                error.message
+                  ? `Error: ${error.message}`
+                  : "Please try again or ask me a specific question."
+              }`,
               timestamp: new Date(),
             };
-            // Replace loading message with error message
-            setMessages([userMessage, errorMessage]);
+            // Replace loading message with error message (no user message shown)
+            setMessages([errorMessage]);
             setTimeout(() => {
               messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
             }, 100);
@@ -1217,7 +1480,10 @@ Be specific and actionable with your recommendations.`;
         const timer = setTimeout(triggerAnalysis, 300);
         return () => clearTimeout(timer);
       } else {
-        console.error("❌ Selected job not found in jobOpportunities:", selectedJobId);
+        console.error(
+          "❌ Selected job not found in jobOpportunities:",
+          selectedJobId
+        );
       }
     } else {
       // Log which conditions are failing
@@ -1228,7 +1494,18 @@ Be specific and actionable with your recommendations.`;
         console.log("⏸️ Auto-analysis blocked by:", failingConditions);
       }
     }
-  }, [autoAnalyzeJob, isOpen, resumeId, selectedJobId, initialJobId, jobOpportunities, isLoading, messages.length, loadingJobs, initialMessage]);
+  }, [
+    autoAnalyzeJob,
+    isOpen,
+    resumeId,
+    selectedJobId,
+    initialJobId,
+    jobOpportunities,
+    isLoading,
+    messages.length,
+    loadingJobs,
+    initialMessage,
+  ]);
 
   // Auto-analyze resume when conditions are met
   useEffect(() => {
@@ -1260,7 +1537,7 @@ Be specific and actionable with your recommendations.`;
       noInitialMessage: !initialMessage, // Don't auto-analyze if initialMessage is present
     };
 
-    const allConditionsMet = Object.values(conditions).every(v => v === true);
+    const allConditionsMet = Object.values(conditions).every((v) => v === true);
 
     console.log("🔍 Resume analysis condition check:", conditions);
     console.log("✅ All conditions met:", allConditionsMet);
@@ -1273,6 +1550,12 @@ Be specific and actionable with your recommendations.`;
       const triggerAnalysis = async () => {
         console.log("🚀 Executing resume auto-analysis...");
         const analysisPrompt = `Analyze this resume and provide a comprehensive assessment of its strengths and weaknesses:
+
+Guidelines:
+- Respond ONLY with clear, human-readable guidance (paragraphs and bullet points).
+- Do NOT include JSON, code blocks, or any backend/API instructions.
+- Do NOT mention internal system behavior, schemas, or implementation details.
+- Focus on specificity, clarity, actionability, and ATS-friendly phrasing.
 
 Please analyze:
 1. **Content Quality:**
@@ -1312,22 +1595,17 @@ Please provide:
 
 Be specific and constructive in your feedback.`;
 
-        // Add user message
-        const userMessage: Message = {
-          role: "user",
-          content: analysisPrompt,
-          timestamp: new Date(),
-        };
-
         // Add initial loading message to show user what's happening
+        // Don't show the prompt - it's internal
         const loadingMessage: Message = {
           role: "assistant",
-          content: "🤖 Analyzing your resume and generating comprehensive feedback... This may take a moment.",
+          content:
+            "🤖 Analyzing your resume and generating comprehensive feedback... This may take a moment.",
           timestamp: new Date(),
         };
 
-        // Set initial messages with user prompt and loading indicator
-        setMessages([userMessage, loadingMessage]);
+        // Set initial messages with only loading indicator (no user prompt)
+        setMessages([loadingMessage]);
         setIsLoading(true);
 
         // Send to AI
@@ -1346,16 +1624,28 @@ Be specific and constructive in your feedback.`;
           if (response.ok && response.data) {
             const assistantMessage: Message = {
               role: "assistant",
-              content: response.data.message || response.data.content || "I've analyzed your resume. Here's my comprehensive feedback.",
+              content:
+                response.data.message ||
+                response.data.content ||
+                "I've analyzed your resume. Here's my comprehensive feedback.",
               timestamp: new Date(),
             };
 
-            console.log("💬 Assistant message content length:", assistantMessage.content.length);
+            console.log(
+              "💬 Assistant message content length:",
+              assistantMessage.content.length
+            );
 
             // Replace the loading message with the actual response
-            const updatedMessages = [userMessage, assistantMessage];
+            // We know the structure: [loadingMessage]
+            // So we replace index 0 with the actual response
+            const updatedMessages = [assistantMessage];
             setMessages(updatedMessages);
-            console.log("📝 Set messages array with", updatedMessages.length, "messages");
+            console.log(
+              "📝 Set messages array with",
+              updatedMessages.length,
+              "messages"
+            );
 
             // Scroll to bottom
             setTimeout(() => {
@@ -1363,7 +1653,8 @@ Be specific and constructive in your feedback.`;
             }, 100);
 
             // Parse suggestions
-            const messageContent = response.data.message || response.data.content || "";
+            const messageContent =
+              response.data.message || response.data.content || "";
             const suggestions = parseSuggestions(messageContent, 1);
             console.log("💡 Parsed suggestions:", suggestions.length);
             if (suggestions.length > 0) {
@@ -1377,14 +1668,20 @@ Be specific and constructive in your feedback.`;
 
             console.log("✅ Resume auto-analysis completed successfully");
           } else {
-            console.error("❌ Resume auto-analysis failed - response not ok:", response);
+            console.error(
+              "❌ Resume auto-analysis failed - response not ok:",
+              response
+            );
             const errorMessage: Message = {
               role: "assistant",
-              content: `I encountered an issue analyzing your resume. ${response.error?.message || "Please try again or ask me a specific question about your resume."}`,
+              content: `I encountered an issue analyzing your resume. ${
+                response.error?.message ||
+                "Please try again or ask me a specific question about your resume."
+              }`,
               timestamp: new Date(),
             };
-            // Replace loading message with error message
-            setMessages([userMessage, errorMessage]);
+            // Replace loading message with error message (no user message shown)
+            setMessages([errorMessage]);
             setTimeout(() => {
               messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
             }, 100);
@@ -1394,11 +1691,15 @@ Be specific and constructive in your feedback.`;
           console.error("❌ Resume auto-analysis error:", error);
           const errorMessage: Message = {
             role: "assistant",
-            content: `I apologize, but I'm having trouble analyzing your resume right now. ${error.message ? `Error: ${error.message}` : "Please try again or ask me a specific question."}`,
+            content: `I apologize, but I'm having trouble analyzing your resume right now. ${
+              error.message
+                ? `Error: ${error.message}`
+                : "Please try again or ask me a specific question."
+            }`,
             timestamp: new Date(),
           };
-          // Replace loading message with error message
-          setMessages([userMessage, errorMessage]);
+          // Replace loading message with error message (no user message shown)
+          setMessages([errorMessage]);
           setTimeout(() => {
             messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
           }, 100);
@@ -1420,7 +1721,15 @@ Be specific and constructive in your feedback.`;
         console.log("⏸️ Resume auto-analysis blocked by:", failingConditions);
       }
     }
-  }, [autoAnalyzeResume, isOpen, resumeId, isLoading, messages.length, initialMessage, onAnalysisComplete]);
+  }, [
+    autoAnalyzeResume,
+    isOpen,
+    resumeId,
+    isLoading,
+    messages.length,
+    initialMessage,
+    onAnalysisComplete,
+  ]);
 
   // Generate context-aware suggested prompts
   const generateSuggestedPrompts = useCallback(async () => {
@@ -1528,28 +1837,58 @@ Generate 4 relevant prompts:`;
 
   // Generate context-aware suggested prompts when panel opens
   useEffect(() => {
-    if (isOpen && suggestedPrompts.length === 0 && resumeId && resumeId !== "new") {
+    if (
+      isOpen &&
+      suggestedPrompts.length === 0 &&
+      resumeId &&
+      resumeId !== "new"
+    ) {
       const generateContextualPrompts = async () => {
         try {
           setIsGeneratingPrompts(true);
 
           // Build context from resume, job, and initial message
           let context = "User is working on their resume.";
-          
+
           if (resume) {
-            const hasSummary = resume.content?.summary && resume.content.summary.trim().length > 0;
-            const hasExperience = resume.content?.experience && resume.content.experience.length > 0;
-            const hasSkills = resume.content?.skills && resume.content.skills.length > 0;
-            const hasEducation = resume.content?.education && resume.content.education.length > 0;
-            const hasProjects = resume.content?.projects && resume.content.projects.length > 0;
-            
-            context += `\nResume status: ${hasSummary ? 'Has summary' : 'Needs summary'}, ${hasExperience ? `${resume.content.experience.length} experience entries` : 'No experience'}, ${hasSkills ? `${resume.content.skills.length} skills` : 'No skills'}, ${hasEducation ? `${resume.content.education.length} education entries` : 'No education'}, ${hasProjects ? `${resume.content.projects.length} projects` : 'No projects'}.`;
+            const hasSummary =
+              resume.content?.summary &&
+              resume.content.summary.trim().length > 0;
+            const hasExperience =
+              resume.content?.experience &&
+              resume.content.experience.length > 0;
+            const hasSkills =
+              resume.content?.skills && resume.content.skills.length > 0;
+            const hasEducation =
+              resume.content?.education && resume.content.education.length > 0;
+            const hasProjects =
+              resume.content?.projects && resume.content.projects.length > 0;
+
+            context += `\nResume status: ${
+              hasSummary ? "Has summary" : "Needs summary"
+            }, ${
+              hasExperience
+                ? `${resume.content.experience.length} experience entries`
+                : "No experience"
+            }, ${
+              hasSkills ? `${resume.content.skills.length} skills` : "No skills"
+            }, ${
+              hasEducation
+                ? `${resume.content.education.length} education entries`
+                : "No education"
+            }, ${
+              hasProjects
+                ? `${resume.content.projects.length} projects`
+                : "No projects"
+            }.`;
           }
 
           // Use selectedJobId or fallback to initialJobId
           const jobIdToUse = selectedJobId || initialJobId;
           if (jobIdToUse) {
-            const selectedJob = jobOpportunities.find(job => job.id === jobIdToUse);
+            const selectedJob = jobOpportunities.find(
+              (job) => job.id === jobIdToUse
+            );
             if (selectedJob) {
               context += `\nUser is tailoring resume for: ${selectedJob.title} at ${selectedJob.company}.`;
             } else if (jobIdToUse === initialJobId) {
@@ -1644,7 +1983,16 @@ Generate 4 relevant, context-aware prompts:`;
       // Fallback to default prompts if no resume ID
       setSuggestedPrompts(SUGGESTED_PROMPTS.slice(0, 4));
     }
-  }, [isOpen, resumeId, resume, selectedJobId, initialJobId, jobOpportunities, initialMessage, suggestedPrompts.length]);
+  }, [
+    isOpen,
+    resumeId,
+    resume,
+    selectedJobId,
+    initialJobId,
+    jobOpportunities,
+    initialMessage,
+    suggestedPrompts.length,
+  ]);
 
   // Generate prompts only after a user message is sent (not on every message change)
   useEffect(() => {
@@ -1781,45 +2129,88 @@ Generate 4 relevant, context-aware prompts:`;
           // Check if user explicitly asked to apply/make changes
           // Only auto-apply for explicit confirmation phrases, not questions or general action verbs
           const userInputLower = userInput.toLowerCase().trim();
-          
+
           // Explicit confirmation phrases that indicate user wants to apply changes
           const explicitConfirmations = [
-            "make the changes", "apply the changes", "make changes", "apply changes",
-            "do it", "make it", "apply it", "go ahead", "yes, apply", "yes apply",
-            "apply them", "make them", "do them", "please apply", "please make",
-            "go for it", "proceed", "execute", "implement", "apply", "make",
-            "yes", "sure", "okay", "ok", "do it", "let's do it", "let's apply",
-            "apply these", "make these changes", "apply these changes"
+            "make the changes",
+            "apply the changes",
+            "make changes",
+            "apply changes",
+            "do it",
+            "make it",
+            "apply it",
+            "go ahead",
+            "yes, apply",
+            "yes apply",
+            "apply them",
+            "make them",
+            "do them",
+            "please apply",
+            "please make",
+            "go for it",
+            "proceed",
+            "execute",
+            "implement",
+            "apply",
+            "make",
+            "yes",
+            "sure",
+            "okay",
+            "ok",
+            "do it",
+            "let's do it",
+            "let's apply",
+            "apply these",
+            "make these changes",
+            "apply these changes",
           ];
-          
+
           // Question words that indicate the user is asking, not confirming
           const questionIndicators = [
-            "what", "how", "which", "when", "where", "why", "should", "could", "would",
-            "can you", "will you", "what should", "how can", "how do", "what can"
+            "what",
+            "how",
+            "which",
+            "when",
+            "where",
+            "why",
+            "should",
+            "could",
+            "would",
+            "can you",
+            "will you",
+            "what should",
+            "how can",
+            "how do",
+            "what can",
           ];
-          
+
           // Check if input is a question (starts with question word or contains question mark)
-          const isQuestion = questionIndicators.some(indicator => 
-            userInputLower.startsWith(indicator) || userInputLower.includes("?")
-          ) || userInputLower.endsWith("?");
-          
+          const isQuestion =
+            questionIndicators.some(
+              (indicator) =>
+                userInputLower.startsWith(indicator) ||
+                userInputLower.includes("?")
+            ) || userInputLower.endsWith("?");
+
           // Only auto-apply if:
           // 1. There are suggestions
           // 2. User input matches an explicit confirmation phrase
           // 3. It's NOT a question
-          const shouldAutoApply = suggestions.length > 0 && 
-            !isQuestion && 
-            explicitConfirmations.some(phrase => 
-              userInputLower === phrase || 
-              userInputLower.startsWith(phrase + " ") ||
-              userInputLower.endsWith(" " + phrase) ||
-              userInputLower.includes(" " + phrase + " ")
-          );
-          
+          const shouldAutoApply =
+            suggestions.length > 0 &&
+            !isQuestion &&
+            explicitConfirmations.some(
+              (phrase) =>
+                userInputLower === phrase ||
+                userInputLower.startsWith(phrase + " ") ||
+                userInputLower.endsWith(" " + phrase) ||
+                userInputLower.includes(" " + phrase + " ")
+            );
+
           console.log("🔍 Auto-apply check:", {
             userInput: userInput,
             suggestionsCount: suggestions.length,
-            shouldAutoApply: shouldAutoApply
+            shouldAutoApply: shouldAutoApply,
           });
 
           // Remove JSON code blocks from the displayed message
@@ -1862,26 +2253,35 @@ Generate 4 relevant, context-aware prompts:`;
                     "💾 Stored suggestions map:",
                     Array.from(newMap.entries())
                   );
-                  
+
                   // Auto-apply suggestions if user explicitly asked to make changes
                   if (shouldAutoApply) {
-                    console.log("🚀 Auto-applying suggestions as requested by user", {
-                      suggestionsCount: suggestions.length,
-                      suggestions: suggestions
-                    });
-                    
+                    console.log(
+                      "🚀 Auto-applying suggestions as requested by user",
+                      {
+                        suggestionsCount: suggestions.length,
+                        suggestions: suggestions,
+                      }
+                    );
+
                     // Get the latest resume state
                     const latestResume = resume;
                     if (!latestResume) {
-                      console.error("❌ Cannot auto-apply: no resume available");
+                      console.error(
+                        "❌ Cannot auto-apply: no resume available"
+                      );
                       return newMap;
                     }
-                    
+
                     // Apply all suggestions to create a combined preview
-                    let currentResume = JSON.parse(JSON.stringify(latestResume)); // Deep copy
-                    
+                    let currentResume = JSON.parse(
+                      JSON.stringify(latestResume)
+                    ); // Deep copy
+
                     // Map suggestion types to section IDs
-                    const getSectionIdFromType = (type: string): string | null => {
+                    const getSectionIdFromType = (
+                      type: string
+                    ): string | null => {
                       const typeToSectionMap: Record<string, string> = {
                         summary: "summary",
                         skill: "skills",
@@ -1892,21 +2292,22 @@ Generate 4 relevant, context-aware prompts:`;
                       };
                       return typeToSectionMap[type] || null;
                     };
-                    
+
                     // Track which sections need to be enabled
                     const sectionsToEnable = new Set<string>();
-                    
+
                     suggestions.forEach((suggestion, index) => {
                       const sectionId = getSectionIdFromType(suggestion.type);
                       if (sectionId) {
                         const sectionConfig = currentResume.sectionConfig || {};
-                        const isEnabled = sectionConfig[sectionId]?.enabled ?? true;
+                        const isEnabled =
+                          sectionConfig[sectionId]?.enabled ?? true;
                         if (!isEnabled) {
                           sectionsToEnable.add(sectionId);
                         }
                       }
                     });
-                    
+
                     // Enable all sections that need to be enabled
                     if (sectionsToEnable.size > 0) {
                       const sectionConfig = currentResume.sectionConfig || {};
@@ -1924,10 +2325,10 @@ Generate 4 relevant, context-aware prompts:`;
                         sectionConfig: updatedSectionConfig,
                       };
                     }
-                    
+
                     suggestions.forEach((suggestion, index) => {
                       const baseResume = currentResume;
-                      
+
                       switch (suggestion.type) {
                         case "summary":
                           if (suggestion.action === "update") {
@@ -1942,10 +2343,12 @@ Generate 4 relevant, context-aware prompts:`;
                           break;
                         case "skill":
                           if (suggestion.action === "add") {
-                            const existingSkills = baseResume.content.skills || [];
+                            const existingSkills =
+                              baseResume.content.skills || [];
                             const skillExists = existingSkills.some(
                               (s: any) =>
-                                s.name?.toLowerCase() === suggestion.content.toLowerCase()
+                                s.name?.toLowerCase() ===
+                                suggestion.content.toLowerCase()
                             );
                             if (!skillExists) {
                               const newSkill = {
@@ -1966,36 +2369,43 @@ Generate 4 relevant, context-aware prompts:`;
                           break;
                         case "experience":
                           if (suggestion.action === "update") {
-                            const experiences = [...(baseResume.content.experience || [])];
+                            const experiences = [
+                              ...(baseResume.content.experience || []),
+                            ];
                             let expIndex = -1;
-                            
+
                             // First try to match by targetId if provided
                             if (suggestion.targetId) {
                               expIndex = experiences.findIndex(
                                 (e: any) => e.id === suggestion.targetId
                               );
                             }
-                            
+
                             // If no targetId or not found, try to match by company name or job title
                             if (expIndex === -1 && suggestion.targetSection) {
-                              const targetLower = suggestion.targetSection.toLowerCase();
+                              const targetLower =
+                                suggestion.targetSection.toLowerCase();
                               expIndex = experiences.findIndex((e: any) => {
-                                const companyMatch = e.company?.toLowerCase().includes(targetLower);
-                                const titleMatch = e.title?.toLowerCase().includes(targetLower);
+                                const companyMatch = e.company
+                                  ?.toLowerCase()
+                                  .includes(targetLower);
+                                const titleMatch = e.title
+                                  ?.toLowerCase()
+                                  .includes(targetLower);
                                 return companyMatch || titleMatch;
                               });
                             }
-                            
+
                             // If still not found and there's only one experience, use it
                             if (expIndex === -1 && experiences.length === 1) {
                               expIndex = 0;
                             }
-                            
+
                             // If still not found, use the most recent experience
                             if (expIndex === -1 && experiences.length > 0) {
                               expIndex = 0;
                             }
-                            
+
                             if (expIndex >= 0 && suggestion.content) {
                               experiences[expIndex] = {
                                 ...experiences[expIndex],
@@ -2015,39 +2425,51 @@ Generate 4 relevant, context-aware prompts:`;
                           break;
                         case "education":
                           if (suggestion.action === "update") {
-                            const educations = [...(baseResume.content.education || [])];
+                            const educations = [
+                              ...(baseResume.content.education || []),
+                            ];
                             let eduIndex = -1;
-                            
+
                             // First try to match by targetId if provided
                             if (suggestion.targetId) {
                               eduIndex = educations.findIndex(
                                 (e: any) => e.id === suggestion.targetId
                               );
                             }
-                            
+
                             // If no targetId or not found, try to match by school name or degree
                             if (eduIndex === -1 && suggestion.targetSection) {
-                              const targetLower = suggestion.targetSection.toLowerCase();
+                              const targetLower =
+                                suggestion.targetSection.toLowerCase();
                               eduIndex = educations.findIndex((e: any) => {
-                                const schoolMatch = e.school?.toLowerCase().includes(targetLower);
-                                const degreeMatch = e.degree?.toLowerCase().includes(targetLower);
+                                const schoolMatch = e.school
+                                  ?.toLowerCase()
+                                  .includes(targetLower);
+                                const degreeMatch = e.degree
+                                  ?.toLowerCase()
+                                  .includes(targetLower);
                                 return schoolMatch || degreeMatch;
                               });
                             }
-                            
+
                             // If still not found and there's only one education, use it
                             if (eduIndex === -1 && educations.length === 1) {
                               eduIndex = 0;
                             }
-                            
+
                             // If still not found, use the first education
                             if (eduIndex === -1 && educations.length > 0) {
                               eduIndex = 0;
                             }
-                            
+
                             if (eduIndex >= 0 && suggestion.content) {
-                              const contentLines = suggestion.content.split("\n").filter((l: string) => l.trim());
-                              if (contentLines.length === 1 && contentLines[0].length < 100) {
+                              const contentLines = suggestion.content
+                                .split("\n")
+                                .filter((l: string) => l.trim());
+                              if (
+                                contentLines.length === 1 &&
+                                contentLines[0].length < 100
+                              ) {
                                 educations[eduIndex] = {
                                   ...educations[eduIndex],
                                   field: contentLines[0],
@@ -2067,10 +2489,13 @@ Generate 4 relevant, context-aware prompts:`;
                               };
                             }
                           } else if (suggestion.action === "add") {
-                            const existingEducations = baseResume.content.education || [];
+                            const existingEducations =
+                              baseResume.content.education || [];
                             const newEducation = {
                               id: `edu_${Date.now()}_${index}`,
-                              school: suggestion.content.split(" - ")[0] || suggestion.content,
+                              school:
+                                suggestion.content.split(" - ")[0] ||
+                                suggestion.content,
                               degree: suggestion.content.split(" - ")[1] || "",
                               field: "",
                               gpa: undefined,
@@ -2081,43 +2506,53 @@ Generate 4 relevant, context-aware prompts:`;
                               ...baseResume,
                               content: {
                                 ...baseResume.content,
-                                education: [...existingEducations, newEducation],
+                                education: [
+                                  ...existingEducations,
+                                  newEducation,
+                                ],
                               },
                             };
                           }
                           break;
                         case "project":
                           if (suggestion.action === "update") {
-                            const projects = [...(baseResume.content.projects || [])];
+                            const projects = [
+                              ...(baseResume.content.projects || []),
+                            ];
                             let projIndex = -1;
-                            
+
                             // First try to match by targetId if provided
                             if (suggestion.targetId) {
                               projIndex = projects.findIndex(
                                 (p: any) => p.id === suggestion.targetId
                               );
                             }
-                            
+
                             // If no targetId or not found, try to match by project name
                             if (projIndex === -1 && suggestion.targetSection) {
-                              const targetLower = suggestion.targetSection.toLowerCase();
+                              const targetLower =
+                                suggestion.targetSection.toLowerCase();
                               projIndex = projects.findIndex((p: any) => {
-                                return p.name?.toLowerCase().includes(targetLower);
+                                return p.name
+                                  ?.toLowerCase()
+                                  .includes(targetLower);
                               });
                             }
-                            
+
                             // If still not found and there's only one project, use it
                             if (projIndex === -1 && projects.length === 1) {
                               projIndex = 0;
                             }
-                            
+
                             // If still not found, use the first project
                             if (projIndex === -1 && projects.length > 0) {
                               projIndex = 0;
                             }
-                            
+
                             if (projIndex >= 0 && suggestion.content) {
-                              const contentLines = suggestion.content.split("\n").filter((l: string) => l.trim());
+                              const contentLines = suggestion.content
+                                .split("\n")
+                                .filter((l: string) => l.trim());
                               projects[projIndex] = {
                                 ...projects[projIndex],
                                 description: contentLines.join("\n"),
@@ -2131,24 +2566,27 @@ Generate 4 relevant, context-aware prompts:`;
                               };
                             }
                           } else if (suggestion.action === "add") {
-                            const existingProjects = baseResume.content.projects || [];
-                            
+                            const existingProjects =
+                              baseResume.content.projects || [];
+
                             // Parse the content to extract project information
                             const parseProjectContent = (content: string) => {
-                              const lines = content.split("\n").filter((l) => l.trim());
+                              const lines = content
+                                .split("\n")
+                                .filter((l) => l.trim());
                               let name = "";
                               let description = "";
                               let technologies: string[] = [];
                               let link = "";
-                              
+
                               // Try to extract name/title from various patterns
                               const namePatterns = [
-                                /^(?:name|title|project)[:\s]+(.+)$/i,  // "Name: Project Name" or "Title: Project Name"
-                                /^(.+?)[:\s]+(?:description|desc)/i,   // "Project Name: Description"
-                                /^(.+?)\s*-\s*(.+)$/,                    // "Project Name - Description"
-                                /^(.+?)\s*:\s*(.+)$/,                   // "Project Name: Description"
+                                /^(?:name|title|project)[:\s]+(.+)$/i, // "Name: Project Name" or "Title: Project Name"
+                                /^(.+?)[:\s]+(?:description|desc)/i, // "Project Name: Description"
+                                /^(.+?)\s*-\s*(.+)$/, // "Project Name - Description"
+                                /^(.+?)\s*:\s*(.+)$/, // "Project Name: Description"
                               ];
-                              
+
                               // First, try to find explicit name/title patterns
                               let foundName = false;
                               for (const pattern of namePatterns) {
@@ -2163,19 +2601,27 @@ Generate 4 relevant, context-aware prompts:`;
                                   break;
                                 }
                               }
-                              
+
                               // If no explicit pattern found, try to extract from first line
                               if (!foundName && lines.length > 0) {
                                 const firstLine = lines[0].trim();
-                                
+
                                 // Check for patterns like "Project Name: Description" or "Project Name - Description"
                                 if (firstLine.includes(":")) {
                                   const parts = firstLine.split(":");
                                   const potentialName = parts[0].trim();
                                   // If the part before colon is short and looks like a title, use it
-                                  if (potentialName.length < 60 && !potentialName.toLowerCase().includes("description")) {
+                                  if (
+                                    potentialName.length < 60 &&
+                                    !potentialName
+                                      .toLowerCase()
+                                      .includes("description")
+                                  ) {
                                     name = potentialName;
-                                    description = parts.slice(1).join(":").trim();
+                                    description = parts
+                                      .slice(1)
+                                      .join(":")
+                                      .trim();
                                   } else {
                                     // Otherwise treat entire line as description
                                     description = firstLine;
@@ -2186,22 +2632,35 @@ Generate 4 relevant, context-aware prompts:`;
                                   // If the part before dash is short, use it as name
                                   if (potentialName.length < 60) {
                                     name = potentialName;
-                                    description = parts.slice(1).join(" - ").trim();
+                                    description = parts
+                                      .slice(1)
+                                      .join(" - ")
+                                      .trim();
                                   } else {
                                     description = firstLine;
                                   }
                                 } else {
                                   // If first line is short (likely a title), treat it as name
-                                  if (firstLine.length < 60 && firstLine.length > 0) {
+                                  if (
+                                    firstLine.length < 60 &&
+                                    firstLine.length > 0
+                                  ) {
                                     name = firstLine;
-                                    description = lines.slice(1).join("\n").trim();
+                                    description = lines
+                                      .slice(1)
+                                      .join("\n")
+                                      .trim();
                                   } else {
                                     // Otherwise, treat it as description
-                                    description = firstLine + (lines.length > 1 ? "\n" + lines.slice(1).join("\n") : "");
+                                    description =
+                                      firstLine +
+                                      (lines.length > 1
+                                        ? "\n" + lines.slice(1).join("\n")
+                                        : "");
                                   }
                                 }
                               }
-                              
+
                               // Extract technologies from content (look for common patterns)
                               const techPatterns = [
                                 /technologies?[:\s]+([^.\n]+)/i,
@@ -2209,7 +2668,7 @@ Generate 4 relevant, context-aware prompts:`;
                                 /built with[:\s]+([^.\n]+)/i,
                                 /using[:\s]+([^.\n]+)/i,
                               ];
-                              
+
                               for (const pattern of techPatterns) {
                                 const match = content.match(pattern);
                                 if (match && match[1]) {
@@ -2220,28 +2679,39 @@ Generate 4 relevant, context-aware prompts:`;
                                   break;
                                 }
                               }
-                              
+
                               // Extract link from content (look for URLs)
                               const urlPattern = /(https?:\/\/[^\s]+)/i;
                               const urlMatch = content.match(urlPattern);
                               if (urlMatch) {
                                 link = urlMatch[1];
                               }
-                              
+
                               // If no name was extracted, try to extract from description
                               if (!name || name.length === 0) {
                                 // Look for a short first sentence or phrase that could be a title
-                                const descLines = description.split("\n").filter((l) => l.trim());
+                                const descLines = description
+                                  .split("\n")
+                                  .filter((l) => l.trim());
                                 if (descLines.length > 0) {
                                   const firstDescLine = descLines[0].trim();
                                   // If first line is short and ends with punctuation, it might be a title
-                                  if (firstDescLine.length < 60 && /[.!?]$/.test(firstDescLine)) {
-                                    name = firstDescLine.replace(/[.!?]$/, "").trim();
-                                    description = descLines.slice(1).join("\n").trim() || firstDescLine;
+                                  if (
+                                    firstDescLine.length < 60 &&
+                                    /[.!?]$/.test(firstDescLine)
+                                  ) {
+                                    name = firstDescLine
+                                      .replace(/[.!?]$/, "")
+                                      .trim();
+                                    description =
+                                      descLines.slice(1).join("\n").trim() ||
+                                      firstDescLine;
                                   } else if (firstDescLine.length < 60) {
                                     // If it's short without punctuation, treat as name
                                     name = firstDescLine;
-                                    description = descLines.slice(1).join("\n").trim() || firstDescLine;
+                                    description =
+                                      descLines.slice(1).join("\n").trim() ||
+                                      firstDescLine;
                                   } else {
                                     // Extract first few words as potential name
                                     const words = firstDescLine.split(/\s+/);
@@ -2258,23 +2728,33 @@ Generate 4 relevant, context-aware prompts:`;
                                   name = "New Project";
                                 }
                               }
-                              
+
                               // If no description, use the content (excluding the name if it was extracted)
                               if (!description || description.length === 0) {
                                 // Remove the name from content if it appears at the start
                                 let descContent = content;
                                 if (name && name !== "New Project") {
-                                  const nameRegex = new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s:,-]*`, "i");
-                                  descContent = descContent.replace(nameRegex, "").trim();
+                                  const nameRegex = new RegExp(
+                                    `^${name.replace(
+                                      /[.*+?^${}()|[\]\\]/g,
+                                      "\\$&"
+                                    )}[\\s:,-]*`,
+                                    "i"
+                                  );
+                                  descContent = descContent
+                                    .replace(nameRegex, "")
+                                    .trim();
                                 }
                                 description = descContent || content;
                               }
-                              
+
                               return { name, description, technologies, link };
                             };
-                            
-                            const parsed = parseProjectContent(suggestion.content);
-                            
+
+                            const parsed = parseProjectContent(
+                              suggestion.content
+                            );
+
                             const newProject = {
                               id: `proj_${Date.now()}_${index}`,
                               name: parsed.name,
@@ -2295,7 +2775,7 @@ Generate 4 relevant, context-aware prompts:`;
                           break;
                       }
                     });
-                    
+
                     // Apply all changes directly without preview
                     if (onResumeUpdate) {
                       const updates: Partial<Resume> = {
@@ -2303,25 +2783,39 @@ Generate 4 relevant, context-aware prompts:`;
                         sectionConfig: currentResume.sectionConfig,
                       };
                       console.log("📝 Applying updates:", {
-                        summary: currentResume.content.summary?.substring(0, 50),
+                        summary: currentResume.content.summary?.substring(
+                          0,
+                          50
+                        ),
                         skillsCount: currentResume.content.skills?.length,
-                        experienceCount: currentResume.content.experience?.length,
-                        enabledSections: Object.entries(currentResume.sectionConfig || {})
-                          .filter(([_, config]: [string, any]) => config?.enabled !== false)
-                          .map(([id]) => id)
+                        experienceCount:
+                          currentResume.content.experience?.length,
+                        enabledSections: Object.entries(
+                          currentResume.sectionConfig || {}
+                        )
+                          .filter(
+                            ([_, config]: [string, any]) =>
+                              config?.enabled !== false
+                          )
+                          .map(([id]) => id),
                       });
                       onResumeUpdate(updates);
                       console.log("✅ Auto-applied all suggestions");
                     } else {
-                      console.error("❌ Cannot auto-apply: onResumeUpdate not available");
+                      console.error(
+                        "❌ Cannot auto-apply: onResumeUpdate not available"
+                      );
                     }
                   } else if (suggestions.length > 0) {
-                    console.log("ℹ️ Suggestions found but auto-apply not triggered:", {
-                      shouldAutoApply: shouldAutoApply,
-                      userInput: userInput
-                    });
+                    console.log(
+                      "ℹ️ Suggestions found but auto-apply not triggered:",
+                      {
+                        shouldAutoApply: shouldAutoApply,
+                        userInput: userInput,
+                      }
+                    );
                   }
-                  
+
                   return newMap;
                 });
               }, 0);
@@ -2368,9 +2862,88 @@ Generate 4 relevant, context-aware prompts:`;
 
   const confirmClearChat = () => {
     setShowClearChatConfirm(false);
-      setMessages([]);
-      setInput("");
+    setMessages([]);
+    setInput("");
   };
+
+  // Auto-run skills optimization when requested
+  useEffect(() => {
+    const run = async () => {
+      if (!isOpen) return;
+      if (!autoOptimizeSkills) return;
+      if (hasAutoOptimizedSkillsRef.current) return;
+      hasAutoOptimizedSkillsRef.current = true;
+
+      try {
+        setIsLoading(true);
+        // System message to explain what's happening
+        const loadingMessage: Message = {
+          role: "assistant",
+          content:
+            "🔎 Optimizing your skills for this job... I'll analyze the posting, verify your current skills, research company context from the job details, and: 1) suggest skills to add/remove, and 2) propose a reordered list highlighting the most relevant skills.",
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, loadingMessage]);
+
+        // Build a specialized prompt for skills optimization (human-readable only)
+        const prompt = `MODE: SKILLS_OPTIMIZATION
+You are an expert resume optimizer. Based on the target job posting, analyze and optimize the candidate's skills.
+
+Tasks:
+1) Verify existing skills (which are relevant/irrelevant for this job)
+2) Suggest missing skills specific to the role and industry
+3) Propose a complete reordered skills list (most relevant first)
+4) Group skills logically if applicable (e.g., Frontend, Backend, DevOps, Languages, Tools)
+5) Provide brief rationale for the top 5 reordered skills
+
+Company context:
+- Use ANY company details present in the job description (name, industry, stack, responsibilities).
+- If details are missing, DO NOT fabricate; note where research would help.
+
+Guidelines:
+- Respond ONLY with clear, human-readable guidance (paragraphs and bullet points).
+- Do NOT include JSON, code blocks, or any backend/API instructions.
+- Do NOT mention internal system behavior, schemas, or implementation details.
+- Focus on specificity, clarity, actionability, and ATS-friendly phrasing.`;
+
+        // If initialJobId is present, use it so backend includes job context
+        const jobId = initialJobId || selectedJobId || null;
+
+        const response = await resumeService.chat(
+          resumeId || "new",
+          [{ role: "user", content: prompt }],
+          jobId || undefined,
+          resume || undefined
+        );
+
+        if (response.ok && response.data?.message) {
+          const assistantMessage: Message = {
+            role: "assistant",
+            content: response.data.message,
+            timestamp: new Date(),
+          };
+          setMessages((prev) => [...prev, assistantMessage]);
+
+          // Parse and store suggestions for preview/apply
+          setTimeout(() => {
+            setParsedSuggestions((prev) => {
+              const newMap = new Map(prev);
+              const index = prev.size || 0;
+              const parsed = parseSuggestions(assistantMessage.content, index);
+              newMap.set(index, parsed);
+              return newMap;
+            });
+          }, 0);
+        }
+      } catch (err) {
+        console.error("Skills optimization failed:", err);
+      } finally {
+        setIsLoading(false);
+        onAnalysisComplete && onAnalysisComplete();
+      }
+    };
+    run();
+  }, [autoOptimizeSkills, isOpen, initialJobId, selectedJobId]);
 
   if (!isOpen) return null;
 
@@ -2389,9 +2962,12 @@ Generate 4 relevant, context-aware prompts:`;
       {showClearChatConfirm && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-in zoom-in-95 duration-300">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Clear Chat History</h2>
+            <h2 className="text-xl font-bold text-gray-900 mb-4">
+              Clear Chat History
+            </h2>
             <p className="text-gray-600 mb-6">
-              Are you sure you want to clear the chat history? This action cannot be undone.
+              Are you sure you want to clear the chat history? This action
+              cannot be undone.
             </p>
             <div className="flex justify-end gap-3">
               <button
@@ -2435,8 +3011,14 @@ Generate 4 relevant, context-aware prompts:`;
       <div className="flex-shrink-0 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2 flex-1 min-w-0">
-          <Icon icon="mingcute:briefcase-line" className="w-4 h-4 text-[#3351FD] flex-shrink-0" />
-            <label className="text-xs font-semibold text-gray-700 cursor-pointer" onClick={() => setIsJobSelectorMinimized(!isJobSelectorMinimized)}>
+            <Icon
+              icon="mingcute:briefcase-line"
+              className="w-4 h-4 text-[#3351FD] flex-shrink-0"
+            />
+            <label
+              className="text-xs font-semibold text-gray-700 cursor-pointer"
+              onClick={() => setIsJobSelectorMinimized(!isJobSelectorMinimized)}
+            >
               Tailor for Job Posting (Optional)
             </label>
           </div>
@@ -2446,9 +3028,13 @@ Generate 4 relevant, context-aware prompts:`;
             title={isJobSelectorMinimized ? "Expand" : "Minimize"}
             type="button"
           >
-            <Icon 
-              icon={isJobSelectorMinimized ? "mingcute:down-line" : "mingcute:up-line"} 
-              className="w-4 h-4 text-gray-600" 
+            <Icon
+              icon={
+                isJobSelectorMinimized
+                  ? "mingcute:down-line"
+                  : "mingcute:up-line"
+              }
+              className="w-4 h-4 text-gray-600"
             />
           </button>
         </div>
@@ -2456,46 +3042,55 @@ Generate 4 relevant, context-aware prompts:`;
           <div className="px-4 pb-3">
             <div className="flex items-center gap-3">
               <div className="flex-1 min-w-0">
-            {loadingJobs ? (
-              <div className="flex items-center gap-2 text-xs text-gray-500">
-                <Icon icon="mingcute:loading-line" className="w-3 h-3 animate-spin" />
-                <span>Loading jobs...</span>
-              </div>
-            ) : (
-              <select
-                value={selectedJobId || ""}
-                onChange={(e) => setSelectedJobId(e.target.value || null)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent bg-white"
-              >
-                <option value="">No specific job - General advice</option>
+                {loadingJobs ? (
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <Icon
+                      icon="mingcute:loading-line"
+                      className="w-3 h-3 animate-spin"
+                    />
+                    <span>Loading jobs...</span>
+                  </div>
+                ) : (
+                  <select
+                    value={selectedJobId || ""}
+                    onChange={(e) => setSelectedJobId(e.target.value || null)}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent bg-white"
+                  >
+                    <option value="">No specific job - General advice</option>
                     {jobOpportunities.map((job) => (
-                  <option key={job.id} value={job.id}>
+                      <option key={job.id} value={job.id}>
                         {job.title} at {job.company}
-                    {job.location ? ` (${job.location})` : ""}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
-          {selectedJobId && (
-            <button
+                        {job.location ? ` (${job.location})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+              {selectedJobId && (
+                <button
                   onClick={(e) => {
                     e.stopPropagation();
                     e.preventDefault();
                     setSelectedJobId(null);
                   }}
                   className="p-1.5 hover:bg-white/50 rounded-lg transition-colors flex-shrink-0"
-              title="Clear job selection"
+                  title="Clear job selection"
                   type="button"
-            >
-              <Icon icon="mingcute:close-line" className="w-4 h-4 text-gray-600" />
-            </button>
-          )}
-        </div>
-        {selectedJobId && (
-          <div className="mt-2 text-xs text-gray-600">
-            <Icon icon="mingcute:information-line" className="w-3 h-3 inline mr-1" />
-            AI suggestions will be tailored to match this job's requirements
+                >
+                  <Icon
+                    icon="mingcute:close-line"
+                    className="w-4 h-4 text-gray-600"
+                  />
+                </button>
+              )}
+            </div>
+            {selectedJobId && (
+              <div className="mt-2 text-xs text-gray-600">
+                <Icon
+                  icon="mingcute:information-line"
+                  className="w-3 h-3 inline mr-1"
+                />
+                AI suggestions will be tailored to match this job's requirements
               </div>
             )}
           </div>
@@ -2511,7 +3106,10 @@ Generate 4 relevant, context-aware prompts:`;
         {(() => {
           console.log("🎨 Rendering messages:", messages.length, "messages");
           if (messages.length === 0 && initialMessage) {
-            console.warn("⚠️ No messages but initialMessage exists:", initialMessage.substring(0, 100));
+            console.warn(
+              "⚠️ No messages but initialMessage exists:",
+              initialMessage.substring(0, 100)
+            );
           }
           return null;
         })()}
@@ -2607,7 +3205,7 @@ Generate 4 relevant, context-aware prompts:`;
                       ),
                     }}
                   >
-                    {message.content}
+                    {cleanMessageContent(message.content)}
                   </ReactMarkdown>
                 </div>
               ) : (
@@ -2649,7 +3247,8 @@ Generate 4 relevant, context-aware prompts:`;
                         {suggestions.map((suggestion, sugIndex) => {
                           // Check if this suggestion has already been applied
                           const alreadyApplied = (() => {
-                            const appliedForMessage = appliedSuggestions.get(index) || [];
+                            const appliedForMessage =
+                              appliedSuggestions.get(index) || [];
                             return appliedForMessage.some((applied) => {
                               return (
                                 applied.type === suggestion.type &&
@@ -2659,7 +3258,7 @@ Generate 4 relevant, context-aware prompts:`;
                               );
                             });
                           })();
-                          
+
                           return (
                             <div
                               key={sugIndex}
@@ -2671,25 +3270,51 @@ Generate 4 relevant, context-aware prompts:`;
                             >
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-1.5 mb-1">
-                                  <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                                    alreadyApplied ? "bg-green-500" : "bg-[#3351FD]"
-                                  }`}></div>
+                                  <div
+                                    className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                                      alreadyApplied
+                                        ? "bg-green-500"
+                                        : "bg-[#3351FD]"
+                                    }`}
+                                  ></div>
                                   <p className="text-xs font-semibold text-gray-900 truncate">
                                     {suggestion.type === "summary" &&
                                       "Update Summary"}
-                                    {suggestion.type === "skill" && suggestion.action === "add" &&
-                                      `Add Skill: ${suggestion.content.length > 20 ? suggestion.content.substring(0, 20) + '...' : suggestion.content}`}
-                                    {suggestion.type === "skill" && suggestion.action === "reorder" &&
-                                      `Reorder Skills: ${suggestion.content.split(",").slice(0, 3).map((s: string) => s.trim()).join(", ")}${suggestion.content.split(",").length > 3 ? "..." : ""}`}
+                                    {suggestion.type === "skill" &&
+                                      suggestion.action === "add" &&
+                                      `Add Skill: ${
+                                        suggestion.content.length > 20
+                                          ? suggestion.content.substring(
+                                              0,
+                                              20
+                                            ) + "..."
+                                          : suggestion.content
+                                      }`}
+                                    {suggestion.type === "skill" &&
+                                      suggestion.action === "reorder" &&
+                                      `Reorder Skills: ${suggestion.content
+                                        .split(",")
+                                        .slice(0, 3)
+                                        .map((s: string) => s.trim())
+                                        .join(", ")}${
+                                        suggestion.content.split(",").length > 3
+                                          ? "..."
+                                          : ""
+                                      }`}
                                     {suggestion.type === "experience" &&
                                       "Update Experience"}
                                     {suggestion.type === "education" &&
                                       "Update Education"}
                                     {suggestion.type === "project" &&
                                       "Update Project"}
-                                    {!["summary", "skill", "experience", "education", "project"].includes(
-                                      suggestion.type
-                                    ) && "Apply Suggestion"}
+                                    {![
+                                      "summary",
+                                      "skill",
+                                      "experience",
+                                      "education",
+                                      "project",
+                                    ].includes(suggestion.type) &&
+                                      "Apply Suggestion"}
                                   </p>
                                   {alreadyApplied && (
                                     <Icon
@@ -2700,16 +3325,19 @@ Generate 4 relevant, context-aware prompts:`;
                                 </div>
                                 {suggestion.content &&
                                   suggestion.content.length < 100 &&
-                                  suggestion.type !== "skill" && suggestion.action !== "reorder" && (
+                                  suggestion.type !== "skill" &&
+                                  suggestion.action !== "reorder" && (
                                     <p className="text-xs text-gray-600 mt-0.5 line-clamp-2">
                                       {suggestion.content}
                                     </p>
                                   )}
-                                {suggestion.type === "skill" && suggestion.action === "reorder" && (
-                                  <p className="text-xs text-gray-600 mt-0.5">
-                                    Skills will be reordered to prioritize job-relevant skills
-                                  </p>
-                                )}
+                                {suggestion.type === "skill" &&
+                                  suggestion.action === "reorder" && (
+                                    <p className="text-xs text-gray-600 mt-0.5">
+                                      Skills will be reordered to prioritize
+                                      job-relevant skills
+                                    </p>
+                                  )}
                               </div>
                               <button
                                 onClick={() => previewSuggestion(suggestion)}
@@ -2719,10 +3347,18 @@ Generate 4 relevant, context-aware prompts:`;
                                     ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                                     : "bg-[#3351FD] text-white hover:bg-[#2a45d4] hover:shadow-md"
                                 }`}
-                                title={alreadyApplied ? "This suggestion has already been applied" : "Preview this suggestion"}
+                                title={
+                                  alreadyApplied
+                                    ? "This suggestion has already been applied"
+                                    : "Preview this suggestion"
+                                }
                               >
                                 <Icon
-                                  icon={alreadyApplied ? "mingcute:check-line" : "mingcute:eye-line"}
+                                  icon={
+                                    alreadyApplied
+                                      ? "mingcute:check-line"
+                                      : "mingcute:eye-line"
+                                  }
                                   className="w-3 h-3"
                                 />
                                 {alreadyApplied ? "Applied" : "Preview"}
@@ -2793,7 +3429,8 @@ Generate 4 relevant, context-aware prompts:`;
                 </span>
               </div>
               <p className="text-xs text-gray-700 mb-3">
-                Analyzing job posting and generating tailored resume recommendations...
+                Analyzing job posting and generating tailored resume
+                recommendations...
               </p>
               <div className="flex items-center gap-1.5">
                 <div
@@ -2808,7 +3445,9 @@ Generate 4 relevant, context-aware prompts:`;
                   className="w-2 h-2 bg-[#3351FD] rounded-full animate-bounce"
                   style={{ animationDelay: "300ms" }}
                 ></div>
-                <span className="text-xs text-gray-600 ml-2">Please wait...</span>
+                <span className="text-xs text-gray-600 ml-2">
+                  Please wait...
+                </span>
               </div>
             </div>
           </div>
@@ -2826,48 +3465,54 @@ Generate 4 relevant, context-aware prompts:`;
         <div className="border-b border-gray-200">
           <div className="flex items-center justify-between px-4 pt-2 pb-2">
             <div className="flex items-center gap-2">
-            <p className="text-xs font-semibold text-gray-600">
-              Suggested prompts:
-            </p>
-            {isGeneratingPrompts && (
-              <Icon
-                icon="mingcute:loading-line"
-                className="w-3 h-3 text-gray-400 animate-spin"
-              />
-            )}
-          </div>
+              <p className="text-xs font-semibold text-gray-600">
+                Suggested prompts:
+              </p>
+              {isGeneratingPrompts && (
+                <Icon
+                  icon="mingcute:loading-line"
+                  className="w-3 h-3 text-gray-400 animate-spin"
+                />
+              )}
+            </div>
             <button
-              onClick={() => setIsSuggestedPromptsMinimized(!isSuggestedPromptsMinimized)}
+              onClick={() =>
+                setIsSuggestedPromptsMinimized(!isSuggestedPromptsMinimized)
+              }
               className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
               title={isSuggestedPromptsMinimized ? "Expand" : "Minimize"}
               type="button"
             >
-              <Icon 
-                icon={isSuggestedPromptsMinimized ? "mingcute:up-line" : "mingcute:down-line"} 
-                className="w-3 h-3 text-gray-600" 
+              <Icon
+                icon={
+                  isSuggestedPromptsMinimized
+                    ? "mingcute:up-line"
+                    : "mingcute:down-line"
+                }
+                className="w-3 h-3 text-gray-600"
               />
             </button>
           </div>
           {!isSuggestedPromptsMinimized && (
             <div className="px-4 pb-2">
-          <div className="flex flex-wrap gap-2">
-            {suggestedPrompts.length > 0 ? (
-              suggestedPrompts.map((prompt, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleSuggestedPrompt(prompt)}
-                  disabled={isLoading}
-                  className="text-xs px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {prompt}
-                </button>
-              ))
-            ) : (
-              <div className="text-xs text-gray-400 italic">
-                Generating suggestions...
+              <div className="flex flex-wrap gap-2">
+                {suggestedPrompts.length > 0 ? (
+                  suggestedPrompts.map((prompt, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handleSuggestedPrompt(prompt)}
+                      disabled={isLoading}
+                      className="text-xs px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {prompt}
+                    </button>
+                  ))
+                ) : (
+                  <div className="text-xs text-gray-400 italic">
+                    Generating suggestions...
+                  </div>
+                )}
               </div>
-            )}
-          </div>
             </div>
           )}
         </div>

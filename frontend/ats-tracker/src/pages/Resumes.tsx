@@ -427,36 +427,53 @@ export function Resumes() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const handleDeleteResume = async (id: string) => {
+  const handleDeleteResume = (id: string) => {
+    console.log("🗑️ handleDeleteResume called with id:", id);
     setShowDeleteConfirm(id);
   };
 
   const confirmDeleteResume = async () => {
-    if (!showDeleteConfirm) return;
+    // Use a ref to capture the current value to avoid stale closures
+    const currentDeleteConfirm = showDeleteConfirm;
+    console.log("🔴 confirmDeleteResume called, showDeleteConfirm:", currentDeleteConfirm);
+    
+    if (!currentDeleteConfirm) {
+      console.warn("❌ confirmDeleteResume called but showDeleteConfirm is null");
+      return;
+    }
+    
     // Capture the ID before clearing the state to avoid race conditions
-    const idToDelete = showDeleteConfirm;
-    setShowDeleteConfirm(null);
+    const idToDelete = currentDeleteConfirm;
+    console.log("✅ Confirming deletion of resume:", idToDelete);
+    
+    // Set deleting state and close modal IMMEDIATELY
     setDeletingId(idToDelete);
+    setShowDeleteConfirm(null);
+    
+    // IMMEDIATELY remove from local state to update UI (optimistic update)
+    // Use functional update to ensure we have the latest state
+    setResumes((prevResumes) => {
+      const filtered = prevResumes.filter((r) => r.id !== idToDelete);
+      console.log("📝 Removed resume from state. Previous count:", prevResumes.length, "New count:", filtered.length);
+      console.log("📝 Remaining resume IDs:", filtered.map(r => r.id));
+      return filtered;
+    });
     
     try {
-      console.log("Attempting to delete resume:", idToDelete);
+      console.log("🚀 Attempting to delete resume via API:", idToDelete);
       // The request method throws an ApiError if the response is not ok
-      // So if we get here, the deletion was successful
       const deleteResponse = await resumeService.deleteResume(idToDelete);
       
-      console.log("Delete response:", deleteResponse);
+      console.log("✅ Delete API response:", deleteResponse);
       
-      // IMMEDIATELY remove from local state to update UI
-      setResumes((prevResumes) => prevResumes.filter((r) => r.id !== idToDelete));
-      
-      // Show success message immediately
+      // Show success message
       setToast({
         message: "Resume deleted successfully",
         type: "success",
       });
       setDeletingId(null);
       
-      // Then refresh from server in the background to ensure consistency
+      // Refresh from server in the background to ensure consistency
       try {
         const resumesResponse = await resumeService.getResumes();
         if (resumesResponse.ok && resumesResponse.data) {
@@ -515,19 +532,78 @@ export function Resumes() {
         console.warn("Failed to refresh resumes list after deletion:", refreshErr);
       }
     } catch (err: any) {
-      console.error("Failed to delete resume:", err);
-      console.error("Error details:", {
+      console.error("❌ Failed to delete resume:", err);
+      console.error("❌ Error details:", {
         message: err.message,
         status: err.status,
         code: err.code,
         detail: err.detail,
         name: err.name,
         stack: err.stack,
+        fullError: err,
       });
       
+      // Revert the optimistic update on error by refreshing from server
       setDeletingId(null);
       // Re-open the confirmation modal if deletion failed
       setShowDeleteConfirm(idToDelete);
+      
+      // Refresh the list from server to restore the deleted resume
+      try {
+        const resumesResponse = await resumeService.getResumes();
+        if (resumesResponse.ok && resumesResponse.data) {
+          const allResumes = resumesResponse.data.resumes;
+          
+          // Deduplicate resumes
+          const seenResumes = new Map<string, Resume>();
+          const resumeIds = new Set<string>();
+          
+          allResumes.forEach((resume: Resume) => {
+            if (resumeIds.has(resume.id)) {
+              return;
+            }
+            
+            const resumeName = resume.name || resume.versionName || '';
+            const jobId = resume.jobId || 'no-job';
+            const createdAt = new Date(resume.createdAt).getTime();
+            const timeBucket = Math.floor(createdAt / 5000) * 5000;
+            const key = `${resumeName}_${jobId}_${timeBucket}`;
+            
+            if (!seenResumes.has(key)) {
+              seenResumes.set(key, resume);
+              resumeIds.add(resume.id);
+            } else {
+              const existing = seenResumes.get(key)!;
+              const existingIsMaster = existing.isMaster ?? false;
+              const currentIsMaster = resume.isMaster ?? false;
+              
+              if (existing.id === resume.id) {
+                return;
+              }
+              
+              if (currentIsMaster && !existingIsMaster) {
+                resumeIds.delete(existing.id);
+                seenResumes.set(key, resume);
+                resumeIds.add(resume.id);
+              } else if (!currentIsMaster && existingIsMaster) {
+                // Keep existing
+              } else {
+                const existingDate = new Date(existing.updatedAt).getTime();
+                const currentDate = new Date(resume.updatedAt).getTime();
+                if (currentDate > existingDate) {
+                  resumeIds.delete(existing.id);
+                  seenResumes.set(key, resume);
+                  resumeIds.add(resume.id);
+                }
+              }
+            }
+          });
+          
+          setResumes(Array.from(seenResumes.values()));
+        }
+      } catch (refreshErr) {
+        console.error("Failed to refresh resumes list after deletion error:", refreshErr);
+      }
       
       // Extract error message from ApiError or regular error
       let errorMessage = "Failed to delete resume. Please try again.";
@@ -639,8 +715,19 @@ export function Resumes() {
       )}
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-in zoom-in-95 duration-300">
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50"
+          onClick={(e) => {
+            // Close modal if clicking on backdrop
+            if (e.target === e.currentTarget) {
+              setShowDeleteConfirm(null);
+            }
+          }}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-in zoom-in-95 duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
             <h2 className="text-xl font-bold text-gray-900 mb-4">Delete Resume</h2>
             <p className="text-gray-600 mb-6">
               Are you sure you want to delete this resume? This action cannot be undone.
@@ -653,9 +740,25 @@ export function Resumes() {
                 Cancel
               </button>
               <button
-                onClick={confirmDeleteResume}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log("🖱️ Delete button clicked in modal");
+                  console.log("   showDeleteConfirm:", showDeleteConfirm);
+                  console.log("   deletingId:", deletingId);
+                  
+                  // Don't check showDeleteConfirm here - let the function handle it
+                  // Just check if we're already deleting
+                  if (!deletingId) {
+                    console.log("   ✅ Calling confirmDeleteResume...");
+                    confirmDeleteResume();
+                  } else {
+                    console.log("   ⏸️ Already deleting, ignoring click");
+                  }
+                }}
                 disabled={!!deletingId}
                 className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                type="button"
               >
                 {deletingId ? (
                   <span className="flex items-center gap-2">

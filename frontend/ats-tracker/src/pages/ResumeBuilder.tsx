@@ -19,7 +19,11 @@ import { Toast } from "../components/resume/Toast";
 import { ResumeTopBar } from "../components/resume/ResumeTopBar";
 import { VersionControl } from "../components/resume/VersionControl";
 import { ResumeParseLoader } from "../components/resume/ResumeParseLoader";
-import { ResumeExportModal, ExportFormat, ExportTheme } from "../components/resume/ResumeExportModal";
+import {
+  ResumeExportModal,
+  ExportFormat,
+  ExportTheme,
+} from "../components/resume/ResumeExportModal";
 
 export function ResumeBuilder() {
   const navigate = useNavigate();
@@ -1536,7 +1540,8 @@ export function ResumeBuilder() {
       setShowExportModal(false);
       showToast(`Exporting as ${options.format.toUpperCase()}...`, "info");
 
-      const filename = options.filename || resume?.name || `resume_${resumeId || Date.now()}`;
+      const filename =
+        options.filename || resume?.name || `resume_${resumeId || Date.now()}`;
       const format = options.format;
 
       // For PDF - use client-side html2canvas + jsPDF
@@ -1672,12 +1677,14 @@ export function ResumeBuilder() {
 
           // Add watermark if provided
           if (options.watermark) {
-            const watermarkImg = await new Promise<HTMLImageElement>((resolve, reject) => {
-              const img = new Image();
-              img.onload = () => resolve(img);
-              img.onerror = reject;
-              img.src = URL.createObjectURL(options.watermark!);
-            });
+            const watermarkImg = await new Promise<HTMLImageElement>(
+              (resolve, reject) => {
+                const img = new Image();
+                img.onload = () => resolve(img);
+                img.onerror = reject;
+                img.src = URL.createObjectURL(options.watermark!);
+              }
+            );
 
             // Add watermark to each page
             const pageCount = pdf.getNumberOfPages();
@@ -1685,21 +1692,22 @@ export function ResumeBuilder() {
               pdf.setPage(i);
               const pageWidth = pdf.internal.pageSize.getWidth();
               const pageHeight = pdf.internal.pageSize.getHeight();
-              
+
               // Calculate watermark size (20% of page width)
               const watermarkWidth = pageWidth * 0.2;
-              const watermarkHeight = (watermarkImg.height / watermarkImg.width) * watermarkWidth;
-              
+              const watermarkHeight =
+                (watermarkImg.height / watermarkImg.width) * watermarkWidth;
+
               // Center the watermark
               const x = (pageWidth - watermarkWidth) / 2;
               const y = (pageHeight - watermarkHeight) / 2;
-              
+
               // Add watermark with opacity
               pdf.saveGraphicsState();
-              pdf.setGState(pdf.GState({opacity: 0.15}));
+              pdf.setGState(pdf.GState({ opacity: 0.15 }));
               pdf.addImage(
                 watermarkImg.src,
-                'PNG',
+                "PNG",
                 x,
                 y,
                 watermarkWidth,
@@ -1707,7 +1715,7 @@ export function ResumeBuilder() {
               );
               pdf.restoreGraphicsState();
             }
-            
+
             URL.revokeObjectURL(watermarkImg.src);
           }
 

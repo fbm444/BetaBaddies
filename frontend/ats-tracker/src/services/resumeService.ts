@@ -614,17 +614,6 @@ class ResumeService {
   }
 
   // Validation
-  async validateResume(
-    resumeId: string
-  ): Promise<ApiResponse<{ issues: ValidationIssue[] }>> {
-    return this.request<ApiResponse<{ issues: ValidationIssue[] }>>(
-      `/resumes/${resumeId}/validate`,
-      {
-        method: "POST",
-      }
-    );
-  }
-
   async getValidationIssues(
     resumeId: string
   ): Promise<ApiResponse<{ issues: ValidationIssue[] }>> {
@@ -891,6 +880,51 @@ class ResumeService {
         body: JSON.stringify({ templateId, jobId }),
       }
     );
+  }
+
+  // Validate Resume - AI-powered resume analysis and grading
+  async validateResume(
+    resumeId: string,
+    currentResume?: any // Current resume being previewed (may have unsaved changes)
+  ): Promise<
+    ApiResponse<{
+      overallScore: number;
+      overallPercentage: number;
+      overallStatus: "excellent" | "good" | "needs-improvement" | "poor";
+      summary: string;
+      highlights: string[];
+      sectionGrades: Array<{
+        section: string;
+        score: number;
+        maxScore: number;
+        percentage: number;
+        feedback: string[];
+        status: "excellent" | "good" | "needs-improvement" | "poor";
+      }>;
+      recommendations: string[];
+    }>
+  > {
+    return this.request<
+      ApiResponse<{
+        overallScore: number;
+        overallPercentage: number;
+        overallStatus: "excellent" | "good" | "needs-improvement" | "poor";
+        summary: string;
+        highlights: string[];
+        sectionGrades: Array<{
+          section: string;
+          score: number;
+          maxScore: number;
+          percentage: number;
+          feedback: string[];
+          status: "excellent" | "good" | "needs-improvement" | "poor";
+        }>;
+        recommendations: string[];
+      }>
+    >(`/resumes/${resumeId}/validate`, {
+      method: "POST",
+      body: JSON.stringify({ currentResume }),
+    });
   }
 }
 

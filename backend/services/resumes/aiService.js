@@ -473,8 +473,13 @@ You: "Here's an improved summary that better highlights your experience: [Provid
 
   /**
    * Chat with AI assistant
+   * @param {Array} messages - Array of message objects with role and content
+   * @param {Object} resume - Optional resume object for context
+   * @param {Object} userData - Optional user data for context
+   * @param {Object} jobOpportunity - Optional job opportunity for context
+   * @param {Object} options - Optional configuration (jsonMode: boolean, maxTokens: number, temperature: number)
    */
-  async chat(messages, resume = null, userData = null, jobOpportunity = null) {
+  async chat(messages, resume = null, userData = null, jobOpportunity = null, options = {}) {
     if (!this.openaiApiKey || !this.openai) {
       throw new Error("OpenAI API key not configured");
     }
@@ -549,12 +554,19 @@ You: "Here's an improved summary that better highlights your experience: [Provid
         systemMessage.content.substring(0, 500)
       );
 
-      const completion = await this.openai.chat.completions.create({
+      const chatOptions = {
         model: "gpt-4o-mini", // Using gpt-4o-mini for cost efficiency
         messages: conversationMessages,
-        temperature: 0.7, // Balanced creativity and consistency
-        max_tokens: 1000, // Limit response length
-      });
+        temperature: options.temperature ?? 0.7, // Balanced creativity and consistency
+        max_tokens: options.maxTokens ?? 1000, // Limit response length
+      };
+
+      // Enable JSON mode if requested
+      if (options.jsonMode) {
+        chatOptions.response_format = { type: "json_object" };
+      }
+
+      const completion = await this.openai.chat.completions.create(chatOptions);
 
       const content = completion.choices[0]?.message?.content;
 

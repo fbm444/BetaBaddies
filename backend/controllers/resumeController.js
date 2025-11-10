@@ -1156,16 +1156,53 @@ class ResumeController {
   validateResume = asyncHandler(async (req, res) => {
     const userId = req.session.userId;
     const { id } = req.params;
+    const { currentResume } = req.body;
 
-    const validation = await resumeValidationService.validateResume(id, userId);
+    try {
+      console.log("🔍 Controller: Starting validation for resume:", id);
+      
+      // Use AI-powered grading validation
+      const validation = await resumeValidationService.validateResumeWithGrading(
+        id,
+        userId,
+        currentResume || null
+      );
 
-    res.status(200).json({
-      ok: true,
-      data: {
-        validation,
-        message: "Validation completed",
-      },
-    });
+      console.log("✅ Controller: Validation complete, returning:", {
+        hasOverallScore: !!validation.overallScore,
+        hasSectionGrades: !!validation.sectionGrades,
+        sectionCount: validation.sectionGrades?.length || 0,
+      });
+
+      // Ensure we're returning the grading format, not the old issues format
+      if (validation.issues) {
+        console.error("❌ Controller: Received old format with issues, converting to grading format");
+        // This shouldn't happen, but if it does, convert to grading format
+        throw new Error("Validation service returned old format");
+      }
+
+      res.status(200).json({
+        ok: true,
+        data: validation,
+      });
+    } catch (error) {
+      console.error("❌ Controller: Validation error:", error);
+      // If validation fails, return a basic grading structure instead of old format
+      const fallbackGrading = {
+        overallScore: 0,
+        overallPercentage: 0,
+        overallStatus: "poor",
+        summary: "Validation failed. Please try again.",
+        highlights: [],
+        sectionGrades: [],
+        recommendations: ["Please try validating again. If the issue persists, contact support."],
+      };
+      
+      res.status(200).json({
+        ok: true,
+        data: fallbackGrading,
+      });
+    }
   });
 
   // Get validation issues

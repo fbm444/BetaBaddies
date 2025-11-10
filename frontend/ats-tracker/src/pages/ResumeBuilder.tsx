@@ -24,6 +24,12 @@ import {
   ExportFormat,
   ExportTheme,
 } from "../components/resume/ResumeExportModal";
+import { ResumeValidationScanner } from "../components/resume/ResumeValidationScanner";
+import {
+  ResumeValidationResults,
+  ValidationResults,
+  SectionGrade,
+} from "../components/resume/ResumeValidationResults";
 
 export function ResumeBuilder() {
   const navigate = useNavigate();
@@ -115,6 +121,14 @@ export function ResumeBuilder() {
   const [showCustomization, setShowCustomization] = useState(false);
   const [showAIPanel, setShowAIPanel] = useState(false);
   const [showValidationPanel, setShowValidationPanel] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
+  const [validationProgress, setValidationProgress] = useState(0);
+  const [validationCurrentSection, setValidationCurrentSection] = useState<
+    string | undefined
+  >(undefined);
+  const [validationResults, setValidationResults] =
+    useState<ValidationResults | null>(null);
+  const [showValidationResults, setShowValidationResults] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [aiSectionEnhancement, setAiSectionEnhancement] = useState<{
@@ -2276,6 +2290,100 @@ export function ResumeBuilder() {
     }
   };
 
+  // Handle resume validation
+  const handleValidateResume = async () => {
+    if (!resume) {
+      showToast("No resume to validate", "error");
+      return;
+    }
+
+    if (!resumeId || resumeId === "new" || !isValidUUID(resumeId)) {
+      showToast("Please save your resume before validating", "error");
+      return;
+    }
+
+    // Start validation with scanning animation
+    setIsValidating(true);
+    setValidationProgress(0);
+    setValidationCurrentSection(undefined);
+    setShowValidationPanel(false);
+
+    // Simulate scanning progress
+    const sections = [
+      "Personal Information",
+      "Summary",
+      "Experience",
+      "Education",
+      "Skills",
+      "Projects",
+      "Certifications",
+    ];
+
+    const progressInterval = setInterval(() => {
+      setValidationProgress((prev) => {
+        if (prev >= 90) {
+          clearInterval(progressInterval);
+          return 90;
+        }
+        return prev + 10;
+      });
+    }, 500);
+
+    const sectionInterval = setInterval(() => {
+      setValidationCurrentSection((prev) => {
+        const currentIndex = prev ? sections.indexOf(prev) : -1;
+        const nextIndex = currentIndex + 1;
+        if (nextIndex >= sections.length) {
+          clearInterval(sectionInterval);
+          return undefined;
+        }
+        return sections[nextIndex];
+      });
+    }, 1000);
+
+    try {
+      // Call validation API
+      const resp = await resumeService.validateResume(
+        resumeId,
+        resume || undefined
+      );
+
+      // Clear intervals
+      clearInterval(progressInterval);
+      clearInterval(sectionInterval);
+
+      if (resp.ok && resp.data) {
+        setValidationProgress(100);
+        setValidationCurrentSection(undefined);
+
+        // Wait a moment to show 100% progress
+        setTimeout(() => {
+          setIsValidating(false);
+          setValidationResults(resp.data as ValidationResults);
+          setShowValidationResults(true);
+        }, 500);
+      } else {
+        clearInterval(progressInterval);
+        clearInterval(sectionInterval);
+        setIsValidating(false);
+        setValidationProgress(0);
+        setValidationCurrentSection(undefined);
+        showToast(
+          resp.error?.message || "Validation failed. Please try again.",
+          "error"
+        );
+      }
+    } catch (e: any) {
+      clearInterval(progressInterval);
+      clearInterval(sectionInterval);
+      setIsValidating(false);
+      setValidationProgress(0);
+      setValidationCurrentSection(undefined);
+      console.error("❌ Validation exception:", e);
+      showToast(e?.message || "Validation error. Please try again.", "error");
+    }
+  };
+
   const confirmDeleteItem = () => {
     if (!resume || !showDeleteItemConfirm) return;
     const { sectionId, itemId } = showDeleteItemConfirm;
@@ -3553,6 +3661,16 @@ export function ResumeBuilder() {
     <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
       <DeleteItemModal />
       <ResetFormattingModal />
+      <ResumeValidationScanner
+        isScanning={isValidating}
+        progress={validationProgress}
+        currentSection={validationCurrentSection}
+      />
+      <ResumeValidationResults
+        results={validationResults}
+        isOpen={showValidationResults}
+        onClose={() => setShowValidationResults(false)}
+      />
       {/* Top Bar */}
       <ResumeTopBar
         resume={resume}
@@ -3576,9 +3694,7 @@ export function ResumeBuilder() {
           setShowVersionHistory(!showVersionHistory)
         }
         onToggleCustomization={() => setShowCustomization(!showCustomization)}
-        onToggleValidationPanel={() =>
-          setShowValidationPanel(!showValidationPanel)
-        }
+        onToggleValidationPanel={handleValidateResume}
         onShowVersionModal={() => setShowVersionModal(true)}
         onShowImportResumeModal={() => setShowImportResumeModal(true)}
         onSwitchVersion={handleSwitchVersion}

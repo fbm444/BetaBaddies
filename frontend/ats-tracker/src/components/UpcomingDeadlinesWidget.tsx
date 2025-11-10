@@ -91,7 +91,7 @@ export function UpcomingDeadlinesWidget({
   if (upcomingDeadlines.length === 0) {
     return (
       <div className={`${baseCardClasses} ${className}`}>
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center mb-4">
           <h3
             className={`text-slate-900 ${
               variant === "analytics" ? "text-[25px]" : "text-lg"
@@ -100,16 +100,6 @@ export function UpcomingDeadlinesWidget({
           >
             Upcoming Deadlines
           </h3>
-          <button
-            onClick={() => navigate(ROUTES.JOB_OPPORTUNITIES)}
-            className={`font-medium transition-colors ${
-              variant === "analytics"
-                ? "text-white bg-gradient-to-r from-[#1B39FF] to-[#102299] text-xs px-4 py-2 rounded-full hover:opacity-90"
-                : "text-sm text-blue-600 hover:text-blue-700"
-            }`}
-          >
-            View All
-          </button>
         </div>
         <div className="text-sm text-slate-500">
           No upcoming deadlines in the next 30 days.
@@ -120,7 +110,7 @@ export function UpcomingDeadlinesWidget({
 
   return (
     <div className={`${baseCardClasses} ${className}`}>
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center mb-4">
         <h3
           className={`text-slate-900 ${
             variant === "analytics" ? "text-[25px]" : "text-lg"
@@ -129,16 +119,6 @@ export function UpcomingDeadlinesWidget({
         >
           Upcoming Deadlines
         </h3>
-        <button
-          onClick={() => navigate(ROUTES.JOB_OPPORTUNITIES)}
-          className={`font-medium transition-colors ${
-            variant === "analytics"
-              ? "text-white bg-[#1B39FF] text-xs px-4 py-2 rounded-full hover:bg-[#102299]"
-              : "text-sm text-blue-600 hover:text-blue-700"
-          }`}
-        >
-          View All
-        </button>
       </div>
       <div className="space-y-2 flex-1">
         {upcomingDeadlines.map((opportunity) => {

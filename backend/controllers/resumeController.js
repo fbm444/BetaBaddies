@@ -960,7 +960,7 @@ class ResumeController {
   // Note: HTML is ignored, we use resumeData.id to fetch from database
   exportDOCXFromHTML = asyncHandler(async (req, res) => {
     const userId = req.session.userId;
-    const { html, filename, resumeData } = req.body;
+    const { html, filename, resumeData, watermark, theme, printOptimized } = req.body;
 
     // Require resumeData for reliable export
     if (!resumeData || !resumeData.id) {
@@ -976,6 +976,9 @@ class ResumeController {
     // Use existing exportService - it already does direct DOCX generation
     const result = await resumeExportService.exportDOCX(resumeData.id, userId, {
       filename,
+      watermark,
+      theme,
+      printOptimized,
     });
 
     // Read file content and send it
@@ -1710,7 +1713,7 @@ class ResumeController {
   chat = asyncHandler(async (req, res) => {
     const userId = req.session.userId;
     const { resumeId } = req.params;
-    const { messages, jobId } = req.body;
+    const { messages, jobId, currentResume } = req.body;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({
@@ -1723,14 +1726,20 @@ class ResumeController {
     }
 
     try {
-      // Get resume if resumeId is provided
+      // Get resume - prefer currentResume from frontend (has unsaved changes) over database
       let resume = null;
-      if (resumeId && resumeId !== "new") {
+      if (currentResume) {
+        // Use the current resume being previewed (may have unsaved changes)
+        resume = currentResume;
+        console.log("✅ AI Context - Using current resume from frontend (may have unsaved changes)");
+      } else if (resumeId && resumeId !== "new") {
+        // Fall back to database resume if currentResume not provided
         try {
           resume = await resumeService.getResume(resumeId, userId);
+          console.log("✅ AI Context - Using resume from database");
         } catch (err) {
           // Resume not found or not accessible, continue without context
-          console.log("Resume not found for AI context:", err.message);
+          console.log("⚠️ Resume not found for AI context:", err.message);
         }
       }
 

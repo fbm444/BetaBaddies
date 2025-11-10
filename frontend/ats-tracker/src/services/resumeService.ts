@@ -453,7 +453,13 @@ class ResumeService {
   // Export DOCX from HTML (new method - sends HTML from preview)
   async exportDOCXFromHTML(
     html: string,
-    options?: { filename?: string; resumeData?: any }
+    options?: { 
+      filename?: string; 
+      resumeData?: any;
+      watermark?: string | null;
+      theme?: string;
+      printOptimized?: boolean;
+    }
   ): Promise<{ blob: Blob; filename: string }> {
     const response = await fetch(`${API_BASE}/resumes/export/docx`, {
       method: "POST",
@@ -465,6 +471,9 @@ class ResumeService {
         html,
         filename: options?.filename,
         resumeData: options?.resumeData, // Send actual resume data
+        watermark: options?.watermark,
+        theme: options?.theme,
+        printOptimized: options?.printOptimized,
       }),
     });
 
@@ -842,13 +851,14 @@ class ResumeService {
   async chat(
     resumeId: string,
     messages: Array<{ role: "user" | "assistant"; content: string }>,
-    jobId?: string
+    jobId?: string,
+    currentResume?: any // Current resume being previewed (may have unsaved changes)
   ): Promise<ApiResponse<{ message: string; usage?: any }>> {
     return this.request<ApiResponse<{ message: string; usage?: any }>>(
       `/resumes/${resumeId}/ai/chat`,
       {
         method: "POST",
-        body: JSON.stringify({ messages, jobId }),
+        body: JSON.stringify({ messages, jobId, currentResume }),
       }
     );
   }

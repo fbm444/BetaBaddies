@@ -647,7 +647,7 @@ class ResumeExportService {
   // Export to DOCX
   async exportDOCX(resumeId, userId, options = {}) {
     try {
-      const { filename } = options;
+      const { filename, watermark, theme, printOptimized } = options;
       const { resume, content } = await this.getResumeContent(resumeId, userId);
 
       // Debug: Log resume data
@@ -672,7 +672,7 @@ class ResumeExportService {
       
       // Generate DOCX using docx library
       const filePath = path.join(exportDir, savedFileName);
-      const docxBuffer = await this.generateDOCX(content, resume, options);
+      const docxBuffer = await this.generateDOCX(content, resume, { watermark, theme, printOptimized });
 
       // Save DOCX to disk
       await fs.writeFile(filePath, docxBuffer);
@@ -693,9 +693,26 @@ class ResumeExportService {
   // Generate DOCX from resume content using docx library
   async generateDOCX(content, resume, options = {}) {
     try {
+      const { watermark, theme, printOptimized } = options;
+      
       // Get customizations from resume
       const customizations = resume?.customizations || {};
-      const colors = customizations.colors || {
+      
+      // Apply theme if provided
+      let themeColors = {};
+      if (theme === 'professional') {
+        themeColors = { primary: '#1a1a1a', secondary: '#000000', text: '#000000', background: '#FFFFFF' };
+      } else if (theme === 'modern') {
+        themeColors = { primary: '#3351FD', secondary: '#6366f1', text: '#1e293b', background: '#FFFFFF' };
+      } else if (theme === 'classic') {
+        themeColors = { primary: '#000000', secondary: '#333333', text: '#000000', background: '#FFFFFF' };
+      } else if (theme === 'creative') {
+        themeColors = { primary: '#8b5cf6', secondary: '#a855f7', text: '#1e293b', background: '#FFFFFF' };
+      } else if (theme === 'minimal') {
+        themeColors = { primary: '#000000', secondary: '#666666', text: '#000000', background: '#FFFFFF' };
+      }
+      
+      const colors = customizations.colors || themeColors || {
         primary: '#3351FD',
         secondary: '#000000',
         text: '#000000',
@@ -706,8 +723,8 @@ class ResumeExportService {
         body: 'Inter',
       };
       const spacing = customizations.spacing || {
-        section: 24,
-        item: 12,
+        section: printOptimized ? 18 : 24,
+        item: printOptimized ? 8 : 12,
       };
 
       // Helper to convert hex to RGB for docx (expects hex string without #)

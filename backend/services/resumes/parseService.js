@@ -73,7 +73,7 @@ class ResumeParseService {
       throw new Error("OpenAI API key not configured");
     }
 
-    const prompt = `You are an expert at parsing resumes. Extract all information from the following resume text and return it as a JSON object with the following structure:
+    const prompt = `You are an expert at parsing resumes. Extract ONLY the information that is explicitly stated in the following resume text. DO NOT infer, assume, or make up any information. Return it as a JSON object with the following structure:
 
 {
   "personalInfo": {
@@ -138,15 +138,19 @@ class ResumeParseService {
   ]
 }
 
-Important rules:
-- Only include information that is explicitly mentioned in the resume
-- If a field is not found, omit it or use null
-- For dates, use YYYY-MM format (e.g., "2023-01")
-- For experience endDate, use "Present" if it's a current position
-- Generate unique IDs for each item (use UUID format or simple incremental IDs)
-- Extract all bullet points from job descriptions
-- Categorize skills appropriately
-- Return ONLY valid JSON, no additional text or explanation
+CRITICAL RULES - READ CAREFULLY:
+1. **ONLY extract information that is EXPLICITLY stated in the resume text**
+2. **DO NOT infer, assume, guess, or make up any information**
+3. **DO NOT add information that is not in the resume text**
+4. **If a field is not found in the resume, omit it entirely or use null - DO NOT make up values**
+5. **For dates, extract exactly as written. If only year is given, use YYYY-01 format. If month and year, use YYYY-MM format**
+6. **For experience endDate, use "Present" ONLY if explicitly stated (e.g., "Present", "Current", "Now")**
+7. **For descriptions, extract ONLY the exact bullet points or text from the resume - DO NOT paraphrase or expand**
+8. **For skills, extract ONLY skills that are explicitly listed - DO NOT infer skills from job descriptions**
+9. **For education, extract ONLY what is written - DO NOT assume degree types or fields of study**
+10. **If information is ambiguous or unclear, use null or omit the field - DO NOT guess**
+11. **Generate unique IDs for each item (use UUID format or simple incremental IDs)**
+12. **Return ONLY valid JSON, no additional text or explanation**
 
 Resume text:
 ${resumeText}`;
@@ -158,14 +162,14 @@ ${resumeText}`;
           {
             role: "system",
             content:
-              "You are a resume parsing expert. Always return valid JSON only, no additional text.",
+              "You are a resume parsing expert. Your job is to extract ONLY the information explicitly stated in the resume text. DO NOT infer, assume, or make up any information. If information is not explicitly stated, omit it or use null. Always return valid JSON only, no additional text or explanation.",
           },
           {
             role: "user",
             content: prompt,
           },
         ],
-        temperature: 0.1, // Low temperature for more consistent parsing
+        temperature: 0.0, // Zero temperature for maximum accuracy and consistency - no creativity
         response_format: { type: "json_object" },
       });
 

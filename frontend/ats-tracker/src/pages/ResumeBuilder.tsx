@@ -18,6 +18,8 @@ import { AIAssistantChat } from "../components/resume/AIAssistantChat";
 import { Toast } from "../components/resume/Toast";
 import { ResumeTopBar } from "../components/resume/ResumeTopBar";
 import { VersionControl } from "../components/resume/VersionControl";
+import { ResumeParseLoader } from "../components/resume/ResumeParseLoader";
+import { ResumeExportModal, ExportFormat, ExportTheme } from "../components/resume/ResumeExportModal";
 
 export function ResumeBuilder() {
   const navigate = useNavigate();
@@ -110,7 +112,7 @@ export function ResumeBuilder() {
   const [showAIPanel, setShowAIPanel] = useState(false);
   const [showValidationPanel, setShowValidationPanel] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [draggedSection, setDraggedSection] = useState<string | null>(null);
   const [showPresetMenu, setShowPresetMenu] = useState(false);
   const [sectionPresets, setSectionPresets] = useState<
@@ -182,6 +184,9 @@ export function ResumeBuilder() {
   const [showImportResumeModal, setShowImportResumeModal] = useState(false);
   const [importingResume, setImportingResume] = useState(false);
   const [parsedResumeContent, setParsedResumeContent] = useState<any>(null);
+  const [showParseLoader, setShowParseLoader] = useState(false);
+  const [fileToParse, setFileToParse] = useState<File | null>(null);
+  const [shouldAutoAnalyzeResume, setShouldAutoAnalyzeResume] = useState(false);
 
   // User data from database
   const [userProfile, setUserProfile] = useState<ProfileData | null>(null);
@@ -1519,13 +1524,20 @@ export function ResumeBuilder() {
     }
   };
 
-  const handleExport = async (format: "pdf" | "docx" | "txt" | "html") => {
+  const handleExport = async (options: {
+    format: ExportFormat;
+    filename: string;
+    watermark?: File | null;
+    theme: ExportTheme;
+    printOptimized: boolean;
+  }) => {
     try {
       setExporting(true);
-      setShowExportMenu(false);
-      showToast(`Exporting as ${format.toUpperCase()}...`, "info");
+      setShowExportModal(false);
+      showToast(`Exporting as ${options.format.toUpperCase()}...`, "info");
 
-      const filename = resume?.name || `resume_${resumeId || Date.now()}`;
+      const filename = options.filename || resume?.name || `resume_${resumeId || Date.now()}`;
+      const format = options.format;
 
       // For PDF - use client-side html2canvas + jsPDF
       if (format === "pdf") {
@@ -1658,6 +1670,47 @@ export function ResumeBuilder() {
             }
           }
 
+          // Add watermark if provided
+          if (options.watermark) {
+            const watermarkImg = await new Promise<HTMLImageElement>((resolve, reject) => {
+              const img = new Image();
+              img.onload = () => resolve(img);
+              img.onerror = reject;
+              img.src = URL.createObjectURL(options.watermark!);
+            });
+
+            // Add watermark to each page
+            const pageCount = pdf.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+              pdf.setPage(i);
+              const pageWidth = pdf.internal.pageSize.getWidth();
+              const pageHeight = pdf.internal.pageSize.getHeight();
+              
+              // Calculate watermark size (20% of page width)
+              const watermarkWidth = pageWidth * 0.2;
+              const watermarkHeight = (watermarkImg.height / watermarkImg.width) * watermarkWidth;
+              
+              // Center the watermark
+              const x = (pageWidth - watermarkWidth) / 2;
+              const y = (pageHeight - watermarkHeight) / 2;
+              
+              // Add watermark with opacity
+              pdf.saveGraphicsState();
+              pdf.setGState(pdf.GState({opacity: 0.15}));
+              pdf.addImage(
+                watermarkImg.src,
+                'PNG',
+                x,
+                y,
+                watermarkWidth,
+                watermarkHeight
+              );
+              pdf.restoreGraphicsState();
+            }
+            
+            URL.revokeObjectURL(watermarkImg.src);
+          }
+
           // Save the PDF
           pdf.save(`${filename}.pdf`);
           showToast("Resume exported as PDF successfully!", "success");
@@ -1724,11 +1777,25 @@ export function ResumeBuilder() {
         // Get current resume data to send to backend
         const currentResumeData = previewResume || resume;
 
+        // Convert watermark file to base64 if provided
+        let watermarkBase64 = null;
+        if (options.watermark) {
+          watermarkBase64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(options.watermark!);
+          });
+        }
+
         const docxResult = await resumeService.exportDOCXFromHTML(
           completeHTML,
           {
             filename: `${filename}.docx`,
             resumeData: currentResumeData,
+            watermark: watermarkBase64,
+            theme: options.theme,
+            printOptimized: options.printOptimized,
           }
         );
         resumeService.downloadBlob(docxResult.blob, docxResult.filename);
@@ -1917,6 +1984,25 @@ export function ResumeBuilder() {
         const updatedResume = { ...resume, content: newContent };
         setResume(updatedResume);
 
+        // Also update previewResume if it exists
+        if (previewResume) {
+          const previewContent = { ...previewResume.content };
+          const previewSection = (previewContent as any)[sectionId];
+          if (Array.isArray(previewSection)) {
+            const previewIndex = previewSection.findIndex(
+              (item: any) => item.id === itemId
+            );
+            if (previewIndex !== -1) {
+              previewSection[previewIndex] = {
+                ...previewSection[previewIndex],
+                ...updates,
+              };
+              (previewContent as any)[sectionId] = [...previewSection];
+              setPreviewResume({ ...previewResume, content: previewContent });
+            }
+          }
+        }
+
         // Auto-save to backend
         if (resumeId && resumeId !== "new") {
           saveToHistory(resume); // Save to history before updating
@@ -1946,6 +2032,16 @@ export function ResumeBuilder() {
       (newContent as any)[sectionId] = [...section, newItem];
       const updatedResume = { ...resume, content: newContent };
       setResume(updatedResume);
+
+      // Also update previewResume if it exists
+      if (previewResume) {
+        const previewContent = { ...previewResume.content };
+        const previewSection = (previewContent as any)[sectionId];
+        if (Array.isArray(previewSection)) {
+          (previewContent as any)[sectionId] = [...previewSection, newItem];
+          setPreviewResume({ ...previewResume, content: previewContent });
+        }
+      }
 
       // Auto-save to backend
       if (resumeId && resumeId !== "new") {
@@ -1982,6 +2078,18 @@ export function ResumeBuilder() {
       );
       const updatedResume = { ...resume, content: newContent };
       setResume(updatedResume);
+
+      // Also update previewResume if it exists
+      if (previewResume) {
+        const previewContent = { ...previewResume.content };
+        const previewSection = (previewContent as any)[sectionId];
+        if (Array.isArray(previewSection)) {
+          (previewContent as any)[sectionId] = previewSection.filter(
+            (item: any) => item.id !== itemId
+          );
+          setPreviewResume({ ...previewResume, content: previewContent });
+        }
+      }
 
       // Auto-save to backend
       if (resumeId && resumeId !== "new") {
@@ -3242,7 +3350,7 @@ export function ResumeBuilder() {
         isAutoSaving={isAutoSaving}
         lastSaved={lastSaved}
         exporting={exporting}
-        showExportMenu={showExportMenu}
+        showExportMenu={false}
         showVersionHistory={showVersionHistory}
         showCustomization={showCustomization}
         showValidationPanel={showValidationPanel}
@@ -3250,8 +3358,8 @@ export function ResumeBuilder() {
         onNavigateBack={() => navigate(ROUTES.RESUMES)}
         onSave={handleSave}
         onUndo={handleUndo}
-        onExport={handleExport}
-        onToggleExportMenu={() => setShowExportMenu(!showExportMenu)}
+        onExport={() => setShowExportModal(true)}
+        onToggleExportMenu={() => setShowExportModal(!showExportModal)}
         onToggleVersionHistory={() =>
           setShowVersionHistory(!showVersionHistory)
         }
@@ -4893,18 +5001,29 @@ export function ResumeBuilder() {
                                         placeholder="Honors"
                                       />
                                     </div>
-                                    <div className="flex gap-2">
+                                    <div
+                                      className="flex gap-2"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
                                       <button
-                                        onClick={() => setEditingItem(null)}
-                                        className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors"
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          e.preventDefault();
+                                          setEditingItem(null);
+                                        }}
+                                        className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors relative z-10"
                                       >
                                         Done
                                       </button>
                                       <button
-                                        onClick={() =>
-                                          deleteItem("education", edu.id)
-                                        }
-                                        className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          e.preventDefault();
+                                          deleteItem("education", edu.id);
+                                        }}
+                                        className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors relative z-10"
                                       >
                                         Delete
                                       </button>
@@ -6519,9 +6638,18 @@ export function ResumeBuilder() {
                     isValidUUID(jobId) &&
                     resumeId &&
                     resumeId !== "new" &&
-                    !aiExplanation
+                    !aiExplanation &&
+                    !shouldAutoAnalyzeResume
                   )
                 }
+                autoAnalyzeResume={shouldAutoAnalyzeResume}
+                onAnalysisComplete={() => {
+                  setShouldAutoAnalyzeResume(false);
+                  showToast(
+                    "Resume analysis complete! Check the AI assistant for feedback.",
+                    "success"
+                  );
+                }}
                 onResumeUpdate={(updates) => {
                   if (resume) {
                     // Save current state to history before applying changes
@@ -7362,15 +7490,23 @@ export function ResumeBuilder() {
       </Fragment>
 
       {/* Click outside to close menus */}
-      {(showExportMenu || showPresetMenu) && (
+      {showPresetMenu && (
         <div
           className="fixed inset-0 z-0"
           onClick={() => {
-            setShowExportMenu(false);
             setShowPresetMenu(false);
           }}
         />
       )}
+
+      {/* Export Modal */}
+      <ResumeExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        onExport={handleExport}
+        defaultFilename={resume?.name || `resume_${resumeId || Date.now()}`}
+        isExporting={exporting}
+      />
 
       {/* Import Modal */}
       {showImportModal && importSection && (
@@ -8777,31 +8913,10 @@ export function ResumeBuilder() {
                         const file = e.target.files?.[0];
                         if (!file) return;
 
-                        try {
-                          setImportingResume(true);
-                          showToast("Parsing resume with AI...", "info");
-
-                          const response = await resumeService.parseResume(
-                            file
-                          );
-
-                          if (response.ok && response.data) {
-                            setParsedResumeContent(response.data.content);
-                            showToast(
-                              "Resume parsed successfully! Review and confirm to import.",
-                              "success"
-                            );
-                          }
-                        } catch (err: any) {
-                          console.error("Failed to parse resume:", err);
-                          showToast(
-                            err.message ||
-                              "Failed to parse resume. Please try again.",
-                            "error"
-                          );
-                        } finally {
-                          setImportingResume(false);
-                        }
+                        // Show the parse loader
+                        setFileToParse(file);
+                        setShowParseLoader(true);
+                        setShowImportResumeModal(false);
                       }}
                       className="hidden"
                       disabled={importingResume}
@@ -9291,6 +9406,139 @@ export function ResumeBuilder() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Resume Parse Loader */}
+      {showParseLoader && fileToParse && (
+        <ResumeParseLoader
+          file={fileToParse}
+          onComplete={async (parsedContent) => {
+            setShowParseLoader(false);
+            setFileToParse(null);
+
+            // Create a resume from the parsed content
+            try {
+              // First, create or get the resume
+              let currentResumeId = resumeId;
+
+              if (!currentResumeId || currentResumeId === "new") {
+                // Create a new resume using ResumeInput
+                const resumeInput = {
+                  name:
+                    `Resume - ${parsedContent.personalInfo?.firstName || ""} ${
+                      parsedContent.personalInfo?.lastName || ""
+                    }`.trim() || "Imported Resume",
+                  content: {
+                    personalInfo: parsedContent.personalInfo || {
+                      firstName: "",
+                      lastName: "",
+                      email: "",
+                    },
+                    summary: parsedContent.summary || "",
+                    experience: parsedContent.experience || [],
+                    education: parsedContent.education || [],
+                    skills: parsedContent.skills || [],
+                    projects: parsedContent.projects || [],
+                    certifications: parsedContent.certifications || [],
+                  },
+                };
+
+                setParsedResumeContent(parsedContent);
+
+                // Save the resume to get an ID
+                try {
+                  const createResponse = await resumeService.createResume(
+                    resumeInput
+                  );
+                  if (createResponse.ok && createResponse.data?.resume) {
+                    const savedResume = createResponse.data.resume;
+                    currentResumeId = savedResume.id;
+                    setResume(savedResume);
+                    navigate(`${ROUTES.RESUME_BUILDER}?id=${currentResumeId}`, {
+                      replace: true,
+                    });
+                  }
+                } catch (err) {
+                  console.error("Failed to save resume:", err);
+                  // Continue with "new" resume ID
+                }
+              } else {
+                // Update existing resume
+                if (resume) {
+                  const updatedContent = {
+                    ...resume.content,
+                    personalInfo: {
+                      ...resume.content.personalInfo,
+                      ...parsedContent.personalInfo,
+                    },
+                    summary: parsedContent.summary || resume.content.summary,
+                    experience: [
+                      ...(resume.content.experience || []),
+                      ...(parsedContent.experience || []),
+                    ],
+                    education: [
+                      ...(resume.content.education || []),
+                      ...(parsedContent.education || []),
+                    ],
+                    skills: [
+                      ...(resume.content.skills || []),
+                      ...(parsedContent.skills || []),
+                    ],
+                    projects: [
+                      ...(resume.content.projects || []),
+                      ...(parsedContent.projects || []),
+                    ],
+                    certifications: [
+                      ...(resume.content.certifications || []),
+                      ...(parsedContent.certifications || []),
+                    ],
+                  };
+
+                  const updatedResume = {
+                    ...resume,
+                    content: updatedContent,
+                  };
+
+                  setResume(updatedResume);
+
+                  // Save to backend
+                  try {
+                    await resumeService.updateResume(currentResumeId, {
+                      content: updatedContent,
+                    });
+                  } catch (err) {
+                    console.error("Failed to save resume:", err);
+                  }
+                }
+              }
+
+              // Trigger auto-analysis of the resume
+              if (currentResumeId && currentResumeId !== "new") {
+                // Open the AI panel and trigger auto-analysis
+                // The AI will automatically analyze the resume and display the response in chat
+                setShowAIPanel(true);
+                setShouldAutoAnalyzeResume(true);
+                showToast("Resume imported! Analyzing with AI...", "info");
+              } else {
+                // For new resumes, just open the AI panel
+                setShowAIPanel(true);
+                showToast("Resume imported successfully!", "success");
+              }
+            } catch (err: any) {
+              console.error("Failed to process parsed resume:", err);
+              showToast(
+                err.message ||
+                  "Failed to process parsed resume. Please try again.",
+                "error"
+              );
+            }
+          }}
+          onError={(error) => {
+            setShowParseLoader(false);
+            setFileToParse(null);
+            showToast(error, "error");
+          }}
+        />
       )}
     </div>
   );

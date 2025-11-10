@@ -22,7 +22,9 @@ interface AIAssistantChatProps {
   onPreviewUpdate?: (previewResume: Resume | null) => void;
   initialJobId?: string | null; // Job ID to auto-select and analyze
   autoAnalyzeJob?: boolean; // Whether to automatically analyze the job
+  autoAnalyzeResume?: boolean; // Whether to automatically analyze the resume
   initialMessage?: string; // Initial message to display from AI (e.g., explanation of tailoring)
+  onAnalysisComplete?: () => void; // Callback when analysis is complete
 }
 
 const SUGGESTED_PROMPTS = [
@@ -57,7 +59,9 @@ export function AIAssistantChat({
   onPreviewUpdate,
   initialJobId,
   autoAnalyzeJob = false,
+  autoAnalyzeResume = false,
   initialMessage,
+  onAnalysisComplete,
 }: AIAssistantChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -79,6 +83,7 @@ export function AIAssistantChat({
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [loadingJobs, setLoadingJobs] = useState(false);
   const [showClearChatConfirm, setShowClearChatConfirm] = useState(false);
+  const hasAutoAnalyzedResumeRef = useRef(false);
 
   // Log props when component mounts or props change
   useEffect(() => {
@@ -87,10 +92,11 @@ export function AIAssistantChat({
       resumeId,
       initialJobId,
       autoAnalyzeJob,
+      autoAnalyzeResume,
       hasResume: !!resume,
       hasInitialMessage: !!initialMessage,
     });
-  }, [isOpen, resumeId, initialJobId, autoAnalyzeJob, resume, initialMessage]);
+  }, [isOpen, resumeId, initialJobId, autoAnalyzeJob, autoAnalyzeResume, resume, initialMessage]);
 
   // Track if we've already set the initial message to avoid duplicates
   const initialMessageSetRef = useRef<string | null>(null);
@@ -1136,7 +1142,8 @@ Be specific and actionable with your recommendations.`;
             const response = await resumeService.chat(
               resumeId!,
               [{ role: "user", content: analysisPrompt }],
-              selectedJobId
+              selectedJobId,
+              resume || undefined // Pass current resume being previewed
             );
 
             console.log("📥 Auto-analysis response:", response);
@@ -1223,6 +1230,198 @@ Be specific and actionable with your recommendations.`;
     }
   }, [autoAnalyzeJob, isOpen, resumeId, selectedJobId, initialJobId, jobOpportunities, isLoading, messages.length, loadingJobs, initialMessage]);
 
+  // Auto-analyze resume when conditions are met
+  useEffect(() => {
+    console.log("🔄 Auto-analyze resume effect running with:", {
+      autoAnalyzeResume,
+      isOpen,
+      resumeId,
+      hasAutoAnalyzed: hasAutoAnalyzedResumeRef.current,
+      isLoading,
+      messagesLength: messages.length,
+      hasInitialMessage: !!initialMessage,
+    });
+
+    // Reset flag when panel closes
+    if (!isOpen) {
+      hasAutoAnalyzedResumeRef.current = false;
+      return;
+    }
+
+    // Auto-analyze when conditions are met
+    const conditions = {
+      autoAnalyzeResume: !!autoAnalyzeResume,
+      isOpen: !!isOpen,
+      resumeIdExists: !!resumeId,
+      resumeIdNotNew: resumeId !== "new",
+      notAlreadyAnalyzed: !hasAutoAnalyzedResumeRef.current,
+      notLoading: !isLoading,
+      noMessages: messages.length === 0,
+      noInitialMessage: !initialMessage, // Don't auto-analyze if initialMessage is present
+    };
+
+    const allConditionsMet = Object.values(conditions).every(v => v === true);
+
+    console.log("🔍 Resume analysis condition check:", conditions);
+    console.log("✅ All conditions met:", allConditionsMet);
+
+    if (allConditionsMet) {
+      console.log("🎯 All conditions met, triggering auto-analysis for resume");
+      hasAutoAnalyzedResumeRef.current = true;
+
+      // Trigger analysis immediately
+      const triggerAnalysis = async () => {
+        console.log("🚀 Executing resume auto-analysis...");
+        const analysisPrompt = `Analyze this resume and provide a comprehensive assessment of its strengths and weaknesses:
+
+Please analyze:
+1. **Content Quality:**
+   - Are bullet points impactful and quantified?
+   - Is the summary compelling and concise?
+   - Are skills relevant and well-organized?
+   - Is experience described effectively?
+
+2. **ATS Compatibility:**
+   - Are keywords optimized?
+   - Is formatting ATS-friendly?
+   - Are section headings clear?
+   - Is the structure logical?
+
+3. **Professional Presentation:**
+   - Is the tone professional?
+   - Are there any grammar or spelling issues?
+   - Is the length appropriate (1-2 pages)?
+   - Is information well-organized?
+
+4. **Completeness:**
+   - Are all essential sections present?
+   - Is contact information complete?
+   - Are dates and locations consistent?
+   - Is there missing critical information?
+
+5. **Improvement Suggestions:**
+   - Specific areas to strengthen
+   - Action verbs to use
+   - Quantifiable achievements to add
+   - Skills to emphasize or add
+
+Please provide:
+- Overall assessment (strengths and weaknesses)
+- Specific actionable improvement suggestions
+- Priority recommendations
+
+Be specific and constructive in your feedback.`;
+
+        // Add user message
+        const userMessage: Message = {
+          role: "user",
+          content: analysisPrompt,
+          timestamp: new Date(),
+        };
+
+        // Add initial loading message to show user what's happening
+        const loadingMessage: Message = {
+          role: "assistant",
+          content: "🤖 Analyzing your resume and generating comprehensive feedback... This may take a moment.",
+          timestamp: new Date(),
+        };
+
+        // Set initial messages with user prompt and loading indicator
+        setMessages([userMessage, loadingMessage]);
+        setIsLoading(true);
+
+        // Send to AI
+        try {
+          console.log("📤 Sending resume analysis prompt to backend");
+          console.log("📤 Resume ID:", resumeId);
+          const response = await resumeService.chat(
+            resumeId!,
+            [{ role: "user", content: analysisPrompt }],
+            undefined,
+            resume || undefined // Pass current resume being previewed
+          );
+
+          console.log("📥 Resume auto-analysis response:", response);
+
+          if (response.ok && response.data) {
+            const assistantMessage: Message = {
+              role: "assistant",
+              content: response.data.message || response.data.content || "I've analyzed your resume. Here's my comprehensive feedback.",
+              timestamp: new Date(),
+            };
+
+            console.log("💬 Assistant message content length:", assistantMessage.content.length);
+
+            // Replace the loading message with the actual response
+            const updatedMessages = [userMessage, assistantMessage];
+            setMessages(updatedMessages);
+            console.log("📝 Set messages array with", updatedMessages.length, "messages");
+
+            // Scroll to bottom
+            setTimeout(() => {
+              messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+            }, 100);
+
+            // Parse suggestions
+            const messageContent = response.data.message || response.data.content || "";
+            const suggestions = parseSuggestions(messageContent, 1);
+            console.log("💡 Parsed suggestions:", suggestions.length);
+            if (suggestions.length > 0) {
+              setParsedSuggestions(new Map([[1, suggestions]]));
+            }
+
+            // Call onAnalysisComplete callback
+            if (onAnalysisComplete) {
+              onAnalysisComplete();
+            }
+
+            console.log("✅ Resume auto-analysis completed successfully");
+          } else {
+            console.error("❌ Resume auto-analysis failed - response not ok:", response);
+            const errorMessage: Message = {
+              role: "assistant",
+              content: `I encountered an issue analyzing your resume. ${response.error?.message || "Please try again or ask me a specific question about your resume."}`,
+              timestamp: new Date(),
+            };
+            // Replace loading message with error message
+            setMessages([userMessage, errorMessage]);
+            setTimeout(() => {
+              messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+            }, 100);
+            hasAutoAnalyzedResumeRef.current = false; // Reset flag on error so user can retry
+          }
+        } catch (error: any) {
+          console.error("❌ Resume auto-analysis error:", error);
+          const errorMessage: Message = {
+            role: "assistant",
+            content: `I apologize, but I'm having trouble analyzing your resume right now. ${error.message ? `Error: ${error.message}` : "Please try again or ask me a specific question."}`,
+            timestamp: new Date(),
+          };
+          // Replace loading message with error message
+          setMessages([userMessage, errorMessage]);
+          setTimeout(() => {
+            messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+          }, 100);
+          hasAutoAnalyzedResumeRef.current = false; // Reset flag on error so user can retry
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      // Small delay to ensure UI is ready
+      const timer = setTimeout(triggerAnalysis, 300);
+      return () => clearTimeout(timer);
+    } else {
+      // Log which conditions are failing
+      const failingConditions = Object.entries(conditions)
+        .filter(([_, met]) => !met)
+        .map(([name]) => name);
+      if (autoAnalyzeResume && isOpen && failingConditions.length > 0) {
+        console.log("⏸️ Resume auto-analysis blocked by:", failingConditions);
+      }
+    }
+  }, [autoAnalyzeResume, isOpen, resumeId, isLoading, messages.length, initialMessage, onAnalysisComplete]);
+
   // Generate context-aware suggested prompts
   const generateSuggestedPrompts = useCallback(async () => {
     if (!resumeId || resumeId === "new" || isGeneratingPrompts) return;
@@ -1247,12 +1446,17 @@ Example format: ["Write a professional summary", "Improve my work experience", "
 
 Generate 4 relevant prompts:`;
 
-      const response = await resumeService.chat(resumeId, [
-        {
-          role: "user",
-          content: promptRequest,
-        },
-      ]);
+      const response = await resumeService.chat(
+        resumeId,
+        [
+          {
+            role: "user",
+            content: promptRequest,
+          },
+        ],
+        undefined,
+        resume || undefined // Pass current resume being previewed
+      );
 
       if (response.ok && response.data) {
         try {
@@ -1368,12 +1572,17 @@ Example format: ["Write a professional summary", "Improve my work experience", "
 
 Generate 4 relevant, context-aware prompts:`;
 
-          const response = await resumeService.chat(resumeId, [
-            {
-              role: "user",
-              content: promptRequest,
-            },
-          ], jobIdToUse || undefined);
+          const response = await resumeService.chat(
+            resumeId,
+            [
+              {
+                role: "user",
+                content: promptRequest,
+              },
+            ],
+            jobIdToUse || undefined,
+            resume || undefined // Pass current resume being previewed
+          );
 
           if (response.ok && response.data) {
             try {
@@ -1560,7 +1769,8 @@ Generate 4 relevant, context-aware prompts:`;
         const response = await resumeService.chat(
           resumeId,
           conversationHistory,
-          selectedJobId || undefined
+          selectedJobId || undefined,
+          resume || undefined // Pass current resume being previewed
         );
 
         if (response.ok && response.data) {

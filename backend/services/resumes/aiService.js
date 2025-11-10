@@ -158,67 +158,138 @@ You: "Here's an improved summary that better highlights your experience: [Provid
   }
 
   /**
-   * Get context about the user's resume
+   * Get context about the user's resume (full details)
    */
   getResumeContext(resume) {
     if (!resume) return "No resume data available.";
 
     const context = [];
+    context.push("=== CURRENT RESUME CONTENT ===");
+    context.push("");
 
     // Personal Info
     if (resume.content?.personalInfo) {
-      const { firstName, lastName, email, phone, location } =
-        resume.content.personalInfo;
-      context.push(
-        `**Personal Information:** ${firstName || ""} ${lastName || ""}${
-          email ? ` (${email})` : ""
-        }${location ? ` - ${location}` : ""}`
-      );
+      const {
+        firstName,
+        lastName,
+        email,
+        phone,
+        location,
+        linkedIn,
+        portfolio,
+      } = resume.content.personalInfo;
+      context.push("**Personal Information:**");
+      if (firstName || lastName) {
+        context.push(`Name: ${firstName || ""} ${lastName || ""}`.trim());
+      }
+      if (email) context.push(`Email: ${email}`);
+      if (phone) context.push(`Phone: ${phone}`);
+      if (location) context.push(`Location: ${location}`);
+      if (linkedIn) context.push(`LinkedIn: ${linkedIn}`);
+      if (portfolio) context.push(`Portfolio: ${portfolio}`);
+      context.push("");
     }
 
     // Summary
     if (resume.content?.summary) {
-      context.push(
-        `**Summary:** ${resume.content.summary.substring(0, 200)}${
-          resume.content.summary.length > 200 ? "..." : ""
-        }`
-      );
+      context.push("**Summary:**");
+      context.push(resume.content.summary);
+      context.push("");
     }
 
     // Experience
     if (resume.content?.experience && resume.content.experience.length > 0) {
-      const expCount = resume.content.experience.length;
-      const latestExp = resume.content.experience[0];
-      context.push(
-        `**Experience:** ${expCount} position(s). Latest: ${
-          latestExp.title || "N/A"
-        } at ${latestExp.company || "N/A"}`
-      );
+      context.push("**Work Experience:**");
+      resume.content.experience.forEach((exp, index) => {
+        context.push(
+          `${index + 1}. ${exp.title || "N/A"} at ${exp.company || "N/A"}`
+        );
+        if (exp.location) context.push(`   Location: ${exp.location}`);
+        context.push(
+          `   Duration: ${exp.startDate || "N/A"} - ${
+            exp.isCurrent ? "Present" : exp.endDate || "N/A"
+          }`
+        );
+        if (exp.description && Array.isArray(exp.description)) {
+          exp.description.forEach((desc) => {
+            context.push(`   • ${desc}`);
+          });
+        } else if (exp.description) {
+          context.push(`   Description: ${exp.description}`);
+        }
+        context.push("");
+      });
     }
 
     // Education
     if (resume.content?.education && resume.content.education.length > 0) {
-      const eduCount = resume.content.education.length;
-      const latestEdu = resume.content.education[0];
-      context.push(
-        `**Education:** ${eduCount} entry/entries. Latest: ${
-          latestEdu.degree || "N/A"
-        } from ${latestEdu.school || "N/A"}`
-      );
+      context.push("**Education:**");
+      resume.content.education.forEach((edu, index) => {
+        context.push(
+          `${index + 1}. ${edu.degree || "N/A"} from ${edu.school || "N/A"}`
+        );
+        if (edu.field) context.push(`   Field: ${edu.field}`);
+        if (edu.gpa) context.push(`   GPA: ${edu.gpa}`);
+        context.push(
+          `   Graduated: ${edu.endDate || "N/A"}${
+            edu.startDate ? ` (Started: ${edu.startDate})` : ""
+          }`
+        );
+        if (edu.honors) context.push(`   Honors: ${edu.honors}`);
+        context.push("");
+      });
     }
 
     // Skills
     if (resume.content?.skills && resume.content.skills.length > 0) {
-      const skillCount = resume.content.skills.length;
-      const skillNames = resume.content.skills
-        .slice(0, 5)
-        .map((s) => s.name)
-        .join(", ");
-      context.push(
-        `**Skills:** ${skillCount} skill(s). Examples: ${skillNames}${
-          skillCount > 5 ? "..." : ""
-        }`
-      );
+      context.push("**Skills:**");
+      const skillsByCategory = {};
+      resume.content.skills.forEach((skill) => {
+        const category = skill.category || "Other";
+        if (!skillsByCategory[category]) {
+          skillsByCategory[category] = [];
+        }
+        skillsByCategory[category].push(
+          `${skill.name}${skill.proficiency ? ` (${skill.proficiency})` : ""}`
+        );
+      });
+      Object.keys(skillsByCategory).forEach((category) => {
+        context.push(`${category}: ${skillsByCategory[category].join(", ")}`);
+      });
+      context.push("");
+    }
+
+    // Projects
+    if (resume.content?.projects && resume.content.projects.length > 0) {
+      context.push("**Projects:**");
+      resume.content.projects.forEach((proj, index) => {
+        context.push(`${index + 1}. ${proj.name || "N/A"}`);
+        if (proj.description) context.push(`   ${proj.description}`);
+        if (proj.technologies && Array.isArray(proj.technologies)) {
+          context.push(`   Technologies: ${proj.technologies.join(", ")}`);
+        }
+        if (proj.link) context.push(`   Link: ${proj.link}`);
+        context.push("");
+      });
+    }
+
+    // Certifications
+    if (
+      resume.content?.certifications &&
+      resume.content.certifications.length > 0
+    ) {
+      context.push("**Certifications:**");
+      resume.content.certifications.forEach((cert, index) => {
+        context.push(
+          `${index + 1}. ${cert.name || "N/A"} from ${
+            cert.organization || "N/A"
+          }`
+        );
+        if (cert.dateEarned) context.push(`   Earned: ${cert.dateEarned}`);
+        if (cert.expirationDate)
+          context.push(`   Expires: ${cert.expirationDate}`);
+        context.push("");
+      });
     }
 
     return context.join("\n");

@@ -22,63 +22,110 @@ export const ROUTES = {
   RESUME_AI_TAILORING: '/resumes/ai-tailoring',
 } as const
 
-// Navigation menu configuration
-export const navigationItems = [
-  { 
-    id: 'dashboard', 
-    label: 'Dashboard', 
-    icon: 'mingcute:home-line', 
-    path: ROUTES.DASHBOARD 
+// Navigation item type
+export interface NavigationItem {
+  id: string
+  label: string
+  icon: string
+  path: string
+}
+
+// Navigation group type
+export interface NavigationGroup {
+  id: string
+  label: string
+  icon: string
+  items: NavigationItem[]
+}
+
+// Navigation menu configuration - grouped
+export const navigationGroups: NavigationGroup[] = [
+  {
+    id: 'overview',
+    label: 'Overview',
+    icon: 'mingcute:home-line',
+    items: [
+      { 
+        id: 'dashboard', 
+        label: 'Dashboard', 
+        icon: 'mingcute:home-line', 
+        path: ROUTES.DASHBOARD 
+      },
+      { 
+        id: 'profile', 
+        label: 'Basic Info', 
+        icon: 'mingcute:user-line', 
+        path: ROUTES.BASIC_INFO 
+      },
+    ]
   },
-  { 
-    id: 'profile', 
-    label: 'Basic Info', 
-    icon: 'mingcute:user-line', 
-    path: ROUTES.BASIC_INFO 
+  {
+    id: 'career',
+    label: 'Career',
+    icon: 'mingcute:briefcase-line',
+    items: [
+      { 
+        id: 'employment', 
+        label: 'Employment', 
+        icon: 'mingcute:briefcase-line', 
+        path: ROUTES.EMPLOYMENT 
+      },
+      { 
+        id: 'job-opportunities', 
+        label: 'Job Opportunities', 
+        icon: 'mingcute:search-line', 
+        path: ROUTES.JOB_OPPORTUNITIES 
+      },
+    ]
   },
-  { 
-    id: 'employment', 
-    label: 'Employment', 
-    icon: 'mingcute:briefcase-line', 
-    path: ROUTES.EMPLOYMENT 
+  {
+    id: 'skills-experience',
+    label: 'Skills & Experience',
+    icon: 'mingcute:star-line',
+    items: [
+      { 
+        id: 'skills', 
+        label: 'Skills', 
+        icon: 'mingcute:star-line', 
+        path: ROUTES.SKILLS 
+      },
+      { 
+        id: 'education', 
+        label: 'Education', 
+        icon: 'mingcute:school-line', 
+        path: ROUTES.EDUCATION 
+      },
+      { 
+        id: 'projects', 
+        label: 'Projects', 
+        icon: 'mingcute:folder-line', 
+        path: ROUTES.PROJECTS 
+      },
+      { 
+        id: 'certifications', 
+        label: 'Certifications', 
+        icon: 'mingcute:award-line', 
+        path: ROUTES.CERTIFICATIONS 
+      },
+    ]
   },
-  { 
-    id: 'job-opportunities', 
-    label: 'Job Opportunities', 
-    icon: 'mingcute:search-line', 
-    path: ROUTES.JOB_OPPORTUNITIES 
-  },
-  { 
-    id: 'skills', 
-    label: 'Skills', 
-    icon: 'mingcute:star-line', 
-    path: ROUTES.SKILLS 
-  },
-  { 
-    id: 'education', 
-    label: 'Education', 
-    icon: 'mingcute:school-line', 
-    path: ROUTES.EDUCATION 
-  },
-  { 
-    id: 'projects', 
-    label: 'Projects', 
-    icon: 'mingcute:folder-line', 
-    path: ROUTES.PROJECTS 
-  },
-  { 
-    id: 'certifications', 
-    label: 'Certifications', 
-    icon: 'mingcute:award-line', 
-    path: ROUTES.CERTIFICATIONS 
-  },
-  { 
-    id: 'resumes', 
-    label: 'Resumes', 
-    icon: 'mingcute:file-line', 
-    path: ROUTES.RESUMES 
+  {
+    id: 'resumes',
+    label: 'Resumes',
+    icon: 'mingcute:file-line',
+    items: [
+      { 
+        id: 'resumes', 
+        label: 'Resumes', 
+        icon: 'mingcute:file-line', 
+        path: ROUTES.RESUMES 
+      },
+    ]
   },
 ] as const
+
+// Flattened navigation items for backward compatibility
+export const navigationItems: NavigationItem[] = navigationGroups.flatMap(group => group.items)
 
 // Type exports for TypeScript
 export type RouteKey = keyof typeof ROUTES

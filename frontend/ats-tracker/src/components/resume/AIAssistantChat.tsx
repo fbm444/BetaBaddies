@@ -3,7 +3,8 @@ import { Icon } from "@iconify/react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { resumeService } from "../../services/resumeService";
-import { prospectiveJobService, ProspectiveJob } from "../../services/prospectiveJobService";
+import { api } from "../../services/api";
+import { JobOpportunityData } from "../../types";
 import { Resume } from "../../types";
 
 interface Message {
@@ -63,6 +64,8 @@ export function AIAssistantChat({
   const [isLoading, setIsLoading] = useState(false);
   const [suggestedPrompts, setSuggestedPrompts] = useState<string[]>([]);
   const [isGeneratingPrompts, setIsGeneratingPrompts] = useState(false);
+  const [isJobSelectorMinimized, setIsJobSelectorMinimized] = useState(false);
+  const [isSuggestedPromptsMinimized, setIsSuggestedPromptsMinimized] = useState(false);
   const lastUserMessageCountRef = useRef(0);
   const [parsedSuggestions, setParsedSuggestions] = useState<
     Map<number, ParsedSuggestion[]>
@@ -72,7 +75,7 @@ export function AIAssistantChat({
   const [appliedSuggestions, setAppliedSuggestions] = useState<
     Map<number, ParsedSuggestion[]>
   >(new Map());
-  const [prospectiveJobs, setProspectiveJobs] = useState<ProspectiveJob[]>([]);
+  const [jobOpportunities, setJobOpportunities] = useState<JobOpportunityData[]>([]);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [loadingJobs, setLoadingJobs] = useState(false);
   const [showClearChatConfirm, setShowClearChatConfirm] = useState(false);
@@ -982,30 +985,35 @@ export function AIAssistantChat({
     }
   }, [isOpen]);
 
-  // Fetch prospective jobs when component mounts
+  // Fetch job opportunities when component mounts
   useEffect(() => {
-    const fetchProspectiveJobs = async () => {
+    const fetchJobOpportunities = async () => {
       try {
         setLoadingJobs(true);
-        console.log("📋 Fetching prospective jobs...");
-        const response = await prospectiveJobService.getProspectiveJobs();
-        console.log("📋 Prospective jobs response:", response);
+        console.log("📋 Fetching job opportunities...");
+        const response = await api.getJobOpportunities({ 
+          sort: "-created_at"
+        });
+        console.log("📋 Job opportunities response:", response);
         if (response.ok && response.data) {
-          const jobs = response.data.jobs || [];
-          console.log("📋 Loaded", jobs.length, "prospective jobs");
-          setProspectiveJobs(jobs);
+          // Filter out archived jobs
+          const jobs = (response.data.jobOpportunities || []).filter(
+            (job: JobOpportunityData) => !job.archived
+          );
+          console.log("📋 Loaded", jobs.length, "job opportunities");
+          setJobOpportunities(jobs);
         } else {
           console.error("📋 Failed to fetch jobs:", response.error);
         }
       } catch (error) {
-        console.error("📋 Error fetching prospective jobs:", error);
+        console.error("📋 Error fetching job opportunities:", error);
       } finally {
         setLoadingJobs(false);
       }
     };
 
     if (isOpen) {
-      fetchProspectiveJobs();
+      fetchJobOpportunities();
     }
   }, [isOpen]);
 
@@ -1020,8 +1028,8 @@ export function AIAssistantChat({
     }
 
     // If we have an initialJobId and jobs are loaded, select it
-    if (initialJobId && isOpen && prospectiveJobs.length > 0 && !loadingJobs) {
-      const jobExists = prospectiveJobs.some(job => job.id === initialJobId);
+    if (initialJobId && isOpen && jobOpportunities.length > 0 && !loadingJobs) {
+      const jobExists = jobOpportunities.some(job => job.id === initialJobId);
       if (jobExists && selectedJobId !== initialJobId) {
         console.log("📌 Auto-selecting job:", initialJobId);
         setSelectedJobId(initialJobId);
@@ -1029,11 +1037,11 @@ export function AIAssistantChat({
         hasAutoAnalyzedRef.current = false;
       }
     }
-  }, [initialJobId, isOpen, prospectiveJobs, selectedJobId, loadingJobs]);
+  }, [initialJobId, isOpen, jobOpportunities, selectedJobId, loadingJobs]);
 
   // Separate effect to trigger auto-analysis when job is selected
   useEffect(() => {
-    console.log("🔄 Auto-analysis effect running with:", {
+      console.log("🔄 Auto-analysis effect running with:", {
       autoAnalyzeJob,
       isOpen,
       resumeId,
@@ -1042,8 +1050,9 @@ export function AIAssistantChat({
       hasAutoAnalyzed: hasAutoAnalyzedRef.current,
       isLoading,
       messagesLength: messages.length,
-      prospectiveJobsLength: prospectiveJobs.length,
+      jobOpportunitiesLength: jobOpportunities.length,
       loadingJobs,
+      hasInitialMessage: !!initialMessage,
     });
 
     // Reset flag when panel closes
@@ -1053,6 +1062,7 @@ export function AIAssistantChat({
     }
 
     // Auto-analyze when conditions are met
+    // IMPORTANT: Don't auto-analyze if initialMessage is present (AI has already provided explanation)
     const conditions = {
       autoAnalyzeJob: !!autoAnalyzeJob,
       isOpen: !!isOpen,
@@ -1063,8 +1073,9 @@ export function AIAssistantChat({
       notAlreadyAnalyzed: !hasAutoAnalyzedRef.current,
       notLoading: !isLoading,
       noMessages: messages.length === 0,
-      hasJobs: prospectiveJobs.length > 0,
+      hasJobs: jobOpportunities.length > 0,
       notLoadingJobs: !loadingJobs,
+      noInitialMessage: !initialMessage, // Don't auto-analyze if initialMessage is present
     };
 
     const allConditionsMet = Object.values(conditions).every(v => v === true);
@@ -1073,9 +1084,9 @@ export function AIAssistantChat({
     console.log("✅ All conditions met:", allConditionsMet);
 
     if (allConditionsMet) {
-      const selectedJob = prospectiveJobs.find(job => job.id === selectedJobId);
+      const selectedJob = jobOpportunities.find(job => job.id === selectedJobId);
       if (selectedJob) {
-        console.log("🎯 All conditions met, triggering auto-analysis for:", selectedJob.jobTitle);
+        console.log("🎯 All conditions met, triggering auto-analysis for:", selectedJob.title);
         hasAutoAnalyzedRef.current = true;
         
         // Trigger analysis immediately
@@ -1083,7 +1094,7 @@ export function AIAssistantChat({
           console.log("🚀 Executing auto-analysis...");
           const analysisPrompt = `Analyze this job posting and provide specific recommendations to tailor my resume:
 
-Job Title: ${selectedJob.jobTitle || 'N/A'}
+Job Title: ${selectedJob.title || 'N/A'}
 Company: ${selectedJob.company || 'N/A'}
 ${selectedJob.location ? `Location: ${selectedJob.location}` : ''}
 ${selectedJob.industry ? `Industry: ${selectedJob.industry}` : ''}
@@ -1118,7 +1129,7 @@ Be specific and actionable with your recommendations.`;
 
           // Send to AI
           try {
-            console.log("📤 Sending prompt to backend for job:", selectedJob.jobTitle);
+            console.log("📤 Sending prompt to backend for job:", selectedJob.title);
             console.log("📤 Resume ID:", resumeId);
             console.log("📤 Job ID:", selectedJobId);
             console.log("📤 Prompt length:", analysisPrompt.length);
@@ -1199,7 +1210,7 @@ Be specific and actionable with your recommendations.`;
         const timer = setTimeout(triggerAnalysis, 300);
         return () => clearTimeout(timer);
       } else {
-        console.error("❌ Selected job not found in prospectiveJobs:", selectedJobId);
+        console.error("❌ Selected job not found in jobOpportunities:", selectedJobId);
       }
     } else {
       // Log which conditions are failing
@@ -1210,7 +1221,7 @@ Be specific and actionable with your recommendations.`;
         console.log("⏸️ Auto-analysis blocked by:", failingConditions);
       }
     }
-  }, [autoAnalyzeJob, isOpen, resumeId, selectedJobId, initialJobId, prospectiveJobs, isLoading, messages.length, loadingJobs]);
+  }, [autoAnalyzeJob, isOpen, resumeId, selectedJobId, initialJobId, jobOpportunities, isLoading, messages.length, loadingJobs, initialMessage]);
 
   // Generate context-aware suggested prompts
   const generateSuggestedPrompts = useCallback(async () => {
@@ -1334,9 +1345,9 @@ Generate 4 relevant prompts:`;
           // Use selectedJobId or fallback to initialJobId
           const jobIdToUse = selectedJobId || initialJobId;
           if (jobIdToUse) {
-            const selectedJob = prospectiveJobs.find(job => job.id === jobIdToUse);
+            const selectedJob = jobOpportunities.find(job => job.id === jobIdToUse);
             if (selectedJob) {
-              context += `\nUser is tailoring resume for: ${selectedJob.jobTitle} at ${selectedJob.company}.`;
+              context += `\nUser is tailoring resume for: ${selectedJob.title} at ${selectedJob.company}.`;
             } else if (jobIdToUse === initialJobId) {
               // If job not loaded yet but we have initialJobId, mention it
               context += `\nUser is tailoring resume for a specific job posting.`;
@@ -1424,7 +1435,7 @@ Generate 4 relevant, context-aware prompts:`;
       // Fallback to default prompts if no resume ID
       setSuggestedPrompts(SUGGESTED_PROMPTS.slice(0, 4));
     }
-  }, [isOpen, resumeId, resume, selectedJobId, initialJobId, prospectiveJobs, initialMessage, suggestedPrompts.length]);
+  }, [isOpen, resumeId, resume, selectedJobId, initialJobId, jobOpportunities, initialMessage, suggestedPrompts.length]);
 
   // Generate prompts only after a user message is sent (not on every message change)
   useEffect(() => {
@@ -2211,53 +2222,72 @@ Generate 4 relevant, context-aware prompts:`;
       </div>
 
       {/* Job Selector */}
-      <div className="flex-shrink-0 px-4 py-3 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
-        <div className="flex items-center gap-3">
-          <Icon icon="mingcute:briefcase-line" className="w-4 h-4 text-[#3351FD] flex-shrink-0" />
-          <div className="flex-1 min-w-0">
-            <label className="block text-xs font-semibold text-gray-700 mb-1">
+      <div className="flex-shrink-0 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <Icon icon="mingcute:briefcase-line" className="w-4 h-4 text-[#3351FD] flex-shrink-0" />
+            <label className="text-xs font-semibold text-gray-700 cursor-pointer" onClick={() => setIsJobSelectorMinimized(!isJobSelectorMinimized)}>
               Tailor for Job Posting (Optional)
             </label>
-            {loadingJobs ? (
-              <div className="flex items-center gap-2 text-xs text-gray-500">
-                <Icon icon="mingcute:loading-line" className="w-3 h-3 animate-spin" />
-                <span>Loading jobs...</span>
-              </div>
-            ) : (
-              <select
-                value={selectedJobId || ""}
-                onChange={(e) => setSelectedJobId(e.target.value || null)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent bg-white"
-              >
-                <option value="">No specific job - General advice</option>
-                {prospectiveJobs.map((job) => (
-                  <option key={job.id} value={job.id}>
-                    {job.jobTitle} at {job.company}
-                    {job.location ? ` (${job.location})` : ""}
-                  </option>
-                ))}
-              </select>
-            )}
           </div>
-          {selectedJobId && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                setSelectedJobId(null);
-              }}
-              className="p-1.5 hover:bg-white/50 rounded-lg transition-colors flex-shrink-0"
-              title="Clear job selection"
-              type="button"
-            >
-              <Icon icon="mingcute:close-line" className="w-4 h-4 text-gray-600" />
-            </button>
-          )}
+          <button
+            onClick={() => setIsJobSelectorMinimized(!isJobSelectorMinimized)}
+            className="p-1.5 hover:bg-white/50 rounded-lg transition-colors flex-shrink-0"
+            title={isJobSelectorMinimized ? "Expand" : "Minimize"}
+            type="button"
+          >
+            <Icon 
+              icon={isJobSelectorMinimized ? "mingcute:down-line" : "mingcute:up-line"} 
+              className="w-4 h-4 text-gray-600" 
+            />
+          </button>
         </div>
-        {selectedJobId && (
-          <div className="mt-2 text-xs text-gray-600">
-            <Icon icon="mingcute:information-line" className="w-3 h-3 inline mr-1" />
-            AI suggestions will be tailored to match this job's requirements
+        {!isJobSelectorMinimized && (
+          <div className="px-4 pb-3">
+            <div className="flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                {loadingJobs ? (
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <Icon icon="mingcute:loading-line" className="w-3 h-3 animate-spin" />
+                    <span>Loading jobs...</span>
+                  </div>
+                ) : (
+                  <select
+                    value={selectedJobId || ""}
+                    onChange={(e) => setSelectedJobId(e.target.value || null)}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent bg-white"
+                  >
+                    <option value="">No specific job - General advice</option>
+                    {jobOpportunities.map((job) => (
+                      <option key={job.id} value={job.id}>
+                        {job.title} at {job.company}
+                        {job.location ? ` (${job.location})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+              {selectedJobId && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    setSelectedJobId(null);
+                  }}
+                  className="p-1.5 hover:bg-white/50 rounded-lg transition-colors flex-shrink-0"
+                  title="Clear job selection"
+                  type="button"
+                >
+                  <Icon icon="mingcute:close-line" className="w-4 h-4 text-gray-600" />
+                </button>
+              )}
+            </div>
+            {selectedJobId && (
+              <div className="mt-2 text-xs text-gray-600">
+                <Icon icon="mingcute:information-line" className="w-3 h-3 inline mr-1" />
+                AI suggestions will be tailored to match this job's requirements
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -2583,36 +2613,53 @@ Generate 4 relevant, context-aware prompts:`;
         style={{ flexShrink: 0 }}
       >
         {/* Suggested Prompts - Always Visible */}
-        <div className="px-4 pt-2 pb-2">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-semibold text-gray-600">
-              Suggested prompts:
-            </p>
-            {isGeneratingPrompts && (
-              <Icon
-                icon="mingcute:loading-line"
-                className="w-3 h-3 text-gray-400 animate-spin"
+        <div className="border-b border-gray-200">
+          <div className="flex items-center justify-between px-4 pt-2 pb-2">
+            <div className="flex items-center gap-2">
+              <p className="text-xs font-semibold text-gray-600">
+                Suggested prompts:
+              </p>
+              {isGeneratingPrompts && (
+                <Icon
+                  icon="mingcute:loading-line"
+                  className="w-3 h-3 text-gray-400 animate-spin"
+                />
+              )}
+            </div>
+            <button
+              onClick={() => setIsSuggestedPromptsMinimized(!isSuggestedPromptsMinimized)}
+              className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
+              title={isSuggestedPromptsMinimized ? "Expand" : "Minimize"}
+              type="button"
+            >
+              <Icon 
+                icon={isSuggestedPromptsMinimized ? "mingcute:up-line" : "mingcute:down-line"} 
+                className="w-3 h-3 text-gray-600" 
               />
-            )}
+            </button>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {suggestedPrompts.length > 0 ? (
-              suggestedPrompts.map((prompt, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleSuggestedPrompt(prompt)}
-                  disabled={isLoading}
-                  className="text-xs px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {prompt}
-                </button>
-              ))
-            ) : (
-              <div className="text-xs text-gray-400 italic">
-                Generating suggestions...
+          {!isSuggestedPromptsMinimized && (
+            <div className="px-4 pb-2">
+              <div className="flex flex-wrap gap-2">
+                {suggestedPrompts.length > 0 ? (
+                  suggestedPrompts.map((prompt, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handleSuggestedPrompt(prompt)}
+                      disabled={isLoading}
+                      className="text-xs px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {prompt}
+                    </button>
+                  ))
+                ) : (
+                  <div className="text-xs text-gray-400 italic">
+                    Generating suggestions...
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Input Area */}

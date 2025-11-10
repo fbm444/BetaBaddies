@@ -2,9 +2,9 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Icon } from "@iconify/react";
 import { ROUTES } from "../config/routes";
-import { Resume } from "../types";
+import { Resume, JobOpportunityData, JobStatus } from "../types";
 import { resumeService } from "../services/resumeService";
-import { prospectiveJobService, ProspectiveJob } from "../services/prospectiveJobService";
+import { api } from "../services/api";
 import { Toast } from "../components/resume/Toast";
 
 export function Resumes() {
@@ -17,7 +17,7 @@ export function Resumes() {
   const [exportingId, setExportingId] = useState<string | null>(null);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [showExportMenu, setShowExportMenu] = useState<string | null>(null);
-  const [prospectiveJobs, setProspectiveJobs] = useState<ProspectiveJob[]>([]);
+  const [jobOpportunities, setJobOpportunities] = useState<JobOpportunityData[]>([]);
   const [showJobPipeline, setShowJobPipeline] = useState(true);
   const [jobFilterStage, setJobFilterStage] = useState<string>("all");
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
@@ -160,24 +160,30 @@ export function Resumes() {
     };
 
     fetchResumes();
-    fetchProspectiveJobs();
+    fetchJobOpportunities();
   }, []);
 
-  const fetchProspectiveJobs = async () => {
+  const fetchJobOpportunities = async () => {
     try {
-      console.log("Fetching prospective jobs...");
-      const response = await prospectiveJobService.getProspectiveJobs();
-      console.log("Prospective jobs response:", response);
+      console.log("Fetching job opportunities...");
+      const response = await api.getJobOpportunities({ 
+        sort: "-created_at"
+      });
+      console.log("Job opportunities response:", response);
       if (response.ok && response.data) {
-        console.log("Setting jobs:", response.data.jobs);
-        setProspectiveJobs(response.data.jobs || []);
+        console.log("Setting job opportunities:", response.data.jobOpportunities);
+        // Filter out archived jobs on the frontend
+        const nonArchivedJobs = (response.data.jobOpportunities || []).filter(
+          (job: JobOpportunityData) => !job.archived
+        );
+        setJobOpportunities(nonArchivedJobs);
       } else {
         console.warn("Response not ok:", response);
       }
     } catch (err: any) {
-      console.error("Failed to fetch prospective jobs:", err);
+      console.error("Failed to fetch job opportunities:", err);
       // Set empty array on error so UI doesn't break
-      setProspectiveJobs([]);
+      setJobOpportunities([]);
     }
   };
 
@@ -211,8 +217,9 @@ export function Resumes() {
     return colors[stage] || "bg-gray-100 text-gray-700 border-gray-200";
   };
 
-  const filteredJobs = prospectiveJobs.filter((job) => {
-    if (jobFilterStage !== "all" && job.stage !== jobFilterStage) return false;
+  const filteredJobs = jobOpportunities.filter((job) => {
+    // Filter by status if stage filter is set (archived jobs are already filtered out in fetchJobOpportunities)
+    if (jobFilterStage !== "all" && job.status !== jobFilterStage) return false;
     return true;
   });
 
@@ -418,6 +425,7 @@ export function Resumes() {
   };
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const handleDeleteResume = async (id: string) => {
     setShowDeleteConfirm(id);
@@ -428,72 +436,126 @@ export function Resumes() {
     // Capture the ID before clearing the state to avoid race conditions
     const idToDelete = showDeleteConfirm;
     setShowDeleteConfirm(null);
+    setDeletingId(idToDelete);
     
     try {
-      await resumeService.deleteResume(idToDelete);
-      // Refresh the resumes list to ensure it's up to date
-      const resumesResponse = await resumeService.getResumes();
-      if (resumesResponse.ok && resumesResponse.data) {
-        const allResumes = resumesResponse.data.resumes;
-        
-        // Deduplicate resumes: Remove true duplicates (same name, jobId, and created within 5 seconds)
-        const seenResumes = new Map<string, Resume>();
-        const resumeIds = new Set<string>();
-        
-        allResumes.forEach((resume: Resume) => {
-          if (resumeIds.has(resume.id)) {
-            return;
-          }
-          
-          const resumeName = resume.name || resume.versionName || '';
-          const jobId = resume.jobId || 'no-job';
-          const createdAt = new Date(resume.createdAt).getTime();
-          const timeBucket = Math.floor(createdAt / 5000) * 5000;
-          const key = `${resumeName}_${jobId}_${timeBucket}`;
-          
-          if (!seenResumes.has(key)) {
-            seenResumes.set(key, resume);
-            resumeIds.add(resume.id);
-          } else {
-            const existing = seenResumes.get(key)!;
-            const existingIsMaster = existing.isMaster ?? false;
-            const currentIsMaster = resume.isMaster ?? false;
-            
-            if (existing.id === resume.id) {
-              return;
-            }
-            
-            if (currentIsMaster && !existingIsMaster) {
-              resumeIds.delete(existing.id);
-              seenResumes.set(key, resume);
-              resumeIds.add(resume.id);
-            } else if (!currentIsMaster && existingIsMaster) {
-              // Keep existing
-            } else {
-              const existingDate = new Date(existing.updatedAt).getTime();
-              const currentDate = new Date(resume.updatedAt).getTime();
-              if (currentDate > existingDate) {
-                resumeIds.delete(existing.id);
-                seenResumes.set(key, resume);
-                resumeIds.add(resume.id);
-              }
-            }
-          }
-        });
-        
-        setResumes(Array.from(seenResumes.values()));
-      } else {
-        // Fallback: remove from local state using the captured ID
-        setResumes(resumes.filter((r) => r.id !== idToDelete));
-      }
+      console.log("Attempting to delete resume:", idToDelete);
+      // The request method throws an ApiError if the response is not ok
+      // So if we get here, the deletion was successful
+      const deleteResponse = await resumeService.deleteResume(idToDelete);
+      
+      console.log("Delete response:", deleteResponse);
+      
+      // IMMEDIATELY remove from local state to update UI
+      setResumes((prevResumes) => prevResumes.filter((r) => r.id !== idToDelete));
+      
+      // Show success message immediately
       setToast({
         message: "Resume deleted successfully",
         type: "success",
       });
+      setDeletingId(null);
+      
+      // Then refresh from server in the background to ensure consistency
+      try {
+        const resumesResponse = await resumeService.getResumes();
+        if (resumesResponse.ok && resumesResponse.data) {
+          const allResumes = resumesResponse.data.resumes;
+          
+          // Deduplicate resumes: Remove true duplicates (same name, jobId, and created within 5 seconds)
+          const seenResumes = new Map<string, Resume>();
+          const resumeIds = new Set<string>();
+          
+          allResumes.forEach((resume: Resume) => {
+            if (resumeIds.has(resume.id)) {
+              return;
+            }
+            
+            const resumeName = resume.name || resume.versionName || '';
+            const jobId = resume.jobId || 'no-job';
+            const createdAt = new Date(resume.createdAt).getTime();
+            const timeBucket = Math.floor(createdAt / 5000) * 5000;
+            const key = `${resumeName}_${jobId}_${timeBucket}`;
+            
+            if (!seenResumes.has(key)) {
+              seenResumes.set(key, resume);
+              resumeIds.add(resume.id);
+            } else {
+              const existing = seenResumes.get(key)!;
+              const existingIsMaster = existing.isMaster ?? false;
+              const currentIsMaster = resume.isMaster ?? false;
+              
+              if (existing.id === resume.id) {
+                return;
+              }
+              
+              if (currentIsMaster && !existingIsMaster) {
+                resumeIds.delete(existing.id);
+                seenResumes.set(key, resume);
+                resumeIds.add(resume.id);
+              } else if (!currentIsMaster && existingIsMaster) {
+                // Keep existing
+              } else {
+                const existingDate = new Date(existing.updatedAt).getTime();
+                const currentDate = new Date(resume.updatedAt).getTime();
+                if (currentDate > existingDate) {
+                  resumeIds.delete(existing.id);
+                  seenResumes.set(key, resume);
+                  resumeIds.add(resume.id);
+                }
+              }
+            }
+          });
+          
+          // Update with deduplicated list
+          setResumes(Array.from(seenResumes.values()));
+        }
+      } catch (refreshErr) {
+        // If refresh fails, that's okay - we already updated the UI
+        console.warn("Failed to refresh resumes list after deletion:", refreshErr);
+      }
     } catch (err: any) {
       console.error("Failed to delete resume:", err);
+      console.error("Error details:", {
+        message: err.message,
+        status: err.status,
+        code: err.code,
+        detail: err.detail,
+        name: err.name,
+        stack: err.stack,
+      });
+      
+      setDeletingId(null);
+      // Re-open the confirmation modal if deletion failed
+      setShowDeleteConfirm(idToDelete);
+      
+      // Extract error message from ApiError or regular error
+      let errorMessage = "Failed to delete resume. Please try again.";
+      
+      // ApiError has a message property
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } 
+      // Check if it's an ApiError with status code
+      else if (err.status && err.message) {
+        errorMessage = err.message;
+      }
+      // Check for nested error structure
+      else if (err.error?.message) {
+        errorMessage = err.error.message;
+      } 
+      // Check for direct message property
+      else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      // Add more context if available
+      if (err.detail) {
+        errorMessage += `: ${err.detail}`;
+      }
+      
       setToast({
-        message: err.message || "Failed to delete resume. Please try again.",
+        message: errorMessage,
         type: "error",
       });
     }
@@ -592,9 +654,17 @@ export function Resumes() {
               </button>
               <button
                 onClick={confirmDeleteResume}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+                disabled={!!deletingId}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Delete
+                {deletingId ? (
+                  <span className="flex items-center gap-2">
+                    <Icon icon="mingcute:loading-line" className="w-4 h-4 animate-spin" />
+                    Deleting...
+                  </span>
+                ) : (
+                  "Delete"
+                )}
               </button>
             </div>
           </div>
@@ -619,9 +689,9 @@ export function Resumes() {
               >
                 <Icon icon="mingcute:briefcase-line" className="w-5 h-5" />
                 Job Pipeline
-                {prospectiveJobs.length > 0 && (
+                {jobOpportunities.length > 0 && (
                   <span className="px-2 py-0.5 bg-white/20 rounded text-xs font-medium">
-                    {prospectiveJobs.length}
+                    {jobOpportunities.length}
                   </span>
                 )}
               </button>
@@ -719,7 +789,7 @@ export function Resumes() {
                 <div className="text-center py-8 text-gray-500">
                   <Icon icon="mingcute:briefcase-line" className="w-12 h-12 mx-auto mb-3 opacity-50" />
                   <p className="text-sm">
-                    {prospectiveJobs.length === 0
+                    {jobOpportunities.length === 0
                       ? "No jobs in your pipeline. Add jobs to create tailored resume versions."
                       : "No jobs match the selected stage filter."}
                   </p>
@@ -735,7 +805,7 @@ export function Resumes() {
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold text-gray-900 truncate group-hover:text-[#3351FD] transition-colors">
-                            {job.jobTitle}
+                            {job.title}
                           </h3>
                           <p className="text-sm text-gray-700 truncate">{job.company}</p>
                           {job.location && (
@@ -747,10 +817,10 @@ export function Resumes() {
                         </div>
                         <span
                           className={`px-2 py-1 rounded text-xs font-medium border flex-shrink-0 ${getStageColor(
-                            job.stage
+                            job.status
                           )}`}
                         >
-                          {job.stage}
+                          {job.status}
                         </span>
                       </div>
                       {job.description && (
@@ -760,7 +830,7 @@ export function Resumes() {
                       )}
                       <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
                         <span className="text-xs text-gray-500">
-                          {new Date(job.dateAdded).toLocaleDateString()}
+                          {job.createdAt ? new Date(job.createdAt).toLocaleDateString() : 'N/A'}
                         </span>
                         <div className="flex items-center gap-1 text-xs text-[#3351FD] font-medium opacity-0 group-hover:opacity-100 transition-opacity">
                           <span>Create Resume</span>

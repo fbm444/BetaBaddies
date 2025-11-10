@@ -1,4 +1,4 @@
-import { useState, useEffect, Fragment, useRef } from "react";
+import { useState, useEffect, Fragment, useRef, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Icon } from "@iconify/react";
 import { ROUTES } from "../config/routes";
@@ -13,10 +13,7 @@ import {
 } from "../types";
 import { resumeService } from "../services/resumeService";
 import { api } from "../services/api";
-import {
-  prospectiveJobService,
-  ProspectiveJob,
-} from "../services/prospectiveJobService";
+import { JobOpportunityData } from "../types";
 import { AIAssistantChat } from "../components/resume/AIAssistantChat";
 import { Toast } from "../components/resume/Toast";
 import { ResumeTopBar } from "../components/resume/ResumeTopBar";
@@ -25,12 +22,22 @@ import { VersionControl } from "../components/resume/VersionControl";
 export function ResumeBuilder() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const resumeId = searchParams.get("id");
-  const templateId = searchParams.get("templateId");
-  const importFromId = searchParams.get("importFromId");
-  const uploaded = searchParams.get("uploaded");
-  const jobId = searchParams.get("jobId");
-  const aiExplanation = searchParams.get("aiExplanation");
+  // Memoize search params to prevent unnecessary re-renders when searchParams object changes
+  const resumeId = useMemo(() => searchParams.get("id"), [searchParams]);
+  const templateId = useMemo(
+    () => searchParams.get("templateId"),
+    [searchParams]
+  );
+  const importFromId = useMemo(
+    () => searchParams.get("importFromId"),
+    [searchParams]
+  );
+  const uploaded = useMemo(() => searchParams.get("uploaded"), [searchParams]);
+  const jobId = useMemo(() => searchParams.get("jobId"), [searchParams]);
+  const aiExplanation = useMemo(
+    () => searchParams.get("aiExplanation"),
+    [searchParams]
+  );
 
   // Helper function to validate UUID format
   const isValidUUID = (id: string | null): boolean => {
@@ -187,10 +194,9 @@ export function ResumeBuilder() {
   const [userProjects, setUserProjects] = useState<ProjectData[]>([]);
   const [showImportModal, setShowImportModal] = useState(false);
 
-  // Prospective job data
-  const [prospectiveJob, setProspectiveJob] = useState<ProspectiveJob | null>(
-    null
-  );
+  // Job opportunity data
+  const [jobOpportunity, setJobOpportunity] =
+    useState<JobOpportunityData | null>(null);
   const [importSection, setImportSection] = useState<string | null>(null);
   const [selectedItems, setSelectedItems] = useState<{
     skills: string[];
@@ -249,19 +255,17 @@ export function ResumeBuilder() {
     fetchUserData();
   }, []);
 
-  // Fetch prospective job details if jobId is provided
+  // Fetch job opportunity details if jobId is provided
   useEffect(() => {
     const fetchJob = async () => {
       if (jobId && isValidUUID(jobId)) {
         try {
-          const response = await prospectiveJobService.getProspectiveJobById(
-            jobId
-          );
-          if (response.ok && response.data?.job) {
-            setProspectiveJob(response.data.job);
+          const response = await api.getJobOpportunity(jobId);
+          if (response.ok && response.data?.jobOpportunity) {
+            setJobOpportunity(response.data.jobOpportunity);
           }
         } catch (err) {
-          console.error("Failed to fetch job details:", err);
+          console.error("Failed to fetch job opportunity details:", err);
         }
       }
     };
@@ -272,17 +276,20 @@ export function ResumeBuilder() {
   // Auto-save refs (declared before useEffects that use them)
   const hasAutoSavedRef = useRef(false);
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastResumeIdRef = useRef<string | null>(null);
+  const aiExplanationOpenedRef = useRef(false);
+  const jobIdOpenedRef = useRef<string | null>(null);
 
   // Update resume name when job is loaded (for new resumes)
   useEffect(() => {
-    if (!resumeId && resume && prospectiveJob && resume.id === "new") {
+    if (!resumeId && resume && jobOpportunity && resume.id === "new") {
       let resumeName = "New Resume";
-      if (prospectiveJob.jobTitle && prospectiveJob.company) {
-        resumeName = `Resume for ${prospectiveJob.jobTitle} at ${prospectiveJob.company}`;
-      } else if (prospectiveJob.jobTitle) {
-        resumeName = `Resume for ${prospectiveJob.jobTitle}`;
-      } else if (prospectiveJob.company) {
-        resumeName = `Resume for ${prospectiveJob.company}`;
+      if (jobOpportunity.title && jobOpportunity.company) {
+        resumeName = `Resume for ${jobOpportunity.title} at ${jobOpportunity.company}`;
+      } else if (jobOpportunity.title) {
+        resumeName = `Resume for ${jobOpportunity.title}`;
+      } else if (jobOpportunity.company) {
+        resumeName = `Resume for ${jobOpportunity.company}`;
       }
 
       if (
@@ -292,9 +299,9 @@ export function ResumeBuilder() {
         const updatedResume = {
           ...resume,
           name: resumeName,
-          description: `Tailored for ${
-            prospectiveJob.jobTitle || "position"
-          } at ${prospectiveJob.company || "company"}`,
+          description: `Tailored for ${jobOpportunity.title || "position"} at ${
+            jobOpportunity.company || "company"
+          }`,
           jobId: jobId && isValidUUID(jobId) ? jobId : resume.jobId,
         };
         setResume(updatedResume);
@@ -303,7 +310,7 @@ export function ResumeBuilder() {
       }
     }
   }, [
-    prospectiveJob,
+    jobOpportunity,
     resumeId,
     jobId,
     resume,
@@ -336,6 +343,12 @@ export function ResumeBuilder() {
     // 5. Not currently loading
     // 6. Haven't auto-saved this resume yet
     // 7. Not importing a resume (wait for user confirmation)
+    // 8. Resume ID hasn't changed (prevent re-running when resume object reference changes)
+    // For new resumes, set lastResumeIdRef to "new" if it's not already set
+    if (resume && resume.id === "new" && !lastResumeIdRef.current) {
+      lastResumeIdRef.current = "new";
+    }
+
     if (
       resume &&
       resume.id === "new" &&
@@ -344,21 +357,24 @@ export function ResumeBuilder() {
       !isLoading &&
       !hasAutoSavedRef.current &&
       !showImportResumeModal &&
-      !importingResume
+      !importingResume &&
+      resume.id === lastResumeIdRef.current // Only run if resume ID hasn't changed
     ) {
       // If jobId is provided, wait for job to load (or timeout after 3 seconds)
       // Otherwise, wait 1 second to ensure resume is fully initialized
-      const delay = jobId && !prospectiveJob ? 3000 : 1000;
+      const delay = jobId && !jobOpportunity ? 3000 : 1000;
 
       autoSaveTimerRef.current = setTimeout(async () => {
         // Double-check conditions before saving
         // CRITICAL: Also check resumeId in URL - if it exists, don't save (existing resume)
+        // Also check if resume ID has changed since timer was set
         if (
           resume &&
           resume.id === "new" &&
           !resumeId && // No resumeId in URL
           !isValidUUID(resume?.id || "") && // Resume ID is not a valid UUID
-          !hasAutoSavedRef.current
+          !hasAutoSavedRef.current &&
+          resume.id === lastResumeIdRef.current // Resume ID hasn't changed
         ) {
           hasAutoSavedRef.current = true;
           try {
@@ -378,8 +394,17 @@ export function ResumeBuilder() {
             if (response.ok && response.data?.resume) {
               const newResume = response.data.resume;
               setResume(newResume);
-              // Update URL with new resume ID
-              navigate(`${ROUTES.RESUME_BUILDER}?id=${newResume.id}`, {
+              lastResumeIdRef.current = newResume.id;
+              // Update URL with new resume ID, preserving jobId and aiExplanation if present
+              const urlParams = new URLSearchParams();
+              urlParams.set("id", newResume.id);
+              if (jobId && isValidUUID(jobId)) {
+                urlParams.set("jobId", jobId);
+              }
+              if (aiExplanation) {
+                urlParams.set("aiExplanation", aiExplanation);
+              }
+              navigate(`${ROUTES.RESUME_BUILDER}?${urlParams.toString()}`, {
                 replace: true,
               });
               setLastSaved(new Date());
@@ -413,14 +438,14 @@ export function ResumeBuilder() {
       };
     }
   }, [
-    resume,
+    resume?.id, // Only depend on resume.id, not the entire resume object
     resumeId, // Add resumeId to dependencies to prevent auto-save when loading existing resume
     isLoading,
     showImportResumeModal,
     importingResume,
     navigate,
     jobId,
-    prospectiveJob,
+    jobOpportunity,
   ]);
 
   // Reset auto-save flag when resumeId changes (new resume created)
@@ -430,9 +455,11 @@ export function ResumeBuilder() {
     if (resumeId && isValidUUID(resumeId)) {
       // This is an existing resume from the backend - don't auto-save
       hasAutoSavedRef.current = true;
+      lastResumeIdRef.current = resumeId;
     } else if (!resumeId || resumeId === "new") {
       // This is a new resume - allow auto-save
       hasAutoSavedRef.current = false;
+      lastResumeIdRef.current = null;
     }
   }, [resumeId]);
 
@@ -466,6 +493,7 @@ export function ResumeBuilder() {
               setResume(loadedResume);
               // IMPORTANT: Mark as already saved to prevent auto-save from creating duplicate
               hasAutoSavedRef.current = true;
+              lastResumeIdRef.current = loadedResume.id;
               // Initialize history with loaded resume first
               const initialHistory = [JSON.parse(JSON.stringify(loadedResume))];
               setResumeHistory(initialHistory);
@@ -478,12 +506,7 @@ export function ResumeBuilder() {
                   loadedResume.customizations.sectionFormatting
                 );
               }
-              // Auto-open AI panel if explanation is provided (from AI tailoring flow)
-              if (aiExplanation) {
-                setTimeout(() => {
-                  setShowAIPanel(true);
-                }, 500);
-              }
+              // Don't auto-open AI panel here - handle it in a separate useEffect
             } else if (response.error?.code === "INVALID_ID") {
               showToast(
                 "Invalid resume ID format. Please select a valid resume.",
@@ -613,13 +636,13 @@ export function ResumeBuilder() {
           // New resume - use mock data for preview
           // Set resume name based on job if available
           let resumeName = "New Resume";
-          if (prospectiveJob) {
-            if (prospectiveJob.jobTitle && prospectiveJob.company) {
-              resumeName = `Resume for ${prospectiveJob.jobTitle} at ${prospectiveJob.company}`;
-            } else if (prospectiveJob.jobTitle) {
-              resumeName = `Resume for ${prospectiveJob.jobTitle}`;
-            } else if (prospectiveJob.company) {
-              resumeName = `Resume for ${prospectiveJob.company}`;
+          if (jobOpportunity) {
+            if (jobOpportunity.title && jobOpportunity.company) {
+              resumeName = `Resume for ${jobOpportunity.title} at ${jobOpportunity.company}`;
+            } else if (jobOpportunity.title) {
+              resumeName = `Resume for ${jobOpportunity.title}`;
+            } else if (jobOpportunity.company) {
+              resumeName = `Resume for ${jobOpportunity.company}`;
             }
           }
 
@@ -627,9 +650,9 @@ export function ResumeBuilder() {
             id: "new",
             userId: "user1",
             name: resumeName,
-            description: prospectiveJob
-              ? `Tailored for ${prospectiveJob.jobTitle || "position"} at ${
-                  prospectiveJob.company || "company"
+            description: jobOpportunity
+              ? `Tailored for ${jobOpportunity.title || "position"} at ${
+                  jobOpportunity.company || "company"
                 }`
               : "",
             templateId: templateId || "default-chronological",
@@ -734,6 +757,7 @@ export function ResumeBuilder() {
             updatedAt: new Date().toISOString(),
           };
           setResume(newResume);
+          lastResumeIdRef.current = newResume.id;
           // Initialize history with new resume
           setResumeHistory([JSON.parse(JSON.stringify(newResume))]);
           setHistoryIndex(0);
@@ -749,13 +773,13 @@ export function ResumeBuilder() {
         }
         // Set resume name based on job if available
         let fallbackResumeName = "Software Engineer Resume";
-        if (prospectiveJob) {
-          if (prospectiveJob.jobTitle && prospectiveJob.company) {
-            fallbackResumeName = `Resume for ${prospectiveJob.jobTitle} at ${prospectiveJob.company}`;
-          } else if (prospectiveJob.jobTitle) {
-            fallbackResumeName = `Resume for ${prospectiveJob.jobTitle}`;
-          } else if (prospectiveJob.company) {
-            fallbackResumeName = `Resume for ${prospectiveJob.company}`;
+        if (jobOpportunity) {
+          if (jobOpportunity.title && jobOpportunity.company) {
+            fallbackResumeName = `Resume for ${jobOpportunity.title} at ${jobOpportunity.company}`;
+          } else if (jobOpportunity.title) {
+            fallbackResumeName = `Resume for ${jobOpportunity.title}`;
+          } else if (jobOpportunity.company) {
+            fallbackResumeName = `Resume for ${jobOpportunity.company}`;
           }
         }
 
@@ -763,9 +787,9 @@ export function ResumeBuilder() {
           id: resumeId || "new",
           userId: "user1",
           name: fallbackResumeName,
-          description: prospectiveJob
-            ? `Tailored for ${prospectiveJob.jobTitle || "position"} at ${
-                prospectiveJob.company || "company"
+          description: jobOpportunity
+            ? `Tailored for ${jobOpportunity.title || "position"} at ${
+                jobOpportunity.company || "company"
               }`
             : "Tailored for tech positions",
           templateId: templateId || "default-chronological",
@@ -857,13 +881,61 @@ export function ResumeBuilder() {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         });
+        lastResumeIdRef.current = resumeId || "new";
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchResume();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resumeId, templateId, importFromId, uploaded]);
+
+  // Auto-open AI panel if explanation is provided (from AI tailoring flow) OR if jobId is present
+  // This is separate from fetchResume to avoid re-running fetchResume when aiExplanation changes
+  useEffect(() => {
+    // Check if we should open the AI panel
+    const hasValidResume =
+      resume && resume.id !== "new" && isValidUUID(resume.id);
+    const hasJobId = jobId && isValidUUID(jobId);
+    const hasExplanation = !!aiExplanation;
+
+    // Open if:
+    // 1. Resume is loaded and valid
+    // 2. Either aiExplanation is present OR jobId is present
+    // 3. We haven't already opened it for this resume+jobId combination
+    const shouldOpenForExplanation =
+      hasValidResume &&
+      hasExplanation &&
+      resume.id !== lastResumeIdRef.current &&
+      !aiExplanationOpenedRef.current;
+
+    const shouldOpenForJobId =
+      hasValidResume && hasJobId && jobId !== jobIdOpenedRef.current;
+
+    if (shouldOpenForExplanation) {
+      lastResumeIdRef.current = resume.id;
+      aiExplanationOpenedRef.current = true;
+      if (hasJobId) {
+        jobIdOpenedRef.current = jobId;
+      }
+      setTimeout(() => {
+        setShowAIPanel(true);
+      }, 500);
+    } else if (shouldOpenForJobId) {
+      // Open for jobId even if we've already opened for this resume before
+      jobIdOpenedRef.current = jobId;
+      setTimeout(() => {
+        setShowAIPanel(true);
+      }, 500);
+    }
+
+    // Reset flags when resumeId changes
+    if (resumeId !== lastResumeIdRef.current) {
+      aiExplanationOpenedRef.current = false;
+      jobIdOpenedRef.current = null;
+    }
+  }, [aiExplanation, resume, resumeId, jobId]);
 
   // Fetch versions when resumeId changes
   useEffect(() => {

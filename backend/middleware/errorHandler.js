@@ -186,12 +186,39 @@ export const errorHandler = (err, req, res, next) => {
     });
   }
 
-  // Default to 500 Internal Server Error
-  res.status(500).json({
+  // Handle "Cannot delete" errors (e.g., resume has children)
+  if (err.message?.includes("Cannot delete") || err.message?.includes("cannot delete")) {
+    return res.status(400).json({
+      ok: false,
+      error: {
+        code: "DELETE_FAILED",
+        message: err.message || "Cannot delete this resource.",
+      },
+    });
+  }
+
+  // Handle "Resume not found" errors
+  if (err.message?.includes("Resume not found") || err.message?.includes("not found")) {
+    return res.status(404).json({
+      ok: false,
+      error: {
+        code: "NOT_FOUND",
+        message: err.message || "Resource not found.",
+      },
+    });
+  }
+
+  // Default to 500 Internal Server Error, but preserve the original error message if available
+  // This helps with debugging and provides better user feedback
+  const statusCode = err.statusCode || err.status || 500;
+  const errorMessage = err.message || "An unexpected error occurred";
+  
+  res.status(statusCode).json({
     ok: false,
     error: {
-      code: "INTERNAL_SERVER_ERROR",
-      message: "An unexpected error occurred",
+      code: err.code || "INTERNAL_SERVER_ERROR",
+      message: errorMessage,
+      detail: err.detail || undefined,
     },
   });
 };

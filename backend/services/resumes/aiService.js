@@ -367,32 +367,34 @@ You: "Here's an improved summary that better highlights your experience: [Provid
   /**
    * Get job context for AI tailoring
    */
-  getJobContext(prospectiveJob) {
-    if (!prospectiveJob) return "";
+  getJobContext(jobOpportunity) {
+    if (!jobOpportunity) return "";
 
     const context = [];
     context.push("=== TARGET JOB POSTING ===");
-    context.push(`Job Title: ${prospectiveJob.jobTitle || "N/A"}`);
-    context.push(`Company: ${prospectiveJob.company || "N/A"}`);
-    if (prospectiveJob.location)
-      context.push(`Location: ${prospectiveJob.location}`);
-    if (prospectiveJob.industry)
-      context.push(`Industry: ${prospectiveJob.industry}`);
-    if (prospectiveJob.jobType)
-      context.push(`Job Type: ${prospectiveJob.jobType}`);
-    if (prospectiveJob.description) {
-      context.push(`\nJob Description:\n${prospectiveJob.description}`);
+    context.push(`Job Title: ${jobOpportunity.title || "N/A"}`);
+    context.push(`Company: ${jobOpportunity.company || "N/A"}`);
+    if (jobOpportunity.location)
+      context.push(`Location: ${jobOpportunity.location}`);
+    if (jobOpportunity.industry)
+      context.push(`Industry: ${jobOpportunity.industry}`);
+    if (jobOpportunity.jobType)
+      context.push(`Job Type: ${jobOpportunity.jobType}`);
+    if (jobOpportunity.description) {
+      context.push(`\nJob Description:\n${jobOpportunity.description}`);
     }
-    if (prospectiveJob.salaryLow || prospectiveJob.salaryHigh) {
+    if (jobOpportunity.salaryMin || jobOpportunity.salaryMax) {
       const salaryRange = [];
-      if (prospectiveJob.salaryLow)
-        salaryRange.push(`$${prospectiveJob.salaryLow}`);
-      if (prospectiveJob.salaryHigh)
-        salaryRange.push(`$${prospectiveJob.salaryHigh}`);
+      if (jobOpportunity.salaryMin)
+        salaryRange.push(`$${jobOpportunity.salaryMin}`);
+      if (jobOpportunity.salaryMax)
+        salaryRange.push(`$${jobOpportunity.salaryMax}`);
       context.push(`Salary Range: ${salaryRange.join(" - ")}`);
     }
-    if (prospectiveJob.deadline)
-      context.push(`Application Deadline: ${prospectiveJob.deadline}`);
+    if (jobOpportunity.applicationDeadline)
+      context.push(
+        `Application Deadline: ${jobOpportunity.applicationDeadline}`
+      );
     context.push("");
 
     return context.join("\n");
@@ -401,7 +403,7 @@ You: "Here's an improved summary that better highlights your experience: [Provid
   /**
    * Chat with AI assistant
    */
-  async chat(messages, resume = null, userData = null, prospectiveJob = null) {
+  async chat(messages, resume = null, userData = null, jobOpportunity = null) {
     if (!this.openaiApiKey || !this.openai) {
       throw new Error("OpenAI API key not configured");
     }
@@ -410,8 +412,8 @@ You: "Here's an improved summary that better highlights your experience: [Provid
       // Build conversation with system prompt and resume context
       let systemPrompt = this.getSystemPrompt();
 
-      // Add job tailoring instructions if prospective job is provided
-      if (prospectiveJob) {
+      // Add job tailoring instructions if job opportunity is provided
+      if (jobOpportunity) {
         systemPrompt += `\n\n**CRITICAL - JOB TAILORING MODE:**\nYou are currently tailoring this resume for a specific job posting. The job details will be provided below. When making suggestions:\n- Prioritize keywords and skills mentioned in the job description\n- Emphasize relevant experience that matches the job requirements\n- **IMPORTANT: When suggesting skills, include a "reorder" action type** - suggest reordering existing skills to highlight those most relevant to the job (put job-relevant skills first)\n- Tailor bullet points to match job responsibilities and requirements\n- Focus on aligning the resume content with what the employer is looking for\n- When suggesting skills optimization, prioritize skills that appear in the job description\n- For skills reordering, use type: "skill" with action: "reorder" and provide the skill names in the desired order (most relevant first)\n\n`;
       }
 
@@ -420,13 +422,13 @@ You: "Here's an improved summary that better highlights your experience: [Provid
         content: systemPrompt,
       };
 
-      // Add prospective job context if available
-      if (prospectiveJob) {
-        const jobContext = this.getJobContext(prospectiveJob);
+      // Add job opportunity context if available
+      if (jobOpportunity) {
+        const jobContext = this.getJobContext(jobOpportunity);
         if (jobContext && jobContext.trim().length > 0) {
           systemMessage.content += `\n\n**TARGET JOB POSTING (tailor all suggestions to this job):**\n${jobContext}`;
           console.log(
-            "✅ AI Context - Prospective job context added (length:",
+            "✅ AI Context - Job opportunity context added (length:",
             jobContext.length,
             "chars)"
           );

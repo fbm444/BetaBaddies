@@ -3,13 +3,14 @@ import { Icon } from '@iconify/react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Menubar, MenubarMenu, MenubarTrigger } from '@/components/ui/menubar'
 import { cn } from '@/lib/utils'
-import { navigationItems, ROUTES } from '@/config/routes'
+import { navigationGroups, navigationItems, ROUTES } from '@/config/routes'
 import { api } from '@/services/api'
 import logo from '@/assets/logo.png'
 
 export function Navbar() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [expandedGroup, setExpandedGroup] = useState<string | null>(null)
   const [displayName, setDisplayName] = useState<string>('User')
   const [userEmail, setUserEmail] = useState<string>('')
   const [profilePicture, setProfilePicture] = useState<string>('https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_640.png')
@@ -18,8 +19,14 @@ export function Navbar() {
   const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const mobileMenuRef = useRef<HTMLDivElement>(null)
+  const groupTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const navigate = useNavigate()
   const location = useLocation()
+
+  // Check if any item in a group is active
+  const isGroupActive = (group: typeof navigationGroups[0]) => {
+    return group.items.some(item => location.pathname === item.path)
+  }
 
   // Check authentication and fetch user profile
   useEffect(() => {
@@ -105,7 +112,17 @@ export function Navbar() {
   // Close mobile menu when route changes
   useEffect(() => {
     setIsMobileMenuOpen(false)
+    setExpandedGroup(null)
   }, [location.pathname])
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (groupTimeoutRef.current) {
+        clearTimeout(groupTimeoutRef.current)
+      }
+    }
+  }, [])
 
   // Listen for profile picture updates
   useEffect(() => {
@@ -137,26 +154,114 @@ export function Navbar() {
             </h1>
           </div>
 
-          {/* Desktop Navigation Menu - Centered */}
+          {/* Desktop Navigation Menu - Centered with Groups */}
           {isLoggedIn && (
             <div className="hidden lg:flex flex-1 justify-center">
               <Menubar className="border-0 bg-transparent shadow-none p-0 h-auto space-x-1">
-                {navigationItems.map((item) => {
-                  const isActive = location.pathname === item.path
+                {navigationGroups.map((group) => {
+                  const groupIsActive = isGroupActive(group)
+                  const isExpanded = expandedGroup === group.id
+                  
+                  // If group has only one item, render it directly
+                  if (group.items.length === 1) {
+                    const item = group.items[0]
+                    const itemIsActive = location.pathname === item.path
+                    return (
+                      <MenubarMenu key={group.id}>
+                        <MenubarTrigger
+                          onClick={() => navigate(item.path)}
+                          className={cn(
+                            "cursor-pointer bg-transparent data-[state=open]:bg-transparent focus:bg-transparent text-sm font-medium",
+                            itemIsActive 
+                              ? "bg-black text-white hover:bg-black rounded-md px-4 py-2" 
+                              : "text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-md px-4 py-2"
+                          )}
+                        >
+                          {item.label}
+                        </MenubarTrigger>
+                      </MenubarMenu>
+                    )
+                  }
+                  
+                  // If group has multiple items, render as dropdown
                   return (
-                    <MenubarMenu key={item.id}>
-                      <MenubarTrigger
-                        onClick={() => navigate(item.path)}
+                    <div
+                      key={group.id}
+                      className="relative"
+                      onMouseEnter={() => {
+                        if (groupTimeoutRef.current) {
+                          clearTimeout(groupTimeoutRef.current)
+                        }
+                        setExpandedGroup(group.id)
+                      }}
+                      onMouseLeave={() => {
+                        groupTimeoutRef.current = setTimeout(() => {
+                          setExpandedGroup(null)
+                        }, 150)
+                      }}
+                    >
+                      <button
                         className={cn(
-                          "cursor-pointer bg-transparent data-[state=open]:bg-transparent focus:bg-transparent text-sm font-medium",
-                          isActive 
-                            ? "bg-black text-white hover:bg-black rounded-md px-4 py-2" 
-                            : "text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-md px-4 py-2"
+                          "cursor-pointer bg-transparent text-sm font-medium flex items-center gap-1.5 rounded-md px-4 py-2 transition-colors",
+                          groupIsActive 
+                            ? "bg-black text-white hover:bg-black" 
+                            : "text-slate-700 hover:text-slate-900 hover:bg-slate-50"
                         )}
                       >
-                        {item.label}
-                      </MenubarTrigger>
-                    </MenubarMenu>
+                        <span>{group.label}</span>
+                        <Icon 
+                          icon="mingcute:down-line" 
+                          width={14} 
+                          height={14}
+                          className={cn(
+                            "transition-transform duration-200",
+                            isExpanded && "rotate-180"
+                          )}
+                        />
+                      </button>
+                      {isExpanded && (
+                        <div
+                          className="absolute top-full left-0 mt-1 min-w-[200px] bg-white border border-slate-200 rounded-lg shadow-lg p-1 z-50"
+                          onMouseEnter={() => {
+                            if (groupTimeoutRef.current) {
+                              clearTimeout(groupTimeoutRef.current)
+                            }
+                          }}
+                          onMouseLeave={() => {
+                            groupTimeoutRef.current = setTimeout(() => {
+                              setExpandedGroup(null)
+                            }, 150)
+                          }}
+                        >
+                          {group.items.map((item) => {
+                            const itemIsActive = location.pathname === item.path
+                            return (
+                              <button
+                                key={item.id}
+                                onClick={() => {
+                                  navigate(item.path)
+                                  setExpandedGroup(null)
+                                }}
+                                className={cn(
+                                  "w-full cursor-pointer rounded-md px-3 py-2 text-sm font-medium flex items-center gap-2 text-left transition-colors",
+                                  itemIsActive
+                                    ? "bg-black text-white hover:bg-black"
+                                    : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                                )}
+                              >
+                                <Icon 
+                                  icon={item.icon} 
+                                  width={16} 
+                                  height={16}
+                                  className={itemIsActive ? "text-white" : "text-slate-600"}
+                                />
+                                <span>{item.label}</span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
                   )
                 })}
               </Menubar>
@@ -336,31 +441,85 @@ export function Navbar() {
             ref={mobileMenuRef}
             className="lg:hidden border-t border-slate-200 py-4 animate-in slide-in-from-top-2 duration-200"
           >
-            <nav className="flex flex-col gap-2">
-              {navigationItems.map((item) => {
-                const isActive = location.pathname === item.path
+            <nav className="flex flex-col gap-1">
+              {navigationGroups.map((group) => {
+                const isGroupExpanded = expandedGroup === group.id
+                const groupIsActive = isGroupActive(group)
+                
                 return (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      navigate(item.path)
-                      setIsMobileMenuOpen(false)
-                    }}
-                    className={cn(
-                      "flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors duration-200",
-                      isActive
-                        ? "bg-black text-white"
-                        : "text-slate-700 hover:bg-slate-100"
+                  <div key={group.id} className="flex flex-col">
+                    <button
+                      onClick={() => {
+                        if (group.items.length === 1) {
+                          navigate(group.items[0].path)
+                          setIsMobileMenuOpen(false)
+                        } else {
+                          setExpandedGroup(isGroupExpanded ? null : group.id)
+                        }
+                      }}
+                      className={cn(
+                        "flex items-center justify-between gap-3 px-4 py-3 rounded-lg text-left transition-colors duration-200",
+                        groupIsActive && !isGroupExpanded
+                          ? "bg-black text-white"
+                          : "text-slate-700 hover:bg-slate-100"
+                      )}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Icon 
+                          icon={group.icon} 
+                          width={20} 
+                          height={20}
+                          className={groupIsActive && !isGroupExpanded ? "text-white" : "text-slate-600"}
+                        />
+                        <span className="font-medium">{group.label}</span>
+                      </div>
+                      {group.items.length > 1 && (
+                        <Icon 
+                          icon="mingcute:down-line" 
+                          width={16} 
+                          height={16}
+                          className={cn(
+                            "transition-transform duration-200",
+                            isGroupExpanded && "rotate-180",
+                            groupIsActive && !isGroupExpanded ? "text-white" : "text-slate-600"
+                          )}
+                        />
+                      )}
+                    </button>
+                    
+                    {/* Expanded items */}
+                    {isGroupExpanded && group.items.length > 1 && (
+                      <div className="ml-4 mt-1 flex flex-col gap-1 border-l-2 border-slate-200 pl-4">
+                        {group.items.map((item) => {
+                          const itemIsActive = location.pathname === item.path
+                          return (
+                            <button
+                              key={item.id}
+                              onClick={() => {
+                                navigate(item.path)
+                                setIsMobileMenuOpen(false)
+                                setExpandedGroup(null)
+                              }}
+                              className={cn(
+                                "flex items-center gap-3 px-4 py-2.5 rounded-lg text-left transition-colors duration-200",
+                                itemIsActive
+                                  ? "bg-black text-white"
+                                  : "text-slate-700 hover:bg-slate-100"
+                              )}
+                            >
+                              <Icon 
+                                icon={item.icon} 
+                                width={18} 
+                                height={18}
+                                className={itemIsActive ? "text-white" : "text-slate-600"}
+                              />
+                              <span className="font-medium text-sm">{item.label}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
                     )}
-                  >
-                    <Icon 
-                      icon={item.icon} 
-                      width={20} 
-                      height={20}
-                      className={isActive ? "text-white" : "text-slate-600"}
-                    />
-                    <span className="font-medium">{item.label}</span>
-                  </button>
+                  </div>
                 )
               })}
             </nav>

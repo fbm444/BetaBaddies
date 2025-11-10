@@ -65,6 +65,9 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.company_news TO "ats_user";
 -- Grant permissions on archived_prospectivejobs table
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.archived_prospectivejobs TO "ats_user";
 
+-- Grant permissions on job_opportunities table
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.job_opportunities TO "ats_user";
+
 -- Grant execute permissions on functions
 GRANT EXECUTE ON FUNCTION public.addupdatetime() TO "ats_user";
 GRANT EXECUTE ON FUNCTION public.auto_archive_jobs() TO "ats_user";

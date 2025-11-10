@@ -18,7 +18,7 @@ import educationService from "../services/educationService.js";
 import projectService from "../services/projectService.js";
 import certificationService from "../services/certificationService.js";
 import fileUploadService from "../services/fileUploadService.js";
-import prospectiveJobService from "../services/prospectiveJobService.js";
+import jobOpportunityService from "../services/jobOpportunityService.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 import fs from "fs/promises";
 import path from "path";
@@ -1734,16 +1734,16 @@ class ResumeController {
         }
       }
 
-      // Get prospective job if jobId is provided
-      let prospectiveJob = null;
+      // Get job opportunity if jobId is provided
+      let jobOpportunity = null;
       if (jobId) {
         try {
-          const jobResponse = await prospectiveJobService.getProspectiveJobById(jobId, userId);
+          const jobResponse = await jobOpportunityService.getJobOpportunityById(jobId, userId);
           if (jobResponse) {
-            prospectiveJob = jobResponse;
+            jobOpportunity = jobResponse;
           }
         } catch (err) {
-          console.log("Failed to fetch prospective job for AI context:", err.message);
+          console.log("Failed to fetch job opportunity for AI context:", err.message);
         }
       }
 
@@ -1787,7 +1787,7 @@ class ResumeController {
         messages,
         resume,
         userData,
-        prospectiveJob
+        jobOpportunity
       );
 
       res.status(200).json({
@@ -1878,9 +1878,9 @@ class ResumeController {
     }
 
     try {
-      // Step 1: Fetch job details
-      const prospectiveJob = await prospectiveJobService.getProspectiveJobById(jobId, userId);
-      if (!prospectiveJob) {
+      // Step 1: Fetch job opportunity details
+      const jobOpportunity = await jobOpportunityService.getJobOpportunityById(jobId, userId);
+      if (!jobOpportunity) {
         return res.status(404).json({
           ok: false,
           error: {
@@ -1909,8 +1909,8 @@ class ResumeController {
       const certificationsData = certifications.status === "fulfilled" ? certifications.value : [];
 
       // Step 3: Create initial resume
-      const resumeName = `Resume for ${prospectiveJob.jobTitle} at ${prospectiveJob.company}`;
-      const resumeDescription = `Tailored for ${prospectiveJob.jobTitle} at ${prospectiveJob.company}`;
+      const resumeName = `Resume for ${jobOpportunity.title} at ${jobOpportunity.company}`;
+      const resumeDescription = `Tailored for ${jobOpportunity.title} at ${jobOpportunity.company}`;
 
       const newResume = await resumeService.createResume(userId, {
         versionName: resumeName,
@@ -1983,12 +1983,12 @@ class ResumeController {
 2. A human-readable explanation written in FIRST PERSON, as if you're talking directly to the user (use "I", "your", "you" - NOT third person)
 
 Job Posting:
-Title: ${prospectiveJob.jobTitle || 'N/A'}
-Company: ${prospectiveJob.company || 'N/A'}
-${prospectiveJob.location ? `Location: ${prospectiveJob.location}` : ''}
-${prospectiveJob.industry ? `Industry: ${prospectiveJob.industry}` : ''}
-${prospectiveJob.jobType ? `Job Type: ${prospectiveJob.jobType}` : ''}
-${prospectiveJob.description ? `\nDescription:\n${prospectiveJob.description}` : ''}
+Title: ${jobOpportunity.title || 'N/A'}
+Company: ${jobOpportunity.company || 'N/A'}
+${jobOpportunity.location ? `Location: ${jobOpportunity.location}` : ''}
+${jobOpportunity.industry ? `Industry: ${jobOpportunity.industry}` : ''}
+${jobOpportunity.jobType ? `Job Type: ${jobOpportunity.jobType}` : ''}
+${jobOpportunity.description ? `\nDescription:\n${jobOpportunity.description}` : ''}
 
 User Profile:
 Name: ${profileData?.first_name || ''} ${profileData?.last_name || ''}
@@ -2103,7 +2103,7 @@ CRITICAL FORMATTING RULES:
         [{ role: "user", content: analysisPrompt }],
         newResume,
         userData,
-        prospectiveJob
+        jobOpportunity
       );
 
       if (!aiResponse || !aiResponse.message) {

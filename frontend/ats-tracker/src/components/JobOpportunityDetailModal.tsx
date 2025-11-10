@@ -5,6 +5,9 @@ import type {
   JobOpportunityInput,
   JobStatus,
   ApplicationHistoryEntry,
+  StatusHistoryEntry,
+  SkillGapSnapshot,
+  SkillGapProgressEntry,
 } from "../types";
 import { JOB_STATUSES, STATUS_COLORS, STATUS_BG_COLORS, INDUSTRIES, JOB_TYPES } from "../types";
 import {
@@ -15,6 +18,7 @@ import {
   formatDeadlineText,
 } from "../utils/deadlineUtils";
 import { CompanyInfoModal } from "./CompanyInfoModal";
+import { JobSkillGapPanel } from "./skill-gaps/SkillGapPanel";
 
 interface JobOpportunityDetailModalProps {
   opportunity: JobOpportunityData;
@@ -130,16 +134,17 @@ export function JobOpportunityDetailModal({
   const handleAddHistoryEntry = () => {
     if (!newHistoryEntry.status) return;
 
-    const entry: ApplicationHistoryEntry = {
+    const entry: StatusHistoryEntry = {
+      type: "status_change",
       timestamp: new Date().toISOString(),
       status: newHistoryEntry.status,
       notes: newHistoryEntry.notes.trim() || undefined,
     };
 
-    setFormData({
-      ...formData,
-      applicationHistory: [...(formData.applicationHistory || []), entry],
-    });
+    setFormData((prev) => ({
+      ...prev,
+      applicationHistory: [...(prev.applicationHistory || []), entry],
+    }));
 
     setNewHistoryEntry({
       status: opportunity.status,
@@ -158,6 +163,194 @@ export function JobOpportunityDetailModal({
       minute: "2-digit",
     });
   };
+
+  const PROGRESS_STATUS_LABELS: Record<SkillGapProgressEntry["status"], string> = {
+    planned: "Planned",
+    "in-progress": "In Progress",
+    completed: "Completed",
+  };
+
+  const handleHistorySync = (entries: ApplicationHistoryEntry[]) => {
+    setFormData((prev) => ({
+      ...prev,
+      applicationHistory: entries,
+    }));
+  };
+
+  const isStatusHistory = (
+    entry: ApplicationHistoryEntry
+  ): entry is StatusHistoryEntry => {
+    return (
+      typeof entry === "object" &&
+      entry !== null &&
+      "status" in entry &&
+      "timestamp" in entry &&
+      typeof (entry as StatusHistoryEntry).status === "string"
+    );
+  };
+
+  const isSkillGapSnapshotHistory = (
+    entry: ApplicationHistoryEntry
+  ): entry is SkillGapSnapshot => {
+    return typeof entry === "object" && entry !== null && (entry as any).type === "skill_gap_snapshot";
+  };
+
+  const isSkillGapProgressHistory = (
+    entry: ApplicationHistoryEntry
+  ): entry is SkillGapProgressEntry => {
+    return typeof entry === "object" && entry !== null && (entry as any).type === "skill_gap_progress";
+  };
+
+  const getHistoryTimestamp = (entry: ApplicationHistoryEntry) => {
+    if (isStatusHistory(entry)) {
+      return entry.timestamp;
+    }
+    if (isSkillGapSnapshotHistory(entry)) {
+      return entry.generatedAt;
+    }
+    if (isSkillGapProgressHistory(entry)) {
+      return entry.updatedAt;
+    }
+    if (typeof entry === "object" && entry !== null) {
+      if ("timestamp" in entry && typeof (entry as any).timestamp === "string") {
+        return (entry as any).timestamp;
+      }
+      if ("generatedAt" in entry && typeof (entry as any).generatedAt === "string") {
+        return (entry as any).generatedAt;
+      }
+      if ("updatedAt" in entry && typeof (entry as any).updatedAt === "string") {
+        return (entry as any).updatedAt;
+      }
+    }
+    return new Date().toISOString();
+  };
+
+  const renderHistoryEntry = (entry: ApplicationHistoryEntry, index: number) => {
+    const timestamp = getHistoryTimestamp(entry);
+    const formattedTimestamp =
+      formatDate(timestamp) || new Date(timestamp).toLocaleString();
+
+    if (isStatusHistory(entry)) {
+      return (
+        <div
+          key={`history-status-${index}`}
+          className="p-4 bg-slate-50 rounded-lg border border-slate-200"
+        >
+          <div className="flex justify-between items-start mb-2">
+            <span
+              className="px-2 py-1 rounded text-xs font-medium"
+              style={{
+                backgroundColor: STATUS_BG_COLORS[entry.status],
+                color: STATUS_COLORS[entry.status],
+              }}
+            >
+              {entry.status}
+            </span>
+            <span className="text-xs text-slate-500">{formattedTimestamp}</span>
+          </div>
+          {entry.notes && (
+            <p className="text-sm text-slate-600 mt-2">{entry.notes}</p>
+          )}
+        </div>
+      );
+    }
+
+    if (isSkillGapSnapshotHistory(entry)) {
+      return (
+        <div
+          key={`history-snapshot-${entry.snapshotId}-${index}`}
+          className="p-4 bg-blue-50 rounded-lg border border-blue-200"
+        >
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-2 text-blue-700 font-medium">
+              <Icon icon="mingcute:radar-line" width={16} />
+              <span>Skill Gap Analysis</span>
+            </div>
+            <span className="text-xs text-blue-600 font-medium">
+              {formattedTimestamp}
+            </span>
+          </div>
+          <p className="mt-2 text-sm text-blue-800">
+            {entry.gaps.length} open gap{entry.gaps.length === 1 ? "" : "s"} detected.{" "}
+            {entry.trend?.message}
+          </p>
+        </div>
+      );
+    }
+
+    if (isSkillGapProgressHistory(entry)) {
+      return (
+        <div
+          key={`history-progress-${entry.progressId}-${index}`}
+          className="p-4 bg-white rounded-lg border border-slate-200"
+        >
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <span className="inline-flex items-center gap-2 text-sm font-semibold text-slate-800">
+                <Icon icon="mingcute:flag-line" width={16} className="text-slate-500" />
+                {entry.skillName}
+              </span>
+              <p className="text-xs text-slate-500 mt-1">
+                {PROGRESS_STATUS_LABELS[entry.status]}
+              </p>
+            </div>
+            <span className="text-xs text-slate-400">{formattedTimestamp}</span>
+          </div>
+          {entry.notes && (
+            <p className="mt-2 text-sm text-slate-600">{entry.notes}</p>
+          )}
+          {entry.resource && (
+            <p className="mt-2 text-xs text-slate-500">
+              Resource:{" "}
+              {entry.resource.url ? (
+                <a
+                  href={entry.resource.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline"
+                >
+                  {entry.resource.title}
+                </a>
+              ) : (
+                entry.resource.title
+              )}
+              <span className="text-slate-400">
+                {entry.resource.provider ? ` (${entry.resource.provider})` : ""}
+              </span>
+            </p>
+          )}
+          {entry.newProficiency && (
+            <p className="mt-2 text-xs font-medium text-blue-600">
+              Updated proficiency: {entry.newProficiency}
+            </p>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div
+        key={`history-generic-${index}`}
+        className="p-4 bg-slate-100 rounded-lg border border-slate-200"
+      >
+        <div className="flex justify-between items-start mb-1">
+          <span className="text-sm font-medium text-slate-700">
+            Activity Recorded
+          </span>
+          <span className="text-xs text-slate-500">{formattedTimestamp}</span>
+        </div>
+        <pre className="mt-2 max-h-32 overflow-y-auto rounded bg-white p-3 text-xs text-slate-500">
+          {JSON.stringify(entry, null, 2)}
+        </pre>
+      </div>
+    );
+  };
+
+  const sortedHistoryEntries = [...(formData.applicationHistory || [])].sort(
+    (a, b) =>
+      new Date(getHistoryTimestamp(b)).getTime() -
+      new Date(getHistoryTimestamp(a)).getTime()
+  );
 
   const formatSalary = () => {
     if (formData.salaryMin && formData.salaryMax) {
@@ -841,6 +1034,14 @@ export function JobOpportunityDetailModal({
               )}
             </section>
 
+            <JobSkillGapPanel
+              opportunity={{
+                ...opportunity,
+                applicationHistory: formData.applicationHistory,
+              }}
+              onHistorySync={handleHistorySync}
+            />
+
             {/* Application History */}
             <section className="border-t border-slate-200 pt-6">
               <h3 className="text-lg font-semibold text-slate-900 mb-4">
@@ -898,42 +1099,13 @@ export function JobOpportunityDetailModal({
                 </div>
               )}
               <div className="space-y-3">
-                {formData.applicationHistory && formData.applicationHistory.length > 0 ? (
-                  [...formData.applicationHistory]
-                    .sort(
-                      (a, b) =>
-                        new Date(b.timestamp).getTime() -
-                        new Date(a.timestamp).getTime()
-                    )
-                    .map((entry, index) => (
-                      <div
-                        key={index}
-                        className="p-4 bg-slate-50 rounded-lg border border-slate-200"
-                      >
-                        <div className="flex justify-between items-start mb-2">
-                          <span
-                            className="px-2 py-1 rounded text-xs font-medium"
-                            style={{
-                              backgroundColor: STATUS_BG_COLORS[entry.status],
-                              color: STATUS_COLORS[entry.status],
-                            }}
-                          >
-                            {entry.status}
-                          </span>
-                          <span className="text-xs text-slate-500">
-                            {formatDate(entry.timestamp)}
-                          </span>
-                        </div>
-                        {entry.notes && (
-                          <p className="text-sm text-slate-600 mt-2">
-                            {entry.notes}
-                          </p>
-                        )}
-                      </div>
-                    ))
-                ) : (
-                  <p className="text-slate-500 text-sm">No history entries</p>
-                )}
+              {sortedHistoryEntries.length > 0 ? (
+                sortedHistoryEntries.map((entry, index) =>
+                  renderHistoryEntry(entry, index)
+                )
+              ) : (
+                <p className="text-slate-500 text-sm">No history entries</p>
+              )}
               </div>
             </section>
           </div>

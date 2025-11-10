@@ -1,6 +1,9 @@
+import { v4 as uuidv4 } from "uuid";
 import jobOpportunityService from "../services/jobOpportunityService.js";
 import companyService from "../services/companyService.js";
 import jobImportService from "../services/jobImportService.js";
+import skillGapService from "../services/skillGapService.js";
+import skillService from "../services/skillService.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 
 class JobOpportunityController {
@@ -392,6 +395,207 @@ class JobOpportunityController {
       data: {
         jobOpportunities: opportunities,
       },
+    });
+  });
+
+  // Get or generate the latest skill gap snapshot for a job
+  getSkillGapAnalysis = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { id } = req.params;
+
+    const snapshotData = await jobOpportunityService.getSkillGapSnapshots(id, userId);
+    if (!snapshotData) {
+      return res.status(404).json({
+        ok: false,
+        error: {
+          message: "Job opportunity not found",
+          code: "NOT_FOUND",
+        },
+      });
+    }
+
+    const { job, snapshots } = snapshotData;
+    if (snapshots.length === 0) {
+      const userSkills = await skillService.getSkillsByUserId(userId);
+      const snapshot = await skillGapService.generateSnapshot(job, userSkills, []);
+      const history = await jobOpportunityService.appendApplicationHistoryEntry(id, userId, snapshot);
+
+      return res.status(200).json({
+        ok: true,
+        data: {
+          job: {
+            id: job.id,
+            title: job.title,
+            company: job.company,
+            status: job.status,
+          },
+          snapshot,
+          history: {
+            totalSnapshots: history.filter((entry) => entry?.type === "skill_gap_snapshot").length,
+          },
+          message: "Skill gap analysis generated.",
+        },
+      });
+    }
+
+    const latestSnapshot = snapshots[snapshots.length - 1];
+    res.status(200).json({
+      ok: true,
+      data: {
+        job: {
+          id: job.id,
+          title: job.title,
+          company: job.company,
+          status: job.status,
+        },
+        snapshot: latestSnapshot,
+        history: {
+          totalSnapshots: snapshots.length,
+          snapshotIds: snapshots.map((snapshot) => snapshot.snapshotId),
+        },
+      },
+    });
+  });
+
+  // Force a refresh of the skill gap analysis (creates a new snapshot)
+  refreshSkillGapAnalysis = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { id } = req.params;
+
+    const snapshotData = await jobOpportunityService.getSkillGapSnapshots(id, userId);
+    if (!snapshotData) {
+      return res.status(404).json({
+        ok: false,
+        error: {
+          message: "Job opportunity not found",
+          code: "NOT_FOUND",
+        },
+      });
+    }
+
+    const { job, snapshots } = snapshotData;
+    const userSkills = await skillService.getSkillsByUserId(userId);
+    const snapshot = await skillGapService.generateSnapshot(job, userSkills, snapshots);
+    const history = await jobOpportunityService.appendApplicationHistoryEntry(id, userId, snapshot);
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        job: {
+          id: job.id,
+          title: job.title,
+          company: job.company,
+          status: job.status,
+        },
+        snapshot,
+        history: {
+          totalSnapshots: history.filter((entry) => entry?.type === "skill_gap_snapshot").length,
+        },
+        message: "Skill gap analysis refreshed.",
+      },
+    });
+  });
+
+  // Update progress for a specific skill gap (optionally adjust proficiency)
+  updateSkillGapProgress = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { id, skillName } = req.params;
+    const decodedSkillName = decodeURIComponent(skillName);
+    const { status, notes, resourceUrl, resourceTitle, resourceProvider, newProficiency } = req.body || {};
+
+    if (!status) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          message: "status is required",
+          code: "VALIDATION_ERROR",
+        },
+      });
+    }
+
+    const snapshotData = await jobOpportunityService.getSkillGapSnapshots(id, userId);
+    if (!snapshotData) {
+      return res.status(404).json({
+        ok: false,
+        error: {
+          message: "Job opportunity not found",
+          code: "NOT_FOUND",
+        },
+      });
+    }
+
+    const { job } = snapshotData;
+    let skillRecord = await skillService.getSkillByUserIdAndName(userId, decodedSkillName);
+
+    if (newProficiency) {
+      if (skillRecord) {
+        skillRecord = await skillService.updateSkill(skillRecord.id, userId, {
+          proficiency: newProficiency,
+        });
+      } else {
+        skillRecord = await skillService.createSkill(userId, {
+          skillName: decodedSkillName,
+          proficiency: newProficiency,
+          category: "Uncategorized",
+        });
+      }
+    }
+
+    const progressEntry = {
+      type: "skill_gap_progress",
+      progressId: uuidv4(),
+      skillName: decodedSkillName,
+      status,
+      notes: notes || null,
+      resource: resourceUrl
+        ? {
+            title: resourceTitle || decodedSkillName,
+            url: resourceUrl,
+            provider: resourceProvider || "External",
+          }
+        : null,
+      newProficiency: newProficiency || null,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const history = await jobOpportunityService.appendApplicationHistoryEntry(
+      id,
+      userId,
+      progressEntry
+    );
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        job: {
+          id: job.id,
+          title: job.title,
+          company: job.company,
+        },
+        progressEntry,
+        skill: skillRecord
+          ? {
+              id: skillRecord.id,
+              skillName: skillRecord.skillName,
+              proficiency: skillRecord.proficiency,
+              category: skillRecord.category,
+            }
+          : null,
+        historyLength: history.length,
+        message: "Skill gap progress recorded.",
+      },
+    });
+  });
+
+  // Aggregate skill gap trends across all jobs
+  getSkillGapTrends = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const jobsWithSnapshots = await jobOpportunityService.getJobsWithSkillGapSnapshots(userId);
+    const summary = skillGapService.buildTrendSummaryFromJobs(jobsWithSnapshots);
+
+    res.status(200).json({
+      ok: true,
+      data: summary,
     });
   });
 

@@ -211,6 +211,22 @@ export function Resumes() {
     return true;
   });
 
+  // Clear selection when filter or search changes
+  useEffect(() => {
+    // Only keep selected resumes that are still in the filtered list
+    setSelectedResumes((prev) => {
+      const filteredIds = new Set(filteredResumes.map((r) => r.id));
+      const newSelection = new Set<string>();
+      prev.forEach((id) => {
+        if (filteredIds.has(id)) {
+          newSelection.add(id);
+        }
+      });
+      return newSelection;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter, searchQuery, resumes.length]);
+
   const handleCreateResume = () => {
     navigate(`${ROUTES.RESUME_TEMPLATES}?create=true`);
   };
@@ -446,10 +462,150 @@ export function Resumes() {
     null
   );
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [selectedResumes, setSelectedResumes] = useState<Set<string>>(new Set());
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
 
   const handleDeleteResume = (id: string) => {
     console.log("🗑️ handleDeleteResume called with id:", id);
     setShowDeleteConfirm(id);
+  };
+
+  // Selection handlers
+  const handleToggleSelect = (id: string) => {
+    setSelectedResumes((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectedResumes.size === filteredResumes.length) {
+      // Deselect all
+      setSelectedResumes(new Set());
+    } else {
+      // Select all filtered resumes
+      setSelectedResumes(new Set(filteredResumes.map((r) => r.id)));
+    }
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedResumes.size > 0) {
+      setShowBulkDeleteConfirm(true);
+    }
+  };
+
+  const confirmBulkDelete = async () => {
+    if (selectedResumes.size === 0) {
+      setShowBulkDeleteConfirm(false);
+      return;
+    }
+
+    const idsToDelete = Array.from(selectedResumes);
+    setShowBulkDeleteConfirm(false);
+    
+    // Optimistically remove from UI
+    setResumes((prevResumes) => 
+      prevResumes.filter((r) => !selectedResumes.has(r.id))
+    );
+    
+    // Clear selection
+    setSelectedResumes(new Set());
+
+    // Delete all selected resumes in parallel
+    const deletePromises = idsToDelete.map(async (id) => {
+      try {
+        const response = await resumeService.deleteResume(id);
+        return { id, ok: response.ok, error: null };
+      } catch (err: any) {
+        console.error(`Failed to delete resume ${id}:`, err);
+        return { id, ok: false, error: err };
+      }
+    });
+
+    try {
+      const results = await Promise.all(deletePromises);
+      const successCount = results.filter((r) => r.ok).length;
+      const failCount = results.length - successCount;
+
+      if (failCount === 0) {
+        setToast({
+          message: `Successfully deleted ${successCount} resume${successCount !== 1 ? 's' : ''}`,
+          type: "success",
+        });
+      } else {
+        setToast({
+          message: `Deleted ${successCount} resume${successCount !== 1 ? 's' : ''}, ${failCount} failed`,
+          type: "error",
+        });
+      }
+
+      // Refresh from server
+      try {
+        const resumesResponse = await resumeService.getResumes();
+        if (resumesResponse.ok && resumesResponse.data) {
+          const allResumes = resumesResponse.data.resumes;
+          // Deduplicate resumes
+          const seenResumes = new Map<string, Resume>();
+          const resumeIds = new Set<string>();
+
+          allResumes.forEach((resume: Resume) => {
+            if (resumeIds.has(resume.id)) {
+              return;
+            }
+
+            const resumeName = resume.name || resume.versionName || "";
+            const jobId = resume.jobId || "no-job";
+            const createdAt = new Date(resume.createdAt).getTime();
+            const timeBucket = Math.floor(createdAt / 5000) * 5000;
+            const key = `${resumeName}_${jobId}_${timeBucket}`;
+
+            if (!seenResumes.has(key)) {
+              seenResumes.set(key, resume);
+              resumeIds.add(resume.id);
+            } else {
+              const existing = seenResumes.get(key)!;
+              const existingIsMaster = existing.isMaster ?? false;
+              const currentIsMaster = resume.isMaster ?? false;
+
+              if (existing.id === resume.id) {
+                return;
+              }
+
+              if (currentIsMaster && !existingIsMaster) {
+                resumeIds.delete(existing.id);
+                seenResumes.set(key, resume);
+                resumeIds.add(resume.id);
+              } else if (!currentIsMaster && existingIsMaster) {
+                // Keep existing
+              } else {
+                const existingDate = new Date(existing.updatedAt).getTime();
+                const currentDate = new Date(resume.updatedAt).getTime();
+                if (currentDate > existingDate) {
+                  resumeIds.delete(existing.id);
+                  seenResumes.set(key, resume);
+                  resumeIds.add(resume.id);
+                }
+              }
+            }
+          });
+
+          setResumes(Array.from(seenResumes.values()));
+        }
+      } catch (refreshErr) {
+        console.error("Failed to refresh resumes list:", refreshErr);
+      }
+    } catch (err) {
+      console.error("Error during bulk delete:", err);
+      setToast({
+        message: "Failed to delete some resumes. Please try again.",
+        type: "error",
+      });
+    }
   };
 
   const confirmDeleteResume = async () => {
@@ -770,6 +926,44 @@ export function Resumes() {
           onClose={() => setToast(null)}
         />
       )}
+      {/* Bulk Delete Confirmation Modal */}
+      {showBulkDeleteConfirm && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowBulkDeleteConfirm(false);
+            }
+          }}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-in zoom-in-95 duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-xl font-bold text-gray-900 mb-4">
+              Delete {selectedResumes.size} Resume{selectedResumes.size !== 1 ? 's' : ''}
+            </h2>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete {selectedResumes.size} selected resume{selectedResumes.size !== 1 ? 's' : ''}? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowBulkDeleteConfirm(false)}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmBulkDelete}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+              >
+                Delete {selectedResumes.size}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
         <div
@@ -872,6 +1066,44 @@ export function Resumes() {
               </button>
             </div>
           </div>
+
+          {/* Selection Bar - Shows when resumes are selected */}
+          {selectedResumes.size > 0 && (
+            <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedResumes.size === filteredResumes.length && filteredResumes.length > 0}
+                      onChange={handleSelectAll}
+                      className="w-4 h-4 text-[#3351FD] border-gray-300 rounded focus:ring-[#3351FD] focus:ring-2"
+                    />
+                    <span className="text-sm font-medium text-gray-900">
+                      {selectedResumes.size === filteredResumes.length 
+                        ? "All selected" 
+                        : `${selectedResumes.size} of ${filteredResumes.length} selected`}
+                    </span>
+                  </label>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setSelectedResumes(new Set())}
+                    className="px-3 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                  >
+                    Clear Selection
+                  </button>
+                  <button
+                    onClick={handleBulkDelete}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm"
+                  >
+                    <Icon icon="mingcute:delete-line" className="w-4 h-4" />
+                    Delete Selected ({selectedResumes.size})
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Filters and Search */}
           <div className="flex flex-col sm:flex-row gap-4 mt-6">
@@ -1061,26 +1293,39 @@ export function Resumes() {
             {filteredResumes.map((resume) => (
               <div
                 key={resume.id}
-                className="bg-white rounded-lg border border-gray-200 hover:shadow-lg transition-shadow overflow-hidden"
+                className={`bg-white rounded-lg border transition-shadow overflow-hidden flex flex-col ${
+                  selectedResumes.has(resume.id)
+                    ? "border-[#3351FD] shadow-lg ring-2 ring-[#3351FD]"
+                    : "border-gray-200 hover:shadow-lg"
+                }`}
               >
                 {/* Resume Preview Card */}
-                <div className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
+                <div className="p-6 flex-1 flex flex-col">
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedResumes.has(resume.id)}
+                      onChange={() => handleToggleSelect(resume.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="mt-1 w-4 h-4 text-[#3351FD] border-gray-300 rounded focus:ring-[#3351FD] focus:ring-2 cursor-pointer flex-shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-2">
                         <h3 className="text-lg font-semibold text-gray-900">
                           {resume.name || resume.versionName}
                         </h3>
                         {resume.isMaster && (
-                          <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded">
+                          <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded flex-shrink-0">
                             Master
                           </span>
                         )}
                       </div>
-                      {resume.description && (
-                        <p className="text-sm text-gray-600 mb-2">
+                      {resume.description ? (
+                        <p className="text-sm text-gray-600 mb-2 line-clamp-2">
                           {resume.description}
                         </p>
+                      ) : (
+                        <div className="h-5 mb-2"></div>
                       )}
                       <div className="flex items-center gap-4 text-xs text-gray-500">
                         <span className="flex items-center gap-1">

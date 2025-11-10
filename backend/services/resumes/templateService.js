@@ -621,11 +621,35 @@ class ResumeTemplateService {
       id: row.id,
       templateName: row.template_name || row.templateName,
       description: row.description,
-      colors: row.colors,
-      fonts: row.fonts,
       existingResumeTemplate:
         row.existing_resume_template || row.existingResumeTemplate,
     };
+
+    // Parse colors if it's a string
+    if (row.colors !== undefined && row.colors !== null) {
+      if (typeof row.colors === "string") {
+        try {
+          template.colors = JSON.parse(row.colors);
+        } catch {
+          template.colors = row.colors;
+        }
+      } else {
+        template.colors = row.colors;
+      }
+    }
+
+    // Parse fonts if it's a string
+    if (row.fonts !== undefined && row.fonts !== null) {
+      if (typeof row.fonts === "string") {
+        try {
+          template.fonts = JSON.parse(row.fonts);
+        } catch {
+          template.fonts = row.fonts;
+        }
+      } else {
+        template.fonts = row.fonts;
+      }
+    }
 
     // Add additional fields if they exist (for default templates)
     if (row.templateType !== undefined)

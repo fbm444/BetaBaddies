@@ -112,6 +112,7 @@ export function ResumeBuilder() {
 
   const [resume, setResume] = useState<Resume | null>(null);
   const [previewResume, setPreviewResume] = useState<Resume | null>(null);
+  const [templateData, setTemplateData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const [editingItem, setEditingItem] = useState<{
@@ -310,7 +311,7 @@ export function ResumeBuilder() {
 
   // Auto-save refs (declared before useEffects that use them)
   const hasAutoSavedRef = useRef(false);
-  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastResumeIdRef = useRef<string | null>(null);
   const aiExplanationOpenedRef = useRef(false);
   const jobIdOpenedRef = useRef<string | null>(null);
@@ -422,8 +423,6 @@ export function ResumeBuilder() {
               content: resume.content,
               sectionConfig: resume.sectionConfig,
               customizations: resume.customizations,
-              versionNumber: resume.versionNumber || 1,
-              isMaster: resume.isMaster ?? true,
             });
 
             if (response.ok && response.data?.resume) {
@@ -501,6 +500,7 @@ export function ResumeBuilder() {
   // Fetch resume or use mock data
   useEffect(() => {
     const fetchResume = async () => {
+      let templateData: any = null;
       try {
         setIsLoading(true);
 
@@ -526,6 +526,20 @@ export function ResumeBuilder() {
             if (response.ok && response.data) {
               const loadedResume = response.data.resume;
               setResume(loadedResume);
+              
+              // Fetch template data if templateId exists
+              if (loadedResume.templateId) {
+                try {
+                  const templateResponse = await resumeService.getTemplate(
+                    loadedResume.templateId
+                  );
+                  if (templateResponse.ok && templateResponse.data?.template) {
+                    setTemplateData(templateResponse.data.template);
+                  }
+                } catch (err) {
+                  console.log("Failed to fetch template:", err);
+                }
+              }
               // IMPORTANT: Mark as already saved to prevent auto-save from creating duplicate
               hasAutoSavedRef.current = true;
               lastResumeIdRef.current = loadedResume.id;
@@ -619,49 +633,64 @@ export function ResumeBuilder() {
             }
           }
 
-          // New resume - check if template has an existing resume file to parse
+          // New resume - fetch template FIRST and apply its settings
           if (templateId) {
             try {
-              // Get template to check if it has an existing resume file
+              // Get template to apply its colors, fonts, sectionOrder, and layoutConfig
               const templateResponse = await resumeService.getTemplate(
                 templateId
               );
-              if (
-                templateResponse.ok &&
-                templateResponse.data?.template?.existingResumeTemplate
-              ) {
-                // Template has an existing resume file - parse it with AI
-                showToast("Parsing template resume with AI...", "info");
-                setImportingResume(true);
+              if (templateResponse.ok && templateResponse.data?.template) {
+                const fetchedTemplate = templateResponse.data.template;
+                templateData = fetchedTemplate;
+                setTemplateData(fetchedTemplate);
+                console.log("✅ Template fetched and stored:", {
+                  id: fetchedTemplate.id,
+                  name: fetchedTemplate.templateName,
+                  type: fetchedTemplate.templateType,
+                  hasColors: !!fetchedTemplate.colors,
+                  hasFonts: !!fetchedTemplate.fonts,
+                  hasSectionOrder: !!fetchedTemplate.sectionOrder,
+                  hasLayoutConfig: !!fetchedTemplate.layoutConfig,
+                });
+                
+                // Check if template has an existing resume file to parse
+                if (fetchedTemplate.existingResumeTemplate) {
+                  // Template has an existing resume file - parse it with AI
+                  showToast("Parsing template resume with AI...", "info");
+                  setImportingResume(true);
 
-                try {
-                  const parseResponse = await resumeService.parseTemplateResume(
-                    templateId
-                  );
-                  if (parseResponse.ok && parseResponse.data) {
-                    // Set parsed content to show preview
-                    setParsedResumeContent(parseResponse.data.content);
-                    // Show import modal
-                    setShowImportResumeModal(true);
-                    showToast(
-                      "Template resume parsed successfully! Review and confirm to import.",
-                      "success"
+                  try {
+                    const parseResponse = await resumeService.parseTemplateResume(
+                      templateId
                     );
+                    if (parseResponse.ok && parseResponse.data) {
+                      // Set parsed content to show preview
+                      setParsedResumeContent(parseResponse.data.content);
+                      // Show import modal
+                      setShowImportResumeModal(true);
+                      showToast(
+                        "Template resume parsed successfully! Review and confirm to import.",
+                        "success"
+                      );
+                    }
+                  } catch (parseErr: any) {
+                    console.error("Failed to parse template resume:", parseErr);
+                    showToast(
+                      parseErr.message ||
+                        "Failed to parse template resume. Using default template.",
+                      "error"
+                    );
+                  } finally {
+                    setImportingResume(false);
                   }
-                } catch (parseErr: any) {
-                  console.error("Failed to parse template resume:", parseErr);
-                  showToast(
-                    parseErr.message ||
-                      "Failed to parse template resume. Using default template.",
-                    "error"
-                  );
-                } finally {
-                  setImportingResume(false);
                 }
+              } else {
+                console.log("Template not found, using default settings");
               }
             } catch (templateErr: any) {
               console.log(
-                "Template not found or no existing resume file:",
+                "Template not found or error fetching template:",
                 templateErr.message
               );
               // Continue with default template
@@ -669,6 +698,7 @@ export function ResumeBuilder() {
           }
 
           // New resume - use mock data for preview
+          // NOTE: templateData is now available from the fetch above
           // Set resume name based on job if available
           let resumeName = "New Resume";
           if (jobOpportunity) {
@@ -767,25 +797,98 @@ export function ResumeBuilder() {
               projects: [],
               certifications: [],
             },
-            sectionConfig: {
-              personal: { enabled: true, order: 0 },
-              summary: { enabled: true, order: 1 },
-              experience: { enabled: true, order: 2 },
-              education: { enabled: true, order: 3 },
-              skills: { enabled: true, order: 4 },
-              projects: { enabled: false, order: 5 },
-              certifications: { enabled: false, order: 6 },
-            },
-            customizations: {
-              colors: {
+            sectionConfig: (() => {
+              // Apply template's sectionOrder if available
+              if (templateData?.sectionOrder && Array.isArray(templateData.sectionOrder)) {
+                const sectionOrder = templateData.sectionOrder;
+                const sectionConfig: any = {};
+                sectionOrder.forEach((section: string, index: number) => {
+                  sectionConfig[section] = { enabled: true, order: index };
+                });
+                // Add any sections not in the order as disabled
+                const allSections = ["personal", "summary", "experience", "education", "skills", "projects", "certifications"];
+                allSections.forEach((section) => {
+                  if (!sectionConfig[section]) {
+                    sectionConfig[section] = { enabled: false, order: 999 };
+                  }
+                });
+                return sectionConfig;
+              }
+              // Default section order
+              return {
+                personal: { enabled: true, order: 0 },
+                summary: { enabled: true, order: 1 },
+                experience: { enabled: true, order: 2 },
+                education: { enabled: true, order: 3 },
+                skills: { enabled: true, order: 4 },
+                projects: { enabled: false, order: 5 },
+                certifications: { enabled: false, order: 6 },
+              };
+            })(),
+            customizations: (() => {
+              // Parse and apply template's colors, fonts, and layoutConfig
+              let colors = {
                 primary: "#3351FD",
                 secondary: "#000000",
                 text: "#000000",
                 background: "#FFFFFF",
-              },
-              fonts: { heading: "Inter", body: "Inter" },
-              spacing: { section: 24, item: 12 },
-            },
+              };
+              let fonts = { heading: "Inter", body: "Inter" };
+              let spacing = { section: 24, item: 12 };
+              let alignment = "left";
+              let headerStyle = "centered";
+
+              if (templateData) {
+                // Use colors directly (backend now parses them)
+                if (templateData.colors) {
+                  colors = typeof templateData.colors === "string" 
+                    ? (() => {
+                        try {
+                          return JSON.parse(templateData.colors);
+                        } catch (e) {
+                          console.error("Failed to parse template colors:", e);
+                          return colors;
+                        }
+                      })()
+                    : templateData.colors;
+                }
+
+                // Use fonts directly (backend now parses them)
+                if (templateData.fonts) {
+                  fonts = typeof templateData.fonts === "string" 
+                    ? (() => {
+                        try {
+                          return JSON.parse(templateData.fonts);
+                        } catch (e) {
+                          console.error("Failed to parse template fonts:", e);
+                          return fonts;
+                        }
+                      })()
+                    : templateData.fonts;
+                }
+
+                // Apply layoutConfig
+                if (templateData.layoutConfig) {
+                  if (templateData.layoutConfig.spacing) {
+                    spacing = templateData.layoutConfig.spacing;
+                  }
+                  if (templateData.layoutConfig.alignment) {
+                    alignment = templateData.layoutConfig.alignment;
+                  }
+                  if (templateData.layoutConfig.headerStyle) {
+                    headerStyle = templateData.layoutConfig.headerStyle;
+                  }
+                }
+              }
+
+              return {
+                colors,
+                fonts,
+                spacing,
+                alignment,
+                headerStyle,
+              };
+            })(),
             versionNumber: 1,
             isMaster: true,
             createdAt: new Date().toISOString(),
@@ -892,25 +995,98 @@ export function ResumeBuilder() {
             projects: [],
             certifications: [],
           },
-          sectionConfig: {
-            personal: { enabled: true, order: 0 },
-            summary: { enabled: true, order: 1 },
-            experience: { enabled: true, order: 2 },
-            education: { enabled: true, order: 3 },
-            skills: { enabled: true, order: 4 },
-            projects: { enabled: false, order: 5 },
-            certifications: { enabled: false, order: 6 },
-          },
-          customizations: {
-            colors: {
+          sectionConfig: (() => {
+            // Apply template's sectionOrder if available
+            if (templateData?.sectionOrder && Array.isArray(templateData.sectionOrder)) {
+              const sectionOrder = templateData.sectionOrder;
+              const sectionConfig: any = {};
+              sectionOrder.forEach((section: string, index: number) => {
+                sectionConfig[section] = { enabled: true, order: index };
+              });
+              // Add any sections not in the order as disabled
+              const allSections = ["personal", "summary", "experience", "education", "skills", "projects", "certifications"];
+              allSections.forEach((section) => {
+                if (!sectionConfig[section]) {
+                  sectionConfig[section] = { enabled: false, order: 999 };
+                }
+              });
+              return sectionConfig;
+            }
+            // Default section order
+            return {
+              personal: { enabled: true, order: 0 },
+              summary: { enabled: true, order: 1 },
+              experience: { enabled: true, order: 2 },
+              education: { enabled: true, order: 3 },
+              skills: { enabled: true, order: 4 },
+              projects: { enabled: false, order: 5 },
+              certifications: { enabled: false, order: 6 },
+            };
+          })(),
+          customizations: (() => {
+            // Parse and apply template's colors, fonts, and layoutConfig
+            let colors = {
               primary: "#3351FD",
               secondary: "#000000",
               text: "#000000",
               background: "#FFFFFF",
-            },
-            fonts: { heading: "Inter", body: "Inter" },
-            spacing: { section: 24, item: 12 },
-          },
+            };
+            let fonts = { heading: "Inter", body: "Inter" };
+            let spacing = { section: 24, item: 12 };
+            let alignment = "left";
+            let headerStyle = "centered";
+
+            if (templateData) {
+              // Use colors directly (backend now parses them)
+              if (templateData.colors) {
+                colors = typeof templateData.colors === "string" 
+                  ? (() => {
+                      try {
+                        return JSON.parse(templateData.colors);
+                      } catch (e) {
+                        console.error("Failed to parse template colors:", e);
+                        return colors;
+                      }
+                    })()
+                  : templateData.colors;
+              }
+
+              // Use fonts directly (backend now parses them)
+              if (templateData.fonts) {
+                fonts = typeof templateData.fonts === "string" 
+                  ? (() => {
+                      try {
+                        return JSON.parse(templateData.fonts);
+                      } catch (e) {
+                        console.error("Failed to parse template fonts:", e);
+                        return fonts;
+                      }
+                    })()
+                  : templateData.fonts;
+              }
+
+              // Apply layoutConfig
+              if (templateData.layoutConfig) {
+                if (templateData.layoutConfig.spacing) {
+                  spacing = templateData.layoutConfig.spacing;
+                }
+                if (templateData.layoutConfig.alignment) {
+                  alignment = templateData.layoutConfig.alignment;
+                }
+                if (templateData.layoutConfig.headerStyle) {
+                  headerStyle = templateData.layoutConfig.headerStyle;
+                }
+              }
+            }
+
+            return {
+              colors,
+              fonts,
+              spacing,
+              alignment,
+              headerStyle,
+            };
+          })(),
           versionNumber: 1,
           isMaster: true,
           createdAt: new Date().toISOString(),
@@ -1511,8 +1687,6 @@ export function ResumeBuilder() {
           content: resume.content,
           sectionConfig: resume.sectionConfig,
           customizations: resume.customizations,
-          versionNumber: resume.versionNumber || 1,
-          isMaster: resume.isMaster ?? true,
         });
 
         if (response.ok && response.data?.resume) {
@@ -1535,8 +1709,6 @@ export function ResumeBuilder() {
           content: resume.content,
           sectionConfig: resume.sectionConfig,
           customizations: resume.customizations,
-          versionNumber: resume.versionNumber,
-          isMaster: resume.isMaster,
           templateId: resume.templateId,
           jobId: resume.jobId,
         });
@@ -1957,7 +2129,7 @@ export function ResumeBuilder() {
     } catch (err: any) {
       showToast(
         err.message ||
-          `Failed to export as ${format.toUpperCase()}. Please try again.`,
+          `Failed to export as ${options.format.toUpperCase()}. Please try again.`,
         "error"
       );
       console.error("Export error:", err);
@@ -2769,8 +2941,8 @@ export function ResumeBuilder() {
           const versionsResponse = await resumeService.getVersions(parentId);
           if (versionsResponse.ok && versionsResponse.data) {
             const fetchedVersions =
-              versionsResponse.data.resumes ||
-              versionsResponse.data.versions ||
+              (versionsResponse.data as any).resumes ||
+              (versionsResponse.data as any).versions ||
               [];
             setVersions(fetchedVersions);
           }
@@ -3185,18 +3357,44 @@ export function ResumeBuilder() {
     try {
       const response = await resumeService.setMasterVersion(versionId);
       if (response.ok) {
-        // Refresh versions
-        if (resumeId && isValidUUID(resumeId)) {
-          const versionsRes = await resumeService.getVersions(resumeId);
-          if (versionsRes.ok) {
-            setVersions(versionsRes.data?.resumes || []);
+        showToast("Master version updated successfully", "success");
+
+        // If we set a different version as master, refresh the current resume
+        if (versionId !== resumeId) {
+          // Refresh versions
+          const parentId = resume?.parentResumeId || resumeId;
+          if (parentId && isValidUUID(parentId)) {
+            const versionsRes = await resumeService.getVersions(parentId);
+            if (versionsRes.ok) {
+              setVersions(versionsRes.data?.resumes || []);
+            }
           }
-          const historyRes = await resumeService.getVersionHistory(resumeId);
-          if (historyRes.ok) {
-            setVersionHistory(historyRes.data?.history || []);
+
+          // Update current resume if it's the one that was set as master
+          if (resume && resume.id === versionId) {
+            const updatedResume = { ...resume, isMaster: true };
+            setResume(updatedResume);
+          } else if (resume && resume.isMaster && versionId !== resume.id) {
+            // If current resume was master and we set a different one, update it
+            const updatedResume = { ...resume, isMaster: false };
+            setResume(updatedResume);
+          }
+        } else {
+          // If setting current version as master, just update it
+          if (resume) {
+            const updatedResume = { ...resume, isMaster: true };
+            setResume(updatedResume);
+          }
+
+          // Refresh versions list
+          const parentId = resume?.parentResumeId || resumeId;
+          if (parentId && isValidUUID(parentId)) {
+            const versionsRes = await resumeService.getVersions(parentId);
+            if (versionsRes.ok) {
+              setVersions(versionsRes.data?.resumes || []);
+            }
           }
         }
-        showToast("Master version updated successfully!", "success");
       }
     } catch (err: any) {
       console.error("Failed to set master version:", err);
@@ -3646,13 +3844,20 @@ export function ResumeBuilder() {
     }
   };
 
-  const colors = currentCustomizations?.colors || {
+  // Get template type from templateData or resume's templateId
+  const templateType = templateData?.templateType || 
+    (resume?.templateId?.startsWith("default-functional") ? "functional" :
+     resume?.templateId?.startsWith("default-hybrid") ? "hybrid" :
+     "chronological");
+  
+  // Use template data if available, otherwise use resume customizations
+  const colors = templateData?.colors || currentCustomizations?.colors || {
     primary: "#3351FD",
     secondary: "#000000",
     text: "#000000",
     background: "#FFFFFF",
   };
-  const fonts = currentCustomizations?.fonts || {
+  const fonts = templateData?.fonts || currentCustomizations?.fonts || {
     heading: "Inter",
     body: "Inter",
   };
@@ -4496,15 +4701,17 @@ export function ResumeBuilder() {
                     >
                       <div
                         className={`border-b pb-6 mb-6 ${
-                          displayResume.customizations?.headerStyle === "right"
+                          templateType === "functional"
+                            ? "text-left"
+                            : displayResume.customizations?.headerStyle === "right"
                             ? "text-right"
-                            : displayResume.customizations?.headerStyle ===
-                              "left"
+                            : displayResume.customizations?.headerStyle === "left"
                             ? "text-left"
                             : "text-center" // Default to centered
                         }`}
                         style={{
                           borderColor: colors.primary,
+                          borderWidth: templateType === "hybrid" ? "3px" : "2px",
                           ...(getSectionFormatting("personal").textAlign && {
                             textAlign: getSectionFormatting("personal")
                               .textAlign as any,
@@ -4596,18 +4803,45 @@ export function ResumeBuilder() {
                         ) : (
                           <>
                             <h1
-                              className="text-4xl font-bold mb-2"
+                              className={`font-bold mb-2 ${
+                                templateType === "functional" ? "text-2xl" : "text-4xl"
+                              }`}
                               style={{
                                 color: colors.primary,
                                 fontFamily: fonts.heading,
+                                fontSize: templateType === "functional" 
+                                  ? (fonts.size?.heading || "22px")
+                                  : (fonts.size?.heading || "24px"),
                               }}
                             >
                               {displayResume.content.personalInfo.firstName}{" "}
                               {displayResume.content.personalInfo.lastName}
                             </h1>
+                            {templateType === "hybrid" && displayResume.content.personalInfo.title && (
+                              <div
+                                className="text-sm font-medium mb-1"
+                                style={{
+                                  color: colors.secondary,
+                                  fontSize: fonts.size?.body || "12px",
+                                }}
+                              >
+                                {displayResume.content.personalInfo.title}
+                              </div>
+                            )}
                             <div
-                              className="flex items-center justify-center gap-4 mt-3 text-sm flex-wrap"
-                              style={{ color: colors.secondary }}
+                              className={`flex items-center gap-2 mt-3 flex-wrap ${
+                                templateType === "functional"
+                                  ? "justify-start text-xs"
+                                  : displayResume.customizations?.headerStyle === "right"
+                                  ? "justify-end"
+                                  : displayResume.customizations?.headerStyle === "left"
+                                  ? "justify-start"
+                                  : "justify-center"
+                              }`}
+                              style={{ 
+                                color: colors.secondary,
+                                fontSize: templateType === "functional" ? "10px" : "12px",
+                              }}
                             >
                               {displayResume.content.personalInfo.email && (
                                 <span>
@@ -4781,15 +5015,25 @@ export function ResumeBuilder() {
                         >
                           <div className="flex items-center justify-between mb-3">
                             <h2
-                              className="text-2xl font-semibold"
+                              className={`font-semibold ${
+                                templateType === "functional" 
+                                  ? "text-lg uppercase tracking-wide" 
+                                  : "text-2xl"
+                              }`}
                               style={{
                                 color:
                                   getSectionFormatting("summary").color ||
                                   colors.primary,
                                 fontFamily: fonts.heading,
+                                fontSize: templateType === "functional"
+                                  ? (fonts.size?.heading ? `calc(${fonts.size.heading} - 2px)` : "18px")
+                                  : (fonts.size?.heading ? `calc(${fonts.size.heading} - 4px)` : "20px"),
+                                textTransform: templateType === "functional" ? "uppercase" : "none",
+                                letterSpacing: templateType === "functional" ? "0.5px" : "normal",
+                                textAlign: templateType === "functional" ? "left" : "left",
                               }}
                             >
-                              Summary
+                              {templateType === "functional" ? "Professional Summary" : "Summary"}
                             </h2>
                             <div className="flex gap-2">
                               <button
@@ -4829,7 +5073,18 @@ export function ResumeBuilder() {
                               </button>
                             </div>
                           </div>
-                          <p className="leading-relaxed">
+                          <p
+                            className={`leading-relaxed ${
+                              templateType === "functional" ? "text-xs text-left" : ""
+                            }`}
+                            style={{
+                              fontSize: templateType === "functional"
+                                ? (fonts.size?.body || "11px")
+                                : (fonts.size?.body || "12px"),
+                              textAlign: templateType === "functional" ? "left" : 
+                                (displayResume.customizations?.alignment === "justified" ? "justify" : "left"),
+                            }}
+                          >
                             {displayResume.content.summary}
                           </p>
                         </div>
@@ -4901,15 +5156,25 @@ export function ResumeBuilder() {
                       >
                         <div className="flex items-center justify-between mb-4">
                           <h2
-                            className="text-2xl font-semibold"
+                            className={`font-semibold ${
+                              templateType === "functional" 
+                                ? "text-lg uppercase tracking-wide" 
+                                : "text-2xl"
+                            }`}
                             style={{
                               color:
                                 getSectionFormatting("experience").color ||
                                 colors.primary,
                               fontFamily: fonts.heading,
+                              fontSize: templateType === "functional"
+                                ? (fonts.size?.heading ? `calc(${fonts.size.heading} - 2px)` : "18px")
+                                : (fonts.size?.heading ? `calc(${fonts.size.heading} - 4px)` : "20px"),
+                              textTransform: templateType === "functional" ? "uppercase" : "none",
+                              letterSpacing: templateType === "functional" ? "0.5px" : "normal",
+                              textAlign: templateType === "functional" ? "left" : "left",
                             }}
                           >
-                            Experience
+                            {templateType === "functional" ? "Professional Experience" : "Experience"}
                           </h2>
                           <div className="flex gap-2">
                             {userJobs.length > 0 && (
@@ -9072,7 +9337,6 @@ export function ResumeBuilder() {
                             <Icon
                               icon="mingcute:briefcase-line"
                               className="w-3.5 h-3.5 text-green-600 flex-shrink-0"
-                              title="Job Linked"
                             />
                           )}
                         </div>
@@ -9290,7 +9554,6 @@ export function ResumeBuilder() {
                             <Icon
                               icon="mingcute:briefcase-line"
                               className="w-3.5 h-3.5 text-green-600 flex-shrink-0"
-                              title="Job Linked"
                             />
                           )}
                         </div>

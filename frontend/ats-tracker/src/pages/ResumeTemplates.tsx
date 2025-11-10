@@ -5,6 +5,7 @@ import { ROUTES } from "../config/routes";
 import { ResumeTemplate, Resume } from "../types";
 import { resumeService } from "../services/resumeService";
 import { Toast } from "../components/resume/Toast";
+import { TemplatePreview } from "../components/resume/TemplatePreview";
 
 export function ResumeTemplates() {
   const navigate = useNavigate();
@@ -438,7 +439,6 @@ export function ResumeTemplates() {
         {/* Templates Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {templates.map((template) => {
-            const colors = parseColors(template.colors);
             return (
               <div
                 key={template.id}
@@ -449,20 +449,41 @@ export function ResumeTemplates() {
                   <div className="absolute inset-0 bg-white opacity-90 p-4">
                     <div
                       className="h-full border-2 rounded p-4"
-                      style={{ borderColor: colors.primary }}
+                      style={{ 
+                        borderColor: (() => {
+                          const colors = typeof template.colors === 'string' 
+                            ? JSON.parse(template.colors) 
+                            : template.colors || {};
+                          return colors.primary || "#3351FD";
+                        })()
+                      }}
                     >
                       {/* Mock Resume Preview */}
                       <div className="space-y-3">
                         <div
                           className="h-4 rounded w-3/4"
-                          style={{ backgroundColor: colors.primary }}
+                          style={{ 
+                            backgroundColor: (() => {
+                              const colors = typeof template.colors === 'string' 
+                                ? JSON.parse(template.colors) 
+                                : template.colors || {};
+                              return colors.primary || "#3351FD";
+                            })()
+                          }}
                         ></div>
                         <div className="h-2 bg-gray-300 rounded w-full"></div>
                         <div className="h-2 bg-gray-300 rounded w-5/6"></div>
                         <div className="mt-4 space-y-2">
                           <div
                             className="h-3 rounded w-1/2"
-                            style={{ backgroundColor: colors.secondary }}
+                            style={{ 
+                              backgroundColor: (() => {
+                                const colors = typeof template.colors === 'string' 
+                                  ? JSON.parse(template.colors) 
+                                  : template.colors || {};
+                                return colors.secondary || "#000000";
+                              })()
+                            }}
                           ></div>
                           <div className="h-2 bg-gray-300 rounded w-full"></div>
                           <div className="h-2 bg-gray-300 rounded w-4/5"></div>
@@ -533,30 +554,54 @@ export function ResumeTemplates() {
         )}
 
         {/* Template Preview Modal */}
-        {previewTemplateId && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-              <div className="flex items-center justify-between p-4 border-b">
-                <h2 className="text-xl font-semibold">Template Preview</h2>
-                <button
-                  onClick={handlePreviewClose}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <Icon icon="mingcute:close-line" className="w-6 h-6" />
-                </button>
-              </div>
-              <div className="flex-1 overflow-auto p-4">
-                <iframe
-                  src={`${
-                    import.meta.env.VITE_API_URL || "/api/v1"
-                  }/resumes/templates/${previewTemplateId}/preview`}
-                  className="w-full h-full min-h-[600px] border-0"
-                  title="Template Preview"
-                />
+        {previewTemplateId && (() => {
+          const previewTemplate = templates.find(t => t.id === previewTemplateId);
+          if (!previewTemplate) return null;
+          
+          return (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+                <div className="flex items-center justify-between p-6 border-b bg-gradient-to-r from-[#3351FD] to-purple-600 text-white">
+                  <div>
+                    <h2 className="text-2xl font-bold">Template Preview</h2>
+                    <p className="text-white/80 text-sm mt-1">
+                      {previewTemplate.templateName}
+                    </p>
+                  </div>
+                  <button
+                    onClick={handlePreviewClose}
+                    className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                  >
+                    <Icon icon="mingcute:close-line" className="w-6 h-6" />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-auto p-8 bg-gray-50">
+                  <div className="max-w-3xl mx-auto bg-white shadow-lg rounded-lg p-8">
+                    <TemplatePreview template={previewTemplate} scale={1.0} />
+                  </div>
+                </div>
+                <div className="border-t border-gray-200 p-4 bg-gray-50 flex items-center justify-end gap-3">
+                  <button
+                    onClick={handlePreviewClose}
+                    className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleSelectTemplate(previewTemplateId);
+                      handlePreviewClose();
+                    }}
+                    className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors font-medium flex items-center gap-2"
+                  >
+                    <Icon icon="mingcute:add-line" className="w-4 h-4" />
+                    Use This Template
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Import Resume Modal */}
         {showImportResumeModal && (

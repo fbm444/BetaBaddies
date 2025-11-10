@@ -143,49 +143,56 @@ export function ResumeTopBar({
                         </p>
                       ) : (
                         versions.map((version) => (
-                          <button
+                          <div
                             key={version.id}
-                            onClick={() => onSwitchVersion(version.id)}
-                            className={`w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors mb-1 ${
+                            className={`w-full rounded-lg mb-1 border overflow-hidden bg-white ${
                               version.id === resumeId
-                                ? "bg-blue-50 border border-blue-200"
-                                : ""
+                                ? "border-blue-200 shadow-sm"
+                                : "border-gray-200 hover:border-gray-300"
                             }`}
                           >
-                            <div className="flex items-center justify-between">
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm font-medium text-gray-900 truncate">
-                                    {version.name ||
-                                      `Version ${version.versionNumber}`}
-                                  </span>
-                                  {version.isMaster && (
-                                    <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium flex-shrink-0">
-                                      Master
+                            <button
+                              onClick={() => onSwitchVersion(version.id)}
+                              className="w-full text-left px-3 py-2 rounded-t-lg hover:bg-gray-50 transition-colors"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-medium text-gray-900 truncate">
+                                      {version.name ||
+                                        `Version ${version.versionNumber}`}
                                     </span>
-                                  )}
+                                    {version.isMaster && (
+                                      <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium flex-shrink-0">
+                                        Master
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-gray-500 mt-0.5">
+                                    v{version.versionNumber || 1}
+                                  </p>
                                 </div>
-                                <p className="text-xs text-gray-500 mt-0.5">
-                                  v{version.versionNumber || 1}
-                                </p>
                               </div>
-                              {version.id !== resumeId && (
+                            </button>
+                            {!version.isMaster && (
+                              <div className="px-3 pb-2 pt-2 border-t border-gray-200 bg-gray-50/50">
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     onSetMasterVersion(version.id);
                                   }}
-                                  className="ml-2 p-1 hover:bg-gray-200 rounded transition-colors"
+                                  className="w-full px-2 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded transition-colors flex items-center justify-center gap-1.5"
                                   title="Set as Master"
                                 >
                                   <Icon
                                     icon="mingcute:star-line"
-                                    className="w-4 h-4 text-gray-600"
+                                    className="w-3.5 h-3.5"
                                   />
+                                  Set as Master
                                 </button>
-                              )}
-                            </div>
-                          </button>
+                              </div>
+                            )}
+                          </div>
                         ))
                       )}
                     </div>

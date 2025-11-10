@@ -12,15 +12,20 @@ export function Resumes() {
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<'all' | 'master' | 'versions'>('all');
+  const [filter, setFilter] = useState<"all" | "master" | "versions">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [exportingId, setExportingId] = useState<string | null>(null);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [showExportMenu, setShowExportMenu] = useState<string | null>(null);
-  const [jobOpportunities, setJobOpportunities] = useState<JobOpportunityData[]>([]);
+  const [jobOpportunities, setJobOpportunities] = useState<
+    JobOpportunityData[]
+  >([]);
   const [showJobPipeline, setShowJobPipeline] = useState(true);
   const [jobFilterStage, setJobFilterStage] = useState<string>("all");
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
+  const [toast, setToast] = useState<{
+    message: string;
+    type: "success" | "error" | "info";
+  } | null>(null);
 
   // Fetch resumes from API (or use mock data if API fails)
   useEffect(() => {
@@ -31,27 +36,27 @@ export function Resumes() {
         const response = await resumeService.getResumes();
         if (response.ok && response.data) {
           const allResumes = response.data.resumes;
-          
+
           // Deduplicate resumes: Remove true duplicates (same name, jobId, and created within 5 seconds)
           // This handles cases where the same resume was created twice due to race conditions
           const seenResumes = new Map<string, Resume>();
           const resumeIds = new Set<string>(); // Track unique IDs
-          
+
           allResumes.forEach((resume: Resume) => {
             // Skip if we've already seen this exact ID (shouldn't happen, but be safe)
             if (resumeIds.has(resume.id)) {
               return;
             }
-            
+
             // Create a unique key based on name, jobId, and creation time (within 5 seconds)
-            const resumeName = resume.name || resume.versionName || '';
-            const jobId = resume.jobId || 'no-job';
+            const resumeName = resume.name || resume.versionName || "";
+            const jobId = resume.jobId || "no-job";
             const createdAt = new Date(resume.createdAt).getTime();
-            
+
             // Round creation time to nearest 5 seconds to catch duplicates created close together
             const timeBucket = Math.floor(createdAt / 5000) * 5000;
             const key = `${resumeName}_${jobId}_${timeBucket}`;
-            
+
             if (!seenResumes.has(key)) {
               // First time seeing this resume - add it
               seenResumes.set(key, resume);
@@ -63,12 +68,12 @@ export function Resumes() {
               const existing = seenResumes.get(key)!;
               const existingIsMaster = existing.isMaster ?? false;
               const currentIsMaster = resume.isMaster ?? false;
-              
+
               // If they're the same ID, skip (shouldn't happen)
               if (existing.id === resume.id) {
                 return;
               }
-              
+
               if (currentIsMaster && !existingIsMaster) {
                 // Current is master, existing is not - replace
                 resumeIds.delete(existing.id);
@@ -89,15 +94,18 @@ export function Resumes() {
               }
             }
           });
-          
+
           // Convert map back to array
           const deduplicatedResumes = Array.from(seenResumes.values());
-          
+
           setResumes(deduplicatedResumes);
         }
       } catch (err: any) {
         // If API fails, use mock data for preview
-        console.log("API not available, using mock data for preview:", err.message);
+        console.log(
+          "API not available, using mock data for preview:",
+          err.message
+        );
         setResumes([
           {
             id: "1",
@@ -166,12 +174,15 @@ export function Resumes() {
   const fetchJobOpportunities = async () => {
     try {
       console.log("Fetching job opportunities...");
-      const response = await api.getJobOpportunities({ 
-        sort: "-created_at"
+      const response = await api.getJobOpportunities({
+        sort: "-created_at",
       });
       console.log("Job opportunities response:", response);
       if (response.ok && response.data) {
-        console.log("Setting job opportunities:", response.data.jobOpportunities);
+        console.log(
+          "Setting job opportunities:",
+          response.data.jobOpportunities
+        );
         // Filter out archived jobs on the frontend
         const nonArchivedJobs = (response.data.jobOpportunities || []).filter(
           (job: JobOpportunityData) => !job.archived
@@ -188,10 +199,13 @@ export function Resumes() {
   };
 
   const filteredResumes = resumes.filter((resume) => {
-    if (filter === 'master' && !resume.isMaster) return false;
-    if (filter === 'versions' && resume.isMaster) return false;
-    const name = resume.name || resume.versionName || '';
-    if (searchQuery && !name.toLowerCase().includes(searchQuery.toLowerCase())) {
+    if (filter === "master" && !resume.isMaster) return false;
+    if (filter === "versions" && resume.isMaster) return false;
+    const name = resume.name || resume.versionName || "";
+    if (
+      searchQuery &&
+      !name.toLowerCase().includes(searchQuery.toLowerCase())
+    ) {
       return false;
     }
     return true;
@@ -245,22 +259,22 @@ export function Resumes() {
         const resumesResponse = await resumeService.getResumes();
         if (resumesResponse.ok && resumesResponse.data) {
           const allResumes = resumesResponse.data.resumes;
-          
+
           // Deduplicate resumes: Remove true duplicates (same name, jobId, and created within 5 seconds)
           const seenResumes = new Map<string, Resume>();
           const resumeIds = new Set<string>();
-          
+
           allResumes.forEach((resume: Resume) => {
             if (resumeIds.has(resume.id)) {
               return;
             }
-            
-            const resumeName = resume.name || resume.versionName || '';
-            const jobId = resume.jobId || 'no-job';
+
+            const resumeName = resume.name || resume.versionName || "";
+            const jobId = resume.jobId || "no-job";
             const createdAt = new Date(resume.createdAt).getTime();
             const timeBucket = Math.floor(createdAt / 5000) * 5000;
             const key = `${resumeName}_${jobId}_${timeBucket}`;
-            
+
             if (!seenResumes.has(key)) {
               seenResumes.set(key, resume);
               resumeIds.add(resume.id);
@@ -268,11 +282,11 @@ export function Resumes() {
               const existing = seenResumes.get(key)!;
               const existingIsMaster = existing.isMaster ?? false;
               const currentIsMaster = resume.isMaster ?? false;
-              
+
               if (existing.id === resume.id) {
                 return;
               }
-              
+
               if (currentIsMaster && !existingIsMaster) {
                 resumeIds.delete(existing.id);
                 seenResumes.set(key, resume);
@@ -290,40 +304,44 @@ export function Resumes() {
               }
             }
           });
-          
+
           setResumes(Array.from(seenResumes.values()));
         }
         // Show success message
         const duplicatedResume = response.data.resume;
         setToast({
-          message: `Resume duplicated successfully! Created: ${duplicatedResume.name || duplicatedResume.versionName}`,
+          message: `Resume duplicated successfully! Created: ${
+            duplicatedResume.name || duplicatedResume.versionName
+          }`,
           type: "success",
         });
       } else {
         setToast({
-          message: response.error?.message || "Failed to duplicate resume. Please try again.",
+          message:
+            response.error?.message ||
+            "Failed to duplicate resume. Please try again.",
           type: "error",
         });
         // Still try to refresh the list in case the duplicate partially succeeded
         const resumesResponse = await resumeService.getResumes();
         if (resumesResponse.ok && resumesResponse.data) {
           const allResumes = resumesResponse.data.resumes;
-          
+
           // Deduplicate resumes
           const seenResumes = new Map<string, Resume>();
           const resumeIds = new Set<string>();
-          
+
           allResumes.forEach((resume: Resume) => {
             if (resumeIds.has(resume.id)) {
               return;
             }
-            
-            const resumeName = resume.name || resume.versionName || '';
-            const jobId = resume.jobId || 'no-job';
+
+            const resumeName = resume.name || resume.versionName || "";
+            const jobId = resume.jobId || "no-job";
             const createdAt = new Date(resume.createdAt).getTime();
             const timeBucket = Math.floor(createdAt / 5000) * 5000;
             const key = `${resumeName}_${jobId}_${timeBucket}`;
-            
+
             if (!seenResumes.has(key)) {
               seenResumes.set(key, resume);
               resumeIds.add(resume.id);
@@ -331,11 +349,11 @@ export function Resumes() {
               const existing = seenResumes.get(key)!;
               const existingIsMaster = existing.isMaster ?? false;
               const currentIsMaster = resume.isMaster ?? false;
-              
+
               if (existing.id === resume.id) {
                 return;
               }
-              
+
               if (currentIsMaster && !existingIsMaster) {
                 resumeIds.delete(existing.id);
                 seenResumes.set(key, resume);
@@ -353,7 +371,7 @@ export function Resumes() {
               }
             }
           });
-          
+
           setResumes(Array.from(seenResumes.values()));
         }
       }
@@ -368,22 +386,22 @@ export function Resumes() {
         const resumesResponse = await resumeService.getResumes();
         if (resumesResponse.ok && resumesResponse.data) {
           const allResumes = resumesResponse.data.resumes;
-          
+
           // Deduplicate resumes
           const seenResumes = new Map<string, Resume>();
           const resumeIds = new Set<string>();
-          
+
           allResumes.forEach((resume: Resume) => {
             if (resumeIds.has(resume.id)) {
               return;
             }
-            
-            const resumeName = resume.name || resume.versionName || '';
-            const jobId = resume.jobId || 'no-job';
+
+            const resumeName = resume.name || resume.versionName || "";
+            const jobId = resume.jobId || "no-job";
             const createdAt = new Date(resume.createdAt).getTime();
             const timeBucket = Math.floor(createdAt / 5000) * 5000;
             const key = `${resumeName}_${jobId}_${timeBucket}`;
-            
+
             if (!seenResumes.has(key)) {
               seenResumes.set(key, resume);
               resumeIds.add(resume.id);
@@ -391,11 +409,11 @@ export function Resumes() {
               const existing = seenResumes.get(key)!;
               const existingIsMaster = existing.isMaster ?? false;
               const currentIsMaster = resume.isMaster ?? false;
-              
+
               if (existing.id === resume.id) {
                 return;
               }
-              
+
               if (currentIsMaster && !existingIsMaster) {
                 resumeIds.delete(existing.id);
                 seenResumes.set(key, resume);
@@ -413,7 +431,7 @@ export function Resumes() {
               }
             }
           });
-          
+
           setResumes(Array.from(seenResumes.values()));
         }
       } catch (refreshErr) {
@@ -424,7 +442,9 @@ export function Resumes() {
     }
   };
 
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(
+    null
+  );
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const handleDeleteResume = (id: string) => {
@@ -435,65 +455,78 @@ export function Resumes() {
   const confirmDeleteResume = async () => {
     // Use a ref to capture the current value to avoid stale closures
     const currentDeleteConfirm = showDeleteConfirm;
-    console.log("🔴 confirmDeleteResume called, showDeleteConfirm:", currentDeleteConfirm);
-    
+    console.log(
+      "🔴 confirmDeleteResume called, showDeleteConfirm:",
+      currentDeleteConfirm
+    );
+
     if (!currentDeleteConfirm) {
-      console.warn("❌ confirmDeleteResume called but showDeleteConfirm is null");
+      console.warn(
+        "❌ confirmDeleteResume called but showDeleteConfirm is null"
+      );
       return;
     }
-    
+
     // Capture the ID before clearing the state to avoid race conditions
     const idToDelete = currentDeleteConfirm;
     console.log("✅ Confirming deletion of resume:", idToDelete);
-    
+
     // Set deleting state and close modal IMMEDIATELY
     setDeletingId(idToDelete);
     setShowDeleteConfirm(null);
-    
+
     // IMMEDIATELY remove from local state to update UI (optimistic update)
     // Use functional update to ensure we have the latest state
     setResumes((prevResumes) => {
       const filtered = prevResumes.filter((r) => r.id !== idToDelete);
-      console.log("📝 Removed resume from state. Previous count:", prevResumes.length, "New count:", filtered.length);
-      console.log("📝 Remaining resume IDs:", filtered.map(r => r.id));
+      console.log(
+        "📝 Removed resume from state. Previous count:",
+        prevResumes.length,
+        "New count:",
+        filtered.length
+      );
+      console.log(
+        "📝 Remaining resume IDs:",
+        filtered.map((r) => r.id)
+      );
       return filtered;
     });
-    
+
     try {
       console.log("🚀 Attempting to delete resume via API:", idToDelete);
       // The request method throws an ApiError if the response is not ok
       const deleteResponse = await resumeService.deleteResume(idToDelete);
-      
+
       console.log("✅ Delete API response:", deleteResponse);
-      
+
       // Show success message
       setToast({
         message: "Resume deleted successfully",
         type: "success",
       });
       setDeletingId(null);
-      
+
       // Refresh from server in the background to ensure consistency
       try {
         const resumesResponse = await resumeService.getResumes();
         if (resumesResponse.ok && resumesResponse.data) {
           const allResumes = resumesResponse.data.resumes;
-          
+
           // Deduplicate resumes: Remove true duplicates (same name, jobId, and created within 5 seconds)
           const seenResumes = new Map<string, Resume>();
           const resumeIds = new Set<string>();
-          
+
           allResumes.forEach((resume: Resume) => {
             if (resumeIds.has(resume.id)) {
               return;
             }
-            
-            const resumeName = resume.name || resume.versionName || '';
-            const jobId = resume.jobId || 'no-job';
+
+            const resumeName = resume.name || resume.versionName || "";
+            const jobId = resume.jobId || "no-job";
             const createdAt = new Date(resume.createdAt).getTime();
             const timeBucket = Math.floor(createdAt / 5000) * 5000;
             const key = `${resumeName}_${jobId}_${timeBucket}`;
-            
+
             if (!seenResumes.has(key)) {
               seenResumes.set(key, resume);
               resumeIds.add(resume.id);
@@ -501,11 +534,11 @@ export function Resumes() {
               const existing = seenResumes.get(key)!;
               const existingIsMaster = existing.isMaster ?? false;
               const currentIsMaster = resume.isMaster ?? false;
-              
+
               if (existing.id === resume.id) {
                 return;
               }
-              
+
               if (currentIsMaster && !existingIsMaster) {
                 resumeIds.delete(existing.id);
                 seenResumes.set(key, resume);
@@ -523,13 +556,16 @@ export function Resumes() {
               }
             }
           });
-          
+
           // Update with deduplicated list
           setResumes(Array.from(seenResumes.values()));
         }
       } catch (refreshErr) {
         // If refresh fails, that's okay - we already updated the UI
-        console.warn("Failed to refresh resumes list after deletion:", refreshErr);
+        console.warn(
+          "Failed to refresh resumes list after deletion:",
+          refreshErr
+        );
       }
     } catch (err: any) {
       console.error("❌ Failed to delete resume:", err);
@@ -542,33 +578,33 @@ export function Resumes() {
         stack: err.stack,
         fullError: err,
       });
-      
+
       // Revert the optimistic update on error by refreshing from server
       setDeletingId(null);
       // Re-open the confirmation modal if deletion failed
       setShowDeleteConfirm(idToDelete);
-      
+
       // Refresh the list from server to restore the deleted resume
       try {
         const resumesResponse = await resumeService.getResumes();
         if (resumesResponse.ok && resumesResponse.data) {
           const allResumes = resumesResponse.data.resumes;
-          
+
           // Deduplicate resumes
           const seenResumes = new Map<string, Resume>();
           const resumeIds = new Set<string>();
-          
+
           allResumes.forEach((resume: Resume) => {
             if (resumeIds.has(resume.id)) {
               return;
             }
-            
-            const resumeName = resume.name || resume.versionName || '';
-            const jobId = resume.jobId || 'no-job';
+
+            const resumeName = resume.name || resume.versionName || "";
+            const jobId = resume.jobId || "no-job";
             const createdAt = new Date(resume.createdAt).getTime();
             const timeBucket = Math.floor(createdAt / 5000) * 5000;
             const key = `${resumeName}_${jobId}_${timeBucket}`;
-            
+
             if (!seenResumes.has(key)) {
               seenResumes.set(key, resume);
               resumeIds.add(resume.id);
@@ -576,11 +612,11 @@ export function Resumes() {
               const existing = seenResumes.get(key)!;
               const existingIsMaster = existing.isMaster ?? false;
               const currentIsMaster = resume.isMaster ?? false;
-              
+
               if (existing.id === resume.id) {
                 return;
               }
-              
+
               if (currentIsMaster && !existingIsMaster) {
                 resumeIds.delete(existing.id);
                 seenResumes.set(key, resume);
@@ -598,20 +634,23 @@ export function Resumes() {
               }
             }
           });
-          
+
           setResumes(Array.from(seenResumes.values()));
         }
       } catch (refreshErr) {
-        console.error("Failed to refresh resumes list after deletion error:", refreshErr);
+        console.error(
+          "Failed to refresh resumes list after deletion error:",
+          refreshErr
+        );
       }
-      
+
       // Extract error message from ApiError or regular error
       let errorMessage = "Failed to delete resume. Please try again.";
-      
+
       // ApiError has a message property
       if (err instanceof Error) {
         errorMessage = err.message;
-      } 
+      }
       // Check if it's an ApiError with status code
       else if (err.status && err.message) {
         errorMessage = err.message;
@@ -619,17 +658,17 @@ export function Resumes() {
       // Check for nested error structure
       else if (err.error?.message) {
         errorMessage = err.error.message;
-      } 
+      }
       // Check for direct message property
       else if (err.message) {
         errorMessage = err.message;
       }
-      
+
       // Add more context if available
       if (err.detail) {
         errorMessage += `: ${err.detail}`;
       }
-      
+
       setToast({
         message: errorMessage,
         type: "error",
@@ -637,30 +676,42 @@ export function Resumes() {
     }
   };
 
-  const handleExport = async (resumeId: string, format: 'pdf' | 'docx' | 'txt' | 'html') => {
+  const handleExport = async (
+    resumeId: string,
+    format: "pdf" | "docx" | "txt" | "html"
+  ) => {
     try {
       setExportingId(resumeId);
       setShowExportMenu(null);
-      
+
       let blob: Blob;
-      const resume = resumes.find(r => r.id === resumeId);
-      const filename = resume?.name || resume?.versionName || `resume_${resumeId}`;
+      const resume = resumes.find((r) => r.id === resumeId);
+      const filename =
+        resume?.name || resume?.versionName || `resume_${resumeId}`;
 
       switch (format) {
-        case 'pdf':
-          const pdfResult = await resumeService.exportPDF(resumeId, { filename: `${filename}.pdf` });
+        case "pdf":
+          const pdfResult = await resumeService.exportPDF(resumeId, {
+            filename: `${filename}.pdf`,
+          });
           resumeService.downloadBlob(pdfResult.blob, pdfResult.filename);
           break;
-        case 'docx':
-          const docxResult = await resumeService.exportDOCX(resumeId, { filename: `${filename}.docx` });
+        case "docx":
+          const docxResult = await resumeService.exportDOCX(resumeId, {
+            filename: `${filename}.docx`,
+          });
           resumeService.downloadBlob(docxResult.blob, docxResult.filename);
           break;
-        case 'txt':
-          const txtResult = await resumeService.exportTXT(resumeId, { filename: `${filename}.txt` });
+        case "txt":
+          const txtResult = await resumeService.exportTXT(resumeId, {
+            filename: `${filename}.txt`,
+          });
           resumeService.downloadBlob(txtResult.blob, txtResult.filename);
           break;
-        case 'html':
-          const htmlResult = await resumeService.exportHTML(resumeId, { filename: `${filename}.html` });
+        case "html":
+          const htmlResult = await resumeService.exportHTML(resumeId, {
+            filename: `${filename}.html`,
+          });
           resumeService.downloadBlob(htmlResult.blob, htmlResult.filename);
           break;
       }
@@ -680,7 +731,10 @@ export function Resumes() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <Icon icon="mingcute:loading-line" className="w-12 h-12 animate-spin mx-auto text-[#3351FD]" />
+          <Icon
+            icon="mingcute:loading-line"
+            className="w-12 h-12 animate-spin mx-auto text-[#3351FD]"
+          />
           <p className="mt-4 text-gray-600">Loading resumes...</p>
         </div>
       </div>
@@ -691,7 +745,10 @@ export function Resumes() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <Icon icon="mingcute:alert-circle-line" className="w-12 h-12 mx-auto text-red-500 mb-4" />
+          <Icon
+            icon="mingcute:alert-circle-line"
+            className="w-12 h-12 mx-auto text-red-500 mb-4"
+          />
           <p className="text-red-600 mb-4">{error}</p>
           <button
             onClick={() => window.location.reload()}
@@ -715,7 +772,7 @@ export function Resumes() {
       )}
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50"
           onClick={(e) => {
             // Close modal if clicking on backdrop
@@ -724,13 +781,16 @@ export function Resumes() {
             }
           }}
         >
-          <div 
+          <div
             className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-in zoom-in-95 duration-300"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Delete Resume</h2>
+            <h2 className="text-xl font-bold text-gray-900 mb-4">
+              Delete Resume
+            </h2>
             <p className="text-gray-600 mb-6">
-              Are you sure you want to delete this resume? This action cannot be undone.
+              Are you sure you want to delete this resume? This action cannot be
+              undone.
             </p>
             <div className="flex justify-end gap-3">
               <button
@@ -746,7 +806,7 @@ export function Resumes() {
                   console.log("🖱️ Delete button clicked in modal");
                   console.log("   showDeleteConfirm:", showDeleteConfirm);
                   console.log("   deletingId:", deletingId);
-                  
+
                   // Don't check showDeleteConfirm here - let the function handle it
                   // Just check if we're already deleting
                   if (!deletingId) {
@@ -762,7 +822,10 @@ export function Resumes() {
               >
                 {deletingId ? (
                   <span className="flex items-center gap-2">
-                    <Icon icon="mingcute:loading-line" className="w-4 h-4 animate-spin" />
+                    <Icon
+                      icon="mingcute:loading-line"
+                      className="w-4 h-4 animate-spin"
+                    />
                     Deleting...
                   </span>
                 ) : (
@@ -779,7 +842,9 @@ export function Resumes() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">My Resumes</h1>
-              <p className="text-gray-600 mt-1">Manage and create tailored resumes for different positions</p>
+              <p className="text-gray-600 mt-1">
+                Manage and create tailored resumes for different positions
+              </p>
             </div>
             <div className="flex items-center gap-3">
               <button
@@ -827,31 +892,31 @@ export function Resumes() {
             </div>
             <div className="flex gap-2">
               <button
-                onClick={() => setFilter('all')}
+                onClick={() => setFilter("all")}
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  filter === 'all'
-                    ? 'bg-[#3351FD] text-white'
-                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                  filter === "all"
+                    ? "bg-[#3351FD] text-white"
+                    : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
                 }`}
               >
                 All
               </button>
               <button
-                onClick={() => setFilter('master')}
+                onClick={() => setFilter("master")}
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  filter === 'master'
-                    ? 'bg-[#3351FD] text-white'
-                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                  filter === "master"
+                    ? "bg-[#3351FD] text-white"
+                    : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
                 }`}
               >
                 Master
               </button>
               <button
-                onClick={() => setFilter('versions')}
+                onClick={() => setFilter("versions")}
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  filter === 'versions'
-                    ? 'bg-[#3351FD] text-white'
-                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                  filter === "versions"
+                    ? "bg-[#3351FD] text-white"
+                    : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
                 }`}
               >
                 Versions
@@ -866,10 +931,17 @@ export function Resumes() {
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <Icon icon="mingcute:briefcase-line" className="w-6 h-6 text-[#3351FD]" />
+                  <Icon
+                    icon="mingcute:briefcase-line"
+                    className="w-6 h-6 text-[#3351FD]"
+                  />
                   <div>
-                    <h2 className="text-xl font-semibold text-gray-900">Job Pipeline</h2>
-                    <p className="text-sm text-gray-600">Select a job to create a tailored resume version</p>
+                    <h2 className="text-xl font-semibold text-gray-900">
+                      Job Pipeline
+                    </h2>
+                    <p className="text-sm text-gray-600">
+                      Select a job to create a tailored resume version
+                    </p>
                   </div>
                 </div>
                 <select
@@ -890,7 +962,10 @@ export function Resumes() {
             <div className="p-6">
               {filteredJobs.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
-                  <Icon icon="mingcute:briefcase-line" className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <Icon
+                    icon="mingcute:briefcase-line"
+                    className="w-12 h-12 mx-auto mb-3 opacity-50"
+                  />
                   <p className="text-sm">
                     {jobOpportunities.length === 0
                       ? "No jobs in your pipeline. Add jobs to create tailored resume versions."
@@ -910,10 +985,15 @@ export function Resumes() {
                           <h3 className="font-semibold text-gray-900 truncate group-hover:text-[#3351FD] transition-colors">
                             {job.title}
                           </h3>
-                          <p className="text-sm text-gray-700 truncate">{job.company}</p>
+                          <p className="text-sm text-gray-700 truncate">
+                            {job.company}
+                          </p>
                           {job.location && (
                             <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                              <Icon icon="mingcute:map-pin-line" className="w-3 h-3" />
+                              <Icon
+                                icon="mingcute:map-pin-line"
+                                className="w-3 h-3"
+                              />
                               {job.location}
                             </p>
                           )}
@@ -933,11 +1013,16 @@ export function Resumes() {
                       )}
                       <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
                         <span className="text-xs text-gray-500">
-                          {job.createdAt ? new Date(job.createdAt).toLocaleDateString() : 'N/A'}
+                          {job.createdAt
+                            ? new Date(job.createdAt).toLocaleDateString()
+                            : "N/A"}
                         </span>
                         <div className="flex items-center gap-1 text-xs text-[#3351FD] font-medium opacity-0 group-hover:opacity-100 transition-opacity">
                           <span>Create Resume</span>
-                          <Icon icon="mingcute:arrow-right-line" className="w-3 h-3" />
+                          <Icon
+                            icon="mingcute:arrow-right-line"
+                            className="w-3 h-3"
+                          />
                         </div>
                       </div>
                     </div>
@@ -951,10 +1036,17 @@ export function Resumes() {
         {/* Resumes Grid */}
         {filteredResumes.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-lg border-2 border-dashed border-gray-300">
-            <Icon icon="mingcute:file-line" className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No resumes found</h3>
+            <Icon
+              icon="mingcute:file-line"
+              className="w-16 h-16 mx-auto text-gray-400 mb-4"
+            />
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              No resumes found
+            </h3>
             <p className="text-gray-600 mb-6">
-              {searchQuery ? "Try adjusting your search" : "Get started by creating your first resume"}
+              {searchQuery
+                ? "Try adjusting your search"
+                : "Get started by creating your first resume"}
             </p>
             <button
               onClick={handleCreateResume}
@@ -975,29 +1067,33 @@ export function Resumes() {
                 <div className="p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <h3 className="text-lg font-semibold text-gray-900">{resume.name || resume.versionName}</h3>
-                      {resume.isMaster && (
-                        <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded">
-                          Master
-                        </span>
+                      <div className="flex items-center gap-2 mb-2">
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          {resume.name || resume.versionName}
+                        </h3>
+                        {resume.isMaster && (
+                          <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded">
+                            Master
+                          </span>
+                        )}
+                      </div>
+                      {resume.description && (
+                        <p className="text-sm text-gray-600 mb-2">
+                          {resume.description}
+                        </p>
                       )}
-                    </div>
-                    {resume.description && (
-                      <p className="text-sm text-gray-600 mb-2">{resume.description}</p>
-                    )}
-                    <div className="flex items-center gap-4 text-xs text-gray-500">
-                      <span className="flex items-center gap-1">
-                        <Icon icon="mingcute:time-line" className="w-4 h-4" />
-                        {new Date(resume.updatedAt).toLocaleDateString()}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Icon icon="mingcute:file-line" className="w-4 h-4" />
-                        v{resume.versionNumber || 1}
-                      </span>
+                      <div className="flex items-center gap-4 text-xs text-gray-500">
+                        <span className="flex items-center gap-1">
+                          <Icon icon="mingcute:time-line" className="w-4 h-4" />
+                          {new Date(resume.updatedAt).toLocaleDateString()}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Icon icon="mingcute:file-line" className="w-4 h-4" />
+                          v{resume.versionNumber || 1}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
                 </div>
 
                 {/* Actions */}
@@ -1023,49 +1119,74 @@ export function Resumes() {
                       title="Preview"
                       type="button"
                     >
-                      <Icon icon="mingcute:eye-line" className="w-4 h-4 text-gray-700" />
+                      <Icon
+                        icon="mingcute:eye-line"
+                        className="w-4 h-4 text-gray-700"
+                      />
                     </button>
                     <div className="relative">
                       <button
-                        onClick={() => setShowExportMenu(showExportMenu === resume.id ? null : resume.id)}
+                        onClick={() =>
+                          setShowExportMenu(
+                            showExportMenu === resume.id ? null : resume.id
+                          )
+                        }
                         className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
                         title="Export"
                         disabled={exportingId === resume.id}
                       >
                         {exportingId === resume.id ? (
-                          <Icon icon="mingcute:loading-line" className="w-4 h-4 text-gray-700 animate-spin" />
+                          <Icon
+                            icon="mingcute:loading-line"
+                            className="w-4 h-4 text-gray-700 animate-spin"
+                          />
                         ) : (
-                          <Icon icon="mingcute:download-line" className="w-4 h-4 text-gray-700" />
+                          <Icon
+                            icon="mingcute:download-line"
+                            className="w-4 h-4 text-gray-700"
+                          />
                         )}
                       </button>
                       {showExportMenu === resume.id && (
                         <div className="absolute right-0 bottom-full mb-2 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[150px]">
                           <button
-                            onClick={() => handleExport(resume.id, 'pdf')}
+                            onClick={() => handleExport(resume.id, "pdf")}
                             className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2 text-sm"
                           >
-                            <Icon icon="mingcute:file-pdf-line" className="w-4 h-4 text-red-600" />
+                            <Icon
+                              icon="mingcute:file-pdf-line"
+                              className="w-4 h-4 text-red-600"
+                            />
                             Export PDF
                           </button>
                           <button
-                            onClick={() => handleExport(resume.id, 'docx')}
+                            onClick={() => handleExport(resume.id, "docx")}
                             className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2 text-sm"
                           >
-                            <Icon icon="mingcute:file-word-line" className="w-4 h-4 text-blue-600" />
+                            <Icon
+                              icon="mingcute:file-word-line"
+                              className="w-4 h-4 text-blue-600"
+                            />
                             Export DOCX
                           </button>
                           <button
-                            onClick={() => handleExport(resume.id, 'html')}
+                            onClick={() => handleExport(resume.id, "html")}
                             className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2 text-sm"
                           >
-                            <Icon icon="mingcute:file-html-line" className="w-4 h-4 text-orange-600" />
+                            <Icon
+                              icon="mingcute:file-html-line"
+                              className="w-4 h-4 text-orange-600"
+                            />
                             Export HTML
                           </button>
                           <button
-                            onClick={() => handleExport(resume.id, 'txt')}
+                            onClick={() => handleExport(resume.id, "txt")}
                             className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2 text-sm"
                           >
-                            <Icon icon="mingcute:file-text-line" className="w-4 h-4 text-gray-600" />
+                            <Icon
+                              icon="mingcute:file-text-line"
+                              className="w-4 h-4 text-gray-600"
+                            />
                             Export TXT
                           </button>
                         </div>
@@ -1082,9 +1203,15 @@ export function Resumes() {
                       type="button"
                     >
                       {duplicatingId === resume.id ? (
-                        <Icon icon="mingcute:loading-line" className="w-4 h-4 text-gray-700 animate-spin" />
+                        <Icon
+                          icon="mingcute:loading-line"
+                          className="w-4 h-4 text-gray-700 animate-spin"
+                        />
                       ) : (
-                        <Icon icon="mingcute:add-line" className="w-4 h-4 text-gray-700" />
+                        <Icon
+                          icon="mingcute:add-line"
+                          className="w-4 h-4 text-gray-700"
+                        />
                       )}
                     </button>
                     <button
@@ -1096,7 +1223,10 @@ export function Resumes() {
                       title="Delete"
                       type="button"
                     >
-                      <Icon icon="mingcute:delete-line" className="w-4 h-4 text-red-600" />
+                      <Icon
+                        icon="mingcute:delete-line"
+                        className="w-4 h-4 text-red-600"
+                      />
                     </button>
                   </div>
                 </div>
@@ -1116,4 +1246,3 @@ export function Resumes() {
     </div>
   );
 }
-

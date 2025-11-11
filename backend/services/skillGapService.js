@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import resumeAIAssistantService from "./resumes/aiService.js";
+import resumeAIAssistantService from "./resumes/aiService.js";
 import { learningResourcesCatalog, skillSynonyms } from "../data/learningResources.js";
 
 /**
@@ -96,8 +97,18 @@ function heuristicallyExtractRequirements(job, knownSkills) {
  * Try to parse structured requirements with OpenAI. Falls back to heuristics.
  */
 async function extractRequirements(job, knownSkills) {
-  const description = job.jobDescription || job.job_description || "";
-  if (!description || !resumeAIAssistantService.openai) {
+  const description = (job.jobDescription || job.job_description || "").trim();
+  if (!description) {
+    console.warn(
+      "[SkillGapService] Job description missing; returning empty requirement list."
+    );
+    return [];
+  }
+
+  if (!resumeAIAssistantService.openai) {
+    console.info(
+      "[SkillGapService] OpenAI client not configured; using heuristic extraction."
+    );
     return heuristicallyExtractRequirements(job, knownSkills);
   }
 
@@ -154,19 +165,23 @@ ${skillList}
     );
 
     if (!response?.message) {
+      console.warn("[SkillGapService] OpenAI returned empty response; using heuristic extraction.");
       return heuristicallyExtractRequirements(job, knownSkills);
     }
 
     const jsonMatch = response.message.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
+      console.warn("[SkillGapService] OpenAI response not JSON; using heuristic extraction.");
       return heuristicallyExtractRequirements(job, knownSkills);
     }
 
     const parsed = JSON.parse(jsonMatch[0]);
     if (!parsed?.requirements?.length) {
+      console.info("[SkillGapService] OpenAI response missing requirements; using heuristic extraction.");
       return heuristicallyExtractRequirements(job, knownSkills);
     }
 
+    console.info("[SkillGapService] Requirements extracted via OpenAI.");
     return parsed.requirements.map((req) => ({
       skillName: req.skillName,
       importance: req.importance?.toLowerCase?.() || "medium",
@@ -175,7 +190,13 @@ ${skillList}
       source: "ai",
     }));
   } catch (error) {
-    console.error("Failed to extract requirements with AI, using heuristic fallback:", error.message);
+    const message =
+      error?.status === 429
+        ? "Rate limited by OpenAI"
+        : error?.message || "Unknown error from OpenAI";
+    console.warn(
+      `[SkillGapService] OpenAI extraction failed (${message}). Falling back to heuristic extraction.`
+    );
     return heuristicallyExtractRequirements(job, knownSkills);
   }
 }

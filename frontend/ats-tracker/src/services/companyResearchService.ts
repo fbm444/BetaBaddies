@@ -1,0 +1,179 @@
+import axios from 'axios';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api/v1';
+
+export interface CompanyInfo {
+  id: string;
+  jobId: string;
+  size?: string;
+  industry?: string;
+  location?: string;
+  website?: string;
+  description?: string;
+  companyLogo?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+}
+
+export interface CompanyMedia {
+  id: string;
+  companyId: string;
+  platform: string;
+  link?: string;
+}
+
+export interface CompanyNews {
+  id: string;
+  companyId: string;
+  heading: string;
+  description?: string;
+  type: string;
+  date?: string;
+  source?: string;
+}
+
+export interface AISummary {
+  mission?: string;
+  culture?: string;
+  products?: string[];
+  competitors?: string[];
+  recentDevelopments?: string;
+  whyWorkHere?: string;
+  interviewTips?: string;
+}
+
+export interface CompleteCompanyResearch {
+  id: string;
+  jobId: string;
+  size?: string;
+  industry?: string;
+  location?: string;
+  website?: string;
+  description?: string;
+  companyLogo?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  media: CompanyMedia[];
+  news: CompanyNews[];
+  aiSummary?: AISummary;
+}
+
+export interface ResearchedCompany extends CompanyInfo {
+  companyName: string;
+  jobTitle: string;
+}
+
+const companyResearchService = {
+  // Trigger automated research for a job
+  async fetchCompanyResearch(jobId: string): Promise<any> {
+    const response = await axios.post(
+      `${API_BASE_URL}/company-research/fetch/${jobId}`,
+      {},
+      { withCredentials: true }
+    );
+    return response.data.data.research;
+  },
+
+  // Get all researched companies for the user
+  async getResearchedCompanies(limit = 50, offset = 0): Promise<ResearchedCompany[]> {
+    const response = await axios.get(`${API_BASE_URL}/company-research`, {
+      params: { limit, offset },
+      withCredentials: true,
+    });
+    return response.data.data.companies;
+  },
+
+  // Get complete research for a specific job
+  async getCompanyResearchByJobId(jobId: string): Promise<CompleteCompanyResearch> {
+    const response = await axios.get(`${API_BASE_URL}/company-research/job/${jobId}`, {
+      withCredentials: true,
+    });
+    return response.data.data.research;
+  },
+
+  // Generate AI summary for a job's company research
+  async generateAISummary(jobId: string): Promise<AISummary> {
+    const response = await axios.get(`${API_BASE_URL}/company-research/job/${jobId}/ai-summary`, {
+      withCredentials: true,
+    });
+    return response.data.data.aiSummary;
+  },
+
+  // Create or update company info
+  async upsertCompanyInfo(jobId: string, companyData: Partial<CompanyInfo>): Promise<CompanyInfo> {
+    const response = await axios.post(`${API_BASE_URL}/company-research/job/${jobId}`, companyData, {
+      withCredentials: true,
+    });
+    return response.data.data.companyInfo;
+  },
+
+  // Delete company research
+  async deleteCompanyResearch(jobId: string): Promise<void> {
+    await axios.delete(`${API_BASE_URL}/company-research/job/${jobId}`, {
+      withCredentials: true,
+    });
+  },
+
+  // Add company media
+  async addCompanyMedia(companyInfoId: string, platform: string, link: string): Promise<CompanyMedia> {
+    const response = await axios.post(
+      `${API_BASE_URL}/company-research/${companyInfoId}/media`,
+      { platform, link },
+      { withCredentials: true }
+    );
+    return response.data.data.media;
+  },
+
+  // Get company media
+  async getCompanyMedia(companyInfoId: string): Promise<CompanyMedia[]> {
+    const response = await axios.get(`${API_BASE_URL}/company-research/${companyInfoId}/media`, {
+      withCredentials: true,
+    });
+    return response.data.data.media;
+  },
+
+  // Delete company media
+  async deleteCompanyMedia(mediaId: string): Promise<void> {
+    await axios.delete(`${API_BASE_URL}/company-research/media/${mediaId}`, {
+      withCredentials: true,
+    });
+  },
+
+  // Add company news
+  async addCompanyNews(
+    companyInfoId: string,
+    newsData: {
+      heading: string;
+      description?: string;
+      type?: string;
+      date?: string;
+      source?: string;
+    }
+  ): Promise<CompanyNews> {
+    const response = await axios.post(
+      `${API_BASE_URL}/company-research/${companyInfoId}/news`,
+      newsData,
+      { withCredentials: true }
+    );
+    return response.data.data.news;
+  },
+
+  // Get company news
+  async getCompanyNews(companyInfoId: string, type?: string, limit = 20, offset = 0): Promise<CompanyNews[]> {
+    const response = await axios.get(`${API_BASE_URL}/company-research/${companyInfoId}/news`, {
+      params: { type, limit, offset },
+      withCredentials: true,
+    });
+    return response.data.data.news;
+  },
+
+  // Delete company news
+  async deleteCompanyNews(newsId: string): Promise<void> {
+    await axios.delete(`${API_BASE_URL}/company-research/news/${newsId}`, {
+      withCredentials: true,
+    });
+  },
+};
+
+export default companyResearchService;
+

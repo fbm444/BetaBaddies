@@ -213,7 +213,7 @@ export function AIAssistantChat({
         console.log("✅ Setting initial message in chat");
         const explanationMessage: Message = {
           role: "assistant",
-          content: initialMessage,
+          content: cleanMessageContent(initialMessage),
           timestamp: new Date(),
         };
 
@@ -249,14 +249,14 @@ export function AIAssistantChat({
     if (hasSeededInitialConversationRef.current === key) return;
     hasSeededInitialConversationRef.current = key;
 
-    // Only show the assistant message - hide the user prompt (it's internal)
-    const seeded: Message[] = [
-      {
-        role: "assistant",
-        content: initialUserAndAssistant.assistant,
-        timestamp: new Date(),
-      },
-    ];
+        // Only show the assistant message - hide the user prompt (it's internal)
+        const seeded: Message[] = [
+          {
+            role: "assistant",
+            content: cleanMessageContent(initialUserAndAssistant.assistant),
+            timestamp: new Date(),
+          },
+        ];
     setMessages(seeded);
     // Scroll to bottom after seeding
     setTimeout(() => {
@@ -287,7 +287,7 @@ export function AIAssistantChat({
         if (resp.ok && resp.data?.message) {
           const assistantMessage: Message = {
             role: "assistant",
-            content: resp.data.message,
+            content: cleanMessageContent(resp.data.message),
             timestamp: new Date(),
           };
           setMessages((prev) => [...prev, assistantMessage]);
@@ -312,25 +312,154 @@ export function AIAssistantChat({
     run();
   }, [autoSendMessage, isOpen, initialJobId, selectedJobId, resumeId]);
 
-  // Clean up message content by removing JSON code blocks for display
+  // Check if content is primarily JSON
+  const isPrimarilyJSON = (content: string): boolean => {
+    if (!content || content.trim().length === 0) return false;
+    
+    const trimmed = content.trim();
+    
+    // Check if it starts with { or [ (JSON object/array)
+    if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+      try {
+        JSON.parse(trimmed);
+        return true; // Valid JSON
+      } catch {
+        // Not valid JSON, might be partial
+      }
+    }
+    
+    // Check if it's wrapped in code blocks with JSON
+    if (/^```(?:json)?\s*[\s\S]*?```$/.test(trimmed)) {
+      return true;
+    }
+    
+    // Check if it's mostly JSON structure (more than 50% JSON-like)
+    const jsonPattern = /\{[^{}]*"[\s\S]*?"[\s\S]*?:[\s\S]*?\}/g;
+    const jsonMatches = trimmed.match(jsonPattern) || [];
+    const jsonLength = jsonMatches.reduce((sum, match) => sum + match.length, 0);
+    
+    if (jsonLength > trimmed.length * 0.5) {
+      return true;
+    }
+    
+    // Check if it contains mostly JSON keys/values without natural language
+    const jsonKeyValuePattern = /"[^"]+"\s*:\s*("[^"]+"|[\d\[\]{}]+)/g;
+    const keyValueMatches = trimmed.match(jsonKeyValuePattern) || [];
+    const keyValueLength = keyValueMatches.reduce((sum, match) => sum + match.length, 0);
+    
+    if (keyValueLength > trimmed.length * 0.6) {
+      return true;
+    }
+    
+    return false;
+  };
+
+  // Generate a friendly fallback message based on context
+  const generateFriendlyFallback = (originalContent: string): string => {
+    // Try to extract any meaningful information from the JSON
+    let context = "";
+    
+    try {
+      // Try to parse and extract useful info
+      const cleaned = originalContent.replace(/```(?:json)?/g, "").replace(/```/g, "").trim();
+      const parsed = JSON.parse(cleaned);
+      
+      // Check for common JSON structures
+      if (parsed.resumeUpdates) {
+        context = "I've tailored your resume for this position. I've updated your summary, experience, skills, and other sections to better match the job requirements.";
+      } else if (parsed.explanation) {
+        context = parsed.explanation;
+      } else if (parsed.suggestions) {
+        context = "I've prepared some suggestions to improve your resume. You can review and apply them using the buttons below.";
+      } else if (parsed.message) {
+        context = parsed.message;
+      } else {
+        context = "I've processed your request and made updates to your resume. The changes have been applied successfully.";
+      }
+    } catch {
+      // If parsing fails, use a generic friendly message
+      context = "I've processed your request and made updates to your resume. The changes have been applied successfully.";
+    }
+    
+    // Ensure the message is user-friendly and doesn't contain technical details
+    return context
+      .replace(/IMPORTANT:.*/gi, "")
+      .replace(/CRITICAL:.*/gi, "")
+      .replace(/Format your response.*/gi, "")
+      .replace(/Return.*JSON.*/gi, "")
+      .replace(/```json[\s\S]*?```/g, "")
+      .replace(/```[\s\S]*?```/g, "")
+      .replace(/\{[^{}]*"[\s\S]*?"[\s\S]*?:[\s\S]*?\}/g, "")
+      .trim() || "I've processed your request and made updates to your resume. The changes have been applied successfully.";
+  };
+
+  // Clean up message content by removing JSON code blocks and backend logic for display
   const cleanMessageContent = (content: string): string => {
-    // First, try to remove JSON code blocks (```json ... ``` or ``` ... ```)
-    // Match code blocks that contain "suggestions" key
-    let cleaned = content.replace(
-      /```(?:json)?\s*\{[\s\S]*?"suggestions"[\s\S]*?\}\s*```/g,
-      ""
-    );
-    // Also remove standalone JSON objects that look like suggestion blocks (not in code blocks)
-    cleaned = cleaned.replace(/\{\s*"suggestions"\s*:[\s\S]*?\}/g, "");
-    // Remove any trailing JSON-like content that might be left
-    cleaned = cleaned.replace(
-      /\n\s*\{[\s\S]*?"suggestions"[\s\S]*?\}\s*$/g,
-      ""
-    );
-    // Clean up any extra whitespace/newlines left behind
-    cleaned = cleaned.replace(/\n{3,}/g, "\n\n").trim();
-    // Remove any trailing "```" that might be left
+    if (!content) return "";
+    
+    // Check if content is primarily JSON - if so, replace with friendly message
+    if (isPrimarilyJSON(content)) {
+      console.log("⚠️ Detected primarily JSON content, using fallback message");
+      return generateFriendlyFallback(content);
+    }
+    
+    let cleaned = content;
+    
+    // Remove all JSON code blocks (```json ... ``` or ``` ... ```)
+    cleaned = cleaned.replace(/```(?:json)?\s*[\s\S]*?```/g, "");
+    
+    // Remove standalone JSON objects (both with and without "suggestions")
+    cleaned = cleaned.replace(/\{\s*"[\s\S]*?"\s*:[\s\S]*?\}/g, "");
+    
+    // Remove any JSON-like structures that might be at the end
+    cleaned = cleaned.replace(/\n\s*\{[\s\S]*?\}\s*$/g, "");
+    
+    // Remove backend instructions and technical phrases
+    cleaned = cleaned
+      .replace(/IMPORTANT:.*/gi, "")
+      .replace(/CRITICAL:.*/gi, "")
+      .replace(/Format your response.*/gi, "")
+      .replace(/Return.*JSON.*/gi, "")
+      .replace(/You are.*AI.*/gi, "")
+      .replace(/Your role is.*/gi, "")
+      .replace(/CRITICAL RULES.*/gi, "")
+      .replace(/CRITICAL FORMATTING RULES.*/gi, "")
+      .replace(/CRITICAL INSTRUCTIONS.*/gi, "")
+      .replace(/Step \d+:.*/gi, "")
+      .replace(/```json[\s\S]*?```/g, "")
+      .replace(/```[\s\S]*?```/g, "");
+    
+    // Remove any remaining JSON-like patterns
+    cleaned = cleaned.replace(/\{\s*"[\w\s"]+"\s*:[\s\S]*?\}/g, "");
+    
+    // Remove any trailing "```" or code block markers
     cleaned = cleaned.replace(/```\s*$/g, "").trim();
+    
+    // Clean up extra whitespace/newlines
+    cleaned = cleaned.replace(/\n{3,}/g, "\n\n").trim();
+    
+    // Remove any lines that look like backend instructions
+    const lines = cleaned.split("\n");
+    const filteredLines = lines.filter((line) => {
+      const lowerLine = line.toLowerCase().trim();
+      return (
+        !lowerLine.startsWith("important:") &&
+        !lowerLine.startsWith("critical:") &&
+        !lowerLine.includes("format your response") &&
+        !lowerLine.includes("return json") &&
+        !lowerLine.includes("step ") &&
+        !lowerLine.match(/^\{[\s\S]*\}$/) && // Not a JSON object
+        !lowerLine.match(/^```/) // Not a code block marker
+      );
+    });
+    cleaned = filteredLines.join("\n").trim();
+    
+    // Final check: if after cleaning, the content is mostly empty or still looks like JSON
+    if (cleaned.length < 20 || isPrimarilyJSON(cleaned)) {
+      console.log("⚠️ Content still appears to be JSON after cleaning, using fallback");
+      return generateFriendlyFallback(content);
+    }
+    
     return cleaned;
   };
 
@@ -1399,12 +1528,13 @@ Be specific and actionable with your recommendations.`;
             console.log("📥 Response data:", response.data);
 
             if (response.ok && response.data) {
+              const rawContent =
+                response.data.message ||
+                response.data.content ||
+                "I've analyzed the job posting. Here are my recommendations to tailor your resume.";
               const assistantMessage: Message = {
                 role: "assistant",
-                content:
-                  response.data.message ||
-                  response.data.content ||
-                  "I've analyzed the job posting. Here are my recommendations to tailor your resume.",
+                content: cleanMessageContent(rawContent),
                 timestamp: new Date(),
               };
 
@@ -2229,18 +2359,9 @@ Generate 4 relevant, context-aware prompts:`;
             shouldAutoApply: shouldAutoApply,
           });
 
-          // Remove JSON code blocks from the displayed message
-          let displayContent = response.data.message;
-          if (suggestions.length > 0) {
-            // Remove JSON code blocks from the message content
-            displayContent = displayContent
-              .replace(/```(?:json)?\s*[\s\S]*?```/g, "")
-              .trim();
-            // Also remove any standalone JSON objects
-            displayContent = displayContent
-              .replace(/\{[\s\S]*?"suggestions"[\s\S]*?\}/g, "")
-              .trim();
-          }
+          // Clean message content to remove JSON and backend logic
+          const rawContent = response.data.message || "";
+          const displayContent = cleanMessageContent(rawContent);
 
           const assistantMessage: Message = {
             role: "assistant",

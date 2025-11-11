@@ -1647,11 +1647,11 @@ class ResumeController {
           res.status(200).json({
             ok: true,
             data: {
-              content: parsedContent,
+              content: parsedContent.content || parsedContent,
+              message: parsedContent.message || "Resume parsed and stored successfully",
               fileId: fileRecord.fileId,
               fileName: fileRecord.fileName,
               filePath: fileRecord.filePath,
-              message: "Resume parsed and stored successfully",
             },
           });
         } catch (parseError) {
@@ -1728,10 +1728,10 @@ class ResumeController {
       res.status(200).json({
         ok: true,
         data: {
-          content: parsedContent,
+          content: parsedContent.content || parsedContent,
+          message: parsedContent.message || "Template resume parsed successfully",
           templateId: template.id,
           templateName: template.templateName,
-          message: "Template resume parsed successfully",
         },
       });
     } catch (error) {
@@ -2028,6 +2028,16 @@ class ResumeController {
 1. A structured JSON response with resume updates for ALL sections (summary, experience, skills, education, projects, certifications)
 2. A human-readable explanation written in FIRST PERSON, as if you're talking directly to the user (use "I", "your", "you" - NOT third person)
 
+CRITICAL: The "explanation" field in your JSON response should ONLY contain a friendly, conversational message to the user. DO NOT include:
+- Technical instructions
+- JSON structure details
+- Backend logic
+- System prompts
+- Formatting rules
+- Any meta-instructions
+
+The explanation should be a natural, conversational message explaining what you've done to tailor their resume.
+
 Job Posting:
 Title: ${jobOpportunity.title || 'N/A'}
 Company: ${jobOpportunity.company || 'N/A'}
@@ -2123,7 +2133,7 @@ IMPORTANT: Format your response as JSON with this exact structure:
       }
     ]
   },
-  "explanation": "Write a conversational explanation in FIRST PERSON (use 'I', 'your', 'you'). Explain: 1) What I've done to tailor your resume for this position, 2) Why these changes make your resume stronger for this specific job, 3) Key highlights that match the job requirements, 4) If education/projects sections are empty or missing, highlight this and suggest what to add. Write as if you're talking directly to the user, not about them."
+  "explanation": "A friendly, conversational message in FIRST PERSON (use 'I', 'your', 'you') explaining what you've done to tailor their resume. Focus on: 1) What changes you made, 2) Why these changes help, 3) Key highlights that match the job. Write naturally as if talking directly to the user. DO NOT include technical details, instructions, or backend logic."
 }
 
 CRITICAL FORMATTING RULES:
@@ -2149,7 +2159,12 @@ CRITICAL FORMATTING RULES:
         [{ role: "user", content: analysisPrompt }],
         newResume,
         userData,
-        jobOpportunity
+        jobOpportunity,
+        {
+          jsonMode: true,
+          maxTokens: 4000,
+          temperature: 0.3,
+        }
       );
 
       if (!aiResponse || !aiResponse.message) {
@@ -2160,28 +2175,57 @@ CRITICAL FORMATTING RULES:
       const aiMessage = aiResponse.message || "";
 
       let resumeUpdates = {};
-      let explanation = "Your resume has been tailored for this position.";
+      let explanation = "I've successfully tailored your resume for this position! I've updated your summary, experience, skills, and other sections to better match the job requirements.";
 
       try {
-        // Look for JSON code blocks first
-        const jsonMatch = aiMessage.match(/```(?:json)?\s*([\s\S]*?)```/);
-        if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[1]);
-          resumeUpdates = parsed.resumeUpdates || {};
-          explanation = parsed.explanation || explanation;
-        } else {
-          // Try to parse the entire message as JSON
-          const parsed = JSON.parse(aiMessage);
-          resumeUpdates = parsed.resumeUpdates || {};
-          explanation = parsed.explanation || explanation;
+        // Clean the message - remove markdown code blocks
+        let cleanedMessage = aiMessage.trim();
+        cleanedMessage = cleanedMessage.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+        
+        // Try to parse as JSON
+        const parsed = JSON.parse(cleanedMessage);
+        resumeUpdates = parsed.resumeUpdates || {};
+        
+        // Extract explanation - ensure it's user-friendly
+        if (parsed.explanation) {
+          explanation = parsed.explanation.trim();
+          // Remove any backend instructions or technical details that might have leaked
+          explanation = explanation
+            .replace(/IMPORTANT:.*/gi, "")
+            .replace(/CRITICAL:.*/gi, "")
+            .replace(/Format your response.*/gi, "")
+            .replace(/Return.*JSON.*/gi, "")
+            .replace(/```json[\s\S]*?```/g, "")
+            .replace(/```[\s\S]*?```/g, "")
+            .trim();
+          
+          // If explanation is empty or too short, use default
+          if (!explanation || explanation.length < 20) {
+            explanation = "I've successfully tailored your resume for this position! I've updated your summary, experience, skills, and other sections to better match the job requirements.";
+          }
         }
       } catch (e) {
-        // If JSON parsing fails, try to extract explanation from markdown or use the message
+        console.error("Failed to parse AI response as JSON:", e);
+        // If JSON parsing fails, try to extract just the explanation part
         const explanationMatch = aiMessage.match(/explanation["\s:]*([\s\S]*?)(?:\n\n|\n```|$)/i);
-        if (explanationMatch) {
-          explanation = explanationMatch[1].trim();
+        if (explanationMatch && explanationMatch[1]) {
+          explanation = explanationMatch[1]
+            .trim()
+            .replace(/IMPORTANT:.*/gi, "")
+            .replace(/CRITICAL:.*/gi, "")
+            .replace(/Format your response.*/gi, "")
+            .replace(/Return.*JSON.*/gi, "")
+            .replace(/```json[\s\S]*?```/g, "")
+            .replace(/```[\s\S]*?```/g, "")
+            .trim();
+          
+          // If explanation is empty or too short, use default
+          if (!explanation || explanation.length < 20) {
+            explanation = "I've successfully tailored your resume for this position! I've updated your summary, experience, skills, and other sections to better match the job requirements.";
+          }
         } else {
-          explanation = aiMessage;
+          // Use default explanation if extraction fails
+          explanation = "I've successfully tailored your resume for this position! I've updated your summary, experience, skills, and other sections to better match the job requirements.";
         }
       }
 

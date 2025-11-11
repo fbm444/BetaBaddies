@@ -1,5 +1,6 @@
 import { Icon } from "@iconify/react";
 import { useNavigate } from "react-router-dom";
+import { useState, useRef, useEffect } from "react";
 import { ROUTES } from "../../config/routes";
 import { Resume } from "../../types";
 
@@ -30,6 +31,8 @@ interface ResumeTopBarProps {
   onSetMasterVersion: (versionId: string) => void;
   onShowVersionCompare: () => void;
   onShowVersionControl?: () => void;
+  onUpdateResume?: (resumeId: string, updates: { name: string }) => Promise<void>;
+  onUpdateResumeName?: (name: string) => void;
 }
 
 export function ResumeTopBar({
@@ -59,8 +62,88 @@ export function ResumeTopBar({
   onSetMasterVersion,
   onShowVersionCompare,
   onShowVersionControl,
+  onUpdateResume,
+  onUpdateResumeName,
 }: ResumeTopBarProps) {
   const navigate = useNavigate();
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editedName, setEditedName] = useState(resume?.name || "New Resume");
+  const [isUpdatingName, setIsUpdatingName] = useState(false);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  // Update edited name when resume changes
+  useEffect(() => {
+    if (resume?.name) {
+      setEditedName(resume.name);
+    }
+  }, [resume?.name]);
+
+  // Focus input when editing starts
+  useEffect(() => {
+    if (isEditingName && nameInputRef.current) {
+      nameInputRef.current.focus();
+      nameInputRef.current.select();
+    }
+  }, [isEditingName]);
+
+  const handleNameEdit = () => {
+    // Allow editing for both new and existing resumes
+    if (!resumeId) return;
+    setIsEditingName(true);
+  };
+
+  const handleNameSave = async () => {
+    if (!editedName.trim()) {
+      setIsEditingName(false);
+      setEditedName(resume?.name || "New Resume");
+      return;
+    }
+
+    const trimmedName = editedName.trim();
+    if (trimmedName === resume?.name) {
+      setIsEditingName(false);
+      return;
+    }
+
+    // For new resumes, update local state
+    if (resumeId === "new" && onUpdateResumeName) {
+      onUpdateResumeName(trimmedName);
+      setIsEditingName(false);
+      return;
+    }
+
+    // For existing resumes, update via API
+    if (resumeId && resumeId !== "new" && onUpdateResume) {
+      setIsUpdatingName(true);
+      try {
+        await onUpdateResume(resumeId, { name: trimmedName });
+        setIsEditingName(false);
+      } catch (error) {
+        console.error("Failed to update resume name:", error);
+        setEditedName(resume?.name || "New Resume");
+        setIsEditingName(false);
+      } finally {
+        setIsUpdatingName(false);
+      }
+    } else {
+      setIsEditingName(false);
+    }
+  };
+
+  const handleNameCancel = () => {
+    setEditedName(resume?.name || "New Resume");
+    setIsEditingName(false);
+  };
+
+  const handleNameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleNameSave();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      handleNameCancel();
+    }
+  };
 
   return (
     <div className="bg-white border-b border-gray-200 sticky top-0 z-40">
@@ -77,10 +160,46 @@ export function ResumeTopBar({
               />
             </button>
             <div className="flex items-center gap-3">
-              <div>
-                <h1 className="text-lg font-semibold text-gray-900">
-                  {resume?.name || "New Resume"}
-                </h1>
+              <div className="flex items-center gap-2">
+                {isEditingName ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={nameInputRef}
+                      type="text"
+                      value={editedName}
+                      onChange={(e) => setEditedName(e.target.value)}
+                      onBlur={handleNameSave}
+                      onKeyDown={handleNameKeyDown}
+                      disabled={isUpdatingName}
+                      className="text-lg font-semibold text-gray-900 px-2 py-1 border border-[#3351FD] rounded focus:outline-none focus:ring-2 focus:ring-[#3351FD] disabled:opacity-50 min-w-[200px]"
+                      maxLength={100}
+                    />
+                    {isUpdatingName && (
+                      <Icon
+                        icon="mingcute:loading-line"
+                        className="w-4 h-4 animate-spin text-[#3351FD]"
+                      />
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 group">
+                    <h1 className="text-lg font-semibold text-gray-900">
+                      {resume?.name || "New Resume"}
+                    </h1>
+                    {resumeId && (onUpdateResume || onUpdateResumeName) && (
+                      <button
+                        onClick={handleNameEdit}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-100 rounded"
+                        title="Edit resume name"
+                      >
+                        <Icon
+                          icon="mingcute:edit-line"
+                          className="w-4 h-4 text-gray-500 hover:text-gray-700"
+                        />
+                      </button>
+                    )}
+                  </div>
+                )}
                 <p className="text-xs text-gray-500">
                   v{resume?.versionNumber || 1}
                   {resume?.isMaster && (

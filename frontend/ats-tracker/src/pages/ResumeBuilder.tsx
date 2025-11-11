@@ -3348,6 +3348,41 @@ export function ResumeBuilder() {
     }
   };
 
+  const handleUpdateResume = async (resumeIdToUpdate: string, updates: { name: string }) => {
+    if (!isValidUUID(resumeIdToUpdate)) {
+      showToast("Invalid resume ID", "error");
+      return;
+    }
+
+    try {
+      const response = await resumeService.updateResume(resumeIdToUpdate, {
+        name: updates.name,
+      });
+
+      if (response.ok && response.data?.resume) {
+        const updatedResume = response.data.resume;
+        // Update the current resume state
+        if (resume && resume.id === resumeIdToUpdate) {
+          setResume({ ...resume, name: updatedResume.name || updatedResume.versionName });
+        }
+        // Refresh versions if needed
+        const parentId = resume?.parentResumeId || resumeId;
+        if (parentId && isValidUUID(parentId)) {
+          const versionsRes = await resumeService.getVersions(parentId);
+          if (versionsRes.ok) {
+            setVersions(versionsRes.data?.resumes || []);
+          }
+        }
+        showToast("Resume name updated successfully", "success");
+      } else {
+        showToast(response.error?.message || "Failed to update resume name", "error");
+      }
+    } catch (error: any) {
+      console.error("Error updating resume name:", error);
+      showToast(error.message || "Failed to update resume name", "error");
+    }
+  };
+
   const handleSetMasterVersion = async (versionId: string) => {
     if (!isValidUUID(versionId)) {
       showToast("Invalid version ID", "error");
@@ -3904,6 +3939,12 @@ export function ResumeBuilder() {
         onShowImportResumeModal={() => setShowImportResumeModal(true)}
         onSwitchVersion={handleSwitchVersion}
         onSetMasterVersion={handleSetMasterVersion}
+        onUpdateResume={handleUpdateResume}
+        onUpdateResumeName={(name: string) => {
+          if (resume) {
+            setResume({ ...resume, name });
+          }
+        }}
         onShowVersionCompare={() => {
           setSelectedVersion1(resumeId);
           setSelectedVersion2(null);

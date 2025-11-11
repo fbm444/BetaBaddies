@@ -11,19 +11,36 @@ export function Layout() {
 
   useEffect(() => {
     const handleSoftWarning = (event: Event) => {
-      const customEvent = event as CustomEvent<{ endpoint?: string; method?: string }>;
+      const customEvent = event as CustomEvent<{
+        endpoint?: string;
+        method?: string;
+        feature?: string;
+      }>;
       if (softWarningTimerRef.current) {
         clearTimeout(softWarningTimerRef.current);
       }
 
       const method = customEvent.detail?.method || "Request";
       const endpoint = customEvent.detail?.endpoint || "";
+      const feature = customEvent.detail?.feature;
 
       let headline = "Heads up!";
       let body =
         "Looks like you're moving fast—give it a moment and everything will keep flowing.";
 
-      if (endpoint && endpoint !== "/health") {
+      if (feature === "skill-gap-analysis") {
+        headline = "Skill gap analysis is cooling down";
+        body =
+          "We’re letting the AI catch its breath before running another analysis. Give it a few seconds and try again.";
+      } else if (feature === "resume-ai") {
+        headline = "Resume AI assistant is taking a pause";
+        body =
+          "The assistant hit its activity limit for the moment. Everything else stays responsive—retry shortly.";
+      } else if (feature === "cover-letter") {
+        headline = "Cover letter generator is pausing";
+        body =
+          "We’re pacing your requests so the AI can keep up. Try regenerating the letter in a few seconds.";
+      } else if (endpoint && endpoint !== "/health") {
         const formattedMethod = method.toUpperCase();
         const trimmedEndpoint = endpoint.replace(/\?.*$/, "");
         const displayName = trimmedEndpoint

@@ -30,6 +30,40 @@ import {
 
 // In development, use proxy (relative path). In production, use env variable or full URL
 const API_BASE = import.meta.env.VITE_API_URL || "/api/v1";
+const RATE_LIMIT_EVENT = "app:rate-limit-warning";
+const AI_RATE_LIMIT_PATTERNS = [
+  /^\/job-opportunities\/[^/]+\/skill-gaps/,
+  /^\/job-opportunities\/skill-gaps/,
+];
+
+function shouldSurfaceAiRateLimit(endpoint: string): boolean {
+  if (!endpoint) {
+    return false;
+  }
+  const [path] = endpoint.split("?");
+  return AI_RATE_LIMIT_PATTERNS.some((pattern) => pattern.test(path));
+}
+
+function emitRateLimitWarning(
+  endpoint: string,
+  method?: string,
+  feature?: string
+) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.dispatchEvent(
+    new CustomEvent(RATE_LIMIT_EVENT, {
+      detail: {
+        endpoint,
+        method,
+        feature,
+        timestamp: Date.now(),
+      },
+    })
+  );
+}
 
 // Custom error class with status code support
 export class ApiError extends Error {
@@ -59,17 +93,11 @@ class ApiService {
     });
 
     const rateLimitStatus = response.headers.get("X-RateLimit-Status");
-    if (rateLimitStatus === "exceeded") {
-      const detail = {
-        endpoint,
-        method: options.method || "GET",
-        timestamp: Date.now(),
-      };
-      window.dispatchEvent(
-        new CustomEvent("app:rate-limit-warning", {
-          detail,
-        })
-      );
+    if (
+      rateLimitStatus === "exceeded" &&
+      shouldSurfaceAiRateLimit(endpoint)
+    ) {
+      emitRateLimitWarning(endpoint, options.method || "GET", "skill-gap-analysis");
     }
 
     if (!response.ok) {

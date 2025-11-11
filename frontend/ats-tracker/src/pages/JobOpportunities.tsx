@@ -74,6 +74,7 @@ export function JobOpportunities() {
   const [quickAddStatus, setQuickAddStatus] = useState<JobStatus | undefined>(undefined);
   const [addContextNote, setAddContextNote] = useState<string | null>(null);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [pendingFilters, setPendingFilters] = useState<JobOpportunityFilters>(filters);
   const [searchValue, setSearchValue] = useState(filters.search || "");
   const messageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
@@ -517,14 +518,25 @@ export function JobOpportunities() {
 
   useEffect(() => {
     setSearchValue(filters.search || "");
-  }, [filters.search]);
+    setPendingFilters(filters);
+  }, [filters.search, filters]);
 
   const handleSearchChange = (value: string) => {
     setSearchValue(value);
-    setFilters((prev) => ({
-      ...prev,
-      search: value.trim() ? value : undefined,
-    }));
+  };
+
+  const applySearch = () => {
+    setFilters((prev) => {
+      const normalized = searchValue.trim();
+      const nextSearch = normalized ? normalized : undefined;
+      if (prev.search === nextSearch) {
+        return prev;
+      }
+      return {
+        ...prev,
+        search: nextSearch,
+      };
+    });
   };
 
   // Loading state
@@ -555,27 +567,51 @@ export function JobOpportunities() {
 
         <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500 mb-6">
           <div className="flex items-center gap-3 flex-1 min-w-[240px] max-w-xl">
-            <div className="relative flex-1">
-              <Icon
-                icon="mingcute:search-line"
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                width={20}
-              />
-              <input
-                type="text"
-                value={searchValue}
-                onChange={(e) => handleSearchChange(e.target.value)}
-                placeholder="Search job applications..."
-                className="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-full shadow-sm focus:ring-2 focus:ring-[#5490FF] focus:border-transparent text-slate-700 text-sm"
-              />
-              {searchValue && (
-                <button
-                  onClick={() => handleSearchChange("")}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                >
-                  <Icon icon="mingcute:close-line" width={18} />
-                </button>
-              )}
+            <div className="flex flex-1 items-center gap-2">
+              <div className="relative flex-1">
+                <Icon
+                  icon="mingcute:search-line"
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                  width={20}
+                />
+                <input
+                  type="text"
+                  value={searchValue}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      applySearch();
+                    }
+                  }}
+                  placeholder="Search job applications..."
+                  className="w-full pl-11 pr-10 py-2.5 bg-white border border-slate-200 rounded-full shadow-sm focus:ring-2 focus:ring-[#5490FF] focus:border-transparent text-slate-700 text-sm"
+                />
+                {searchValue && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleSearchChange("");
+                      setFilters((prev) => {
+                        if (!prev.search) return prev;
+                        return { ...prev, search: undefined };
+                      });
+                    }}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    <Icon icon="mingcute:close-line" width={18} />
+                  </button>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={applySearch}
+                className="inline-flex items-center gap-2 rounded-full bg-[#5490FF] px-4 py-2 text-sm font-semibold text-white shadow hover:bg-[#4478D9] disabled:bg-slate-300 disabled:text-slate-500"
+                disabled={(filters.search || "") === (searchValue.trim() || "")}
+              >
+                <Icon icon="mingcute:search-2-line" width={16} />
+                Search
+              </button>
             </div>
             <button
               onClick={() => setIsFiltersOpen(true)}
@@ -644,9 +680,14 @@ export function JobOpportunities() {
                 </button>
               </div>
               <FiltersComponent
-                filters={filters}
-                onFiltersChange={setFilters}
-                onClearFilters={() => setFilters({ sort: "-created_at" })}
+                filters={pendingFilters}
+                onFiltersChange={setPendingFilters}
+                onClearFilters={() => {
+                  const cleared = { sort: "-created_at" };
+                  setPendingFilters(cleared);
+                  setFilters(cleared);
+                  setSearchValue("");
+                }}
                 hideSearchBar
                 variant="plain"
                 viewMode={viewMode}
@@ -656,7 +697,10 @@ export function JobOpportunities() {
               />
               <div className="mt-6">
                 <button
-                  onClick={() => setIsFiltersOpen(false)}
+                  onClick={() => {
+                    setFilters(pendingFilters);
+                    setIsFiltersOpen(false);
+                  }}
                   className="w-full px-4 py-3 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors font-medium"
                 >
                   Apply Filters

@@ -6,6 +6,13 @@ import { CoverLetter, CoverLetterTemplate } from "../types";
 import { coverLetterService } from "../services/coverLetterService";
 import { CoverLetterTopBar } from "../components/coverletter/CoverLetterTopBar";
 import { CoverLetterAIAssistant } from "../components/coverletter/CoverLetterAIAssistant";
+import { CoverLetterPreviewModal } from "../components/coverletter/CoverLetterPreviewModal";
+import {
+  CoverLetterExportModal,
+  ExportFormat,
+  ExportTheme,
+} from "../components/coverletter/CoverLetterExportModal";
+import { Toast } from "../components/resume/Toast";
 
 export function CoverLetterBuilder() {
   const navigate = useNavigate();
@@ -19,9 +26,15 @@ export function CoverLetterBuilder() {
   const [showAIPanel, setShowAIPanel] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [toast, setToast] = useState<{
+    message: string;
+    type: "success" | "error" | "info";
+  } | null>(null);
 
   // Helper function to validate UUID format
   const isValidUUID = (id: string | null): boolean => {
@@ -126,46 +139,49 @@ export function CoverLetterBuilder() {
             navigate(`${ROUTES.COVER_LETTER_BUILDER}?id=${newCoverLetter.id}`, {
               replace: true,
             });
-          } else {
-            console.log("Error: Cannot create cover letter.")
-            throw new Error("Failed to create cover letter");
-          }
-        } else {
-          // Create blank cover letter
-          const newCoverLetterData = {
-            name: "New Cover Letter",
-            content: {
-              greeting: "Dear Hiring Manager,",
-              opening: "",
-              body: [],
-              closing: "",
-              fullText: "",
-            },
-            toneSettings: {
-              tone: "formal",
-              length: "standard",
-            },
-          };
+                 } else {
+                   console.log("Error: Cannot create cover letter.")
+                   throw new Error("Failed to create cover letter");
+                 }
+               } else {
+                 // Create blank cover letter
+                 const newCoverLetterData = {
+                   name: "New Cover Letter",
+                   content: {
+                     greeting: "Dear Hiring Manager,",
+                     opening: "",
+                     body: [],
+                     closing: "",
+                     fullText: "",
+                   },
+                   toneSettings: {
+                     tone: "formal",
+                     length: "standard",
+                   },
+                 };
 
-          const createResponse = await coverLetterService.createCoverLetter(
-            newCoverLetterData
-          );
-          if (createResponse.ok && createResponse.data) {
-            const newCoverLetter = createResponse.data.coverLetter;
-            setCoverLetter(newCoverLetter);
-            navigate(`${ROUTES.COVER_LETTER_BUILDER}?id=${newCoverLetter.id}`, {
-              replace: true,
-            });
-          }
-        }
-      } catch (err: any) {
-        console.error("Error loading cover letter:", err);
-        alert(err.message || "Failed to load cover letter");
-        navigate(ROUTES.COVER_LETTERS);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+                 const createResponse = await coverLetterService.createCoverLetter(
+                   newCoverLetterData
+                 );
+                 if (createResponse.ok && createResponse.data) {
+                   const newCoverLetter = createResponse.data.coverLetter;
+                   setCoverLetter(newCoverLetter);
+                   navigate(`${ROUTES.COVER_LETTER_BUILDER}?id=${newCoverLetter.id}`, {
+                     replace: true,
+                   });
+                 }
+               }
+             } catch (err: any) {
+               console.error("Error loading cover letter:", err);
+               setToast({
+                 message: err.message || "Failed to load cover letter",
+                 type: "error",
+               });
+               navigate(ROUTES.COVER_LETTERS);
+             } finally {
+               setIsLoading(false);
+             }
+           };
 
     fetchCoverLetter();
   }, [coverLetterId, templateId, navigate]);
@@ -177,49 +193,318 @@ export function CoverLetterBuilder() {
   //   // Auto-save logic here
   // }, [coverLetter, coverLetterId]);
 
-  const handleSave = async () => {
-    console.log("🔵 handleSave called", { coverLetterId, hasCoverLetter: !!coverLetter });
-    
-    if (!coverLetter || !coverLetterId || coverLetterId === "new") {
-      alert("Please wait for the cover letter to be created");
-      return;
-    }
+         const handleSave = async () => {
+           console.log("🔵 handleSave called", { coverLetterId, hasCoverLetter: !!coverLetter });
+           
+           if (!coverLetter || !coverLetterId || coverLetterId === "new") {
+             setToast({
+               message: "Please wait for the cover letter to be created",
+               type: "info",
+             });
+             return;
+           }
 
-    try {
-      setIsSaving(true);
-      console.log("🟢 Calling updateCoverLetter with ID:", coverLetterId);
-      await coverLetterService.updateCoverLetter(coverLetterId, {
-        name: coverLetter.name,
-        content: coverLetter.content,
-        toneSettings: coverLetter.toneSettings,
-        customizations: coverLetter.customizations,
+           try {
+             setIsSaving(true);
+             console.log("🟢 Calling updateCoverLetter with ID:", coverLetterId);
+             await coverLetterService.updateCoverLetter(coverLetterId, {
+               name: coverLetter.name,
+               content: coverLetter.content,
+               toneSettings: coverLetter.toneSettings,
+               customizations: coverLetter.customizations,
+             });
+             console.log("✅ Update complete");
+             setLastSaved(new Date());
+             setToast({
+               message: "Cover letter saved successfully!",
+               type: "success",
+             });
+           } catch (err: any) {
+             console.error("❌ Save error:", err);
+             setToast({
+               message: err.message || "Failed to save cover letter",
+               type: "error",
+             });
+           } finally {
+             setIsSaving(false);
+           }
+         };
+
+  const handleExportClick = () => {
+    // Show preview modal first
+    setShowPreviewModal(true);
+    setShowExportMenu(false);
+  };
+
+  const handleExportFromPreview = (format: "pdf" | "docx" | "txt" | "html") => {
+    // For PDF, we need the preview element, so keep preview modal open
+    // For other formats, close preview and open export modal
+    if (format === "pdf") {
+      // Keep preview modal open, just trigger export directly
+      // The preview element will be available
+      handleExport({
+        format: "pdf",
+        filename: coverLetter?.name || coverLetter?.versionName || `cover_letter_${coverLetterId || Date.now()}`,
+        watermark: null,
+        theme: "professional",
+        printOptimized: true,
       });
-      console.log("✅ Update complete");
-      setLastSaved(new Date());
-      alert("Cover letter saved successfully!");
-    } catch (err: any) {
-      console.error("❌ Save error:", err);
-      alert(err.message || "Failed to save cover letter");
-    } finally {
-      setIsSaving(false);
+    } else {
+      // Close preview modal and open export modal for other formats
+      setShowPreviewModal(false);
+      // Small delay to prevent animation glitches
+      setTimeout(() => {
+        setShowExportModal(true);
+      }, 150);
     }
   };
 
-  const handleExport = async (format: "pdf" | "docx" | "txt" | "html") => {
+  const handleExport = async (options: {
+    format: ExportFormat;
+    filename: string;
+    watermark?: File | null;
+    theme: ExportTheme;
+    printOptimized: boolean;
+  }) => {
     if (!coverLetterId || coverLetterId === "new") {
-      alert("Please save the cover letter before exporting");
+      setToast({
+        message: "Please save the cover letter before exporting",
+        type: "info",
+      });
       return;
     }
 
     try {
       setExporting(true);
-      setShowExportMenu(false);
+      
+      const format = options.format;
+      const filename = options.filename || coverLetter?.name || coverLetter?.versionName || `cover_letter_${coverLetterId}`;
 
+      // For PDF - use client-side html2canvas + jsPDF (like resume export)
+      if (format === "pdf") {
+        // Close export modal first if it's open (before opening preview to avoid glitches)
+        if (showExportModal) {
+          setShowExportModal(false);
+          // Wait for modal to close
+          await new Promise(resolve => setTimeout(resolve, 250));
+        }
+
+        // Only open preview modal if it's not already open
+        if (!showPreviewModal) {
+          setShowPreviewModal(true);
+          // Wait for modal animation to complete
+          await new Promise(resolve => setTimeout(resolve, 400));
+        } else {
+          // If already open, just wait a bit for stability
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        // Find the cover letter preview element by ID
+        let previewElement = document.getElementById(
+          "cover-letter-export-target"
+        ) as HTMLElement;
+
+        if (!previewElement) {
+          // Retry after a bit more time
+          await new Promise(resolve => setTimeout(resolve, 200));
+          previewElement = document.getElementById(
+            "cover-letter-export-target"
+          ) as HTMLElement;
+        }
+
+        if (!previewElement) {
+          setToast({
+            message: "Could not find preview element. Please open the preview first.",
+            type: "error",
+          });
+          setExporting(false);
+          return;
+        }
+
+        // Dynamically import html2canvas and jsPDF
+        const html2canvas = (await import("html2canvas")).default;
+        const jsPDFModule = await import("jspdf");
+        const jsPDF = (jsPDFModule as any).default || jsPDFModule;
+
+        // Inject a style override to convert oklch CSS variables to RGB before capture
+        const styleOverride = document.createElement("style");
+        styleOverride.id = "pdf-export-oklch-override";
+        styleOverride.textContent = `
+          :root {
+            --background: #ffffff;
+            --foreground: #1a1a1a;
+            --card: #ffffff;
+            --card-foreground: #1a1a1a;
+            --popover: #ffffff;
+            --popover-foreground: #1a1a1a;
+            --primary: #1a1a1a;
+            --primary-foreground: #fafafa;
+            --secondary: #f5f5f5;
+            --secondary-foreground: #1a1a1a;
+            --muted: #f5f5f5;
+            --muted-foreground: #737373;
+            --accent: #f5f5f5;
+            --accent-foreground: #1a1a1a;
+            --destructive: #dc2626;
+            --border: #e5e5e5;
+            --input: #e5e5e5;
+            --ring: #a3a3a3;
+          }
+        `;
+        document.head.appendChild(styleOverride);
+
+        try {
+          // Capture the element as canvas
+          const canvas = await html2canvas(previewElement, {
+            scale: 2, // Higher quality
+            useCORS: true,
+            logging: false,
+            backgroundColor: "#ffffff",
+            width: previewElement.scrollWidth,
+            height: previewElement.scrollHeight,
+          });
+
+          // Calculate PDF dimensions (A4: 210mm x 297mm)
+          const imgWidth = 210; // A4 width in mm
+          const pageHeight = 297; // A4 height in mm
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+          const pdf = new jsPDF("p", "mm", "a4");
+
+          // If content fits on one page
+          if (imgHeight <= pageHeight) {
+            pdf.addImage(
+              canvas.toDataURL("image/png"),
+              "PNG",
+              0,
+              0,
+              imgWidth,
+              imgHeight
+            );
+          } else {
+            // Split across multiple pages
+            const pageCount = Math.ceil(imgHeight / pageHeight);
+
+            for (let i = 0; i < pageCount; i++) {
+              if (i > 0) {
+                pdf.addPage();
+              }
+
+              // Calculate the portion of the image to show on this page
+              const sourceY = (canvas.height / imgHeight) * (i * pageHeight);
+              const sourceHeight = Math.min(
+                (canvas.height / imgHeight) * pageHeight,
+                canvas.height - sourceY
+              );
+
+              // Create a temporary canvas for this page's portion
+              const pageCanvas = document.createElement("canvas");
+              pageCanvas.width = canvas.width;
+              pageCanvas.height = sourceHeight;
+              const pageCtx = pageCanvas.getContext("2d");
+
+              if (pageCtx) {
+                pageCtx.drawImage(
+                  canvas,
+                  0,
+                  sourceY,
+                  canvas.width,
+                  sourceHeight,
+                  0,
+                  0,
+                  canvas.width,
+                  sourceHeight
+                );
+
+                const pageImgHeight = (sourceHeight * imgWidth) / canvas.width;
+                pdf.addImage(
+                  pageCanvas.toDataURL("image/png"),
+                  "PNG",
+                  0,
+                  0,
+                  imgWidth,
+                  pageImgHeight
+                );
+              }
+            }
+          }
+
+          // Add watermark if provided
+          if (options.watermark) {
+            const watermarkImg = await new Promise<HTMLImageElement>(
+              (resolve, reject) => {
+                const img = new Image();
+                img.onload = () => resolve(img);
+                img.onerror = reject;
+                img.src = URL.createObjectURL(options.watermark!);
+              }
+            );
+
+            // Add watermark to each page
+            const pageCount = pdf.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+              pdf.setPage(i);
+              const pageWidth = pdf.internal.pageSize.getWidth();
+              const pageHeight = pdf.internal.pageSize.getHeight();
+
+              // Calculate watermark size (20% of page width)
+              const watermarkWidth = pageWidth * 0.2;
+              const watermarkHeight =
+                (watermarkImg.height / watermarkImg.width) * watermarkWidth;
+
+              // Center the watermark
+              const x = (pageWidth - watermarkWidth) / 2;
+              const y = (pageHeight - watermarkHeight) / 2;
+
+              // Add watermark with opacity
+              pdf.saveGraphicsState();
+              pdf.setGState(pdf.GState({ opacity: 0.15 }));
+              pdf.addImage(
+                watermarkImg.src,
+                "PNG",
+                x,
+                y,
+                watermarkWidth,
+                watermarkHeight
+              );
+              pdf.restoreGraphicsState();
+            }
+
+            URL.revokeObjectURL(watermarkImg.src);
+          }
+
+          // Save the PDF
+          pdf.save(`${filename}.pdf`);
+          
+          setToast({
+            message: "Cover letter exported as PDF successfully!",
+            type: "success",
+          });
+          
+          // Close preview modal after successful export (with delay for smooth animation)
+          setTimeout(() => {
+            setShowPreviewModal(false);
+            setExporting(false);
+          }, 400);
+        } catch (pdfError) {
+          console.error("Error during PDF export:", pdfError);
+          setToast({
+            message: "Failed to export PDF. Please try again.",
+            type: "error",
+          });
+          setExporting(false);
+        } finally {
+          // Remove the style override
+          const overrideStyle = document.getElementById(
+            "pdf-export-oklch-override"
+          );
+          if (overrideStyle) {
+            overrideStyle.remove();
+          }
+        }
+      } else {
+        // For other formats, use the backend service
       let result;
       switch (format) {
-        case "pdf":
-          result = await coverLetterService.exportPDF(coverLetterId);
-          break;
         case "docx":
           result = await coverLetterService.exportDOCX(coverLetterId);
           break;
@@ -231,12 +516,25 @@ export function CoverLetterBuilder() {
           break;
       }
 
-      coverLetterService.downloadBlob(result.blob, result.filename);
-      alert(`Cover letter exported as ${format.toUpperCase()} successfully!`);
+        if (result) {
+          coverLetterService.downloadBlob(result.blob, result.filename);
+          setToast({
+            message: `Cover letter exported as ${format.toUpperCase()} successfully!`,
+            type: "success",
+          });
+        }
+      }
     } catch (err: any) {
-      alert(err.message || `Failed to export as ${format.toUpperCase()}`);
+      console.error("Export error:", err);
+      setToast({
+        message: err.message || `Failed to export as ${format.toUpperCase()}`,
+        type: "error",
+      });
     } finally {
-      setExporting(false);
+      // Only set exporting to false if not already handled (PDF handles it separately)
+      if (options.format !== "pdf") {
+        setExporting(false);
+      }
     }
   };
 
@@ -360,7 +658,7 @@ export function CoverLetterBuilder() {
         showCustomization={showCustomization}
         onNavigateBack={() => navigate(ROUTES.COVER_LETTERS)}
         onSave={handleSave}
-        onExport={handleExport}
+        onExport={handleExportClick}
         onToggleExportMenu={() => setShowExportMenu(!showExportMenu)}
         onToggleCustomization={() => setShowCustomization(!showCustomization)}
       />
@@ -668,6 +966,57 @@ export function CoverLetterBuilder() {
           />
         )}
       </div>
+
+      {/* Preview Modal - Keep open during PDF export */}
+      <CoverLetterPreviewModal
+        isOpen={showPreviewModal}
+        onClose={() => {
+          if (!exporting) {
+            setShowPreviewModal(false);
+          }
+        }}
+        coverLetter={coverLetter}
+        onExport={handleExportFromPreview}
+        onShowAdvancedExport={() => {
+          // Close preview first, then open export modal after animation
+          setShowPreviewModal(false);
+          setTimeout(() => {
+            setShowExportModal(true);
+          }, 200);
+        }}
+        isExporting={exporting}
+      />
+
+      {/* Export Modal */}
+      <CoverLetterExportModal
+        isOpen={showExportModal}
+        onClose={() => {
+          if (!exporting) {
+            setShowExportModal(false);
+          }
+        }}
+        onExport={async (options) => {
+          // Close export modal first to avoid visual glitches
+          setShowExportModal(false);
+          // Wait for modal close animation to complete
+          await new Promise(resolve => setTimeout(resolve, 250));
+          // Then handle export
+          // For PDF, it will open preview modal if needed
+          // For other formats, it will export directly
+          await handleExport(options);
+        }}
+        defaultFilename={coverLetter?.name || coverLetter?.versionName || `cover_letter_${coverLetterId || Date.now()}`}
+        isExporting={exporting}
+      />
+
+      {/* Toast Notifications */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   );
 }

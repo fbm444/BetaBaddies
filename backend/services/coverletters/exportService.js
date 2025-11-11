@@ -37,18 +37,33 @@ class CoverLetterExportService {
         throw new Error("Cover letter not found");
       }
 
-      // Get profile for personal info
-      const profile = await profileService.getProfileByUserId(userId);
-      const personalInfo = {
-        firstName: profile?.first_name || "",
-        lastName: profile?.last_name || "",
-        email: profile?.email || "",
-        phone: profile?.phone || "",
-        location:
-          profile?.city && profile?.state
-            ? `${profile.city}, ${profile.state}`
-            : "",
+      // Get profile for personal info (handle case where profile doesn't exist)
+      let personalInfo = {
+        firstName: "",
+        lastName: "",
+        email: "",
+        phone: "",
+        location: "",
       };
+      
+      try {
+        const profile = await profileService.getProfileByUserId(userId);
+        if (profile) {
+          personalInfo = {
+            firstName: profile.first_name || "",
+            lastName: profile.last_name || "",
+            email: profile.email || "",
+            phone: profile.phone || "",
+            location:
+              profile.city && profile.state
+                ? `${profile.city}, ${profile.state}`
+                : "",
+          };
+        }
+      } catch (profileError) {
+        console.warn("⚠️ Could not fetch profile for cover letter export:", profileError.message);
+        // Use empty personalInfo - export will still work
+      }
 
       // Get job details if jobId exists
       let jobDetails = null;
@@ -60,16 +75,82 @@ class CoverLetterExportService {
         }
       }
 
+      // Parse content if it's a JSON string
+      let content = coverLetter.content || {};
+      if (typeof content === 'string') {
+        try {
+          content = JSON.parse(content);
+        } catch (e) {
+          console.warn("⚠️ Failed to parse content JSON:", e);
+          content = {};
+        }
+      }
+
       return {
         coverLetter,
         personalInfo,
         jobDetails,
-        content: coverLetter.content || {},
+        content,
       };
     } catch (error) {
       console.error("❌ Error getting cover letter content:", error);
       throw error;
     }
+  }
+
+  // Helper function to convert hex color to RGB
+  hexToRgb(hex) {
+    if (!hex || typeof hex !== 'string') {
+      console.warn("⚠️ Invalid hex color:", hex);
+      return { r: 0, g: 0, b: 0 };
+    }
+    
+    // Remove # if present
+    const cleanHex = hex.replace('#', '');
+    
+    // Handle 3-digit hex colors
+    if (cleanHex.length === 3) {
+      const r = parseInt(cleanHex[0] + cleanHex[0], 16);
+      const g = parseInt(cleanHex[1] + cleanHex[1], 16);
+      const b = parseInt(cleanHex[2] + cleanHex[2], 16);
+      return { r, g, b };
+    }
+    
+    // Handle 6-digit hex colors
+    const result = /^([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(cleanHex);
+    if (result) {
+      return {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16),
+      };
+    }
+    
+    console.warn("⚠️ Could not parse hex color:", hex);
+    return { r: 0, g: 0, b: 0 };
+  }
+
+  // Helper function to map font names to PDFKit fonts
+  getPDFFont(fontName, variant = '') {
+    const fontMap = {
+      Inter: 'Helvetica',
+      Arial: 'Helvetica',
+      'Times New Roman': 'Times-Roman',
+      Georgia: 'Times-Roman',
+      'Courier New': 'Courier',
+      Helvetica: 'Helvetica',
+      Calibri: 'Helvetica',
+    };
+    
+    const baseFont = fontMap[fontName] || 'Helvetica';
+    
+    // PDFKit font variants
+    if (variant === 'Bold') {
+      return `${baseFont}-Bold`;
+    } else if (variant === 'Oblique' || variant === 'Italic') {
+      return `${baseFont}-Oblique`;
+    }
+    return baseFont;
   }
 
   // Export to PDF
@@ -79,7 +160,74 @@ class CoverLetterExportService {
       const data = await this.getCoverLetterContent(coverLetterId, userId);
       const { coverLetter, personalInfo, jobDetails, content } = data;
 
-      // Create PDF document
+      // Get customizations from cover letter
+      // Parse customizations if it's a JSON string
+      let customizations = coverLetter?.customizations || {};
+      if (typeof customizations === 'string') {
+        try {
+          customizations = JSON.parse(customizations);
+        } catch (e) {
+          console.warn("⚠️ Failed to parse customizations JSON:", e);
+          customizations = {};
+        }
+      }
+
+      // Parse colors if it's a JSON string
+      let colors = customizations.colors || {
+        primary: '#000000',
+        secondary: '#000000',
+        text: '#000000',
+        background: '#FFFFFF',
+        accent: '#F5F5F5',
+      };
+      if (typeof colors === 'string') {
+        try {
+          colors = JSON.parse(colors);
+        } catch (e) {
+          console.warn("⚠️ Failed to parse colors JSON:", e);
+          colors = {
+            primary: '#000000',
+            secondary: '#000000',
+            text: '#000000',
+            background: '#FFFFFF',
+            accent: '#F5F5F5',
+          };
+        }
+      }
+
+      // Parse fonts if it's a JSON string
+      let fonts = customizations.fonts || {
+        heading: 'Arial',
+        body: 'Arial',
+        size: { heading: '14pt', body: '11pt' },
+      };
+      if (typeof fonts === 'string') {
+        try {
+          fonts = JSON.parse(fonts);
+        } catch (e) {
+          console.warn("⚠️ Failed to parse fonts JSON:", e);
+          fonts = {
+            heading: 'Arial',
+            body: 'Arial',
+            size: { heading: '14pt', body: '11pt' },
+          };
+        }
+      }
+
+      // Parse font sizes if they're strings (e.g., "11pt" -> 11)
+      const bodyFontSize = fonts.size?.body 
+        ? parseFloat(fonts.size.body.replace('pt', '')) || 11
+        : 11;
+      const headingFontSize = fonts.size?.heading
+        ? parseFloat(fonts.size.heading.replace('pt', '')) || 14
+        : 14;
+
+      // Convert colors to RGB
+      const textRgb = this.hexToRgb(colors.text);
+      const backgroundRgb = this.hexToRgb(colors.background);
+      const primaryRgb = this.hexToRgb(colors.primary);
+
+      // Create PDF document with compact margins
       const doc = new PDFDocument({
         size: "LETTER",
         margins: {
@@ -99,31 +247,64 @@ class CoverLetterExportService {
       const stream = fsSync.createWriteStream(filePath);
       doc.pipe(stream);
 
+      // Set background color if not white
+      const isWhiteBackground = backgroundRgb.r === 255 && backgroundRgb.g === 255 && backgroundRgb.b === 255;
+      if (!isWhiteBackground) {
+        const pageWidth = doc.page.width;
+        const pageHeight = doc.page.height;
+        doc.save();
+        doc.fillColor(backgroundRgb.r, backgroundRgb.g, backgroundRgb.b);
+        doc.rect(0, 0, pageWidth, pageHeight).fill();
+        doc.restore();
+      }
+
+      // Set default fill color to text color
+      doc.fillColor(textRgb.r, textRgb.g, textRgb.b);
+
       // Add letterhead if requested
       if (includeLetterhead) {
-        doc.fontSize(10).text(personalInfo.location || "", { align: "right" });
+        doc.fontSize(10);
+        doc.font(this.getPDFFont(fonts.body));
+        doc.fillColor(textRgb.r, textRgb.g, textRgb.b);
+        doc.text(personalInfo.location || "", { align: "right" });
         doc.moveDown(0.5);
         doc.text(new Date().toLocaleDateString(), { align: "right" });
         doc.moveDown(2);
       }
 
+      // Add date (right aligned)
+      doc.fontSize(bodyFontSize);
+      doc.font(this.getPDFFont(fonts.body));
+      doc.fillColor(textRgb.r, textRgb.g, textRgb.b);
+      doc.text(new Date().toLocaleDateString(), { align: "right" });
+      doc.moveDown(1.5);
+
       // Add recipient information
       if (jobDetails) {
-        doc.fontSize(10).text(jobDetails.company || "", { align: "left" });
+        doc.fontSize(bodyFontSize);
+        doc.font(this.getPDFFont(fonts.body));
+        doc.fillColor(textRgb.r, textRgb.g, textRgb.b);
+        doc.text(jobDetails.company || "", { align: "left" });
         if (jobDetails.location) {
           doc.text(jobDetails.location, { align: "left" });
         }
-        doc.moveDown(1);
+        doc.moveDown(1.5);
       }
 
       // Add greeting
       const greeting = content.greeting || "Dear Hiring Manager,";
-      doc.fontSize(11).text(greeting, { align: "left" });
+      doc.fontSize(bodyFontSize);
+      doc.font(this.getPDFFont(fonts.body));
+      doc.fillColor(textRgb.r, textRgb.g, textRgb.b);
+      doc.text(greeting, { align: "left" });
       doc.moveDown(1);
 
       // Add opening paragraph
       if (content.opening) {
-        doc.fontSize(11).text(content.opening, {
+        doc.fontSize(bodyFontSize);
+        doc.font(this.getPDFFont(fonts.body));
+        doc.fillColor(textRgb.r, textRgb.g, textRgb.b);
+        doc.text(content.opening, {
           align: "left",
           lineGap: 5,
         });
@@ -133,7 +314,10 @@ class CoverLetterExportService {
       // Add body paragraphs
       if (content.body && Array.isArray(content.body)) {
         content.body.forEach((paragraph) => {
-          doc.fontSize(11).text(paragraph, {
+          doc.fontSize(bodyFontSize);
+          doc.font(this.getPDFFont(fonts.body));
+          doc.fillColor(textRgb.r, textRgb.g, textRgb.b);
+          doc.text(paragraph, {
             align: "left",
             lineGap: 5,
           });
@@ -141,7 +325,10 @@ class CoverLetterExportService {
         });
       } else if (content.fullText) {
         // Fallback to full text
-        doc.fontSize(11).text(content.fullText, {
+        doc.fontSize(bodyFontSize);
+        doc.font(this.getPDFFont(fonts.body));
+        doc.fillColor(textRgb.r, textRgb.g, textRgb.b);
+        doc.text(content.fullText, {
           align: "left",
           lineGap: 5,
         });
@@ -150,7 +337,10 @@ class CoverLetterExportService {
 
       // Add closing paragraph
       if (content.closing) {
-        doc.fontSize(11).text(content.closing, {
+        doc.fontSize(bodyFontSize);
+        doc.font(this.getPDFFont(fonts.body));
+        doc.fillColor(textRgb.r, textRgb.g, textRgb.b);
+        doc.text(content.closing, {
           align: "left",
           lineGap: 5,
         });
@@ -158,8 +348,14 @@ class CoverLetterExportService {
       }
 
       // Add signature
-      doc.fontSize(11).text("Sincerely,", { align: "left" });
-      doc.moveDown(1);
+      doc.fontSize(bodyFontSize);
+      doc.font(this.getPDFFont(fonts.body));
+      doc.fillColor(textRgb.r, textRgb.g, textRgb.b);
+      doc.text("Sincerely,", { align: "left" });
+      doc.moveDown(1.5);
+      doc.fontSize(bodyFontSize);
+      doc.font(this.getPDFFont(fonts.body));
+      doc.fillColor(textRgb.r, textRgb.g, textRgb.b);
       doc.text(
         `${personalInfo.firstName} ${personalInfo.lastName}`.trim() ||
           "Your Name",

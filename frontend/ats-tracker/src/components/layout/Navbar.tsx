@@ -146,13 +146,22 @@ export function Navbar() {
         {/* Top Row: Logo, Navigation, Export Button, and User Profile */}
         <div className="flex items-center justify-between py-3 md:py-4">
           {/* Logo/Brand */}
-          <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
+          <button
+            onClick={() => {
+              if (isLoggedIn) {
+                navigate(ROUTES.DASHBOARD)
+              }
+            }}
+            className="flex items-center gap-2 md:gap-3 flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity bg-transparent border-none p-0"
+            disabled={!isLoggedIn}
+            style={{ cursor: isLoggedIn ? 'pointer' : 'default' }}
+          >
             <img src={logo} alt="ATS Logo" className="w-8 h-8 md:w-10 md:h-10" />
             <h1 className="text-lg md:text-2xl font-bold text-slate-900 m-0 font-poppins whitespace-nowrap">
               <span className="hidden sm:inline">ATS For Candidates</span>
               <span className="sm:hidden">ATS</span>
             </h1>
-          </div>
+          </button>
 
           {/* Desktop Navigation Menu - Centered with Groups */}
           {isLoggedIn && (

@@ -14,6 +14,10 @@ router.post("/fetch/:jobId", companyResearchController.fetchCompanyResearch);
 router.get("/", companyResearchController.getResearchedCompanies);
 router.get("/job/:jobId", companyResearchController.getCompanyResearchByJobId);
 router.get("/job/:jobId/ai-summary", companyResearchController.generateAISummary);
+router.get(
+  "/job/:jobId/interview-insights",
+  companyResearchController.getInterviewInsights
+);
 router.post("/job/:jobId", companyResearchController.upsertCompanyInfo);
 router.delete("/job/:jobId", companyResearchController.deleteCompanyResearch);
 

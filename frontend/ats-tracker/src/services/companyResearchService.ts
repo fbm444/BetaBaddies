@@ -63,6 +63,61 @@ export interface ResearchedCompany extends CompanyInfo {
   jobTitle: string;
 }
 
+export interface InterviewStage {
+  stage: string;
+  what_to_expect: string;
+  duration: string | null;
+}
+
+export type InterviewQuestionCategory =
+  | "behavioral"
+  | "technical"
+  | "system_design"
+  | "product"
+  | "culture"
+  | "other";
+
+export interface InterviewQuestion {
+  question: string;
+  category: InterviewQuestionCategory;
+  why_asked: string;
+}
+
+export interface InterviewInterviewerProfile {
+  role: string;
+  focus: string;
+  tips: string;
+}
+
+export interface InterviewInsights {
+  process_overview: string;
+  stages: InterviewStage[];
+  timeline_expectations: string;
+  interview_formats: string[];
+  common_questions: InterviewQuestion[];
+  interviewer_profiles: InterviewInterviewerProfile[];
+  preparation_recommendations: string[];
+  success_tips: string[];
+  checklist: string[];
+  additional_resources: string[];
+}
+
+export interface InterviewInsightsMetadata {
+  companyName?: string;
+  requestedRole?: string;
+  generatedAt?: string | null;
+  expiresAt?: string | null;
+  source?: string;
+  promptHash?: string | null;
+  lastError?: string | null;
+  fromCache?: boolean;
+}
+
+export interface InterviewInsightsResponse {
+  interviewInsights: InterviewInsights;
+  metadata: InterviewInsightsMetadata;
+}
+
 const companyResearchService = {
   // Trigger automated research for a job
   async fetchCompanyResearch(jobId: string): Promise<any> {
@@ -97,6 +152,23 @@ const companyResearchService = {
       withCredentials: true,
     });
     return response.data.data.aiSummary;
+  },
+
+  async getInterviewInsights(
+    jobId: string,
+    options?: { roleTitle?: string; refresh?: boolean }
+  ): Promise<InterviewInsightsResponse> {
+    const response = await axios.get(
+      `${API_BASE_URL}/company-research/job/${jobId}/interview-insights`,
+      {
+        params: {
+          role: options?.roleTitle,
+          refresh: options?.refresh ? "true" : undefined,
+        },
+        withCredentials: true,
+      }
+    );
+    return response.data.data as InterviewInsightsResponse;
   },
 
   // Create or update company info

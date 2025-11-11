@@ -576,6 +576,32 @@ CREATE TABLE IF NOT EXISTS public.company_news (
     CONSTRAINT company_news_company_id_fkey FOREIGN KEY (company_id) REFERENCES public.company_info(id) ON DELETE CASCADE
 );
 
+-- Table: company_interview_insights (depends on job_opportunities)
+CREATE TABLE IF NOT EXISTS public.company_interview_insights (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    company_name text NOT NULL,
+    company_key text NOT NULL,
+    requested_role text,
+    role_key text NOT NULL DEFAULT ''::text,
+    job_id uuid,
+    payload jsonb NOT NULL,
+    source text DEFAULT 'openai'::text,
+    prompt_hash text,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    expires_at timestamp with time zone,
+    last_error text,
+    CONSTRAINT company_interview_insights_pkey PRIMARY KEY (id),
+    CONSTRAINT company_interview_insights_job_id_fkey FOREIGN KEY (job_id) REFERENCES public.job_opportunities(id) ON DELETE SET NULL,
+    CONSTRAINT company_interview_insights_company_role_key UNIQUE (company_key, role_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_company_interview_insights_company
+    ON public.company_interview_insights (company_key);
+
+CREATE INDEX IF NOT EXISTS idx_company_interview_insights_expires_at
+    ON public.company_interview_insights (expires_at);
+
 -- Table: coverletter_template (no dependencies)
 CREATE TABLE IF NOT EXISTS public.coverletter_template (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -744,6 +770,13 @@ CREATE TRIGGER trg_update_preparation_tasks_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION public.update_interviews_updated_at();
 
+-- Trigger: trg_company_interview_insights_updated_at - Updates timestamp on interview insights
+DROP TRIGGER IF EXISTS trg_company_interview_insights_updated_at ON public.company_interview_insights;
+CREATE TRIGGER trg_company_interview_insights_updated_at
+    BEFORE UPDATE ON public.company_interview_insights
+    FOR EACH ROW
+    EXECUTE FUNCTION public.addupdatetime();
+
 
 -- Add missing columns to coverletter table
 -- Migration to support full cover letter functionality
@@ -872,6 +905,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.archived_prospectivejobs TO
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.company_info TO "ats_user";
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.company_media TO "ats_user";
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.company_news TO "ats_user";
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.company_interview_insights TO "ats_user";
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.resume TO "ats_user";
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.resume_template TO "ats_user";
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.resume_comments TO "ats_user";

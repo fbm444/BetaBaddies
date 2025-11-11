@@ -32,6 +32,9 @@ import {
   MaterialsUsageAnalytics,
   VersionComparison,
   CurrentMaterials,
+  MatchScore,
+  MatchScoreHistoryEntry,
+  MatchScoreComparison,
 } from "../types";
 
 // In development, use proxy (relative path). In production, use env variable or full URL
@@ -633,6 +636,63 @@ class ApiService {
     >(
       `/job-opportunities/materials/compare/cover-letters?coverLetterId1=${coverLetterId1}&coverLetterId2=${coverLetterId2}`
     );
+  }
+
+  // Job matching endpoints
+  async getMatchScore(opportunityId: string) {
+    return this.request<
+      ApiResponse<{
+        matchScore: MatchScore;
+      }>
+    >(`/job-opportunities/${opportunityId}/match-score`);
+  }
+
+  async calculateMatchScore(opportunityId: string) {
+    return this.request<
+      ApiResponse<{
+        matchScore: MatchScore;
+      }>
+    >(`/job-opportunities/${opportunityId}/match-score`, {
+      method: "POST",
+    });
+  }
+
+  async getMatchScoreHistory(opportunityId: string) {
+    return this.request<
+      ApiResponse<{
+        history: MatchScoreHistoryEntry[];
+      }>
+    >(`/job-opportunities/${opportunityId}/match-score/history`);
+  }
+
+  async getMatchScoresForJobs(jobIds: string[]) {
+    return this.request<
+      ApiResponse<{
+        matchScores: MatchScoreComparison[];
+      }>
+    >("/job-opportunities/match-scores", {
+      method: "POST",
+      body: JSON.stringify({ jobIds }),
+    });
+  }
+
+  async updateMatchingWeights(weights: {
+    skills: number;
+    experience: number;
+    education: number;
+  }) {
+    return this.request<
+      ApiResponse<{
+        weights: {
+          skills: number;
+          experience: number;
+          education: number;
+        };
+      }>
+    >("/job-opportunities/matching-weights", {
+      method: "PUT",
+      body: JSON.stringify({ weights }),
+    });
   }
 
   // Education endpoints

@@ -173,6 +173,133 @@ class EmailService {
       throw error;
     }
   }
+
+  /**
+   * Send application deadline reminder email
+   * @param {string} email - User's email address
+   * @param {object} jobDetails - Job opportunity details
+   * @param {string} jobDetails.title - Job title
+   * @param {string} jobDetails.company - Company name
+   * @param {string} jobDetails.applicationDeadline - Application deadline date
+   * @param {string} jobDetails.location - Job location
+   * @param {string} jobDetails.jobPostingUrl - Job posting URL (optional)
+   * @returns {Promise<void>}
+   */
+  async sendDeadlineReminder(email, jobDetails) {
+    const { title, company, applicationDeadline, location, jobPostingUrl } = jobDetails;
+    
+    // Format deadline date
+    const deadlineDate = new Date(applicationDeadline);
+    const formattedDeadline = deadlineDate.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+    
+    // Calculate days remaining
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const deadline = new Date(applicationDeadline);
+    deadline.setHours(0, 0, 0, 0);
+    const daysRemaining = Math.ceil((deadline - today) / (1000 * 60 * 60 * 24));
+    
+    let daysRemainingText = '';
+    if (daysRemaining < 0) {
+      daysRemainingText = `<p style="color: #DC2626; font-weight: bold; font-size: 16px;">⚠️ This deadline has passed (${Math.abs(daysRemaining)} day${Math.abs(daysRemaining) !== 1 ? 's' : ''} ago)</p>`;
+    } else if (daysRemaining === 0) {
+      daysRemainingText = '<p style="color: #DC2626; font-weight: bold; font-size: 16px;">🚨 Deadline is today!</p>';
+    } else if (daysRemaining === 1) {
+      daysRemainingText = '<p style="color: #DC2626; font-weight: bold; font-size: 16px;">⚠️ Deadline is tomorrow!</p>';
+    } else {
+      daysRemainingText = `<p style="color: #F59E0B; font-weight: bold; font-size: 16px;">⏰ ${daysRemaining} days remaining</p>`;
+    }
+    
+    // Development mode - log to console
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('\n========== DEADLINE REMINDER EMAIL ==========');
+      console.log(`To: ${email}`);
+      console.log('Subject: Application Deadline Reminder - ATS Tracker');
+      console.log(`\nJob: ${title} at ${company}`);
+      console.log(`Location: ${location || 'Not specified'}`);
+      console.log(`Deadline: ${formattedDeadline}`);
+      console.log(`Days Remaining: ${daysRemaining}`);
+      if (jobPostingUrl) {
+        console.log(`Job Posting: ${jobPostingUrl}`);
+      }
+      console.log('\nThis is a reminder about your upcoming application deadline.');
+      console.log('============================================\n');
+      return;
+    }
+
+    // Production mode - use nodemailer
+    if (!this.transporter) {
+      console.error('❌ Email service not initialized');
+      return;
+    }
+
+    const appUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const mailOptions = {
+      from: process.env.EMAIL_FROM || 'noreply@atstracker.com',
+      to: email,
+      subject: `Application Deadline Reminder: ${title} at ${company}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #6A94EE;">Application Deadline Reminder</h2>
+          <p>This is a reminder about your upcoming job application deadline.</p>
+          
+          <div style="background: #F3F4F6; border-left: 4px solid #6A94EE; padding: 20px; margin: 20px 0; border-radius: 8px;">
+            <h3 style="color: #1F2937; margin-top: 0; font-size: 20px;">${title}</h3>
+            <p style="color: #4B5563; font-size: 16px; margin: 8px 0;"><strong>Company:</strong> ${company}</p>
+            ${location ? `<p style="color: #4B5563; font-size: 16px; margin: 8px 0;"><strong>Location:</strong> ${location}</p>` : ''}
+            <p style="color: #4B5563; font-size: 16px; margin: 8px 0;"><strong>Application Deadline:</strong> ${formattedDeadline}</p>
+            ${daysRemainingText}
+          </div>
+          
+          ${jobPostingUrl ? `
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${jobPostingUrl}" 
+               target="_blank"
+               style="background: linear-gradient(to right, #6A94EE, #916BE3); 
+                      color: white; 
+                      padding: 12px 30px; 
+                      text-decoration: none; 
+                      border-radius: 8px; 
+                      display: inline-block;">
+              View Job Posting
+            </a>
+          </div>
+          ` : ''}
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${appUrl}/job-opportunities" 
+               style="background: #F3F4F6; 
+                      color: #4B5563; 
+                      padding: 12px 30px; 
+                      text-decoration: none; 
+                      border-radius: 8px; 
+                      display: inline-block;
+                      border: 1px solid #D1D5DB;">
+              View in ATS Tracker
+            </a>
+          </div>
+          
+          <hr style="border: 1px solid #E5E7EB; margin: 20px 0;">
+          <p style="color: #6B7280; font-size: 12px;">
+            This is an automated reminder from ATS Tracker. Good luck with your application!
+          </p>
+        </div>
+      `
+    };
+
+    try {
+      await this.transporter.sendMail(mailOptions);
+      console.log('✅ Deadline reminder email sent to:', email);
+    } catch (error) {
+      console.error('❌ Error sending deadline reminder email:', error);
+      throw error;
+    }
+  }
 }
 
 export default new EmailService();

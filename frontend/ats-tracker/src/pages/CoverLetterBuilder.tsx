@@ -826,11 +826,7 @@ export function CoverLetterBuilder() {
             <div className="mb-6">
               <button
                 onClick={() => setShowAIPanel(!showAIPanel)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                  showAIPanel
-                    ? "bg-[#3351FD] text-white"
-                    : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
-                }`}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-full font-medium transition-all bg-gradient-to-r from-[#845BFF] via-[#A95BFF] to-[#F551A2] text-white shadow-sm hover:opacity-90"
               >
                 <Icon icon="mingcute:ai-fill" className="w-5 h-5" />
                 {showAIPanel ? "Hide AI Assistant" : "Show AI Assistant"}

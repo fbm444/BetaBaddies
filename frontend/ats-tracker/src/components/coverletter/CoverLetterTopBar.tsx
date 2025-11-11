@@ -122,10 +122,6 @@ export function CoverLetterTopBar({
                   <>
                     <Icon icon="mingcute:download-line" className="w-4 h-4" />
                     Export
-                    <Icon
-                      icon="mingcute:arrow-down-line"
-                      className="w-3 h-3"
-                    />
                   </>
                 )}
               </button>

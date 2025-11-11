@@ -48,6 +48,7 @@ interface JobPipelineProps {
   onView?: (opportunity: JobOpportunityData) => void;
   onCreate?: (status: JobStatus) => void;
   searchTerm?: string;
+  matchScores?: Map<string, number>;
 }
 
 interface PipelineColumnProps {
@@ -56,12 +57,14 @@ interface PipelineColumnProps {
   onView?: (opportunity: JobOpportunityData) => void;
   onCreate?: (status: JobStatus) => void;
   searchTerm?: string;
+  matchScores?: Map<string, number>;
 }
 
 interface PipelineCardProps {
   opportunity: JobOpportunityData;
   onView?: (opportunity: JobOpportunityData) => void;
   searchTerm?: string;
+  matchScore?: number | null;
 }
 
 const getDaysInStage = (dateString?: string): number | null => {
@@ -101,6 +104,7 @@ function PipelineCard({
   opportunity,
   onView,
   searchTerm,
+  matchScore,
 }: PipelineCardProps) {
   const {
     attributes,
@@ -175,6 +179,25 @@ function PipelineCard({
       </div>
 
       <div className="mt-2 flex flex-col gap-1 text-[9px] font-medium">
+        {/* Match Score Badge */}
+        {matchScore !== null && matchScore !== undefined && (
+          <div className="mb-1">
+            <span
+              className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-medium ${
+                matchScore >= 80
+                  ? "bg-green-100 text-green-700"
+                  : matchScore >= 60
+                  ? "bg-yellow-100 text-yellow-700"
+                  : "bg-red-100 text-red-700"
+              }`}
+              title="Match Score"
+            >
+              <Icon icon="mingcute:target-line" width={8} />
+              {matchScore}%
+            </span>
+          </div>
+        )}
+
         {((opportunity.status === "Interested" && opportunity.applicationDeadline) || opportunity.statusUpdatedAt) && (
           <div className="flex flex-wrap items-center gap-2">
             {opportunity.status === "Interested" && opportunity.applicationDeadline && (
@@ -224,6 +247,7 @@ function PipelineColumn({
   onView,
   onCreate,
   searchTerm,
+  matchScores,
 }: PipelineColumnProps) {
   const { setNodeRef } = useDroppable({
     id: status,
@@ -296,6 +320,7 @@ function PipelineColumn({
                 opportunity={opportunity}
                 onView={onView}
                 searchTerm={searchTerm}
+                matchScore={matchScores?.get(opportunity.id)}
               />
             ))
           )}
@@ -312,6 +337,7 @@ export function JobPipeline({
   onView,
   onCreate,
   searchTerm,
+  matchScores,
 }: JobPipelineProps) {
   const [, setActiveId] = useState<string | null>(null);
   const sensors = useSensors(
@@ -440,6 +466,7 @@ export function JobPipeline({
                 onView={onView}
                 onCreate={onCreate}
                 searchTerm={searchTerm}
+                matchScores={matchScores}
               />
             );
           })}

@@ -56,6 +56,14 @@ router.get("/:id/materials", jobOpportunityController.getCurrentMaterials);
 router.post("/:id/materials", jobOpportunityController.linkMaterials);
 router.get("/:id/materials/history", jobOpportunityController.getMaterialsHistory);
 
+// Job matching routes (must be before generic :id routes)
+// Note: match-scores and matching-weights routes must come before :id routes
+router.post("/match-scores", jobOpportunityController.getMatchScoresForJobs);
+router.put("/matching-weights", jobOpportunityController.updateMatchingWeights);
+router.get("/:id/match-score", jobOpportunityController.getMatchScore);
+router.post("/:id/match-score", jobOpportunityController.calculateMatchScore);
+router.get("/:id/match-score/history", jobOpportunityController.getMatchScoreHistory);
+
 // Get job opportunity by ID (must be after other routes to avoid conflicts)
 router.get("/:id", jobOpportunityController.getJobOpportunity);
 

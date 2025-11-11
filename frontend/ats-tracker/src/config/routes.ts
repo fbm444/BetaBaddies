@@ -20,6 +20,9 @@ export const ROUTES = {
   RESUME_TEMPLATES: "/resumes/templates",
   RESUME_PREVIEW: "/resumes/preview",
   RESUME_AI_TAILORING: "/resumes/ai-tailoring",
+  COVER_LETTERS: "/coverletter",
+  COVER_LETTER_BUILDER: "/coverletter/builder",
+  COVER_LETTER_TEMPLATES: "/coverletter/templates",
 } as const;
 
 // Navigation item type
@@ -122,13 +125,26 @@ export const navigationGroups: NavigationGroup[] = [
       },
     ],
   },
+  {
+    id: "coverletters",
+    label: "Cover Letters",
+    icon: "mingcute:mail-line",
+    items: [
+      {
+        id: "coverletters",
+        label: "Cover Letters",
+        icon: "mingcute:mail-line",
+        path: ROUTES.COVER_LETTERS,
+      },
+    ],
+  },
+
 ] as const;
 
 // Flattened navigation items for backward compatibility
 export const navigationItems: NavigationItem[] = navigationGroups.flatMap(
   (group) => group.items
 );
-
 // Type exports for TypeScript
 export type RouteKey = keyof typeof ROUTES;
 export type RoutePath = (typeof ROUTES)[RouteKey];

@@ -12,4 +12,4 @@ export * from './skill.types';
 export * from './file.types';
 export * from './resume.types';
 export * from './skillGap.types';
-
+export * from './coverLetter.types';

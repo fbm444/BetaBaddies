@@ -18,6 +18,9 @@ import { ResumeBuilder } from './pages/ResumeBuilder'
 import { ResumeTemplates } from './pages/ResumeTemplates'
 import { ResumePreview } from './pages/ResumePreview'
 import { AITailoringPage } from './pages/AITailoringPage'
+import { CoverLetters } from './pages/CoverLetters'
+import { CoverLetterTemplates } from './pages/CoverLetterTemplates'
+import { CoverLetterBuilder } from './pages/CoverLetterBuilder'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { ROUTES } from './config/routes'
@@ -111,6 +114,9 @@ function App() {
 		  <Route path={ROUTES.RESUME_TEMPLATES} element={<ResumeTemplates />} />
 		  <Route path={ROUTES.RESUME_PREVIEW} element={<ResumePreview />} />
 		  <Route path={ROUTES.RESUME_AI_TAILORING} element={<AITailoringPage />} />
+		  <Route path={ROUTES.COVER_LETTERS} element={<CoverLetters />} />
+		  <Route path={ROUTES.COVER_LETTER_BUILDER} element={<CoverLetterBuilder />} />
+		  <Route path={ROUTES.COVER_LETTER_TEMPLATES} element={<CoverLetterTemplates />} />
 		</Route>
 	      </Routes>
 	    </div>

@@ -18,6 +18,7 @@ import projectRoutes from "./routes/projectRoutes.js";
 import profileRoutes from "./routes/profileRoutes.js";
 import resumeRoutes from "./routes/resumes/index.js";
 import prospectiveJobRoutes from "./routes/prospectiveJobRoutes.js";
+import coverLetterRoutes from "./routes/coverletters/index.js";
 
 // Import middleware
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
@@ -118,6 +119,7 @@ app.use("/api/v1/projects", projectRoutes);
 app.use("/api/v1/profile", profileRoutes);
 app.use("/api/v1/resumes", resumeRoutes);
 app.use("/api/v1/prospective-jobs", prospectiveJobRoutes);
+app.use("/api/v1/coverletter", coverLetterRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

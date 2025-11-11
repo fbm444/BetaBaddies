@@ -2,8 +2,6 @@
 -- PostgreSQL database dump
 --
 
-\restrict 5tC0UzyDNSROOsfVwzolUygeroXx0MvWWiWIWnHZ1hwC55uJUlRDihBSJH7jdHa
-
 -- Dumped from database version 18.0
 -- Dumped by pg_dump version 18.0
 
@@ -12,7 +10,6 @@
 SET statement_timeout = 0;
 SET lock_timeout = 0;
 SET idle_in_transaction_session_timeout = 0;
-SET transaction_timeout = 0;
 SET client_encoding = 'UTF8';
 SET standard_conforming_strings = on;
 SELECT pg_catalog.set_config('search_path', '', false);
@@ -26,6 +23,8 @@ SET row_security = off;
 -- Name: addupdatetime(); Type: FUNCTION; Schema: public; Owner: superUser
 --
 
+DROP FUNCTION IF EXISTS public.addupdatetime() CASCADE;
+
 CREATE FUNCTION public.addupdatetime() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
@@ -36,12 +35,14 @@ END;
 $$;
 
 
-ALTER FUNCTION public.addupdatetime() OWNER TO "superUser";
+ALTER FUNCTION public.addupdatetime() OWNER TO ats_user;
 
 --
 -- TOC entry 246 (class 1255 OID 25067)
 -- Name: auto_archive_jobs(); Type: FUNCTION; Schema: public; Owner: superUser
 --
+
+DROP FUNCTION IF EXISTS public.auto_archive_jobs() CASCADE;
 
 CREATE FUNCTION public.auto_archive_jobs() RETURNS trigger
     LANGUAGE plpgsql
@@ -70,12 +71,14 @@ END;
 $$;
 
 
-ALTER FUNCTION public.auto_archive_jobs() OWNER TO "superUser";
+ALTER FUNCTION public.auto_archive_jobs() OWNER TO ats_user;
 
 --
 -- TOC entry 243 (class 1255 OID 25061)
 -- Name: log_material_history(); Type: FUNCTION; Schema: public; Owner: superUser
 --
+
+DROP FUNCTION IF EXISTS public.log_material_history() CASCADE;
 
 CREATE FUNCTION public.log_material_history() RETURNS trigger
     LANGUAGE plpgsql
@@ -106,12 +109,14 @@ END;
 $$;
 
 
-ALTER FUNCTION public.log_material_history() OWNER TO "superUser";
+ALTER FUNCTION public.log_material_history() OWNER TO ats_user;
 
 --
 -- TOC entry 240 (class 1255 OID 16402)
 -- Name: lower_email(); Type: FUNCTION; Schema: public; Owner: superUser
 --
+
+DROP FUNCTION IF EXISTS public.lower_email() CASCADE;
 
 CREATE FUNCTION public.lower_email() RETURNS trigger
     LANGUAGE plpgsql
@@ -123,12 +128,14 @@ END;
 $$;
 
 
-ALTER FUNCTION public.lower_email() OWNER TO "superUser";
+ALTER FUNCTION public.lower_email() OWNER TO ats_user;
 
 --
 -- TOC entry 245 (class 1255 OID 25065)
 -- Name: update_coverletter_timestamp(); Type: FUNCTION; Schema: public; Owner: superUser
 --
+
+DROP FUNCTION IF EXISTS public.update_coverletter_timestamp() CASCADE;
 
 CREATE FUNCTION public.update_coverletter_timestamp() RETURNS trigger
     LANGUAGE plpgsql
@@ -140,12 +147,14 @@ END;
 $$;
 
 
-ALTER FUNCTION public.update_coverletter_timestamp() OWNER TO "superUser";
+ALTER FUNCTION public.update_coverletter_timestamp() OWNER TO ats_user;
 
 --
 -- TOC entry 244 (class 1255 OID 25063)
 -- Name: update_resume_timestamp(); Type: FUNCTION; Schema: public; Owner: superUser
 --
+
+DROP FUNCTION IF EXISTS public.update_resume_timestamp() CASCADE;
 
 CREATE FUNCTION public.update_resume_timestamp() RETURNS trigger
     LANGUAGE plpgsql
@@ -157,12 +166,14 @@ END;
 $$;
 
 
-ALTER FUNCTION public.update_resume_timestamp() OWNER TO "superUser";
+ALTER FUNCTION public.update_resume_timestamp() OWNER TO ats_user;
 
 --
 -- TOC entry 242 (class 1255 OID 24788)
 -- Name: update_status_change_time(); Type: FUNCTION; Schema: public; Owner: superUser
 --
+
+DROP FUNCTION IF EXISTS public.update_status_change_time() CASCADE;
 
 CREATE FUNCTION public.update_status_change_time() RETURNS trigger
     LANGUAGE plpgsql
@@ -176,7 +187,30 @@ END;
 $$;
 
 
-ALTER FUNCTION public.update_status_change_time() OWNER TO "superUser";
+ALTER FUNCTION public.update_status_change_time() OWNER TO ats_user;
+
+-- Drop all tables if they exist (in reverse dependency order)
+DROP TABLE IF EXISTS public.prospectivejob_material_history CASCADE;
+DROP TABLE IF EXISTS public.interviews CASCADE;
+DROP TABLE IF EXISTS public.resume_shares CASCADE;
+DROP TABLE IF EXISTS public.resume_comments CASCADE;
+DROP TABLE IF EXISTS public.resume_versions CASCADE;
+DROP TABLE IF EXISTS public.resumes CASCADE;
+DROP TABLE IF EXISTS public.resume_template CASCADE;
+DROP TABLE IF EXISTS public.coverletter_versions CASCADE;
+DROP TABLE IF EXISTS public.coverletters CASCADE;
+DROP TABLE IF EXISTS public.coverletter_template CASCADE;
+DROP TABLE IF EXISTS public.prospectivejobs CASCADE;
+DROP TABLE IF EXISTS public.archived_prospectivejobs CASCADE;
+DROP TABLE IF EXISTS public.company_info CASCADE;
+DROP TABLE IF EXISTS public.certifications CASCADE;
+DROP TABLE IF EXISTS public.projects CASCADE;
+DROP TABLE IF EXISTS public.skills CASCADE;
+DROP TABLE IF EXISTS public.jobs CASCADE;
+DROP TABLE IF EXISTS public.educations CASCADE;
+DROP TABLE IF EXISTS public.files CASCADE;
+DROP TABLE IF EXISTS public.profiles CASCADE;
+DROP TABLE IF EXISTS public.users CASCADE;
 
 SET default_tablespace = '';
 
@@ -211,7 +245,7 @@ CREATE TABLE public.archived_prospectivejobs (
 );
 
 
-ALTER TABLE public.archived_prospectivejobs OWNER TO "superUser";
+ALTER TABLE public.archived_prospectivejobs OWNER TO ats_user;
 
 --
 -- TOC entry 225 (class 1259 OID 16525)
@@ -229,7 +263,7 @@ CREATE TABLE public.certifications (
 );
 
 
-ALTER TABLE public.certifications OWNER TO "superUser";
+ALTER TABLE public.certifications OWNER TO ats_user;
 
 --
 -- TOC entry 229 (class 1259 OID 24806)
@@ -250,7 +284,7 @@ CREATE TABLE public.company_info (
 );
 
 
-ALTER TABLE public.company_info OWNER TO "superUser";
+ALTER TABLE public.company_info OWNER TO ats_user;
 
 --
 -- TOC entry 230 (class 1259 OID 24821)
@@ -265,7 +299,7 @@ CREATE TABLE public.company_media (
 );
 
 
-ALTER TABLE public.company_media OWNER TO "superUser";
+ALTER TABLE public.company_media OWNER TO ats_user;
 
 --
 -- TOC entry 231 (class 1259 OID 24837)
@@ -283,7 +317,7 @@ CREATE TABLE public.company_news (
 );
 
 
-ALTER TABLE public.company_news OWNER TO "superUser";
+ALTER TABLE public.company_news OWNER TO ats_user;
 
 --
 -- TOC entry 238 (class 1259 OID 25027)
@@ -302,7 +336,7 @@ CREATE TABLE public.coverletter (
 );
 
 
-ALTER TABLE public.coverletter OWNER TO "superUser";
+ALTER TABLE public.coverletter OWNER TO ats_user;
 
 --
 -- TOC entry 237 (class 1259 OID 25014)
@@ -319,12 +353,11 @@ CREATE TABLE public.coverletter_template (
     colors text,
     fonts text,
     existing_coverletter_template character varying(1000),
-    CONSTRAINT coverletter_template_length_check CHECK (((length)::text = ANY ((ARRAY['brief'::character varying, 'standard'::character varying, 'detailed'::character varying])::text[]))),
-    CONSTRAINT coverletter_template_tone_check CHECK (((tone)::text = ANY ((ARRAY['formal'::character varying, 'casual'::character varying, 'enthusiastic'::character varying, 'analytical'::character varying])::text[])))
+    CONSTRAINT coverletter_template_length_check CHECK (((length)::text = ANY ((ARRAY['brief'::character varying, 'standard'::character varying, 'detailed'::character varying])::text[])))
 );
 
 
-ALTER TABLE public.coverletter_template OWNER TO "superUser";
+ALTER TABLE public.coverletter_template OWNER TO ats_user;
 
 --
 -- TOC entry 224 (class 1259 OID 16508)
@@ -345,7 +378,7 @@ CREATE TABLE public.educations (
 );
 
 
-ALTER TABLE public.educations OWNER TO "superUser";
+ALTER TABLE public.educations OWNER TO ats_user;
 
 --
 -- TOC entry 221 (class 1259 OID 16449)
@@ -359,7 +392,7 @@ CREATE TABLE public.files (
 );
 
 
-ALTER TABLE public.files OWNER TO "superUser";
+ALTER TABLE public.files OWNER TO ats_user;
 
 --
 -- TOC entry 239 (class 1259 OID 25069)
@@ -376,7 +409,7 @@ CREATE TABLE public.interviews (
 );
 
 
-ALTER TABLE public.interviews OWNER TO "superUser";
+ALTER TABLE public.interviews OWNER TO ats_user;
 
 --
 -- TOC entry 222 (class 1259 OID 16471)
@@ -397,7 +430,7 @@ CREATE TABLE public.jobs (
 );
 
 
-ALTER TABLE public.jobs OWNER TO "superUser";
+ALTER TABLE public.jobs OWNER TO ats_user;
 
 --
 -- TOC entry 220 (class 1259 OID 16407)
@@ -421,7 +454,7 @@ CREATE TABLE public.profiles (
 ALTER TABLE ONLY public.profiles ALTER COLUMN pfp_link SET STORAGE PLAIN;
 
 
-ALTER TABLE public.profiles OWNER TO "superUser";
+ALTER TABLE public.profiles OWNER TO ats_user;
 
 --
 -- TOC entry 226 (class 1259 OID 16543)
@@ -443,7 +476,7 @@ CREATE TABLE public.projects (
 );
 
 
-ALTER TABLE public.projects OWNER TO "superUser";
+ALTER TABLE public.projects OWNER TO ats_user;
 
 --
 -- TOC entry 228 (class 1259 OID 24790)
@@ -459,7 +492,7 @@ CREATE TABLE public.prospectivejob_material_history (
 );
 
 
-ALTER TABLE public.prospectivejob_material_history OWNER TO "superUser";
+ALTER TABLE public.prospectivejob_material_history OWNER TO ats_user;
 
 --
 -- TOC entry 227 (class 1259 OID 24768)
@@ -486,11 +519,11 @@ CREATE TABLE public.prospectivejobs (
     job_url character varying(1000),
     current_resume character varying(1000),
     current_coverletter character varying(1000),
-    autoarchive_time_limit date DEFAULT (CURRENT_DATE + '1 year'::interval)
+    autoarchive_time_limit date DEFAULT (CURRENT_DATE + INTERVAL '1 year')::date
 );
 
 
-ALTER TABLE public.prospectivejobs OWNER TO "superUser";
+ALTER TABLE public.prospectivejobs OWNER TO ats_user;
 
 --
 -- TOC entry 233 (class 1259 OID 24924)
@@ -508,7 +541,7 @@ CREATE TABLE public.resume (
 );
 
 
-ALTER TABLE public.resume OWNER TO "superUser";
+ALTER TABLE public.resume OWNER TO ats_user;
 
 --
 -- TOC entry 234 (class 1259 OID 24942)
@@ -523,7 +556,7 @@ CREATE TABLE public.resume_comments (
 );
 
 
-ALTER TABLE public.resume_comments OWNER TO "superUser";
+ALTER TABLE public.resume_comments OWNER TO ats_user;
 
 --
 -- TOC entry 236 (class 1259 OID 24995)
@@ -537,7 +570,7 @@ CREATE TABLE public.resume_tailoring (
 );
 
 
-ALTER TABLE public.resume_tailoring OWNER TO "superUser";
+ALTER TABLE public.resume_tailoring OWNER TO ats_user;
 
 --
 -- TOC entry 232 (class 1259 OID 24875)
@@ -554,7 +587,7 @@ CREATE TABLE public.resume_template (
 );
 
 
-ALTER TABLE public.resume_template OWNER TO "superUser";
+ALTER TABLE public.resume_template OWNER TO ats_user;
 
 --
 -- TOC entry 223 (class 1259 OID 16490)
@@ -571,7 +604,7 @@ CREATE TABLE public.skills (
 );
 
 
-ALTER TABLE public.skills OWNER TO "superUser";
+ALTER TABLE public.skills OWNER TO ats_user;
 
 --
 -- TOC entry 219 (class 1259 OID 16390)
@@ -593,7 +626,7 @@ CREATE TABLE public.users (
 );
 
 
-ALTER TABLE public.users OWNER TO "superUser";
+ALTER TABLE public.users OWNER TO ats_user;
 
 --
 -- TOC entry 5223 (class 0 OID 0)
@@ -628,8 +661,7 @@ COMMENT ON COLUMN public.users.linkedin_id IS 'LinkedIn OAuth ID for social logi
 -- Data for Name: archived_prospectivejobs; Type: TABLE DATA; Schema: public; Owner: superUser
 --
 
-COPY public.archived_prospectivejobs (id, user_id, deadline, description, industry, job_type, job_title, company, location, salary_low, salary_high, stage, status_change_time, personal_notes, salary_notes, date_added, job_url, current_resume_id, current_coverletter) FROM stdin;
-\.
+-- No seed data for public.archived_prospectivejobs
 
 
 --
@@ -638,9 +670,7 @@ COPY public.archived_prospectivejobs (id, user_id, deadline, description, indust
 -- Data for Name: certifications; Type: TABLE DATA; Schema: public; Owner: superUser
 --
 
-COPY public.certifications (id, user_id, never_expires, name, org_name, date_earned, expiration_date) FROM stdin;
-748eb503-6c24-4e4e-8c8a-4106ab0e00b9	2f5801a2-2cc1-4c59-a799-280e54102657	t	AWS	Amazon	2025-10-28	\N
-\.
+-- No seed data for public.certifications
 
 
 --
@@ -649,8 +679,7 @@ COPY public.certifications (id, user_id, never_expires, name, org_name, date_ear
 -- Data for Name: company_info; Type: TABLE DATA; Schema: public; Owner: superUser
 --
 
-COPY public.company_info (id, job_id, size, industry, location, website, description, company_logo, contact_email, contact_phone) FROM stdin;
-\.
+-- No seed data for public.company_info
 
 
 --
@@ -659,8 +688,7 @@ COPY public.company_info (id, job_id, size, industry, location, website, descrip
 -- Data for Name: company_media; Type: TABLE DATA; Schema: public; Owner: superUser
 --
 
-COPY public.company_media (id, company_id, platform, link) FROM stdin;
-\.
+-- No seed data for public.company_media
 
 
 --
@@ -669,8 +697,7 @@ COPY public.company_media (id, company_id, platform, link) FROM stdin;
 -- Data for Name: company_news; Type: TABLE DATA; Schema: public; Owner: superUser
 --
 
-COPY public.company_news (id, company_id, heading, description, type, date, source) FROM stdin;
-\.
+-- No seed data for public.company_news
 
 
 --
@@ -679,8 +706,7 @@ COPY public.company_news (id, company_id, heading, description, type, date, sour
 -- Data for Name: coverletter; Type: TABLE DATA; Schema: public; Owner: superUser
 --
 
-COPY public.coverletter (id, user_id, version_name, description, created_at, updated_at, file, comments_id) FROM stdin;
-\.
+-- No seed data for public.coverletter
 
 
 --
@@ -689,8 +715,7 @@ COPY public.coverletter (id, user_id, version_name, description, created_at, upd
 -- Data for Name: coverletter_template; Type: TABLE DATA; Schema: public; Owner: superUser
 --
 
-COPY public.coverletter_template (id, template_name, description, tone, length, writing_style, colors, fonts, existing_coverletter_template) FROM stdin;
-\.
+-- No seed data for public.coverletter_template
 
 
 --
@@ -699,10 +724,7 @@ COPY public.coverletter_template (id, template_name, description, tone, length, 
 -- Data for Name: educations; Type: TABLE DATA; Schema: public; Owner: superUser
 --
 
-COPY public.educations (id, user_id, school, degree_type, field, honors, gpa, is_enrolled, graddate, startdate) FROM stdin;
-5386f281-1cd2-40ce-8f6f-14872b65192e	2f5801a2-2cc1-4c59-a799-280e54102657	NJIT	Bachelor's	CS	\N	3.760	t	2025-09-01	\N
-5f0baf5d-3752-4b3a-b6a1-314875a8715f	2f5801a2-2cc1-4c59-a799-280e54102657	Rutgers	Master's	CS	\N	\N	f	2025-11-01	\N
-\.
+-- No seed data for public.educations
 
 
 --
@@ -711,10 +733,7 @@ COPY public.educations (id, user_id, school, degree_type, field, honors, gpa, is
 -- Data for Name: files; Type: TABLE DATA; Schema: public; Owner: superUser
 --
 
-COPY public.files (file_id, file_data, file_path) FROM stdin;
-74eb546b-3f84-44d6-a109-563a1039fc62	{"u":"259c70da-2bee-4d54-9efa-ce9a3114293d","t":"profile_pic","s":76879,"m":"jpeg","c":"2025-10-28","th":1}	/uploads/profile-pics/profile_74eb546b-3f84-44d6-a109-563a1039fc62.jpg
-3b79c26b-e8e8-4b3f-87d6-afaccc4c0df2	{"u":"2f5801a2-2cc1-4c59-a799-280e54102657","t":"profile_pic","s":76879,"m":"jpeg","c":"2025-10-28","th":1}	/uploads/profile-pics/profile_3b79c26b-e8e8-4b3f-87d6-afaccc4c0df2.jpg
-\.
+-- No seed data for public.files
 
 
 --
@@ -723,8 +742,7 @@ COPY public.files (file_id, file_data, file_path) FROM stdin;
 -- Data for Name: interviews; Type: TABLE DATA; Schema: public; Owner: superUser
 --
 
-COPY public.interviews (id, user_id, type, date, outcome_link) FROM stdin;
-\.
+-- No seed data for public.interviews
 
 
 --
@@ -733,9 +751,7 @@ COPY public.interviews (id, user_id, type, date, outcome_link) FROM stdin;
 -- Data for Name: jobs; Type: TABLE DATA; Schema: public; Owner: superUser
 --
 
-COPY public.jobs (id, user_id, title, company, location, end_date, is_current, description, salary, start_date) FROM stdin;
-82e47e99-0c96-443b-a716-b30bf053bfce	2f5801a2-2cc1-4c59-a799-280e54102657	SWE	Google	\N	\N	t	\N	\N	2025-09-17
-\.
+-- No seed data for public.jobs
 
 
 --
@@ -744,9 +760,7 @@ COPY public.jobs (id, user_id, title, company, location, end_date, is_current, d
 -- Data for Name: profiles; Type: TABLE DATA; Schema: public; Owner: superUser
 --
 
-COPY public.profiles (first_name, middle_name, last_name, phone, city, state, job_title, bio, industry, exp_level, user_id, pfp_link) FROM stdin;
-Lindsay	\N	Burke	\N	\N	NJ	\N	\N	\N	\N	2f5801a2-2cc1-4c59-a799-280e54102657	/uploads/profile-pics/profile_3b79c26b-e8e8-4b3f-87d6-afaccc4c0df2.jpg
-\.
+-- No seed data for public.profiles
 
 
 --
@@ -755,9 +769,7 @@ Lindsay	\N	Burke	\N	\N	NJ	\N	\N	\N	\N	2f5801a2-2cc1-4c59-a799-280e54102657	/uplo
 -- Data for Name: projects; Type: TABLE DATA; Schema: public; Owner: superUser
 --
 
-COPY public.projects (id, user_id, name, link, description, start_date, end_date, technologies, collaborators, status, industry) FROM stdin;
-332ca3ba-9aeb-42de-aa2e-56f9fc5eda6a	2f5801a2-2cc1-4c59-a799-280e54102657	My Project	https://github.com	This is my project description	2025-10-21	2025-11-27	React, Node	\N	Completed	Health Care
-\.
+-- No seed data for public.projects
 
 
 --
@@ -766,8 +778,7 @@ COPY public.projects (id, user_id, name, link, description, start_date, end_date
 -- Data for Name: prospectivejob_material_history; Type: TABLE DATA; Schema: public; Owner: superUser
 --
 
-COPY public.prospectivejob_material_history (id, job_id, resume_version, coverletter_version, created_at) FROM stdin;
-\.
+-- No seed data for public.prospectivejob_material_history
 
 
 --
@@ -776,8 +787,7 @@ COPY public.prospectivejob_material_history (id, job_id, resume_version, coverle
 -- Data for Name: prospectivejobs; Type: TABLE DATA; Schema: public; Owner: superUser
 --
 
-COPY public.prospectivejobs (id, user_id, deadline, description, industry, job_type, job_title, company, location, salary_low, salary_high, stage, status_change_time, personal_notes, salary_notes, date_added, job_url, current_resume, current_coverletter, autoarchive_time_limit) FROM stdin;
-\.
+-- No seed data for public.prospectivejobs
 
 
 --
@@ -786,8 +796,7 @@ COPY public.prospectivejobs (id, user_id, deadline, description, industry, job_t
 -- Data for Name: resume; Type: TABLE DATA; Schema: public; Owner: superUser
 --
 
-COPY public.resume (id, user_id, version_name, description, created_at, updated_at, file) FROM stdin;
-\.
+-- No seed data for public.resume
 
 
 --
@@ -796,8 +805,7 @@ COPY public.resume (id, user_id, version_name, description, created_at, updated_
 -- Data for Name: resume_comments; Type: TABLE DATA; Schema: public; Owner: superUser
 --
 
-COPY public.resume_comments (id, resume_id, commenter, comment) FROM stdin;
-\.
+-- No seed data for public.resume_comments
 
 
 --
@@ -806,8 +814,7 @@ COPY public.resume_comments (id, resume_id, commenter, comment) FROM stdin;
 -- Data for Name: resume_tailoring; Type: TABLE DATA; Schema: public; Owner: superUser
 --
 
-COPY public.resume_tailoring (id, user_id, workexp_description) FROM stdin;
-\.
+-- No seed data for public.resume_tailoring
 
 
 --
@@ -816,8 +823,7 @@ COPY public.resume_tailoring (id, user_id, workexp_description) FROM stdin;
 -- Data for Name: resume_template; Type: TABLE DATA; Schema: public; Owner: superUser
 --
 
-COPY public.resume_template (id, template_name, description, colors, fonts, existing_resume_template) FROM stdin;
-\.
+-- No seed data for public.resume_template
 
 
 --
@@ -826,9 +832,7 @@ COPY public.resume_template (id, template_name, description, colors, fonts, exis
 -- Data for Name: skills; Type: TABLE DATA; Schema: public; Owner: superUser
 --
 
-COPY public.skills (id, user_id, skill_name, proficiency, category, skill_badge) FROM stdin;
-5b9ebab5-a806-4983-887c-b6f0fdf5f153	2f5801a2-2cc1-4c59-a799-280e54102657	Java	Intermediate	Technical	\N
-\.
+-- No seed data for public.skills
 
 
 --
@@ -837,53 +841,7 @@ COPY public.skills (id, user_id, skill_name, proficiency, category, skill_badge)
 -- Data for Name: users; Type: TABLE DATA; Schema: public; Owner: superUser
 --
 
-COPY public.users (u_id, password, created_at, email, updated_at, reset_token, reset_token_expires, google_id, auth_provider, linkedin_id, role) FROM stdin;
-cdfdbfa7-f129-46d0-b508-03165a18e200	$2b$12$8EcsAASTRbqRIj53vUe6cuF2YbJ4RGn2Lo/8Ag9OuV2X5KCud4FgO	2025-10-23 23:28:19.113589-04	test2-1761276498416@example.com	2025-10-23 23:28:19.113589-04	\N	\N	\N	local	\N	candidate
-bd11bd06-d36d-434b-ba5f-a1c53c21bb07	$2b$12$tp3rYlt9fAd3jpz.xzCAIud22PwQTHDwVkzHTPQAttXaOyHoFE1pe	2025-10-23 23:28:20.543557-04	newuser-1761276500242@example.com	2025-10-23 23:28:20.543557-04	\N	\N	\N	local	\N	candidate
-c438b2a9-da50-4045-a904-4e35272c387f	$2b$12$oGiqwxoWQmTvS7O7StMrZuZnH/k1/7bJx5T2mJ1QzfpdEFpIXZ3nq	2025-10-23 23:28:21.185243-04	authtest-1761276500909@example.com	2025-10-23 23:28:21.185243-04	\N	\N	\N	local	\N	candidate
-5a78afab-f1ef-43b1-b1ed-14bb9c4cecbc	$2b$12$uWPSqO8jejvrH97eo9NCNe5D.fRXvIcSimRvMYn7U.WdJMSCoyhh6	2025-10-24 16:16:16.191174-04	authtest-1761336975908@example.com	2025-10-24 16:16:16.191174-04	\N	\N	\N	local	\N	candidate
-420d82b9-cd4c-441c-8f30-12c1951f8e72	$2b$10$uOxmUB8fJe9MvxqPYFTVIOYieDRfaV2Whk2o1TzTC5bT5OpeoSTIa	2025-10-24 16:17:00.172772-04	test1-1761337019661@example.com	2025-10-24 16:17:03.767562-04	expired-token	2025-10-24 15:17:03.764	\N	local	\N	candidate
-f4eb8f3b-1eac-4ba3-8442-9465cffd034e	$2b$10$wzvzlQBiBU0dWNkWj8FIS.GvJwnRSPkANIAdjLpFsZN3Hxk6dsyTG	2025-10-23 23:28:18.819799-04	test1-1761276498415@example.com	2025-10-23 23:28:21.482621-04	expired-token	2025-10-23 22:28:21.481	\N	local	\N	candidate
-94b5170d-cdf9-4944-881a-f1233b800cf6	$2b$12$.jURMbxvFsSnm8nXIf9S7O3ynt6GC5rxdU/ub2aWYM6YhHB55MdAS	2025-10-23 23:29:57.456548-04	test2-1761276596558@example.com	2025-10-23 23:29:57.456548-04	\N	\N	\N	local	\N	candidate
-0413aea7-e221-4124-aaf4-52a9f6a58b3f	$2b$12$4vFGOeUJYJ/lxxFBZMcKyuSyswyt7OXZbMoe1pAoGMP5NhPa1Co.m	2025-10-23 23:29:59.14423-04	newuser-1761276598865@example.com	2025-10-23 23:29:59.14423-04	\N	\N	\N	local	\N	candidate
-7fe28da3-22c7-43f8-8083-5f70776f3570	$2b$12$bW8aEsvAIPlvWcBrFodnZ.NHwEoCJeAM7Z9K4dgG0NnGcKW7/3kTC	2025-10-23 23:29:59.717641-04	authtest-1761276599433@example.com	2025-10-23 23:29:59.717641-04	\N	\N	\N	local	\N	candidate
-214ae2dd-4ac2-4ea8-95ef-245c1a7ca106	$2b$10$.c3mxwZWQ5IwwoCEhVosZef6R..lbDQazvYkunO06KvptxvTLCgrW	2025-10-24 16:16:13.441069-04	test1-1761336972855@example.com	2025-10-24 16:16:17.084745-04	expired-token	2025-10-24 15:16:17.083	\N	local	\N	candidate
-2773560a-4789-4345-8e70-0bd7354ba0b8	$2b$10$hKz5UxW7WABcfXvp4KUhne7f5ISwyYZGZ81v8XVA5fnTQYR1KhCW.	2025-10-23 23:29:57.059094-04	test1-1761276596558@example.com	2025-10-23 23:30:00.151953-04	expired-token	2025-10-23 22:30:00.149	\N	local	\N	candidate
-24c379c4-ac98-4d16-9e10-200228bdfc86	$2b$12$CWmZlsj80FyoDxv8ngGzyuo7DO3ILHvP0o2yeeKjoqukq2sVovxK6	2025-10-23 23:31:28.06718-04	test2-1761276687139@example.com	2025-10-23 23:31:28.06718-04	\N	\N	\N	local	\N	candidate
-469b1f91-8b61-4f3e-af83-4036304a0cb9	$2b$12$GomFFDWW11dRxedWc/7dpO75qXvoqbmjgdE6KpKK9wKGZwLGs5NBS	2025-10-23 23:31:29.620318-04	newuser-1761276689330@example.com	2025-10-23 23:31:29.620318-04	\N	\N	\N	local	\N	candidate
-523187a0-d707-4e95-babf-dfb2ae5d361d	$2b$12$EHN/uMkThdJ3FbFOTT7m.OP2bKYq4zOjIaEJzHC1vHZomVbHdVcA.	2025-10-23 23:31:30.220981-04	authtest-1761276689943@example.com	2025-10-23 23:31:30.220981-04	\N	\N	\N	local	\N	candidate
-c99e3ead-a0ec-4e8c-945f-1e054f167ac1	$2b$12$okD3i9WsYQ5eMsCXcYecNusZFYxRQxR7cl7EfCz5NH0WmVDiEUL5q	2025-10-24 16:16:41.701133-04	test2-1761337000757@example.com	2025-10-24 16:16:41.701133-04	\N	\N	\N	local	\N	candidate
-15f8ebd2-5aeb-4dee-9a7c-d85670d11f9a	$2b$12$VnoxLklYoahuh0qAJLlKfOLmocVrBZZzHI8uTwwDHjxtiwBkzCPBO	2025-10-24 16:16:43.246902-04	newuser-1761337002969@example.com	2025-10-24 16:16:43.246902-04	\N	\N	\N	local	\N	candidate
-17d9b95b-63e0-47b5-8957-3054236709d2	$2b$12$TuGvk3rYdhswJpYCugh8Yu6Ya0qgXYaXjPy.B5KbtCF3zZOTcjdzW	2025-10-24 16:16:44.05402-04	authtest-1761337003781@example.com	2025-10-24 16:16:44.05402-04	\N	\N	\N	local	\N	candidate
-18b56671-cb0e-4dd2-aac2-fb059c0a9f59	$2b$10$QU21iS5gGoDghNsM2Rllv.SFLumGkcmDIw62Mu7yYnboKfsiSBgIa	2025-10-23 23:31:27.632833-04	test1-1761276687139@example.com	2025-10-23 23:31:31.739809-04	expired-token	2025-10-23 22:31:31.734	\N	local	\N	candidate
-0faa846f-a687-40ee-bb14-5a4e53d40651	$2b$12$NIgvfnQXZKHYQrJR.U2/e.pDUof1ePaigzs8W9HwrPg6H3Zdq6FLS	2025-10-24 16:14:26.544865-04	test2-1761336865847@example.com	2025-10-24 16:14:26.544865-04	\N	\N	\N	local	\N	candidate
-b22647e6-d694-47b2-a466-f72d9a449460	$2b$12$2FENuT74iKBU7a4/vt4R1.pylFwpDNHuwck5MPkVererqygrOJbxC	2025-10-24 16:14:27.948582-04	newuser-1761336867666@example.com	2025-10-24 16:14:27.948582-04	\N	\N	\N	local	\N	candidate
-f9697bbc-651d-44cc-9581-5b0cbbacd587	$2b$12$LulGbOHcdBZEhk1/GXn9dOBidBhwHgqopDnIQZrn/mB8rv56sRBCu	2025-10-24 16:14:28.53175-04	authtest-1761336868247@example.com	2025-10-24 16:14:28.53175-04	\N	\N	\N	local	\N	candidate
-ed4d5bb0-c683-4132-aecc-9eca6ff9646e	$2b$12$RKz2v5OneHfdrH5UVRXc/uB7wl6l6J1NK2zC3zt.NfgBdj6H8ELei	2025-10-26 15:46:22.16671-04	test2-1761507981414@example.com	2025-10-26 15:46:22.16671-04	\N	\N	\N	local	\N	candidate
-000262ad-7b71-43df-821d-9bcfec1344fb	$2b$12$.UXp58rQ3VC4ZXTuNdKU7.yCZhbp4FxVjCj4IgGiy0PGs5UMXppky	2025-10-26 15:46:23.564228-04	newuser-1761507983278@example.com	2025-10-26 15:46:23.564228-04	\N	\N	\N	local	\N	candidate
-20532026-7f45-4b97-8d99-e224a28d391d	$2b$12$fs.7/wHB6y3yBcfzpQPUJ.m5arH.CrUk5yTnIhi822KryZIKO6jkK	2025-10-26 15:46:24.179871-04	authtest-1761507983904@example.com	2025-10-26 15:46:24.179871-04	\N	\N	\N	local	\N	candidate
-d16697eb-15e2-4c48-9265-8887d570c950	$2b$10$XScWVuUrO4eA.oSALq1WWuV6JuM19F6ZcbU/8zd6cfbUqiv1hNEgW	2025-10-24 16:14:26.242687-04	test1-1761336865847@example.com	2025-10-24 16:14:29.110997-04	expired-token	2025-10-24 15:14:29.109	\N	local	\N	candidate
-328f3d0d-8148-485c-be33-702663a5bc6b	$2b$12$okaGzsrwnVZDfKFaghvl7eOYMTUxYcCRO1YUsZv1.TkzGa4qZ6s1.	2025-10-24 16:15:51.610478-04	test2-1761336950676@example.com	2025-10-24 16:15:51.610478-04	\N	\N	\N	local	\N	candidate
-ce96fc5e-d480-4d2e-8c80-5bd8227a3483	$2b$12$1WBUpKmTzuyffDPhsUgfV.TKJvGZ4adNC.TY/0FCZtfOB2FW.rxjO	2025-10-24 16:15:53.261754-04	newuser-1761336952980@example.com	2025-10-24 16:15:53.261754-04	\N	\N	\N	local	\N	candidate
-eda57561-115b-4e3e-8ddd-51dd1f102987	$2b$12$ziiKSWY0w4e..poGMYrBu.LTFzqMfsxdNG3D/MrIkllvq7NDNKB1.	2025-10-24 16:15:53.868753-04	authtest-1761336953596@example.com	2025-10-24 16:15:53.868753-04	\N	\N	\N	local	\N	candidate
-17fe6321-d353-4d51-9303-0c83986def59	$2b$10$SMnwCwvECj3MvGxZrjPvjezfDd2kh87rLev8ssUI1CpKmAPVAGg.6	2025-10-24 16:16:41.267704-04	test1-1761337000757@example.com	2025-10-24 16:16:45.386877-04	expired-token	2025-10-24 15:16:45.386	\N	local	\N	candidate
-1a16c4ca-9e0b-4ccb-b2c1-9eb0d9359731	$2b$12$SkOyZKnUKU3nBXVaVdNsvOQmOo1QCGHCYXJPpx7Q3DmbUnAOQPn/q	2025-10-24 16:17:00.618686-04	test2-1761337019661@example.com	2025-10-24 16:17:00.618686-04	\N	\N	\N	local	\N	candidate
-3b36c0fc-13e3-429d-b971-ff5feee33417	$2b$10$z3agGULgI8/YslvrqaKdXO6dsXsjfaTjpWixnbhg4lgq4j/ZUp2cW	2025-10-24 16:15:51.185628-04	test1-1761336950676@example.com	2025-10-24 16:15:54.830743-04	expired-token	2025-10-24 15:15:54.828	\N	local	\N	candidate
-e40af491-1c3a-415f-839d-25b95e02a371	$2b$12$248L9CYYMqh3cIChwUZ.sejSuElFEB2oyROS40jnR/mvOD3U20OtO	2025-10-24 16:16:13.890137-04	test2-1761336972855@example.com	2025-10-24 16:16:13.890137-04	\N	\N	\N	local	\N	candidate
-5363b5db-a0bb-495b-83b5-c965aa7a0d48	$2b$12$F5kLZQD0a1uCIxyA7hmI2.u2kCcMVCbbyeGoN6K/3Ihj4dEAiMXSq	2025-10-24 16:16:15.576194-04	newuser-1761336975299@example.com	2025-10-24 16:16:15.576194-04	\N	\N	\N	local	\N	candidate
-cdce5244-ecea-4556-b28d-bb3ae539e2cd	$2b$12$0056uua.V2d3mTIH.6yaIezAjx0MtGiMZ4NqLinDnZnU39MZc.j2u	2025-10-24 16:17:02.255317-04	newuser-1761337021976@example.com	2025-10-24 16:17:02.255317-04	\N	\N	\N	local	\N	candidate
-21bc3291-188e-47d6-9cc7-d249d0d2f4b1	$2b$12$Yg7r1LyPR7ZiCO6WYLqHZujGhM/N6N7YpVQAw2okLmh20rBGQMOti	2025-10-24 16:17:02.911271-04	authtest-1761337022632@example.com	2025-10-24 16:17:02.911271-04	\N	\N	\N	local	\N	candidate
-3876455c-9b4f-431b-9853-be63adf0eef1	$2b$12$Aglf3H8Ck/IhX1B3BWiBqeTYSJy1bwFbKyc3U.KXr1wOTuK2.0502	2025-10-27 23:03:02.885897-04	lindsayreneeburke@gmail.com	2025-10-27 23:03:02.885897-04	\N	\N	\N	local	\N	candidate
-14036d30-7674-44b4-8d66-04f11ca4a6d8	$2b$10$W39DU1RXtojRksf/8MxxnOPQhRtNLjJ7RRglUUebO93oq/uUkezVy	2025-10-26 15:46:21.812958-04	test1-1761507981414@example.com	2025-10-26 15:46:24.998201-04	expired-token	2025-10-26 14:46:24.991	\N	local	\N	candidate
-832ba6ed-053a-4e4f-a794-3931b0e67f3a	$2b$12$3uhnTEAQphec1zeZVyBUreFt.Z99J8B6NVz9t/niOgnnnFs0c6YoK	2025-10-28 00:25:28.121671-04	john@gmail.com	2025-10-28 00:25:28.121671-04	\N	\N	\N	local	\N	candidate
-851e03dc-6964-48f3-8773-bb7297df32c4	$2b$12$aBQsrzdN.3MmyDDQCicpG.CM27NR.xZcl1PJ5ihiYDG3vsIzUyrh2	2025-10-28 00:25:21.196635-04	johnsmith@gmail.com	2025-10-28 00:25:21.196635-04	\N	\N	\N	local	\N	candidate
-2f5801a2-2cc1-4c59-a799-280e54102657	$2b$12$mAf2jOmcJfu3b817DBM81e7.QocG5RgKucAaOjBcKS7ffNPChCUdy	2025-10-28 18:09:10.183429-04	lrb@njit.edu	2025-10-28 18:13:56.916356-04	\N	\N	105813263267791831458	local	\N	candidate
-36c264dc-d767-4fcc-baae-ba585469e6b9	$2b$12$1FPtwEhhV8642CAQpAtZEeyZl2ws8Aa/WmbOaMr.mir3CzJZCelW.	2025-10-28 18:55:40.949001-04	newuser-1761692140659@example.com	2025-10-28 18:55:40.949001-04	\N	\N	\N	local	\N	candidate
-67f144a4-388c-478f-833e-f1cebcac3c6a	$2b$12$.HnrGza6jw9zB9nQ7yLjVeIOnI3czz8vE4YA1RDudhDTTOWiv.m7e	2025-10-28 18:58:06.656799-04	burkelrb@gmail.com	2025-10-28 19:02:11.819765-04	\N	\N	108907637635966501539	google	\N	candidate
-c83750be-4fe4-40f3-937d-18dfd8c837a1	$2b$12$A/wBafH0FPSkwfJ5DItn4uWLyrw2d7PohKvxSSOWXciY4jm1RfNEm	2025-10-28 19:43:18.84419-04	newuser-1761694998460@example.com	2025-10-28 19:43:18.84419-04	\N	\N	\N	local	\N	candidate
-cde45570-30ad-4c44-92f2-c107e5ca7fc8	$2b$12$xK11/HaKX3mRXurOrRnriecpSnT02g.jNQh8koK1VU.59982GiFpm	2025-10-28 19:44:57.489837-04	test1-1761695096956@example.com	2025-10-28 19:44:57.489837-04	\N	\N	\N	local	\N	candidate
-aa3e494e-6c2f-4797-b786-9b902249c87c	$2b$12$M9C5Rv4Tq.omndLuJxO0E.oxRYIoVNZbz942O0VLqAQvC62.9wtHO	2025-10-28 19:44:57.938413-04	test2-1761695096956@example.com	2025-10-28 19:44:57.938413-04	\N	\N	\N	local	\N	candidate
-\.
+-- No seed data for public.users
 
 
 --
@@ -1350,6 +1308,4 @@ ALTER TABLE ONLY public.skills
 --
 -- PostgreSQL database dump complete
 --
-
-\unrestrict 5tC0UzyDNSROOsfVwzolUygeroXx0MvWWiWIWnHZ1hwC55uJUlRDihBSJH7jdHa
 

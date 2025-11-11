@@ -54,19 +54,14 @@ export function JobOpportunityFilters({
     setSearchInput(filters.search || "");
   }, [filters]);
 
-  // Debounce search input
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (searchInput !== (filters.search || "")) {
-        const newFilters = { ...localFilters, search: searchInput || undefined };
-        setLocalFilters(newFilters);
-        onFiltersChange(newFilters);
-      }
-    }, 300); // 300ms debounce
-
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchInput]);
+  const applySearch = () => {
+    if (searchInput === (filters.search || "")) {
+      return;
+    }
+    const newFilters = { ...localFilters, search: searchInput || undefined };
+    setLocalFilters(newFilters);
+    onFiltersChange(newFilters);
+  };
 
   const hasActiveFilters = () => {
     return !!(
@@ -101,30 +96,48 @@ export function JobOpportunityFilters({
       {/* Search Bar */}
       {!hideSearchBar && (
         <div className="mb-4">
-          <div className="relative">
-            <Icon
-              icon="mingcute:search-line"
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-              width={20}
-            />
-            <input
-              type="text"
-              placeholder="Search by job title, company name, or keywords..."
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-            {searchInput && (
-              <button
-                onClick={() => {
-                  setSearchInput("");
-                  updateFilter("search", "");
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Icon
+                icon="mingcute:search-line"
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                width={20}
+              />
+              <input
+                type="text"
+                placeholder="Search by job title, company name, or keywords..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    applySearch();
+                  }
                 }}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-              >
-                <Icon icon="mingcute:close-line" width={20} />
-              </button>
-            )}
+                className="w-full pl-12 pr-10 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              {searchInput && (
+                <button
+                  onClick={() => {
+                    setSearchInput("");
+                    updateFilter("search", "");
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  type="button"
+                >
+                  <Icon icon="mingcute:close-line" width={18} />
+                </button>
+              )}
+            </div>
+            <button
+              onClick={applySearch}
+              type="button"
+              className="flex items-center justify-center gap-2 rounded-lg bg-[#3351FD] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#2a45d4] disabled:bg-slate-300 disabled:text-slate-500"
+              disabled={searchInput === (filters.search || "")}
+            >
+              <Icon icon="mingcute:search-2-line" width={18} />
+              Search
+            </button>
           </div>
         </div>
       )}

@@ -7,6 +7,7 @@ import certificationService from "../certificationService.js";
 import projectService from "../projectService.js";
 import skillService from "../skillService.js";
 import database from "../database.js";
+import companyResearchService from "../companyResearchService.js";
 
 class CoverLetterAIService {
   constructor() {
@@ -56,14 +57,40 @@ class CoverLetterAIService {
         throw this.buildMissingProfileError();
       }
 
-      // Get job details if jobId provided
+      // Get job details if jobId provided (or if cover letter has a job_id)
       let jobDetails = null;
       let companyResearch = null;
-      if (jobId) {
+      const effectiveJobId = jobId || coverLetter.jobId;
+      
+      if (effectiveJobId) {
         try {
-          jobDetails = await jobService.getJobById(jobId, userId);
-          if (includeCompanyResearch && jobDetails?.company) {
-            companyResearch = await this.researchCompany(jobDetails.company);
+          // Fetch job from job_opportunities table
+          const jobQuery = await database.query(
+            "SELECT id, title, company, location, job_description, industry, job_type, salary_min, salary_max FROM job_opportunities WHERE id = $1 AND user_id = $2",
+            [effectiveJobId, userId]
+          );
+          
+          if (jobQuery.rows.length > 0) {
+            jobDetails = {
+              id: jobQuery.rows[0].id,
+              title: jobQuery.rows[0].title,
+              company: jobQuery.rows[0].company,
+              location: jobQuery.rows[0].location,
+              description: jobQuery.rows[0].job_description,
+              industry: jobQuery.rows[0].industry,
+              jobType: jobQuery.rows[0].job_type,
+              salaryMin: jobQuery.rows[0].salary_min,
+              salaryMax: jobQuery.rows[0].salary_max,
+            };
+            
+            console.log(`✓ Loaded job details: ${jobDetails.title} at ${jobDetails.company}`);
+            
+            if (includeCompanyResearch && jobDetails?.company) {
+              // Pass jobId to use real company research data
+              companyResearch = await this.researchCompany(jobDetails.company, effectiveJobId);
+            }
+          } else {
+            console.warn(`⚠️ Job ${effectiveJobId} not found for user ${userId}`);
           }
         } catch (error) {
           console.error("Error fetching job details:", error);
@@ -307,9 +334,43 @@ class CoverLetterAIService {
 
   /**
    * Research company information
+   * First checks database, then falls back to AI if not found
    */
-  async researchCompany(companyName) {
+  async researchCompany(companyName, jobId = null) {
     try {
+      let companyData = null;
+      
+      // First, try to get research from database if we have a jobId
+      if (jobId) {
+        try {
+          const research = await companyResearchService.getCompleteCompanyResearch(jobId);
+          if (research) {
+            // Convert database format to the format expected by cover letter generation
+            companyData = {
+              companyName: companyName,
+              industry: research.industry || null,
+              size: research.size || null,
+              mission: research.description || null,
+              recentNews: research.news?.slice(0, 3).map(n => n.heading) || [],
+              initiatives: [],
+              culture: null,
+              growth: research.news?.find(n => 
+                n.type === 'funding' || 
+                n.type === 'acquisition' || 
+                n.heading?.toLowerCase().includes('growth') ||
+                n.heading?.toLowerCase().includes('expan')
+              )?.heading || null,
+            };
+            
+            console.log(`✅ Using real company research data for ${companyName}`);
+            return companyData;
+          }
+        } catch (dbError) {
+          console.log(`⚠️ No company research found in database for ${companyName}, will use AI fallback`);
+        }
+      }
+
+      // Fallback: Use AI to generate company research (old behavior)
       if (!this.openai) {
         return null;
       }
@@ -346,6 +407,7 @@ Provide accurate, recent information. If you cannot find specific information, u
       try {
         const jsonMatch = content.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
+          console.log(`⚠️ Using AI-generated company research for ${companyName} (no stored data available)`);
           return JSON.parse(jsonMatch[0]);
         }
       } catch (parseError) {

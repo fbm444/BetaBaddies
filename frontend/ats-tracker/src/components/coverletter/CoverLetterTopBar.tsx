@@ -1,5 +1,6 @@
 import { Icon } from "@iconify/react";
 import { useNavigate } from "react-router-dom";
+import { useState, useRef, useEffect } from "react";
 import { ROUTES } from "../../config/routes";
 import { CoverLetter } from "../../types";
 
@@ -17,6 +18,7 @@ interface CoverLetterTopBarProps {
   onExport: (format: "pdf" | "docx" | "txt" | "html") => void;
   onToggleExportMenu: () => void;
   onToggleCustomization: () => void;
+  onNameChange?: (newName: string) => void;
 }
 
 export function CoverLetterTopBar({
@@ -33,8 +35,51 @@ export function CoverLetterTopBar({
   onExport,
   onToggleExportMenu,
   onToggleCustomization,
+  onNameChange,
 }: CoverLetterTopBarProps) {
   const navigate = useNavigate();
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editedName, setEditedName] = useState(coverLetter?.name || "New Cover Letter");
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  // Update edited name when cover letter changes
+  useEffect(() => {
+    if (coverLetter?.name) {
+      setEditedName(coverLetter.name);
+    }
+  }, [coverLetter?.name]);
+
+  // Focus input when editing starts
+  useEffect(() => {
+    if (isEditingName && nameInputRef.current) {
+      nameInputRef.current.focus();
+      nameInputRef.current.select();
+    }
+  }, [isEditingName]);
+
+  const handleNameClick = () => {
+    setIsEditingName(true);
+  };
+
+  const handleNameBlur = () => {
+    setIsEditingName(false);
+    if (editedName.trim() && editedName !== coverLetter?.name) {
+      onNameChange?.(editedName.trim());
+    } else if (!editedName.trim()) {
+      // Revert to original if empty
+      setEditedName(coverLetter?.name || "New Cover Letter");
+    }
+  };
+
+  const handleNameKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleNameBlur();
+    } else if (e.key === "Escape") {
+      setEditedName(coverLetter?.name || "New Cover Letter");
+      setIsEditingName(false);
+    }
+  };
 
   return (
     <div className="bg-white border-b border-gray-200 sticky top-16 z-40">
@@ -51,10 +96,27 @@ export function CoverLetterTopBar({
               />
             </button>
             <div>
-              <h1 className="text-lg font-semibold text-gray-900">
-                {coverLetter?.name || "New Cover Letter"}
-              </h1>
-              <p className="text-xs text-gray-500">
+              {isEditingName ? (
+                <input
+                  ref={nameInputRef}
+                  type="text"
+                  value={editedName}
+                  onChange={(e) => setEditedName(e.target.value)}
+                  onBlur={handleNameBlur}
+                  onKeyDown={handleNameKeyDown}
+                  className="text-lg font-semibold text-gray-900 bg-white border border-blue-500 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  maxLength={100}
+                />
+              ) : (
+                <h1
+                  onClick={handleNameClick}
+                  className="text-lg font-semibold text-gray-900 cursor-text hover:bg-gray-50 rounded px-2 py-1 -mx-2 transition-colors"
+                  title="Click to edit name"
+                >
+                  {coverLetter?.name || "New Cover Letter"}
+                </h1>
+              )}
+              <p className="text-xs text-gray-500 px-2">
                 v{coverLetter?.versionNumber || 1}
                 {coverLetter?.isMaster && (
                   <span className="ml-2 px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">

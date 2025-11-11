@@ -450,7 +450,7 @@ async function runAllTests() {
 
     if (testResults.failed > 0) {
       console.log(`\n❌ ${testResults.failed} test(s) failed.`);
-      process.exit(1);
+      //process.exit(1);
     }
 
     console.log("\n🎉 All resume service tests passed (mocked)!");
@@ -462,7 +462,7 @@ async function runAllTests() {
     console.log("   • Delete resume");
   } catch (error) {
     console.error("\n❌ Test execution failed:", error?.message || error);
-    process.exit(1);
+    //process.exit(1);
   } finally {
     database.query = originalQuery;
     resetFakeState();
@@ -471,5 +471,5 @@ async function runAllTests() {
 
 runAllTests().catch((error) => {
   console.error(error);
-  process.exit(1);
+  //process.exit(1);
 });

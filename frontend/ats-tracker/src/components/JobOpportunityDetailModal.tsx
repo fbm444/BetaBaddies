@@ -19,6 +19,7 @@ import {
 } from "../utils/deadlineUtils";
 import { CompanyInfoModal } from "./CompanyInfoModal";
 import { JobSkillGapPanel } from "./skill-gaps/SkillGapPanel";
+import { JobMaterialsSection } from "./JobMaterialsSection";
 
 interface JobOpportunityDetailModalProps {
   opportunity: JobOpportunityData;
@@ -1051,6 +1052,15 @@ export function JobOpportunityDetailModal({
                 </p>
               )}
             </section>
+
+            {/* Application Materials */}
+            <JobMaterialsSection
+              opportunity={opportunity}
+              isEditMode={isEditMode}
+              onMaterialsChange={() => {
+                // Materials are handled separately via API
+              }}
+            />
 
             <JobSkillGapPanel
               opportunity={{

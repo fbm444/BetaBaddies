@@ -26,6 +26,12 @@ import {
   SkillGapProgressRequest,
   SkillGapProgressResponse,
   SkillGapTrendSummary,
+  ResumeVersion,
+  CoverLetterVersion,
+  MaterialsHistoryEntry,
+  MaterialsUsageAnalytics,
+  VersionComparison,
+  CurrentMaterials,
 } from "../types";
 
 // In development, use proxy (relative path). In production, use env variable or full URL
@@ -541,6 +547,92 @@ class ApiService {
       method: "POST",
       body: JSON.stringify({ url }),
     });
+  }
+
+  // Materials management endpoints
+  async getCurrentMaterials(opportunityId: string) {
+    return this.request<
+      ApiResponse<{
+        materials: CurrentMaterials;
+      }>
+    >(`/job-opportunities/${opportunityId}/materials`);
+  }
+
+  async linkMaterials(
+    opportunityId: string,
+    resumeVersionId: string | null,
+    coverLetterVersionId: string | null
+  ) {
+    return this.request<
+      ApiResponse<{
+        materials: CurrentMaterials;
+        message: string;
+      }>
+    >(`/job-opportunities/${opportunityId}/materials`, {
+      method: "POST",
+      body: JSON.stringify({
+        resumeVersionId,
+        coverLetterVersionId,
+      }),
+    });
+  }
+
+  async getMaterialsHistory(opportunityId: string) {
+    return this.request<
+      ApiResponse<{
+        history: MaterialsHistoryEntry[];
+        count: number;
+      }>
+    >(`/job-opportunities/${opportunityId}/materials/history`);
+  }
+
+  async getAvailableResumes() {
+    return this.request<
+      ApiResponse<{
+        resumes: ResumeVersion[];
+        count: number;
+      }>
+    >("/job-opportunities/materials/resumes");
+  }
+
+  async getAvailableCoverLetters() {
+    return this.request<
+      ApiResponse<{
+        coverLetters: CoverLetterVersion[];
+        count: number;
+      }>
+    >("/job-opportunities/materials/cover-letters");
+  }
+
+  async getMaterialsUsageAnalytics() {
+    return this.request<
+      ApiResponse<{
+        analytics: MaterialsUsageAnalytics;
+      }>
+    >("/job-opportunities/materials/analytics");
+  }
+
+  async compareResumeVersions(resumeId1: string, resumeId2: string) {
+    return this.request<
+      ApiResponse<{
+        comparison: VersionComparison<ResumeVersion>;
+      }>
+    >(
+      `/job-opportunities/materials/compare/resumes?resumeId1=${resumeId1}&resumeId2=${resumeId2}`
+    );
+  }
+
+  async compareCoverLetterVersions(
+    coverLetterId1: string,
+    coverLetterId2: string
+  ) {
+    return this.request<
+      ApiResponse<{
+        comparison: VersionComparison<CoverLetterVersion>;
+      }>
+    >(
+      `/job-opportunities/materials/compare/cover-letters?coverLetterId1=${coverLetterId1}&coverLetterId2=${coverLetterId2}`
+    );
   }
 
   // Education endpoints

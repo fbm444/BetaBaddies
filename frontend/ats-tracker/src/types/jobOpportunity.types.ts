@@ -15,8 +15,18 @@ export interface StatusHistoryEntry {
   notes?: string;
 }
 
+export interface MaterialsChangeHistoryEntry {
+  type: "materials_change";
+  timestamp: string;
+  resumeVersionId?: string | null;
+  coverLetterVersionId?: string | null;
+  previousResumeId?: string | null;
+  previousCoverLetterId?: string | null;
+}
+
 export type ApplicationHistoryEntry =
   | StatusHistoryEntry
+  | MaterialsChangeHistoryEntry
   | SkillGapHistoryEntry
   | Record<string, unknown>;
 
@@ -179,5 +189,86 @@ export interface CompanyInfo {
   mission?: string | null;
   founded?: string | null;
   headquarters?: string | null;
+}
+
+// Materials (Resume/Cover Letter) Types
+export interface ResumeVersion {
+  id: string;
+  versionName: string;
+  versionNumber: number;
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
+  file?: string | null;
+  isMaster: boolean;
+  parentResumeId?: string | null;
+  jobId?: string | null; // job_id from resume table
+}
+
+export interface CoverLetterVersion {
+  id: string;
+  versionName: string;
+  versionNumber: number;
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
+  file?: string | null;
+  isMaster: boolean;
+  parentCoverLetterId?: string | null;
+  jobId?: string | null; // job_id from coverletter table
+}
+
+export interface MaterialsHistoryEntry {
+  id: string;
+  jobOpportunityId: string;
+  changedAt: string;
+  changedByUserId?: string | null;
+  changeType: "linked" | "updated" | "removed";
+  notes?: string | null;
+  resume: ResumeVersion | null;
+  coverLetter: CoverLetterVersion | null;
+}
+
+export interface MaterialsUsageStats {
+  id: string;
+  versionName: string;
+  versionNumber: number;
+  usageCount: number;
+  activeUsageCount: number;
+  appliedCount: number;
+  offerCount: number;
+}
+
+export interface MaterialsUsageAnalytics {
+  resumeUsage: MaterialsUsageStats[];
+  coverLetterUsage: MaterialsUsageStats[];
+  mostUsedResume: {
+    id: string;
+    versionName: string;
+    versionNumber: number;
+    usageCount: number;
+  } | null;
+  mostUsedCoverLetter: {
+    id: string;
+    versionName: string;
+    versionNumber: number;
+    usageCount: number;
+  } | null;
+  totalStats: {
+    totalJobs: number;
+    jobsWithResume: number;
+    jobsWithCoverLetter: number;
+    jobsWithBoth: number;
+  };
+}
+
+export interface VersionComparison<T> {
+  version1: T;
+  version2: T;
+}
+
+export interface CurrentMaterials {
+  resume: ResumeVersion | null;
+  coverLetter: CoverLetterVersion | null;
 }
 

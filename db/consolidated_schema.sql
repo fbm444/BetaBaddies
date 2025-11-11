@@ -644,10 +644,15 @@ ALTER TABLE coverletter ADD CONSTRAINT fk_coverletter_template
   FOREIGN KEY (template_id) REFERENCES coverletter_template(id) 
   ON DELETE SET NULL;
 
--- Add job_id (foreign key to prospectivejobs)
+-- Add job_id (foreign key to job_opportunities)
 ALTER TABLE coverletter ADD COLUMN IF NOT EXISTS job_id UUID;
+
+-- Drop old constraint if it exists (from previous schema)
+ALTER TABLE coverletter DROP CONSTRAINT IF EXISTS fk_coverletter_job;
+
+-- Add new constraint pointing to job_opportunities
 ALTER TABLE coverletter ADD CONSTRAINT fk_coverletter_job 
-  FOREIGN KEY (job_id) REFERENCES prospectivejobs(id) 
+  FOREIGN KEY (job_id) REFERENCES job_opportunities(id) 
   ON DELETE SET NULL;
 
 -- Add content (JSONB for cover letter content)

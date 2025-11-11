@@ -17,6 +17,55 @@ const PROFICIENCY_SCALE = {
 };
 
 const DEFAULT_REQUIRED_LEVEL = 3;
+const MINIMUM_REQUIRED_SKILLS = 4;
+const FALLBACK_REQUIREMENTS = [
+  {
+    matchers: [/frontend/i, /react/i, /ui/i],
+    skills: [
+      { skillName: "React", importance: "high", requiredLevel: 3 },
+      { skillName: "TypeScript", importance: "high", requiredLevel: 3 },
+      { skillName: "CSS", importance: "medium", requiredLevel: 2 },
+      { skillName: "Automated Testing", importance: "medium", requiredLevel: 3 },
+      { skillName: "Accessibility", importance: "medium", requiredLevel: 2 },
+    ],
+  },
+  {
+    matchers: [/full\s*stack/i, /backend/i, /node/i],
+    skills: [
+      { skillName: "Node.js", importance: "high", requiredLevel: 3 },
+      { skillName: "Express", importance: "medium", requiredLevel: 3 },
+      { skillName: "SQL", importance: "high", requiredLevel: 3 },
+      { skillName: "API Design", importance: "high", requiredLevel: 3 },
+      { skillName: "Cloud Architecture", importance: "medium", requiredLevel: 3 },
+    ],
+  },
+  {
+    matchers: [/data/i, /analytics/i, /ml/i, /machine learning/i],
+    skills: [
+      { skillName: "Python", importance: "high", requiredLevel: 3 },
+      { skillName: "SQL", importance: "high", requiredLevel: 3 },
+      { skillName: "Data Visualization", importance: "medium", requiredLevel: 3 },
+      { skillName: "Machine Learning", importance: "medium", requiredLevel: 3 },
+      { skillName: "Statistics", importance: "medium", requiredLevel: 3 },
+    ],
+  },
+  {
+    matchers: [/product/i, /manager/i],
+    skills: [
+      { skillName: "Product Strategy", importance: "high", requiredLevel: 3 },
+      { skillName: "Stakeholder Management", importance: "medium", requiredLevel: 3 },
+      { skillName: "Roadmapping", importance: "medium", requiredLevel: 3 },
+      { skillName: "Experimentation", importance: "medium", requiredLevel: 2 },
+      { skillName: "Analytics", importance: "medium", requiredLevel: 2 },
+    ],
+  },
+];
+const GENERIC_FALLBACK_SKILLS = [
+  { skillName: "Communication", importance: "medium", requiredLevel: 3 },
+  { skillName: "Collaboration", importance: "medium", requiredLevel: 3 },
+  { skillName: "Problem Solving", importance: "high", requiredLevel: 3 },
+  { skillName: "Time Management", importance: "medium", requiredLevel: 2 },
+];
 
 const IMPORTANCE_WEIGHTS = {
   critical: 3,
@@ -40,12 +89,42 @@ function extractKeywords(text = "") {
     .filter(Boolean);
 }
 
+function buildTokenSet(...segments) {
+  const words = segments.flatMap((segment) => extractKeywords(segment || ""));
+  const set = new Set(words);
+
+  for (let i = 0; i < words.length - 1; i += 1) {
+    set.add(`${words[i]} ${words[i + 1]}`);
+  }
+  for (let i = 0; i < words.length - 2; i += 1) {
+    set.add(`${words[i]} ${words[i + 1]} ${words[i + 2]}`);
+  }
+
+  return { words, tokens: set };
+}
+
+function selectFallbackRequirements(job) {
+  const title = (job.title || "").toLowerCase();
+  const industry = (job.industry || job.jobType || "").toLowerCase();
+
+  for (const fallback of FALLBACK_REQUIREMENTS) {
+    const matches = fallback.matchers.some(
+      (matcher) => matcher.test(title) || matcher.test(industry)
+    );
+    if (matches) {
+      return fallback.skills;
+    }
+  }
+
+  return GENERIC_FALLBACK_SKILLS;
+}
+
 /**
  * Heuristic requirement extraction fallback.
  */
 function heuristicallyExtractRequirements(job, knownSkills) {
   const description = job.jobDescription || job.job_description || "";
-  const tokens = extractKeywords(description);
+  const { tokens } = buildTokenSet(description, job.title, job.industry, job.jobType);
   const requirements = new Map();
 
   const allSkillCandidates = new Set();
@@ -61,23 +140,24 @@ function heuristicallyExtractRequirements(job, knownSkills) {
 
     const searchTokens = new Set([normalized]);
     if (synonyms) {
-      searchTokens.add(normalizeSkillName(synonyms[0]));
-      synonyms[1].forEach((syn) => searchTokens.add(normalizeSkillName(syn)));
+      const [root, values] = synonyms;
+      searchTokens.add(normalizeSkillName(root));
+      values.forEach((syn) => searchTokens.add(normalizeSkillName(syn)));
     }
 
     let occurrences = 0;
-    tokens.forEach((token) => {
-      if (searchTokens.has(token)) {
+    searchTokens.forEach((token) => {
+      if (tokens.has(token)) {
         occurrences += 1;
       }
     });
 
     if (occurrences > 0) {
-      const importance =
-        occurrences >= 3 ? "critical" : occurrences === 2 ? "high" : "medium";
       const seniority = /principal|lead|staff|senior/i.test(job.title || "")
         ? 4
         : DEFAULT_REQUIRED_LEVEL;
+      const importance =
+        occurrences >= 3 ? "critical" : occurrences === 2 ? "high" : "medium";
 
       requirements.set(normalized, {
         skillName,
@@ -89,6 +169,23 @@ function heuristicallyExtractRequirements(job, knownSkills) {
     }
   });
 
+  if (requirements.size < MINIMUM_REQUIRED_SKILLS) {
+    const fallbackSkills = selectFallbackRequirements(job);
+    fallbackSkills.forEach((fallback) => {
+      const normalized = normalizeSkillName(fallback.skillName);
+      if (!requirements.has(normalized)) {
+        requirements.set(normalized, {
+          skillName: fallback.skillName,
+          importance: fallback.importance || "medium",
+          requiredLevel: fallback.requiredLevel || DEFAULT_REQUIRED_LEVEL,
+          mentions: 0,
+          source: "fallback",
+          notes: fallback.notes,
+        });
+      }
+    });
+  }
+
   return Array.from(requirements.values());
 }
 
@@ -98,10 +195,8 @@ function heuristicallyExtractRequirements(job, knownSkills) {
 async function extractRequirements(job, knownSkills) {
   const description = (job.jobDescription || job.job_description || "").trim();
   if (!description) {
-    console.warn(
-      "[SkillGapService] Job description missing; returning empty requirement list."
-    );
-    return [];
+    console.warn("[SkillGapService] Job description missing; using fallback requirements.");
+    return heuristicallyExtractRequirements(job, knownSkills);
   }
 
   if (!resumeAIAssistantService.openai) {
@@ -270,14 +365,30 @@ class SkillGapService {
   async generateSnapshot(job, userSkills, previousSnapshots = []) {
     const requirements = await extractRequirements(job, userSkills);
 
-    const skillByName = new Map(
-      userSkills.map((skill) => [normalizeSkillName(skill.skillName), skill])
-    );
+    const skillByName = new Map();
+    userSkills.forEach((skill) => {
+      const normalized = normalizeSkillName(skill.skillName);
+      if (!skillByName.has(normalized)) {
+        skillByName.set(normalized, skill);
+      }
+
+      const synonyms = skillSynonyms[normalized] || skillSynonyms[skill.skillName];
+      if (Array.isArray(synonyms)) {
+        synonyms.forEach((syn) => {
+          const normalizedSyn = normalizeSkillName(syn);
+          if (!skillByName.has(normalizedSyn)) {
+            skillByName.set(normalizedSyn, skill);
+          }
+        });
+      }
+    });
 
     const requirementSummaries = [];
     const gaps = [];
 
-    requirements.forEach((requirement) => {
+    let effectiveRequirements = requirements.length ? requirements : selectFallbackRequirements(job);
+
+    effectiveRequirements.forEach((requirement) => {
       const normalized = normalizeSkillName(requirement.skillName);
       const userSkill = skillByName.get(normalized);
       const currentLevel = userSkill ? proficiencyToNumber(userSkill.proficiency) : 0;

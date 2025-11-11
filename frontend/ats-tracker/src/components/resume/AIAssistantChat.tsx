@@ -85,6 +85,9 @@ export function AIAssistantChat({
   const [isLoading, setIsLoading] = useState(false);
   const [suggestedPrompts, setSuggestedPrompts] = useState<string[]>([]);
   const [isGeneratingPrompts, setIsGeneratingPrompts] = useState(false);
+  const [manualOptimizeSkills, setManualOptimizeSkills] = useState(false);
+  const [isSkillsOptimizationRunning, setIsSkillsOptimizationRunning] =
+    useState(false);
   // Load minimized preferences from localStorage
   const loadMinimizedPreferences = () => {
     try {
@@ -154,6 +157,19 @@ export function AIAssistantChat({
   const hasAutoOptimizedSkillsRef = useRef(false);
   const hasAutoSentMessageRef = useRef<string | null>(null);
   const hasSeededInitialConversationRef = useRef<string | null>(null);
+  const manualOptimizationRequestedRef = useRef(false);
+
+  const notifyMissingJobSelection = useCallback(() => {
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "assistant",
+        content:
+          "Please select a job from your pipeline so I can tailor the skills suggestions to that opportunity.",
+        timestamp: new Date(),
+      },
+    ]);
+  }, []);
 
   // Log props when component mounts or props change
   useEffect(() => {
@@ -2866,26 +2882,59 @@ Generate 4 relevant, context-aware prompts:`;
     setInput("");
   };
 
-  // Auto-run skills optimization when requested
+  // Auto-run or manually-triggered skills optimization
   useEffect(() => {
-    const run = async () => {
-      if (!isOpen) return;
-      if (!autoOptimizeSkills) return;
-      if (hasAutoOptimizedSkillsRef.current) return;
-      hasAutoOptimizedSkillsRef.current = true;
+    if (!isOpen) return;
 
+    const shouldRunAuto =
+      autoOptimizeSkills && !hasAutoOptimizedSkillsRef.current;
+    const shouldRunManual = manualOptimizeSkills;
+
+    if (!shouldRunAuto && !shouldRunManual) {
+      return;
+    }
+
+    const jobId = initialJobId || selectedJobId || null;
+
+    if (!jobId) {
+      if (shouldRunManual) {
+        notifyMissingJobSelection();
+        setManualOptimizeSkills(false);
+        manualOptimizationRequestedRef.current = false;
+      }
+      if (shouldRunAuto) {
+        hasAutoOptimizedSkillsRef.current = false;
+      }
+      return;
+    }
+
+    if (shouldRunAuto) {
+      hasAutoOptimizedSkillsRef.current = true;
+    }
+    if (shouldRunManual) {
+      setManualOptimizeSkills(false);
+    }
+
+    const run = async () => {
       try {
+        if (isSkillsOptimizationRunning) return;
         setIsLoading(true);
-        // System message to explain what's happening
+        setIsSkillsOptimizationRunning(true);
+
         const loadingMessage: Message = {
           role: "assistant",
           content:
-            "🔎 Optimizing your skills for this job... I'll analyze the posting, verify your current skills, research company context from the job details, and: 1) suggest skills to add/remove, and 2) propose a reordered list highlighting the most relevant skills.",
+            "🔎 Optimizing your skills for this job... I'll analyze the posting, verify your current skills, and propose a reordered list that highlights what matters most.",
           timestamp: new Date(),
         };
-        setMessages((prev) => [...prev, loadingMessage]);
 
-        // Build a specialized prompt for skills optimization (human-readable only)
+        setMessages((prev) => {
+          if (!shouldRunManual && prev.length > 0) {
+            return prev;
+          }
+          return [...prev, loadingMessage];
+        });
+
         const prompt = `MODE: SKILLS_OPTIMIZATION
 You are an expert resume optimizer. Based on the target job posting, analyze and optimize the candidate's skills.
 
@@ -2905,9 +2954,6 @@ Guidelines:
 - Do NOT include JSON, code blocks, or any backend/API instructions.
 - Do NOT mention internal system behavior, schemas, or implementation details.
 - Focus on specificity, clarity, actionability, and ATS-friendly phrasing.`;
-
-        // If initialJobId is present, use it so backend includes job context
-        const jobId = initialJobId || selectedJobId || null;
 
         const response = await resumeService.chat(
           resumeId || "new",
@@ -2937,13 +2983,39 @@ Guidelines:
         }
       } catch (err) {
         console.error("Skills optimization failed:", err);
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content:
+              "I ran into an issue optimizing skills. Please try again shortly.",
+            timestamp: new Date(),
+          },
+        ]);
       } finally {
         setIsLoading(false);
-        onAnalysisComplete && onAnalysisComplete();
+        setIsSkillsOptimizationRunning(false);
+        if (shouldRunManual) {
+          manualOptimizationRequestedRef.current = false;
+        }
+        if (shouldRunAuto) {
+          onAnalysisComplete && onAnalysisComplete();
+        }
       }
     };
     run();
-  }, [autoOptimizeSkills, isOpen, initialJobId, selectedJobId]);
+  }, [
+    autoOptimizeSkills,
+    initialJobId,
+    isOpen,
+    manualOptimizeSkills,
+    notifyMissingJobSelection,
+    resume,
+    resumeId,
+    selectedJobId,
+    onAnalysisComplete,
+    isSkillsOptimizationRunning,
+  ]);
 
   if (!isOpen) return null;
 
@@ -3039,7 +3111,7 @@ Guidelines:
           </button>
         </div>
         {!isJobSelectorMinimized && (
-          <div className="px-4 pb-3">
+          <div className="px-4 pb-3 space-y-3">
             <div className="flex items-center gap-3">
               <div className="flex-1 min-w-0">
                 {loadingJobs ? (
@@ -3093,6 +3165,47 @@ Guidelines:
                 AI suggestions will be tailored to match this job's requirements
               </div>
             )}
+            <button
+              type="button"
+              onClick={() => {
+                if (isSkillsOptimizationRunning) return;
+                if (!selectedJobId && !initialJobId) {
+                  notifyMissingJobSelection();
+                  return;
+                }
+                if (manualOptimizationRequestedRef.current) return;
+                manualOptimizationRequestedRef.current = true;
+                setManualOptimizeSkills(true);
+              }}
+              disabled={
+                isSkillsOptimizationRunning ||
+                (!selectedJobId && !initialJobId) ||
+                manualOptimizationRequestedRef.current ||
+                manualOptimizeSkills
+              }
+              className={`w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg transition-colors ${
+                isSkillsOptimizationRunning ||
+                (!selectedJobId && !initialJobId) ||
+                manualOptimizationRequestedRef.current ||
+                manualOptimizeSkills
+                  ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                  : "bg-[#3351FD] text-white hover:bg-[#2a45d4]"
+              }`}
+            >
+              <Icon
+                icon={
+                  isSkillsOptimizationRunning
+                    ? "mingcute:loading-line"
+                    : "mingcute:sort-descending-line"
+                }
+                className={`w-3.5 h-3.5 ${
+                  isSkillsOptimizationRunning ? "animate-spin" : ""
+                }`}
+              />
+              {isSkillsOptimizationRunning
+                ? "Optimizing skills..."
+                : "Optimize skills for this job"}
+            </button>
           </div>
         )}
       </div>

@@ -556,9 +556,19 @@ CREATE TABLE IF NOT EXISTS public.coverletter (
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     file character varying(1000),
     comments_id uuid,
+    template_id uuid,
+    job_id uuid,
+    content TEXT,
+    tone_settings TEXT,
+    customizations TEXT,
+    version_number integer DEFAULT 1,
+    parent_coverletter_id uuid,
     CONSTRAINT coverletter_pkey PRIMARY KEY (id),
     CONSTRAINT coverletter_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE,
-    CONSTRAINT coverletter_comments_id_fkey FOREIGN KEY (comments_id) REFERENCES public.resume_comments(id)
+    CONSTRAINT coverletter_template_is_fkey FOREIGN KEY (template_id) REFERENCES public.coverletter_template(id),
+    CONSTRAINT coverletter_job_is_fkey FOREIGN KEY (job_id) REFERENCES public.job_opportunities(id),
+    CONSTRAINT coverletter_comments_id_fkey FOREIGN KEY (comments_id) REFERENCES public.resume_comments(id),
+    CONSTRAINT coverletter_parent_coverletter_id_fkey FOREIGN KEY (parent_coverletter_id) REFERENCES public.coverletter(id)
 );
 
 -- ============================================================================
@@ -623,6 +633,91 @@ CREATE TRIGGER update_job_opportunities_updated_at
     BEFORE UPDATE ON public.job_opportunities
     FOR EACH ROW
     EXECUTE FUNCTION public.addupdatetime();
+
+
+-- Add missing columns to coverletter table
+-- Migration to support full cover letter functionality
+
+-- Add template_id (foreign key to coverletter_template)
+ALTER TABLE coverletter ADD COLUMN IF NOT EXISTS template_id UUID;
+ALTER TABLE coverletter ADD CONSTRAINT fk_coverletter_template 
+  FOREIGN KEY (template_id) REFERENCES coverletter_template(id) 
+  ON DELETE SET NULL;
+
+-- Add job_id (foreign key to prospectivejobs)
+ALTER TABLE coverletter ADD COLUMN IF NOT EXISTS job_id UUID;
+ALTER TABLE coverletter ADD CONSTRAINT fk_coverletter_job 
+  FOREIGN KEY (job_id) REFERENCES prospectivejobs(id) 
+  ON DELETE SET NULL;
+
+-- Add content (JSONB for cover letter content)
+ALTER TABLE coverletter ADD COLUMN IF NOT EXISTS content JSONB;
+
+-- Add tone_settings (JSONB for tone and style settings)
+ALTER TABLE coverletter ADD COLUMN IF NOT EXISTS tone_settings JSONB;
+
+-- Add customizations (JSONB for layout customizations)
+ALTER TABLE coverletter ADD COLUMN IF NOT EXISTS customizations JSONB;
+
+-- Add version_number (integer for version tracking)
+ALTER TABLE coverletter ADD COLUMN IF NOT EXISTS version_number INTEGER DEFAULT 1;
+
+-- Add parent_coverletter_id (self-referencing foreign key for cover letter versions)
+ALTER TABLE coverletter ADD COLUMN IF NOT EXISTS parent_coverletter_id UUID;
+ALTER TABLE coverletter ADD CONSTRAINT fk_coverletter_parent 
+  FOREIGN KEY (parent_coverletter_id) REFERENCES coverletter(id) 
+  ON DELETE CASCADE;
+
+-- Add is_master (boolean to indicate master cover letter)
+ALTER TABLE coverletter ADD COLUMN IF NOT EXISTS is_master BOOLEAN DEFAULT false;
+
+-- Add company_research (JSONB for company research data)
+ALTER TABLE coverletter ADD COLUMN IF NOT EXISTS company_research JSONB;
+
+-- Add performance_metrics (JSONB for tracking performance)
+ALTER TABLE coverletter ADD COLUMN IF NOT EXISTS performance_metrics JSONB;
+
+-- Create indexes for better query performance
+CREATE INDEX IF NOT EXISTS idx_coverletter_template_id ON coverletter(template_id);
+CREATE INDEX IF NOT EXISTS idx_coverletter_job_id ON coverletter(job_id);
+CREATE INDEX IF NOT EXISTS idx_coverletter_parent_id ON coverletter(parent_coverletter_id);
+CREATE INDEX IF NOT EXISTS idx_coverletter_user_id_created ON coverletter(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_coverletter_is_master ON coverletter(is_master) WHERE is_master = true;
+
+-- Create cover_letter_performance table for tracking
+CREATE TABLE IF NOT EXISTS cover_letter_performance (
+    id UUID DEFAULT gen_random_uuid() NOT NULL,
+    coverletter_id UUID NOT NULL,
+    job_id UUID,
+    application_outcome VARCHAR(50), -- 'interview', 'rejected', 'no_response', 'accepted'
+    response_date TIMESTAMP WITH TIME ZONE,
+    notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT cover_letter_performance_pkey PRIMARY KEY (id),
+    CONSTRAINT fk_performance_coverletter FOREIGN KEY (coverletter_id) REFERENCES coverletter(id) ON DELETE CASCADE,
+    CONSTRAINT fk_performance_job FOREIGN KEY (job_id) REFERENCES prospectivejobs(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_performance_coverletter_id ON cover_letter_performance(coverletter_id);
+CREATE INDEX IF NOT EXISTS idx_performance_job_id ON cover_letter_performance(job_id);
+
+-- Create cover_letter_template_usage table for analytics
+CREATE TABLE IF NOT EXISTS cover_letter_template_usage (
+    id UUID DEFAULT gen_random_uuid() NOT NULL,
+    template_id UUID NOT NULL,
+    user_id UUID,
+    usage_count INTEGER DEFAULT 1,
+    last_used_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT cover_letter_template_usage_pkey PRIMARY KEY (id),
+    CONSTRAINT fk_template_usage_template FOREIGN KEY (template_id) REFERENCES coverletter_template(id) ON DELETE CASCADE,
+    CONSTRAINT fk_template_usage_user FOREIGN KEY (user_id) REFERENCES users(u_id) ON DELETE CASCADE,
+    CONSTRAINT unique_template_user UNIQUE (template_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_template_usage_template_id ON cover_letter_template_usage(template_id);
+CREATE INDEX IF NOT EXISTS idx_template_usage_user_id ON cover_letter_template_usage(user_id);
 
 -- ============================================================================
 -- SECTION 6: GRANT PERMISSIONS

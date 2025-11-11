@@ -22,6 +22,7 @@ import { CoverLetters } from './pages/CoverLetters'
 import { CoverLetterTemplates } from './pages/CoverLetterTemplates'
 import { CoverLetterBuilder } from './pages/CoverLetterBuilder'
 import { CompanyResearch } from './pages/CompanyResearch'
+import { InterviewScheduling } from './pages/InterviewScheduling'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { ROUTES } from './config/routes'
@@ -106,6 +107,7 @@ function App() {
 		  <Route path={ROUTES.JOB_OPPORTUNITIES} element={<JobOpportunities />} />
 		  <Route path={ROUTES.JOB_STATISTICS} element={<JobStatistics />} />
 		  <Route path={ROUTES.COMPANY_RESEARCH} element={<CompanyResearch />} />
+		  <Route path={ROUTES.INTERVIEW_SCHEDULING} element={<InterviewScheduling />} />
 		  <Route path={ROUTES.SKILLS} element={<Skills />} />
 		  <Route path={ROUTES.EDUCATION} element={<Education />} />
 		  <Route path={ROUTES.PROJECTS} element={<Projects />} />

@@ -35,6 +35,9 @@ import {
   MatchScore,
   MatchScoreHistoryEntry,
   MatchScoreComparison,
+  InterviewData,
+  InterviewInput,
+  InterviewConflict,
 } from "../types";
 
 // In development, use proxy (relative path). In production, use env variable or full URL
@@ -952,6 +955,153 @@ class ApiService {
         body: JSON.stringify({ password, confirmationText }),
       }
     );
+  }
+
+  // Interview endpoints
+  async getInterviews(filters?: {
+    status?: string;
+    jobOpportunityId?: string;
+    startDate?: string;
+    endDate?: string;
+  }) {
+    const queryParams = new URLSearchParams();
+    if (filters?.status) queryParams.append("status", filters.status);
+    if (filters?.jobOpportunityId)
+      queryParams.append("jobOpportunityId", filters.jobOpportunityId);
+    if (filters?.startDate) queryParams.append("startDate", filters.startDate);
+    if (filters?.endDate) queryParams.append("endDate", filters.endDate);
+
+    const query = queryParams.toString();
+    return this.request<
+      ApiResponse<{ interviews: InterviewData[] }>
+    >(`/interviews${query ? `?${query}` : ""}`);
+  }
+
+  async getInterview(id: string) {
+    return this.request<ApiResponse<{ interview: InterviewData }>>(
+      `/interviews/${id}`
+    );
+  }
+
+  async createInterview(data: InterviewInput) {
+    return this.request<
+      ApiResponse<{ interview: InterviewData; message: string }>
+    >("/interviews", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateInterview(id: string, data: Partial<InterviewInput>) {
+    return this.request<
+      ApiResponse<{ interview: InterviewData; message: string }>
+    >(`/interviews/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async cancelInterview(id: string, cancellationReason?: string) {
+    return this.request<
+      ApiResponse<{ interview: InterviewData; message: string }>
+    >(`/interviews/${id}/cancel`, {
+      method: "POST",
+      body: JSON.stringify({ cancellationReason }),
+    });
+  }
+
+  async rescheduleInterview(
+    id: string,
+    scheduledAt: string,
+    duration?: number
+  ) {
+    return this.request<
+      ApiResponse<{ interview: InterviewData; message: string }>
+    >(`/interviews/${id}/reschedule`, {
+      method: "POST",
+      body: JSON.stringify({ scheduledAt, duration }),
+    });
+  }
+
+  async updatePreparationTask(
+    interviewId: string,
+    taskId: string,
+    updateData: { completed?: boolean; task?: string; dueDate?: string }
+  ) {
+    return this.request<
+      ApiResponse<{ task: any; message: string }>
+    >(`/interviews/${interviewId}/tasks/${taskId}`, {
+      method: "PUT",
+      body: JSON.stringify(updateData),
+    });
+  }
+
+  async deleteInterview(id: string) {
+    return this.request<ApiResponse<{ message: string }>>(`/interviews/${id}`, {
+      method: "DELETE",
+    });
+  }
+
+  async checkConflicts(
+    scheduledAt: string,
+    duration: number,
+    excludeInterviewId?: string
+  ) {
+    const queryParams = new URLSearchParams();
+    queryParams.append("scheduledAt", scheduledAt);
+    queryParams.append("duration", duration.toString());
+    if (excludeInterviewId)
+      queryParams.append("excludeInterviewId", excludeInterviewId);
+
+    return this.request<
+      ApiResponse<{
+        conflicts: InterviewConflict[];
+        hasConflicts: boolean;
+      }>
+    >(`/interviews/check-conflicts?${queryParams.toString()}`);
+  }
+
+  // Google Calendar endpoints
+  async getGoogleCalendarAuthUrl() {
+    return this.request<ApiResponse<{ authUrl: string }>>("/calendar/auth/url");
+  }
+
+  async getGoogleCalendarStatus() {
+    return this.request<
+      ApiResponse<{
+        status: { enabled: boolean; calendarId: string | null };
+      }>
+    >("/calendar/status");
+  }
+
+  async disconnectGoogleCalendar() {
+    return this.request<
+      ApiResponse<{ message: string }>
+    >("/calendar/disconnect", {
+      method: "POST",
+    });
+  }
+
+  async syncInterviewToCalendar(interviewId: string) {
+    return this.request<
+      ApiResponse<{ event: any; message: string }>
+    >(`/calendar/sync/interview/${interviewId}`, {
+      method: "POST",
+    });
+  }
+
+  async syncAllInterviewsToCalendar() {
+    return this.request<
+      ApiResponse<{
+        synced: number;
+        failed: number;
+        results: any[];
+        errors: any[];
+        message: string;
+      }>
+    >("/calendar/sync/all", {
+      method: "POST",
+    });
   }
 }
 

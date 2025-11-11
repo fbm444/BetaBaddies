@@ -158,6 +158,16 @@ BEGIN
 END;
 $$;
 
+-- Function: update_interviews_updated_at() - Updates interviews updated_at timestamp
+CREATE OR REPLACE FUNCTION public.update_interviews_updated_at() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    NEW.updated_at = now();
+    RETURN NEW;
+END;
+$$;
+
 -- ============================================================================
 -- SECTION 3: CREATE TABLES
 -- ============================================================================
@@ -175,6 +185,11 @@ CREATE TABLE IF NOT EXISTS public.users (
     auth_provider character varying(50) DEFAULT 'local'::character varying,
     linkedin_id character varying(255),
     role character varying(255) DEFAULT 'candidate'::character varying,
+    google_calendar_access_token text,
+    google_calendar_refresh_token text,
+    google_calendar_token_expiry timestamp with time zone,
+    google_calendar_sync_enabled boolean DEFAULT false,
+    google_calendar_id character varying(255),
     CONSTRAINT users_pkey PRIMARY KEY (u_id),
     CONSTRAINT users_email_key UNIQUE (email)
 );
@@ -289,11 +304,42 @@ CREATE TABLE IF NOT EXISTS public.interviews (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
     type character varying(20) NOT NULL,
-    date timestamp with time zone NOT NULL,
+    date timestamp with time zone,
     outcome_link character varying(255),
+    job_opportunity_id uuid,
+    title character varying(255),
+    company character varying(255),
+    scheduled_at timestamp with time zone,
+    duration integer DEFAULT 60,
+    location character varying(500),
+    video_link character varying(1000),
+    phone_number character varying(50),
+    interviewer_name character varying(255),
+    interviewer_email character varying(255),
+    interviewer_title character varying(255),
+    notes text,
+    preparation_notes text,
+    status character varying(20) DEFAULT 'scheduled'::character varying,
+    outcome character varying(20) DEFAULT 'pending'::character varying,
+    outcome_notes text,
+    reminder_sent boolean DEFAULT false,
+    reminder_sent_at timestamp with time zone,
+    cancelled_at timestamp with time zone,
+    cancellation_reason text,
+    rescheduled_from uuid,
+    rescheduled_to uuid,
+    conflict_detected boolean DEFAULT false,
+    google_calendar_event_id character varying(255),
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     CONSTRAINT interviews_pkey PRIMARY KEY (id),
     CONSTRAINT interviews_type_check CHECK (((type)::text = ANY ((ARRAY['phone'::character varying, 'video'::character varying, 'in-person'::character varying])::text[]))),
-    CONSTRAINT fk_interviews_user FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE
+    CONSTRAINT interviews_status_check CHECK (status IN ('scheduled', 'completed', 'cancelled', 'rescheduled')),
+    CONSTRAINT interviews_outcome_check CHECK (outcome IN ('pending', 'passed', 'failed', 'no_decision', 'offer_extended', 'rejected')),
+    CONSTRAINT fk_interviews_user FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE,
+    CONSTRAINT fk_interviews_job_opportunity FOREIGN KEY (job_opportunity_id) REFERENCES public.job_opportunities(id) ON DELETE CASCADE,
+    CONSTRAINT fk_interviews_rescheduled_from FOREIGN KEY (rescheduled_from) REFERENCES public.interviews(id) ON DELETE SET NULL,
+    CONSTRAINT fk_interviews_rescheduled_to FOREIGN KEY (rescheduled_to) REFERENCES public.interviews(id) ON DELETE SET NULL
 );
 
 -- Table: prospectivejobs
@@ -546,6 +592,35 @@ CREATE TABLE IF NOT EXISTS public.coverletter_template (
     CONSTRAINT coverletter_template_tone_check CHECK (((tone)::text = ANY ((ARRAY['formal'::character varying, 'casual'::character varying, 'enthusiastic'::character varying, 'analytical'::character varying])::text[])))
 );
 
+-- Table: interview_preparation_tasks (depends on interviews)
+CREATE TABLE IF NOT EXISTS public.interview_preparation_tasks (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    interview_id uuid NOT NULL,
+    task character varying(500) NOT NULL,
+    completed boolean DEFAULT false,
+    due_date timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
+    CONSTRAINT interview_preparation_tasks_pkey PRIMARY KEY (id),
+    CONSTRAINT fk_preparation_tasks_interview FOREIGN KEY (interview_id) REFERENCES public.interviews(id) ON DELETE CASCADE
+);
+
+-- Table: interview_conflicts (depends on interviews)
+CREATE TABLE IF NOT EXISTS public.interview_conflicts (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    interview_id uuid NOT NULL,
+    conflicting_interview_id uuid NOT NULL,
+    conflict_type character varying(20) NOT NULL,
+    detected_at timestamp with time zone DEFAULT now(),
+    resolved boolean DEFAULT false,
+    resolved_at timestamp with time zone,
+    CONSTRAINT interview_conflicts_pkey PRIMARY KEY (id),
+    CONSTRAINT interview_conflicts_conflict_type_check CHECK (conflict_type IN ('overlap', 'too_close')),
+    CONSTRAINT fk_conflicts_interview FOREIGN KEY (interview_id) REFERENCES public.interviews(id) ON DELETE CASCADE,
+    CONSTRAINT fk_conflicts_conflicting_interview FOREIGN KEY (conflicting_interview_id) REFERENCES public.interviews(id) ON DELETE CASCADE,
+    CONSTRAINT unique_conflict_pair UNIQUE (interview_id, conflicting_interview_id)
+);
+
 -- Table: coverletter (depends on users and resume_comments)
 CREATE TABLE IF NOT EXISTS public.coverletter (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -595,6 +670,27 @@ CREATE INDEX IF NOT EXISTS idx_resume_parent_id ON public.resume(parent_resume_i
 CREATE INDEX IF NOT EXISTS idx_resume_user_id_created ON public.resume(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_resume_is_master ON public.resume(is_master) WHERE is_master = true;
 
+-- Interview indexes
+CREATE INDEX IF NOT EXISTS idx_interviews_user_id ON public.interviews(user_id);
+CREATE INDEX IF NOT EXISTS idx_interviews_job_opportunity_id ON public.interviews(job_opportunity_id);
+CREATE INDEX IF NOT EXISTS idx_interviews_scheduled_at ON public.interviews(scheduled_at);
+CREATE INDEX IF NOT EXISTS idx_interviews_status ON public.interviews(status);
+CREATE INDEX IF NOT EXISTS idx_interviews_type ON public.interviews(type);
+CREATE INDEX IF NOT EXISTS idx_interviews_rescheduled_from ON public.interviews(rescheduled_from);
+CREATE INDEX IF NOT EXISTS idx_interviews_rescheduled_to ON public.interviews(rescheduled_to);
+CREATE INDEX IF NOT EXISTS idx_interviews_conflict_detected ON public.interviews(conflict_detected);
+CREATE INDEX IF NOT EXISTS idx_interviews_google_calendar_event_id ON public.interviews(google_calendar_event_id);
+
+-- Interview preparation tasks indexes
+CREATE INDEX IF NOT EXISTS idx_preparation_tasks_interview_id ON public.interview_preparation_tasks(interview_id);
+CREATE INDEX IF NOT EXISTS idx_preparation_tasks_completed ON public.interview_preparation_tasks(completed);
+CREATE INDEX IF NOT EXISTS idx_preparation_tasks_due_date ON public.interview_preparation_tasks(due_date);
+
+-- Interview conflicts indexes
+CREATE INDEX IF NOT EXISTS idx_conflicts_interview_id ON public.interview_conflicts(interview_id);
+CREATE INDEX IF NOT EXISTS idx_conflicts_conflicting_interview_id ON public.interview_conflicts(conflicting_interview_id);
+CREATE INDEX IF NOT EXISTS idx_conflicts_resolved ON public.interview_conflicts(resolved);
+
 -- ============================================================================
 -- SECTION 5: CREATE TRIGGERS
 -- ============================================================================
@@ -633,6 +729,20 @@ CREATE TRIGGER update_job_opportunities_updated_at
     BEFORE UPDATE ON public.job_opportunities
     FOR EACH ROW
     EXECUTE FUNCTION public.addupdatetime();
+
+-- Trigger: trg_update_interviews_updated_at - Updates interviews updated_at timestamp
+DROP TRIGGER IF EXISTS trg_update_interviews_updated_at ON public.interviews;
+CREATE TRIGGER trg_update_interviews_updated_at
+    BEFORE UPDATE ON public.interviews
+    FOR EACH ROW
+    EXECUTE FUNCTION public.update_interviews_updated_at();
+
+-- Trigger: trg_update_preparation_tasks_updated_at - Updates preparation tasks updated_at timestamp
+DROP TRIGGER IF EXISTS trg_update_preparation_tasks_updated_at ON public.interview_preparation_tasks;
+CREATE TRIGGER trg_update_preparation_tasks_updated_at
+    BEFORE UPDATE ON public.interview_preparation_tasks
+    FOR EACH ROW
+    EXECUTE FUNCTION public.update_interviews_updated_at();
 
 
 -- Add missing columns to coverletter table
@@ -753,6 +863,8 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.projects TO "ats_user";
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.certifications TO "ats_user";
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.files TO "ats_user";
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.interviews TO "ats_user";
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.interview_preparation_tasks TO "ats_user";
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.interview_conflicts TO "ats_user";
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.prospectivejobs TO "ats_user";
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.job_opportunities TO "ats_user";
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.prospectivejob_material_history TO "ats_user";
@@ -775,6 +887,7 @@ GRANT EXECUTE ON FUNCTION public.lower_email() TO "ats_user";
 GRANT EXECUTE ON FUNCTION public.update_coverletter_timestamp() TO "ats_user";
 GRANT EXECUTE ON FUNCTION public.update_resume_timestamp() TO "ats_user";
 GRANT EXECUTE ON FUNCTION public.update_status_change_time() TO "ats_user";
+GRANT EXECUTE ON FUNCTION public.update_interviews_updated_at() TO "ats_user";
 
 -- Grant default privileges for future tables and functions
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO "ats_user";
@@ -786,10 +899,10 @@ COMMIT;
 -- CONSOLIDATED SCHEMA SCRIPT COMPLETE
 -- ============================================================================
 -- This script has created:
--- - 20 tables with all columns and relationships
--- - 7 functions for triggers and business logic
--- - 15+ indexes for query optimization
--- - 8 triggers for automatic data management
+-- - 22 tables with all columns and relationships (including interview_preparation_tasks and interview_conflicts)
+-- - 8 functions for triggers and business logic (including update_interviews_updated_at)
+-- - 25+ indexes for query optimization (including interview-related indexes)
+-- - 10 triggers for automatic data management (including interview-related triggers)
 -- - Database user (ats_user) with appropriate permissions
 --
 -- Next steps:

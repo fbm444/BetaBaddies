@@ -20,6 +20,8 @@ import resumeRoutes from "./routes/resumes/index.js";
 import prospectiveJobRoutes from "./routes/prospectiveJobRoutes.js";
 import coverLetterRoutes from "./routes/coverletters/index.js";
 import companyResearchRoutes from "./routes/companyResearchRoutes.js";
+import interviewRoutes from "./routes/interviewRoutes.js";
+import googleCalendarRoutes from "./routes/googleCalendarRoutes.js";
 
 // Import middleware
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
@@ -124,6 +126,8 @@ app.use("/api/v1/resumes", resumeRoutes);
 app.use("/api/v1/prospective-jobs", prospectiveJobRoutes);
 app.use("/api/v1/coverletter", coverLetterRoutes);
 app.use("/api/v1/company-research", companyResearchRoutes);
+app.use("/api/v1/interviews", interviewRoutes);
+app.use("/api/v1/calendar", googleCalendarRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

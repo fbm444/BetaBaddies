@@ -83,7 +83,7 @@ export const navigationGroups: NavigationGroup[] = [
       {
         id: "company-research",
         label: "Company Research",
-        icon: "mingcute:building-line",
+        icon: "mdi:office-building",
         path: ROUTES.COMPANY_RESEARCH,
       },
     ],

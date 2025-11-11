@@ -407,7 +407,7 @@ export function JobOpportunityDetailModal({
                 </h2>
               )}
               <span
-                className="px-3 py-1 rounded-full text-sm font-medium"
+                className="px-3 py-1 rounded-full text-sm font-medium whitespace-nowrap text-center"
                 style={{
                   backgroundColor: STATUS_BG_COLORS[opportunity.status],
                   color: STATUS_COLORS[opportunity.status],

@@ -634,15 +634,6 @@ export function JobOpportunities() {
                   </button>
                 )}
               </div>
-              <button
-                type="button"
-                onClick={applySearch}
-                className="inline-flex items-center gap-2 rounded-full bg-[#5490FF] px-4 py-2 text-sm font-semibold text-white shadow hover:bg-[#4478D9] disabled:bg-slate-300 disabled:text-slate-500"
-                disabled={(filters.search || "") === (searchValue.trim() || "")}
-              >
-                <Icon icon="mingcute:search-2-line" width={16} />
-                Search
-              </button>
             </div>
             <button
               onClick={() => setIsFiltersOpen(true)}

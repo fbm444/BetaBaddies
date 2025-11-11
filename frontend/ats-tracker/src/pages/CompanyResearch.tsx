@@ -132,14 +132,8 @@ export function CompanyResearch() {
       {/* Header */}
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-10 py-6">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-8">
-          <h1
-            className="text-3xl sm:text-4xl lg:text-5xl font-light leading-tight"
-            style={{ fontFamily: "Poppins" }}
-          >
-            <span className="font-semibold" style={{ color: "#3351FD" }}>
-              Company
-            </span>{" "}
-            Research
+          <h1 className="text-[42px] leading-[1.1] font-semibold text-[#0F172A]">
+            Company Research
           </h1>
           <button
             className="flex items-center gap-2 px-4 py-2 bg-[#3351FD] text-white rounded-md text-sm font-medium cursor-pointer transition-all hover:bg-[#2641DD] disabled:opacity-50 disabled:cursor-not-allowed self-start lg:self-auto"

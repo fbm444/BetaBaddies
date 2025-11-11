@@ -177,7 +177,15 @@ export function Navbar() {
                             : "text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-md px-4 py-2"
                         )}
                       >
-                        {item.label}
+                        <span className="flex items-center gap-2">
+                          <Icon 
+                            icon={item.icon || "mdi:office-building"} 
+                            width={16} 
+                            height={16} 
+                            className={itemIsActive ? "text-white" : "text-slate-600"}
+                          />
+                          <span>{item.label}</span>
+                        </span>
                       </MenubarTrigger>
                     </MenubarMenu>
                     )
@@ -250,7 +258,7 @@ export function Navbar() {
                                 )}
                               >
                                 <Icon 
-                                  icon={item.icon} 
+                                  icon={item.icon || "mdi:office-building"} 
                                   width={16} 
                                   height={16}
                                   className={itemIsActive ? "text-white" : "text-slate-600"}
@@ -508,10 +516,10 @@ export function Navbar() {
                     )}
                   >
                     <Icon 
-                      icon={item.icon} 
-                                width={18} 
-                                height={18}
-                                className={itemIsActive ? "text-white" : "text-slate-600"}
+                      icon={item.icon || "mdi:office-building"} 
+                      width={18} 
+                      height={18}
+                      className={itemIsActive ? "text-white" : "text-slate-600"}
                     />
                               <span className="font-medium text-sm">{item.label}</span>
                   </button>

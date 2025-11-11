@@ -109,8 +109,10 @@ class JobOpportunityService {
     }
   }
 
-  // Validate salary range
-  validateSalaryRange(salaryMin, salaryMax) {
+  // Normalize salary range (enforces non-negative values and ensures max >= min)
+  normalizeSalaryRange(salaryMin, salaryMax, options = {}) {
+    const { conflictResolution = "raiseMax" } = options;
+
     if (salaryMin !== undefined && salaryMin !== null && salaryMin < 0) {
       throw new Error("Minimum salary cannot be negative");
     }
@@ -126,8 +128,23 @@ class JobOpportunityService {
       salaryMax !== null &&
       salaryMin > salaryMax
     ) {
-      throw new Error("Minimum salary cannot be greater than maximum salary");
+      if (conflictResolution === "lowerMin") {
+        return {
+          salaryMin: salaryMax,
+          salaryMax,
+        };
+      }
+
+      return {
+        salaryMin,
+        salaryMax: salaryMin,
+      };
     }
+
+    return {
+      salaryMin,
+      salaryMax,
+    };
   }
 
   // Validate URL format
@@ -190,8 +207,11 @@ class JobOpportunityService {
       // Validate field lengths
       this.validateFieldLengths(opportunityData);
 
-      // Validate salary range
-      this.validateSalaryRange(salaryMin, salaryMax);
+      // Normalize salary range
+      const {
+        salaryMin: normalizedSalaryMin,
+        salaryMax: normalizedSalaryMax,
+      } = this.normalizeSalaryRange(salaryMin, salaryMax);
 
       // Validate URL if provided
       if (jobPostingUrl) {
@@ -234,8 +254,8 @@ class JobOpportunityService {
         title.trim(),
         company.trim(),
         location.trim(),
-        salaryMin || null,
-        salaryMax || null,
+        normalizedSalaryMin ?? null,
+        normalizedSalaryMax ?? null,
         jobPostingUrl?.trim() || null,
         applicationDeadline || null,
         description?.trim() || null,
@@ -585,24 +605,52 @@ class JobOpportunityService {
         throw new Error("Job opportunity not found");
       }
 
-      // Validate field lengths if provided
-      this.validateFieldLengths(updateData);
+      const updatePayload = { ...updateData };
 
-      // Validate salary range if provided
-      const salaryMin = updateData.salaryMin !== undefined ? updateData.salaryMin : existing.salaryMin;
-      const salaryMax = updateData.salaryMax !== undefined ? updateData.salaryMax : existing.salaryMax;
-      this.validateSalaryRange(salaryMin, salaryMax);
+      // Normalize salary range if provided
+      const salaryMinChangedByUser = updatePayload.salaryMin !== undefined;
+      const salaryMaxChangedByUser = updatePayload.salaryMax !== undefined;
+
+      const rawSalaryMin = salaryMinChangedByUser
+        ? updatePayload.salaryMin
+        : existing.salaryMin;
+      const rawSalaryMax = salaryMaxChangedByUser
+        ? updatePayload.salaryMax
+        : existing.salaryMax;
+
+      const conflictResolution =
+        salaryMinChangedByUser && !salaryMaxChangedByUser
+          ? "lowerMin"
+          : "raiseMax";
+
+      const {
+        salaryMin: normalizedSalaryMin,
+        salaryMax: normalizedSalaryMax,
+      } = this.normalizeSalaryRange(rawSalaryMin, rawSalaryMax, {
+        conflictResolution,
+      });
+
+      if (salaryMinChangedByUser) {
+        updatePayload.salaryMin = normalizedSalaryMin;
+      }
+
+      if (salaryMaxChangedByUser || normalizedSalaryMax !== rawSalaryMax) {
+        updatePayload.salaryMax = normalizedSalaryMax;
+      }
+
+      // Validate field lengths if provided
+      this.validateFieldLengths(updatePayload);
 
       // Validate URL if provided
-      if (updateData.jobPostingUrl !== undefined) {
-        if (updateData.jobPostingUrl) {
-          this.validateUrl(updateData.jobPostingUrl);
+      if (updatePayload.jobPostingUrl !== undefined) {
+        if (updatePayload.jobPostingUrl) {
+          this.validateUrl(updatePayload.jobPostingUrl);
         }
       }
 
       // Check if status is being updated
-      if (updateData.status !== undefined) {
-        this.validateStatus(updateData.status);
+      if (updatePayload.status !== undefined) {
+        this.validateStatus(updatePayload.status);
       }
 
       // Build update query dynamically
@@ -611,8 +659,8 @@ class JobOpportunityService {
       let paramIndex = 1;
 
       // Validate application history if provided
-      if (updateData.applicationHistory !== undefined && updateData.applicationHistory !== null) {
-        if (!Array.isArray(updateData.applicationHistory)) {
+      if (updatePayload.applicationHistory !== undefined && updatePayload.applicationHistory !== null) {
+        if (!Array.isArray(updatePayload.applicationHistory)) {
           throw new Error("Application history must be an array");
         }
       }
@@ -642,45 +690,45 @@ class JobOpportunityService {
       };
 
       for (const [key, column] of Object.entries(fields)) {
-        if (updateData[key] !== undefined) {
+        if (updatePayload[key] !== undefined) {
           if (key === "title" || key === "company" || key === "location") {
             // Required fields - must not be empty
-            if (!updateData[key] || updateData[key].trim() === "") {
+            if (!updatePayload[key] || updatePayload[key].trim() === "") {
               throw new Error(`${key} is required`);
             }
             updates.push(`${column} = $${paramIndex++}`);
-            values.push(updateData[key].trim());
+            values.push(updatePayload[key].trim());
           } else if (key === "description" || key === "industry" || key === "jobType") {
             // Optional string fields
             updates.push(`${column} = $${paramIndex++}`);
             values.push(
-              updateData[key] && updateData[key].trim() !== ""
-                ? updateData[key].trim()
+              updatePayload[key] && updatePayload[key].trim() !== ""
+                ? updatePayload[key].trim()
                 : null
             );
           } else if (key === "jobPostingUrl") {
             updates.push(`${column} = $${paramIndex++}`);
             values.push(
-              updateData[key] && updateData[key].trim() !== ""
-                ? updateData[key].trim()
+              updatePayload[key] && updatePayload[key].trim() !== ""
+                ? updatePayload[key].trim()
                 : null
             );
           } else if (key === "salaryMin" || key === "salaryMax") {
             updates.push(`${column} = $${paramIndex++}`);
-            values.push(updateData[key] || null);
+            values.push(updatePayload[key] ?? null);
           } else if (key === "applicationDeadline") {
             updates.push(`${column} = $${paramIndex++}`);
-            values.push(updateData[key] || null);
+            values.push(updatePayload[key] ?? null);
           } else if (key === "status") {
             // Status field - will update the value
             updates.push(`${column} = $${paramIndex++}`);
-            values.push(updateData[key]);
+            values.push(updatePayload[key]);
           } else if (key === "notes" || key === "salaryNegotiationNotes" || key === "interviewNotes") {
             // Text fields (unlimited length)
             updates.push(`${column} = $${paramIndex++}`);
             values.push(
-              updateData[key] && updateData[key].trim() !== ""
-                ? updateData[key].trim()
+              updatePayload[key] && updatePayload[key].trim() !== ""
+                ? updatePayload[key].trim()
                 : null
             );
           } else if (key === "recruiterName" || key === "recruiterEmail" || key === "recruiterPhone" ||
@@ -688,16 +736,16 @@ class JobOpportunityService {
             // Contact information fields
             updates.push(`${column} = $${paramIndex++}`);
             values.push(
-              updateData[key] && updateData[key].trim() !== ""
-                ? updateData[key].trim()
+              updatePayload[key] && updatePayload[key].trim() !== ""
+                ? updatePayload[key].trim()
                 : null
             );
           } else if (key === "applicationHistory") {
             // JSONB field - store as JSON string
             updates.push(`${column} = $${paramIndex++}`);
             values.push(
-              updateData[key] && Array.isArray(updateData[key])
-                ? JSON.stringify(updateData[key])
+              updatePayload[key] && Array.isArray(updatePayload[key])
+                ? JSON.stringify(updatePayload[key])
                 : '[]'
             );
           }

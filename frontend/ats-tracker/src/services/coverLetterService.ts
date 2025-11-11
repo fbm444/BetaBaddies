@@ -13,6 +13,44 @@ import {
 // In development, use proxy (relative path). In production, use env variable or full URL
 const API_BASE = import.meta.env.VITE_API_URL || "/api/v1";
 const COVER_LETTER_API_BASE = `${API_BASE}/coverletter`;
+const RATE_LIMIT_EVENT = "app:rate-limit-warning";
+const COVER_LETTER_AI_ENDPOINT_KEYWORDS = [
+  "/generate",
+  "/research-company",
+  "/highlight-experiences",
+  "/ai/",
+];
+
+function shouldSurfaceCoverLetterRateLimit(endpoint: string): boolean {
+  if (!endpoint) {
+    return false;
+  }
+  const [path] = endpoint.split("?");
+  return COVER_LETTER_AI_ENDPOINT_KEYWORDS.some((keyword) =>
+    path.includes(keyword)
+  );
+}
+
+function emitRateLimitWarning(
+  endpoint: string,
+  method?: string,
+  feature?: string
+) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.dispatchEvent(
+    new CustomEvent(RATE_LIMIT_EVENT, {
+      detail: {
+        endpoint,
+        method,
+        feature,
+        timestamp: Date.now(),
+      },
+    })
+  );
+}
 
 // Custom error class with status code support
 export class ApiError extends Error {
@@ -64,6 +102,14 @@ class CoverLetterService {
         ...options.headers,
       },
     });
+
+    const rateLimitStatus = response.headers.get("X-RateLimit-Status");
+    if (
+      rateLimitStatus === "exceeded" &&
+      shouldSurfaceCoverLetterRateLimit(endpoint)
+    ) {
+      emitRateLimitWarning(endpoint, options.method || "GET", "cover-letter");
+    }
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({

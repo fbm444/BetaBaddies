@@ -18,7 +18,8 @@
     "test:reset-password": "node tests/reset-password-functionality.test.js",
     "test:reset-password-api": "node tests/reset-password-api.test.js",
     "test:resume-services": "node tests/resume-services-test.js",
-    "test:all": "npm run test && npm run test:user-api && npm run test:jobs-service && npm run test:jobs-api && npm run test:job-opportunities-api && npm run test:certifications && npm run test:certifications-api && npm run test:profile-api && npm run test:resume-services"
+    "test:all": "npm run test && npm run test:user-api && npm run test:jobs-service && npm run test:jobs-api && npm run test:job-opportunities-api && npm run test:certifications && npm run test:certifications-api && npm run test:profile-api && npm run test:resume-services",
+    "populate:demo": "node scripts/populateDemoData.js"
   },
   "keywords": [],
   "author": "",
@@ -30,6 +31,7 @@
     "@iconify/react": "^6.0.2",
     "axios": "^1.13.2",
     "bcrypt": "^6.0.0",
+    "cheerio": "^1.1.2",
     "cors": "^2.8.5",
     "docx": "^9.5.1",
     "dotenv": "^17.2.3",

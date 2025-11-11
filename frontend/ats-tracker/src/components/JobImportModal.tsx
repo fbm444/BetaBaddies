@@ -66,6 +66,15 @@ export function JobImportModal({ onImport, onClose }: JobImportModalProps) {
             status: "Interested",
           };
           setImportedData(data);
+
+          // Auto-proceed to form if import was successful
+          if (result.data.importStatus === "success") {
+            // Small delay to show success message, then auto-proceed
+            setTimeout(() => {
+              onImport(data);
+              onClose();
+            }, 1500);
+          }
         } else if (result.data) {
           // Even if import failed, we can still use the URL
           const data: JobOpportunityInput = {
@@ -246,7 +255,7 @@ export function JobImportModal({ onImport, onClose }: JobImportModalProps) {
                   <p className="text-sm">
                     {importResult.error ||
                       (importResult.data?.importStatus === "success"
-                        ? "Job details have been extracted. Review and edit the fields below."
+                        ? "Job details have been extracted successfully! Opening form..."
                         : importResult.data?.importStatus === "partial"
                         ? "Some job details could be extracted. Please review and complete the information."
                         : "Unable to extract job details from this URL. You can still add the job manually.")}

@@ -346,7 +346,12 @@ export function JobOpportunityDetailModal({
     );
   };
 
-  const sortedHistoryEntries = [...(formData.applicationHistory || [])].sort(
+  // Filter out skill gap snapshots and progress entries since they're shown in the Skill Gap Panel
+  const filteredHistoryEntries = (formData.applicationHistory || []).filter(
+    (entry) => !isSkillGapSnapshotHistory(entry) && !isSkillGapProgressHistory(entry)
+  );
+
+  const sortedHistoryEntries = [...filteredHistoryEntries].sort(
     (a, b) =>
       new Date(getHistoryTimestamp(b)).getTime() -
       new Date(getHistoryTimestamp(a)).getTime()
@@ -363,9 +368,22 @@ export function JobOpportunityDetailModal({
     return null;
   };
 
+  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Only close if clicking directly on the backdrop, not on the modal content
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 font-poppins">
-      <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto font-poppins">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[110] p-4 font-poppins"
+      onClick={handleBackdropClick}
+    >
+      <div 
+        className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto font-poppins"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-slate-200 px-8 py-6">
           <div className="flex items-start justify-between gap-4">

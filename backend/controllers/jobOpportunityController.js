@@ -415,9 +415,26 @@ class JobOpportunityController {
     }
 
     const { job, snapshots } = snapshotData;
+    console.log(`[JobOpportunityController] Job data:`, {
+      id: job.id,
+      title: job.title,
+      company: job.company,
+      hasDescription: !!job.description,
+      descriptionLength: (job.description || "").length,
+      hasJobPostingUrl: !!job.jobPostingUrl,
+      jobPostingUrl: job.jobPostingUrl,
+    });
     if (snapshots.length === 0) {
       const userSkills = await skillService.getSkillsByUserId(userId);
+      console.log(`[JobOpportunityController] Fetched ${userSkills.length} skills for user ${userId}`);
+      console.log(`[JobOpportunityController] Skills:`, userSkills.map(s => ({ name: s.skillName, proficiency: s.proficiency })));
       const snapshot = await skillGapService.generateSnapshot(job, userSkills, []);
+      console.log(`[JobOpportunityController] Generated snapshot:`, {
+        requirementsCount: snapshot.requirements?.length || 0,
+        gapsCount: snapshot.gaps?.length || 0,
+        totalRequirements: snapshot.stats?.totalRequirements || 0,
+        totalGaps: snapshot.stats?.totalGaps || 0,
+      });
       const history = await jobOpportunityService.appendApplicationHistoryEntry(id, userId, snapshot);
 
       return res.status(200).json({
@@ -474,8 +491,25 @@ class JobOpportunityController {
     }
 
     const { job, snapshots } = snapshotData;
+    console.log(`[JobOpportunityController] Refresh - Job data:`, {
+      id: job.id,
+      title: job.title,
+      company: job.company,
+      hasDescription: !!job.description,
+      descriptionLength: (job.description || "").length,
+      hasJobPostingUrl: !!job.jobPostingUrl,
+      jobPostingUrl: job.jobPostingUrl,
+    });
     const userSkills = await skillService.getSkillsByUserId(userId);
+    console.log(`[JobOpportunityController] Refresh: Fetched ${userSkills.length} skills for user ${userId}`);
+    console.log(`[JobOpportunityController] Refresh: Skills:`, userSkills.map(s => ({ name: s.skillName, proficiency: s.proficiency })));
     const snapshot = await skillGapService.generateSnapshot(job, userSkills, snapshots);
+    console.log(`[JobOpportunityController] Refresh: Generated snapshot:`, {
+      requirementsCount: snapshot.requirements?.length || 0,
+      gapsCount: snapshot.gaps?.length || 0,
+      totalRequirements: snapshot.stats?.totalRequirements || 0,
+      totalGaps: snapshot.stats?.totalGaps || 0,
+    });
     const history = await jobOpportunityService.appendApplicationHistoryEntry(id, userId, snapshot);
 
     res.status(200).json({

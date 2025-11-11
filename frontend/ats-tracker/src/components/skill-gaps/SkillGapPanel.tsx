@@ -136,6 +136,8 @@ export function JobSkillGapPanel({ opportunity, onHistorySync }: JobSkillGapPane
   const [isProgressModalOpen, setIsProgressModalOpen] = useState(false);
   const [progressSubmitting, setProgressSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [previousSnapshot, setPreviousSnapshot] = useState<SkillGapSnapshot | null>(null);
+  const [isAnimating, setIsAnimating] = useState(false);
 
   useEffect(() => {
     setHistoryEntries(opportunity.applicationHistory || []);
@@ -176,6 +178,19 @@ export function JobSkillGapPanel({ opportunity, onHistorySync }: JobSkillGapPane
       onSnapshot: handleSnapshotUpdate,
     });
 
+  // Handle snapshot changes for smooth animations (must be after snapshot is declared)
+  useEffect(() => {
+    if (snapshot) {
+      // New snapshot received, start fade-in animation
+      setIsAnimating(true);
+      const timer = setTimeout(() => {
+        setIsAnimating(false);
+        setPreviousSnapshot(null);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [snapshot]);
+
   const sortedProgressEntries = useMemo(
     () =>
       historyEntries
@@ -187,12 +202,51 @@ export function JobSkillGapPanel({ opportunity, onHistorySync }: JobSkillGapPane
     [historyEntries]
   );
 
-  const handleGenerateClick = async () => {
-    await fetchSnapshot();
+  const sortedSnapshots = useMemo(() => {
+    // Filter and deduplicate snapshots by snapshotId
+    const snapshotMap = new Map<string, SkillGapSnapshot>();
+    historyEntries
+      .filter(isSkillGapSnapshotEntry)
+      .forEach((entry) => {
+        if (!snapshotMap.has(entry.snapshotId)) {
+          snapshotMap.set(entry.snapshotId, entry);
+        }
+      });
+    
+    // Sort by date (newest first) and limit to last 10 snapshots
+    return Array.from(snapshotMap.values())
+      .sort(
+        (a, b) =>
+          new Date(b.generatedAt).getTime() - new Date(a.generatedAt).getTime()
+      )
+      .slice(0, 10);
+  }, [historyEntries]);
+
+  const handleGenerateClick = async (e?: React.MouseEvent<HTMLButtonElement>) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    setIsAnimating(true);
+    try {
+      // Always generate a new snapshot, don't fetch existing one
+      await refreshSnapshot();
+    } finally {
+      // Animation will be handled by handleSnapshotUpdate
+    }
   };
 
-  const handleRefreshClick = async () => {
-    await refreshSnapshot();
+  const handleRefreshClick = async (e?: React.MouseEvent<HTMLButtonElement>) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    // Store current snapshot for smooth transition
+    if (snapshot) {
+      setPreviousSnapshot(snapshot);
+    }
+    setIsAnimating(true);
+    try {
+      await refreshSnapshot();
+    } finally {
+      // Animation will be handled by handleSnapshotUpdate
+    }
   };
 
   const openProgressModal = (gap: SkillGapItem) => {
@@ -233,14 +287,30 @@ export function JobSkillGapPanel({ opportunity, onHistorySync }: JobSkillGapPane
   const learningPlanHours = snapshot?.learningPlan.totalHours ?? 0;
 
   return (
-    <section className="border-t border-slate-200 pt-6">
+    <>
+      <style>{`
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
+      <section className="border-t border-slate-200 pt-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-        <div>
-          <h3 className="text-lg font-semibold text-slate-900">
-            Skill Gaps & Learning Plan
-          </h3>
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-2">
+            <Icon icon="mingcute:briefcase-line" className="text-blue-500" width={20} />
+            <h3 className="text-lg font-semibold text-slate-900">
+              Skill Gaps & Learning Plan
+            </h3>
+          </div>
           <p className="text-sm text-slate-600">
-            Compare your skills with this job’s requirements and follow a curated learning path.
+            Compare your skills with <span className="font-medium text-slate-900">{opportunity.title}</span> at <span className="font-medium text-slate-900">{opportunity.company}</span> and follow a curated learning path.
           </p>
           {snapshot?.trend && (
             <div className="mt-2 flex items-center gap-2 text-xs font-medium text-slate-600">
@@ -261,24 +331,31 @@ export function JobSkillGapPanel({ opportunity, onHistorySync }: JobSkillGapPane
         <div className="flex gap-2">
           {!snapshot && !loading ? (
             <button
+              type="button"
               onClick={handleGenerateClick}
-              className="inline-flex items-center gap-2 rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white shadow hover:bg-blue-600 transition-colors"
+              disabled={loading || refreshing}
+              className="inline-flex items-center gap-2 rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white shadow hover:bg-blue-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              <Icon icon="mingcute:radar-line" width={18} />
-              Generate Analysis
+              <Icon 
+                icon="mingcute:radar-line" 
+                className={loading || refreshing ? "animate-spin" : ""}
+                width={18} 
+              />
+              {loading || refreshing ? "Generating..." : "Generate Analysis"}
             </button>
           ) : (
             <button
+              type="button"
               onClick={handleRefreshClick}
-              disabled={refreshing}
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 transition-colors disabled:opacity-60"
+              disabled={loading || refreshing}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <Icon
                 icon="mingcute:refresh-2-line"
-                className={refreshing ? "animate-spin" : ""}
+                className={loading || refreshing ? "animate-spin" : ""}
                 width={18}
               />
-              Refresh Analysis
+              {loading || refreshing ? "Refreshing..." : "Refresh Analysis"}
             </button>
           )}
         </div>
@@ -291,7 +368,7 @@ export function JobSkillGapPanel({ opportunity, onHistorySync }: JobSkillGapPane
       )}
 
       {loading && !snapshot ? (
-        <div className="mt-6 flex min-h-[180px] items-center justify-center rounded-xl border border-slate-200 bg-slate-50">
+        <div className="mt-6 flex min-h-[180px] items-center justify-center rounded-xl border border-slate-200 bg-slate-50 transition-opacity duration-300">
           <div className="flex flex-col items-center gap-2 text-sm text-slate-600">
             <div className="h-10 w-10 animate-spin rounded-full border-b-2 border-blue-500" />
             <span>Generating skills analysis…</span>
@@ -299,8 +376,8 @@ export function JobSkillGapPanel({ opportunity, onHistorySync }: JobSkillGapPane
         </div>
       ) : null}
 
-      {!loading && !snapshot ? (
-        <div className="mt-6 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-600">
+      {!loading && !snapshot && !previousSnapshot ? (
+        <div className="mt-6 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-600 transition-opacity duration-300">
           <div className="flex items-center gap-3">
             <Icon icon="mingcute:lightbulb-line" width={22} className="text-blue-500" />
             <div>
@@ -308,15 +385,52 @@ export function JobSkillGapPanel({ opportunity, onHistorySync }: JobSkillGapPane
                 Generate a skill gap analysis to see personalized recommendations.
               </p>
               <p>
-                We’ll scan the job description, compare it with your profile skills, and propose learning resources to close the gaps.
+                We'll scan the job description, compare it with your profile skills, and propose learning resources to close the gaps.
               </p>
             </div>
           </div>
         </div>
       ) : null}
 
+      {/* Show previous snapshot with fade-out while loading new one */}
+      {previousSnapshot && (loading || refreshing) && !snapshot && (
+        <div className="mt-6 space-y-6 opacity-40 transition-opacity duration-300 pointer-events-none">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <SummaryTile
+              icon="mingcute:target-line"
+              title="Total Requirements"
+              value={previousSnapshot.stats.totalRequirements}
+              tone="slate"
+            />
+            <SummaryTile
+              icon="mingcute:warning-line"
+              title="Open Skill Gaps"
+              value={previousSnapshot.stats.totalGaps}
+              tone={previousSnapshot.stats.totalGaps > 0 ? "amber" : "green"}
+            />
+            <SummaryTile
+              icon="mingcute:alert-line"
+              title="Critical Gaps"
+              value={previousSnapshot.stats.criticalGaps}
+              tone={previousSnapshot.stats.criticalGaps > 0 ? "red" : "green"}
+            />
+            <SummaryTile
+              icon="mingcute:book-3-line"
+              title="Plan Hours"
+              value={previousSnapshot.learningPlan.totalHours}
+              suffix="hrs"
+              tone="blue"
+            />
+          </div>
+        </div>
+      )}
+
       {snapshot && (
-        <div className="mt-6 space-y-6">
+        <div 
+          className={`mt-6 space-y-6 transition-all duration-500 ${
+            isAnimating && previousSnapshot ? 'opacity-0 translate-y-2' : 'opacity-100 translate-y-0'
+          }`}
+        >
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <SummaryTile
               icon="mingcute:target-line"
@@ -357,12 +471,16 @@ export function JobSkillGapPanel({ opportunity, onHistorySync }: JobSkillGapPane
             </div>
           ) : (
             <div className="space-y-4">
-              {snapshot.gaps.map((gap) => {
+              {snapshot.gaps.map((gap, index) => {
                 const priority = PRIORITY_CONFIG[gap.priority];
                 return (
                   <div
                     key={gap.skillName}
-                    className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
+                    className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-300 hover:shadow-md"
+                    style={{
+                      animation: !isAnimating ? `fadeInUp 0.5s ease-out ${index * 0.05}s both` : undefined,
+                      opacity: isAnimating && previousSnapshot ? 0 : 1,
+                    }}
                   >
                     <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                       <div>
@@ -502,6 +620,172 @@ export function JobSkillGapPanel({ opportunity, onHistorySync }: JobSkillGapPane
             </div>
           )}
 
+          {/* Skill Gap History & Trends */}
+          {sortedSnapshots.length > 0 && (
+            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex items-center gap-2 mb-5">
+                <Icon icon="mingcute:history-line" className="text-blue-500" width={20} />
+                <h4 className="text-base font-semibold text-slate-900">
+                  Analysis History & Trends
+                </h4>
+                <span className="ml-auto text-xs font-medium text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">
+                  {sortedSnapshots.length} {sortedSnapshots.length === 1 ? "snapshot" : "snapshots"}
+                </span>
+              </div>
+              <div className="space-y-4">
+                {sortedSnapshots.map((snapshotEntry, index) => {
+                  const isLatest = index === 0;
+                  const prevSnapshot = sortedSnapshots[index + 1];
+                  const trend = snapshotEntry.trend;
+                  const totalGaps = snapshotEntry.stats?.totalGaps || snapshotEntry.gaps?.length || 0;
+                  const totalRequirements = snapshotEntry.stats?.totalRequirements || snapshotEntry.requirements?.length || 0;
+                  const criticalGaps = snapshotEntry.stats?.criticalGaps || 0;
+                  
+                  return (
+                    <div
+                      key={snapshotEntry.snapshotId}
+                      className={`relative rounded-lg border-2 p-5 transition-all duration-200 ${
+                        isLatest
+                          ? "border-blue-400 bg-gradient-to-br from-blue-50 to-blue-100/50 shadow-md"
+                          : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm"
+                      }`}
+                    >
+                      {isLatest && (
+                        <div className="absolute -top-2.5 -right-2.5">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-blue-500 px-2.5 py-1 text-xs font-semibold text-white shadow-sm">
+                            <Icon icon="mingcute:star-fill" width={12} />
+                            Latest
+                          </span>
+                        </div>
+                      )}
+                      
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className={`flex items-center justify-center w-10 h-10 rounded-full ${
+                              isLatest ? "bg-blue-500" : "bg-slate-200"
+                            }`}>
+                              <Icon 
+                                icon="mingcute:radar-line" 
+                                className={isLatest ? "text-white" : "text-slate-600"} 
+                                width={20} 
+                              />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-semibold text-slate-900">
+                                  {new Date(snapshotEntry.generatedAt).toLocaleDateString("en-US", {
+                                    month: "short",
+                                    day: "numeric",
+                                    year: "numeric",
+                                  })}
+                                </span>
+                                <span className="text-xs text-slate-500">
+                                  {new Date(snapshotEntry.generatedAt).toLocaleTimeString("en-US", {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })}
+                                </span>
+                              </div>
+                              {trend && (
+                                <div className="mt-1 flex items-center gap-1.5 text-xs">
+                                  <Icon
+                                    icon={
+                                      trend.direction === "improving"
+                                        ? "mingcute:trending-up-line"
+                                        : trend.direction === "rising"
+                                        ? "mingcute:trending-down-line"
+                                        : "mingcute:compass-2-line"
+                                    }
+                                    width={14}
+                                    className={
+                                      trend.direction === "improving"
+                                        ? "text-green-600"
+                                        : trend.direction === "rising"
+                                        ? "text-red-600"
+                                        : "text-slate-500"
+                                    }
+                                  />
+                                  <span className={
+                                    trend.direction === "improving"
+                                      ? "font-medium text-green-700"
+                                      : trend.direction === "rising"
+                                      ? "font-medium text-red-700"
+                                      : "text-slate-600"
+                                  }>
+                                    {trend.message}
+                                  </span>
+                                  {prevSnapshot && (
+                                    <span className="text-slate-400">
+                                      • {prevSnapshot.stats?.totalGaps || prevSnapshot.gaps?.length || 0} → {totalGaps} gaps
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+                            <div className="flex items-center gap-2 p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+                              <Icon icon="mingcute:target-line" className="text-slate-600" width={16} />
+                              <div>
+                                <div className="text-xs text-slate-500">Requirements</div>
+                                <div className="text-sm font-semibold text-slate-900">{totalRequirements}</div>
+                              </div>
+                            </div>
+                            <div className={`flex items-center gap-2 p-2.5 rounded-lg border ${
+                              totalGaps > 0
+                                ? "bg-amber-50 border-amber-200"
+                                : "bg-green-50 border-green-200"
+                            }`}>
+                              <Icon 
+                                icon={totalGaps > 0 ? "mingcute:warning-line" : "mingcute:check-circle-line"} 
+                                className={totalGaps > 0 ? "text-amber-600" : "text-green-600"} 
+                                width={16} 
+                              />
+                              <div>
+                                <div className={`text-xs ${totalGaps > 0 ? "text-amber-700" : "text-green-700"}`}>Gaps</div>
+                                <div className={`text-sm font-semibold ${totalGaps > 0 ? "text-amber-900" : "text-green-900"}`}>
+                                  {totalGaps}
+                                </div>
+                              </div>
+                            </div>
+                            <div className={`flex items-center gap-2 p-2.5 rounded-lg border ${
+                              criticalGaps > 0
+                                ? "bg-red-50 border-red-200"
+                                : "bg-green-50 border-green-200"
+                            }`}>
+                              <Icon 
+                                icon={criticalGaps > 0 ? "mingcute:alert-line" : "mingcute:check-circle-line"} 
+                                className={criticalGaps > 0 ? "text-red-600" : "text-green-600"} 
+                                width={16} 
+                              />
+                              <div>
+                                <div className={`text-xs ${criticalGaps > 0 ? "text-red-700" : "text-green-700"}`}>Critical</div>
+                                <div className={`text-sm font-semibold ${criticalGaps > 0 ? "text-red-900" : "text-green-900"}`}>
+                                  {criticalGaps}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 p-2.5 rounded-lg bg-blue-50 border border-blue-200">
+                              <Icon icon="mingcute:book-3-line" className="text-blue-600" width={16} />
+                              <div>
+                                <div className="text-xs text-blue-700">Plan Hours</div>
+                                <div className="text-sm font-semibold text-blue-900">
+                                  {snapshotEntry.learningPlan?.totalHours || 0} hrs
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <div className="rounded-xl border border-slate-200 bg-white p-5">
             <div className="flex items-center justify-between">
               <h4 className="text-base font-semibold text-slate-900">
@@ -581,6 +865,7 @@ export function JobSkillGapPanel({ opportunity, onHistorySync }: JobSkillGapPane
         onSubmit={handleProgressSubmit}
       />
     </section>
+    </>
   );
 }
 

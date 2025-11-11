@@ -52,19 +52,29 @@ export function useSkillGap(
 
   const fetchSnapshot = useCallback(async () => {
     if (!jobId) {
+      console.warn("[useSkillGap] No jobId provided for fetchSnapshot");
       return null;
     }
     try {
+      console.log(`[useSkillGap] Fetching skill gap snapshot for job: ${jobId}`);
       setLoading(true);
       setError(null);
       const response = await api.getSkillGapSnapshot(jobId);
+      console.log(`[useSkillGap] API response:`, {
+        ok: response.ok,
+        hasData: !!response.data,
+        hasSnapshot: !!response.data?.snapshot,
+        requirementsCount: response.data?.snapshot?.requirements?.length || 0,
+        gapsCount: response.data?.snapshot?.gaps?.length || 0,
+      });
       if (response.ok && response.data) {
         handleSnapshot(response.data.snapshot);
         return response.data;
       }
+      console.error("[useSkillGap] API response not ok or missing data:", response);
       setError("Unable to load skill gap analysis.");
     } catch (err) {
-      console.error("Failed to fetch skill gap snapshot:", err);
+      console.error("[useSkillGap] Failed to fetch skill gap snapshot:", err);
       const message =
         err instanceof ApiError
           ? err.detail || err.message
@@ -80,19 +90,29 @@ export function useSkillGap(
 
   const refreshSnapshot = useCallback(async () => {
     if (!jobId) {
+      console.warn("[useSkillGap] No jobId provided for refreshSnapshot");
       return null;
     }
     try {
+      console.log(`[useSkillGap] Refreshing skill gap snapshot for job: ${jobId}`);
       setRefreshing(true);
       setError(null);
       const response = await api.refreshSkillGapSnapshot(jobId);
+      console.log(`[useSkillGap] Refresh API response:`, {
+        ok: response.ok,
+        hasData: !!response.data,
+        hasSnapshot: !!response.data?.snapshot,
+        requirementsCount: response.data?.snapshot?.requirements?.length || 0,
+        gapsCount: response.data?.snapshot?.gaps?.length || 0,
+      });
       if (response.ok && response.data) {
         handleSnapshot(response.data.snapshot);
         return response.data;
       }
+      console.error("[useSkillGap] Refresh API response not ok or missing data:", response);
       setError("Unable to refresh skill gap analysis.");
     } catch (err) {
-      console.error("Failed to refresh skill gap snapshot:", err);
+      console.error("[useSkillGap] Failed to refresh skill gap snapshot:", err);
       const message =
         err instanceof ApiError
           ? err.detail || err.message

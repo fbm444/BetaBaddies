@@ -1032,7 +1032,7 @@ export function Resumes() {
       )}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h1 className="text-[42px] leading-[1.1] font-semibold text-[#0F172A]">
@@ -1067,7 +1067,7 @@ export function Resumes() {
                 onClick={handleCreateResume}
                 className="flex items-center gap-2 px-6 py-3 rounded-full text-white transition-all text-sm font-semibold bg-gradient-to-r from-[#845BFF] to-[#F551A2] hover:opacity-90"
               >
-                <Icon icon="mingcute:sparkles-line" className="w-5 h-5" />
+                <Icon icon="mingcute:ai-fill" className="w-5 h-5" />
                 Create New Resume
               </button>
             </div>
@@ -1075,7 +1075,7 @@ export function Resumes() {
 
           {/* Selection Bar - Shows when resumes are selected */}
           {selectedResumes.size > 0 && (
-            <div className="mb-5 rounded-2xl border border-[#DCE1F8] bg-[#EEF1FF] px-5 py-4">
+            <div className="mb-4 rounded-2xl border border-[#DCE1F8] bg-[#EEF1FF] px-5 py-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <label className="flex items-center gap-2 cursor-pointer">
@@ -1165,8 +1165,8 @@ export function Resumes() {
 
         {/* Job Pipeline Section */}
         {showJobPipeline && (
-          <div className="mb-8 rounded-[24px] border border-[#E2E8F8] bg-white">
-            <div className="px-8 py-5 border-b border-[#EDF1FD]">
+          <div className="mb-6 rounded-[24px] border border-[#E2E8F8] bg-white">
+            <div className="px-8 py-4 border-b border-[#EDF1FD]">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div className="flex items-start gap-3.5">
                   <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F1F4FF]">
@@ -1196,7 +1196,7 @@ export function Resumes() {
                 </select>
               </div>
             </div>
-            <div className="px-8 py-8">
+            <div className="px-8 py-6">
               {filteredJobs.length === 0 ? (
                 <div className="flex flex-col items-center gap-4 py-10 text-center">
                   <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#F5F7FF]">
@@ -1215,11 +1215,11 @@ export function Resumes() {
                   </div>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                   {filteredJobs.map((job) => (
                     <div
                       key={job.id}
-                      className="rounded-2xl border border-[#E2E8F8] bg-white p-5 transition-all cursor-pointer group hover:border-[#5B72FF]"
+                      className="rounded-2xl border border-[#E2E8F8] bg-white p-4 transition-all cursor-pointer group hover:border-[#C3CCE8]"
                       onClick={() => handleCreateResumeForJob(job.id)}
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -1249,11 +1249,11 @@ export function Resumes() {
                         </span>
                       </div>
                       {job.description && (
-                        <p className="mt-2.5 text-xs text-[#6F7A97] line-clamp-2">
+                        <p className="mt-2 text-xs text-[#6F7A97] line-clamp-2">
                           {job.description}
                         </p>
                       )}
-                      <div className="mt-3.5 flex items-center justify-between border-t border-[#EEF1FD] pt-2.5">
+                      <div className="mt-3 flex items-center justify-between border-t border-[#EEF1FD] pt-2">
                         <span className="text-xs text-[#8A94AD]">
                           {job.createdAt
                             ? new Date(job.createdAt).toLocaleDateString()
@@ -1277,7 +1277,7 @@ export function Resumes() {
 
         {/* Resumes Grid */}
         {filteredResumes.length === 0 ? (
-          <div className="text-center py-16 bg-white rounded-[28px] border border-dashed border-[#DCE1F1]">
+          <div className="text-center py-12 bg-white rounded-[28px] border border-dashed border-[#DCE1F1]">
             <Icon
               icon="mingcute:file-line"
               className="w-16 h-16 mx-auto text-[#C2CAE6] mb-4"
@@ -1292,25 +1292,25 @@ export function Resumes() {
             </p>
             <button
               onClick={handleCreateResume}
-              className="inline-flex items-center gap-2 bg-[#3351FD] text-white px-6 py-3 rounded-full hover:bg-[#2744d8] transition-all text-sm font-semibold"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-full text-white transition-all text-sm font-semibold bg-gradient-to-r from-[#845BFF] to-[#F551A2] hover:opacity-90"
             >
-              <Icon icon="mingcute:add-line" className="w-5 h-5" />
+              <Icon icon="mingcute:ai-fill" className="w-5 h-5" />
               Create New Resume
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {filteredResumes.map((resume) => (
               <div
                 key={resume.id}
                 className={`bg-white rounded-[26px] border transition-all overflow-hidden flex flex-col ${
                   selectedResumes.has(resume.id)
                     ? "border-[#5B72FF] ring-2 ring-[#5B72FF]/40"
-                    : "border-[#E2E8F8] hover:border-[#5B72FF]"
+                    : "border-[#E2E8F8] hover:border-[#C3CCE8]"
                 }`}
               >
                 {/* Resume Preview Card */}
-                <div className="p-5 flex-1 flex flex-col">
+                <div className="p-4 flex-1 flex flex-col">
                   <div className="flex items-start gap-3">
                     <input
                       type="checkbox"
@@ -1331,11 +1331,11 @@ export function Resumes() {
                         )}
                       </div>
                       {resume.description ? (
-                        <p className="text-sm text-[#6F7A97] mb-3 line-clamp-2">
+                        <p className="text-sm text-[#6F7A97] mb-2 line-clamp-2">
                           {resume.description}
                         </p>
                       ) : (
-                        <div className="h-5 mb-3"></div>
+                        <div className="h-4 mb-2"></div>
                       )}
                       <div className="flex items-center gap-3 text-xs text-[#8A94AD]">
                         <span className="flex items-center gap-1">
@@ -1352,8 +1352,8 @@ export function Resumes() {
                 </div>
 
                 {/* Actions */}
-                <div className="border-t border-[#EDF1FD] px-5 py-4 bg-[#F8FAFF]">
-                  <div className="flex items-center gap-2">
+                <div className="border-t border-[#EDF1FD] px-4 py-3 bg-[#F8FAFF]">
+                  <div className="flex items-center gap-1">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();

@@ -28,21 +28,30 @@ export function CoverLetterTemplates() {
         const industry = selectedIndustry === "all" ? undefined : selectedIndustry;
         const response = await coverLetterService.getTemplates(industry);
         if (response.ok && response.data) {
-          let filteredTemplates = response.data.templates;
-          
-          // Filter by tone if not "all"
+          let filteredTemplates = response.data.templates || [];
+
           if (selectedTone !== "all") {
             filteredTemplates = filteredTemplates.filter(
-              (t) => t.tone === selectedTone
+              (t: CoverLetterTemplate) => t.tone === selectedTone
             );
           }
-          
-          setTemplates(filteredTemplates);
+
+          // Ensure we only keep one template per unique name
+          const uniqueTemplates = [
+            ...new Map(
+              filteredTemplates.map((template: CoverLetterTemplate) => [
+                template.templateName,
+                template,
+              ])
+            ).values(),
+          ];
+
+          setTemplates(uniqueTemplates);
         }
       } catch (err: any) {
         console.log("API not available, using mock data for preview:", err.message);
         // Use default templates structure
-        setTemplates([
+        const fallbackTemplates: CoverLetterTemplate[] = [
           {
             id: "default-formal",
             templateName: "Formal Professional",
@@ -79,7 +88,15 @@ export function CoverLetterTemplates() {
             isShared: true,
             industry: "technology",
           },
-        ]);
+        ];
+
+        if (selectedTone === "all") {
+          setTemplates(fallbackTemplates);
+        } else {
+          setTemplates(
+            fallbackTemplates.filter((template) => template.tone === selectedTone)
+          );
+        }
       } finally {
         setIsLoading(false);
       }
@@ -142,13 +159,13 @@ export function CoverLetterTemplates() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[#F5F6FB] flex items-center justify-center font-poppins">
         <div className="text-center">
           <Icon
             icon="mingcute:loading-line"
-            className="w-12 h-12 animate-spin mx-auto text-[#3351FD]"
+            className="w-12 h-12 animate-spin mx-auto text-[#5B72FF]"
           />
-          <p className="mt-4 text-gray-600">Loading templates...</p>
+          <p className="mt-4 text-[#6F7A97]">Loading templates...</p>
         </div>
       </div>
     );
@@ -156,7 +173,7 @@ export function CoverLetterTemplates() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[#F5F6FB] flex items-center justify-center font-poppins">
         <div className="text-center">
           <Icon
             icon="mingcute:alert-circle-line"
@@ -165,7 +182,7 @@ export function CoverLetterTemplates() {
           <p className="text-red-600 mb-4">{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors"
+            className="px-4 py-2 rounded-full bg-[#5B72FF] text-white hover:bg-[#4a62ef] transition-colors"
           >
             Retry
           </button>
@@ -175,16 +192,16 @@ export function CoverLetterTemplates() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#F5F6FB] py-10 font-poppins">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
+        <div className="mb-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">
+              <h1 className="text-[36px] leading-tight font-semibold text-[#0F172A]">
                 Cover Letter Templates
               </h1>
-              <p className="text-gray-600 mt-1">
+              <p className="text-base text-[#6F7A97] mt-1.5">
                 Choose a template to create your cover letter
               </p>
             </div>
@@ -194,50 +211,50 @@ export function CoverLetterTemplates() {
           <div className="flex flex-wrap gap-2 mt-6">
             <button
               onClick={() => setSelectedTone("all")}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
                 selectedTone === "all"
-                  ? "bg-[#3351FD] text-white"
-                  : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                  ? "bg-black text-white"
+                  : "bg-white text-[#1B2559] border border-[#DDE2F2] hover:bg-[#F4F6FB]"
               }`}
             >
               All Tones
             </button>
             <button
               onClick={() => setSelectedTone("formal")}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
                 selectedTone === "formal"
-                  ? "bg-[#3351FD] text-white"
-                  : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                  ? "bg-black text-white"
+                  : "bg-white text-[#1B2559] border border-[#DDE2F2] hover:bg-[#F4F6FB]"
               }`}
             >
               Formal
             </button>
             <button
               onClick={() => setSelectedTone("casual")}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
                 selectedTone === "casual"
-                  ? "bg-[#3351FD] text-white"
-                  : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                  ? "bg-black text-white"
+                  : "bg-white text-[#1B2559] border border-[#DDE2F2] hover:bg-[#F4F6FB]"
               }`}
             >
               Casual
             </button>
             <button
               onClick={() => setSelectedTone("enthusiastic")}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
                 selectedTone === "enthusiastic"
-                  ? "bg-[#3351FD] text-white"
-                  : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                  ? "bg-black text-white"
+                  : "bg-white text-[#1B2559] border border-[#DDE2F2] hover:bg-[#F4F6FB]"
               }`}
             >
               Enthusiastic
             </button>
             <button
               onClick={() => setSelectedTone("analytical")}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
                 selectedTone === "analytical"
-                  ? "bg-[#3351FD] text-white"
-                  : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                  ? "bg-black text-white"
+                  : "bg-white text-[#1B2559] border border-[#DDE2F2] hover:bg-[#F4F6FB]"
               }`}
             >
               Analytical
@@ -246,13 +263,13 @@ export function CoverLetterTemplates() {
         </div>
 
         {/* Templates Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {templates.map((template) => {
             const colors = parseColors(template.colors);
             return (
               <div
                 key={template.id}
-                className="bg-white rounded-lg border border-gray-200 hover:shadow-lg transition-shadow overflow-hidden"
+                className="bg-white rounded-[26px] border border-[#E2E8F8] transition-all overflow-hidden flex flex-col hover:border-[#C3CCE8]"
               >
                 {/* Template Preview */}
                 <div className="h-64 bg-gradient-to-br from-gray-50 to-gray-100 p-6 relative overflow-hidden">
@@ -262,7 +279,7 @@ export function CoverLetterTemplates() {
                       style={{ borderColor: colors.primary }}
                     >
                       {/* Mock Cover Letter Preview */}
-                      <div className="space-y-2">
+                  <div className="space-y-2 flex-1 flex flex-col">
                         <div className="text-right text-xs text-gray-500">
                           [Date]
                         </div>
@@ -290,7 +307,7 @@ export function CoverLetterTemplates() {
                       </div>
                     </div>
                   </div>
-                  {template.isDefault && (
+                  {template.templateName === "Formal Professional" && (
                     <div className="absolute top-4 right-4 bg-blue-500 text-white px-2 py-1 rounded text-xs font-medium">
                       Default
                     </div>
@@ -298,23 +315,23 @@ export function CoverLetterTemplates() {
                 </div>
 
                 {/* Template Info */}
-                <div className="p-6">
+                <div className="p-5 flex-1 flex flex-col">
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-lg font-semibold text-gray-900">
+                    <h3 className="text-lg font-semibold text-[#0F172A]">
                       {template.templateName}
                     </h3>
                     <span
-                      className={`px-2 py-1 text-xs font-medium rounded capitalize ${getToneColor(
+                      className={`px-2.5 py-1 text-[11px] font-semibold rounded-full capitalize ${getToneColor(
                         template.tone
                       )}`}
                     >
                       {template.tone}
                     </span>
                   </div>
-                  <p className="text-sm text-gray-600 mb-3">
+                  <p className="text-sm text-[#6F7A97] mb-2.5 line-clamp-3">
                     {template.description || "Professional cover letter template"}
                   </p>
-                  <div className="flex items-center gap-3 text-xs text-gray-500 mb-4">
+                  <div className="flex items-center gap-3 text-xs text-[#8A94AD] mb-3">
                     <span className="flex items-center gap-1">
                       <Icon icon="mingcute:time-line" className="w-3 h-3" />
                       {template.length}
@@ -326,22 +343,22 @@ export function CoverLetterTemplates() {
                       </span>
                     )}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="mt-auto flex gap-2">
                     <button
                       onClick={() => handleSelectTemplate(template.id)}
-                      className="flex-1 flex items-center justify-center gap-2 bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors font-medium"
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-[#5B72FF] text-white rounded-full hover:bg-[#4a62ef] transition-colors text-sm font-semibold"
                     >
-                      <Icon icon="mingcute:add-line" className="w-5 h-5" />
+                      <Icon icon="mingcute:layout-4-line" className="w-5 h-5" />
                       Use Template
                     </button>
                     <button
                       onClick={() => setPreviewTemplateId(template.id)}
-                      className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                      className="px-3 py-2.5 border border-[#DDE2F2] rounded-full hover:bg-white transition-colors"
                       title="Preview"
                     >
                       <Icon
                         icon="mingcute:eye-line"
-                        className="w-5 h-5 text-gray-700"
+                        className="w-5 h-5 text-[#1B2559]"
                       />
                     </button>
                   </div>
@@ -352,15 +369,15 @@ export function CoverLetterTemplates() {
         </div>
 
         {templates.length === 0 && (
-          <div className="text-center py-16 bg-white rounded-lg border-2 border-dashed border-gray-300">
+          <div className="text-center py-12 bg-white rounded-[28px] border border-dashed border-[#DCE1F1]">
             <Icon
               icon="mingcute:mail-line"
-              className="w-16 h-16 mx-auto text-gray-400 mb-4"
+              className="w-16 h-16 mx-auto text-[#C2CAE6] mb-4"
             />
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
               No templates found
             </h3>
-            <p className="text-gray-600">
+            <p className="text-[#6F7A97]">
               Try selecting a different tone filter
             </p>
           </div>

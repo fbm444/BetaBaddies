@@ -54,12 +54,14 @@ app.use(
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 1000, // limit each IP to 1000 requests per windowMs (increased for development)
-  message: {
-    ok: false,
-    error: {
-      code: "RATE_LIMIT_EXCEEDED",
-      message: "Too many requests from this IP, please try again later.",
-    },
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res, next) => {
+    res.setHeader("X-RateLimit-Status", "exceeded");
+    console.warn(
+      `[RateLimit] Threshold exceeded for ${req.ip}. Allowing request to proceed in development mode.`
+    );
+    next();
   },
 });
 

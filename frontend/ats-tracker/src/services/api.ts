@@ -58,6 +58,20 @@ class ApiService {
       },
     });
 
+    const rateLimitStatus = response.headers.get("X-RateLimit-Status");
+    if (rateLimitStatus === "exceeded") {
+      const detail = {
+        endpoint,
+        method: options.method || "GET",
+        timestamp: Date.now(),
+      };
+      window.dispatchEvent(
+        new CustomEvent("app:rate-limit-warning", {
+          detail,
+        })
+      );
+    }
+
     if (!response.ok) {
       const error = await response.json().catch(() => ({
         error: { message: "Request failed" },

@@ -371,27 +371,35 @@ class ResumeService {
         userId,
       ]);
 
-      // Log deletion info for debugging
-      if (existingResume.parentResumeId) {
+      // If this is a master resume with versions, make versions independent before deleting
+      if (!existingResume.parentResumeId && childrenResult.rows.length > 0) {
+        console.log(
+          `Deleting master resume ${resumeId} with ${childrenResult.rows.length} version(s). ` +
+            `Making versions independent before deletion.`
+        );
+
+        // Update all child versions to remove parent reference (make them independent)
+        const updateVersionsQuery = `
+          UPDATE resume
+          SET parent_resume_id = NULL
+          WHERE parent_resume_id = $1 AND user_id = $2
+        `;
+        await database.query(updateVersionsQuery, [resumeId, userId]);
+        
+        console.log(
+          `✅ Made ${childrenResult.rows.length} version(s) independent (removed parent reference)`
+        );
+      } else if (existingResume.parentResumeId) {
         // This is a duplicate/version - safe to delete
-        // The CASCADE won't affect the parent when deleting a child
         console.log(
           `Deleting duplicate resume ${resumeId} (parent: ${existingResume.parentResumeId})`
         );
       } else {
-        // This is a master/original resume
-        if (childrenResult.rows.length > 0) {
-          console.log(
-            `Deleting master resume ${resumeId} with ${childrenResult.rows.length} version(s). ` +
-              `All versions will be automatically deleted due to CASCADE constraint.`
-          );
-        } else {
-          console.log(`Deleting master resume ${resumeId} (no versions)`);
-        }
+        // This is a master resume with no versions
+        console.log(`Deleting master resume ${resumeId} (no versions)`);
       }
 
-      // Delete the resume - CASCADE constraint will automatically delete all child versions
-      // This allows deletion even when there are versions, including master versions
+      // Delete the resume - versions are now independent, so CASCADE won't affect them
       const query = `
         DELETE FROM resume
         WHERE id = $1 AND user_id = $2

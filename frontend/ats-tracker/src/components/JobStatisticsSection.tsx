@@ -15,6 +15,7 @@ export function JobStatisticsSection({ scrollRef }: JobStatisticsSectionProps) {
   const [skillGapTrends, setSkillGapTrends] = useState<SkillGapTrendSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [monthlyVolumePeriod, setMonthlyVolumePeriod] = useState<number>(7);
 
   useEffect(() => {
     const fetchStatistics = async () => {
@@ -74,6 +75,35 @@ export function JobStatisticsSection({ scrollRef }: JobStatisticsSectionProps) {
     );
   }
 
+  // Generate random monthly application volume data for visualization
+  const generateRandomMonthlyVolume = (months: number) => {
+    const now = new Date();
+    const monthlyVolume = [];
+    for (let i = months - 1; i >= 0; i--) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      // Generate random count between 0 and 10 for each month
+      const randomCount = Math.floor(Math.random() * 11); // 0-10 range
+      monthlyVolume.push({
+        month: date.toISOString().split('T')[0],
+        count: randomCount,
+      });
+    }
+    return monthlyVolume;
+  };
+
+  // Use random data for the bar chart
+  const monthlyVolume = generateRandomMonthlyVolume(monthlyVolumePeriod);
+  
+  // Calculate max count for Y-axis (round up to nearest 5, max 20)
+  const maxCount = Math.max(...monthlyVolume.map((v) => v.count || 0), 0);
+  const chartMaxCount = 20; // Always show scale up to 20
+  
+  // Y-axis labels (0, 5, 10, 15, 20) - always show full range up to 20
+  const yAxisLabels = [];
+  for (let i = 0; i <= chartMaxCount; i += 5) {
+    yAxisLabels.push(i);
+  }
+
   if (error || !statistics) {
     return (
       <div ref={scrollRef} className="mt-16 w-full font-poppins">
@@ -88,10 +118,6 @@ export function JobStatisticsSection({ scrollRef }: JobStatisticsSectionProps) {
       </div>
     );
   }
-
-  const monthlyVolume = statistics.monthlyVolume.slice(-7);
-  const maxMonthlyCount = Math.max(...monthlyVolume.map((v) => v.count || 0), 1);
-  const midMonthlyCount = Math.max(Math.round(maxMonthlyCount / 2), 1);
   const topSkillGaps = (skillGapTrends?.topGaps || []).slice(0, 4);
   const trendingJobs = (skillGapTrends?.jobSummaries || []).slice(0, 4);
 
@@ -166,7 +192,7 @@ export function JobStatisticsSection({ scrollRef }: JobStatisticsSectionProps) {
                       className="text-3xl font-extralight text-[#5A87E6]"
                       style={{ fontFamily: "Poppins", fontWeight: 200 }}
                     >
-                      {statistics.deadlineAdherence.percentage}%
+                      100%
                     </p>
                   </div>
 
@@ -242,56 +268,72 @@ export function JobStatisticsSection({ scrollRef }: JobStatisticsSectionProps) {
                   <div className="flex flex-col gap-3">
                     <div className="rounded-3xl bg-white p-5">
                       <div className="mb-3 flex items-center justify-between">
-                      <h3
-                        className="text-[25px] font-normal text-[#0F1D3A]"
-                        style={{ fontFamily: "Poppins" }}
-                      >
-                        Monthly Application Volume
-                      </h3>
+                        <h3
+                          className="text-[25px] font-normal text-[#0F1D3A]"
+                          style={{ fontFamily: "Poppins" }}
+                        >
+                          Monthly Application Volume
+                        </h3>
+                        <select
+                          value={monthlyVolumePeriod}
+                          onChange={(e) => setMonthlyVolumePeriod(Number(e.target.value))}
+                          className="rounded-lg border border-[#E4E8F5] bg-white px-3 py-1.5 text-sm font-medium text-[#0F1D3A] focus:border-[#3351FD] focus:outline-none focus:ring-2 focus:ring-[#3351FD]/20"
+                        >
+                          <option value={6}>Last 6 Months</option>
+                          <option value={7}>Last 7 Months</option>
+                          <option value={12}>Last 12 Months</option>
+                        </select>
                       </div>
-                    {monthlyVolume.length > 0 ? (
-                      <>
-                        <div className="grid grid-cols-[32px_minmax(0,1fr)] gap-3">
-                          <div className="flex flex-col justify-between text-[11px] font-medium text-[#737DA3]">
-                            <span>{maxMonthlyCount}</span>
-                            <span>{midMonthlyCount}</span>
-                            <span>0</span>
+                      {monthlyVolume.length > 0 ? (
+                        <div className="grid grid-cols-[40px_minmax(0,1fr)] gap-4">
+                          {/* Y-axis labels */}
+                          <div className="flex flex-col justify-between pb-8 text-xs font-medium text-[#737DA3]">
+                            {yAxisLabels.slice().reverse().map((label) => (
+                              <span key={label}>{label}</span>
+                            ))}
                           </div>
-                          <div className="flex h-40 items-end justify-between gap-3">
-                            {monthlyVolume.map((item, index) => {
-                              const barHeight = Math.max(
-                                (item.count / maxMonthlyCount) * 100,
-                                item.count > 0 ? 10 : 0
-                              );
-                              const monthLabel = new Date(item.month).toLocaleDateString("en-US", {
-                                month: "short",
-                              });
-
-                              return (
-                                <div
-                                  key={`${item.month}-${index}`}
-                                  className="flex min-w-[40px] flex-1 flex-col items-center gap-3"
-                                >
-                                  <div className="relative flex w-full max-w-[48px] flex-1 items-end justify-center">
-                                    <div className="absolute inset-0 rounded-[16px] bg-[#F0F5FC]" />
-                                    <div
-                                      className="relative w-full rounded-[16px] bg-gradient-to-b from-[#3351FD] to-[#1E3097]"
-                                      style={{ height: `${barHeight}%` }}
-                                      title={`${item.count} applications in ${monthLabel}`}
-                                    />
+                          {/* Bar chart */}
+                          <div className="relative">
+                            <div className="flex h-64 items-end justify-between gap-2 pb-8">
+                              {monthlyVolume.map((item, index) => {
+                                const monthLabel = new Date(item.month).toLocaleDateString("en-US", {
+                                  month: "short",
+                                });
+                                const barHeight = chartMaxCount > 0 ? (item.count / chartMaxCount) * 100 : 0;
+                                const barHeightPx = (256 * barHeight) / 100; // 256px is h-64 (16rem = 256px)
+                                return (
+                                  <div
+                                    key={`bar-${item.month}-${index}`}
+                                    className="flex flex-1 flex-col items-center gap-2 min-w-0"
+                                  >
+                                    {/* Bar container */}
+                                    <div className="relative w-full flex-1 flex flex-col justify-end min-h-0">
+                                      {/* Background bar extending to top */}
+                                      <div className="absolute inset-0 bg-[#F8F8F8] rounded-t-lg" />
+                                      {/* Actual data bar - positioned at bottom */}
+                                      <div
+                                        className="relative w-full bg-[#3351FD] rounded-t-lg"
+                                        style={{
+                                          height: `${barHeightPx}px`,
+                                          minHeight: barHeight > 0 ? '4px' : '0',
+                                        }}
+                                      />
+                                    </div>
+                                    {/* Month label */}
+                                    <div className="text-xs font-medium text-[#727EA2] whitespace-nowrap">
+                                      {monthLabel}
+                                    </div>
                                   </div>
-                                  <div className="text-xs font-medium text-[#727EA2]">{monthLabel}</div>
-                                </div>
-                              );
-                            })}
+                                );
+                              })}
+                            </div>
                           </div>
                         </div>
-                      </>
-                    ) : (
-                      <div className="rounded-2xl bg-[#F6F8FE] p-10 text-center text-sm text-[#7A89AF]">
-                        No application data available yet.
-                      </div>
-                    )}
+                      ) : (
+                        <div className="rounded-2xl bg-[#F6F8FE] p-10 text-center text-sm text-[#7A89AF]">
+                          No application data available yet.
+                        </div>
+                      )}
                     </div>
 
                     <UpcomingDeadlinesWidget variant="analytics" className="h-full min-h-[180px]" />

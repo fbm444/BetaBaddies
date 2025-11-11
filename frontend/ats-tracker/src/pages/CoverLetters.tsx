@@ -213,18 +213,18 @@ export function CoverLetters() {
             </div>
             <div className="flex gap-3">
               <button
-                onClick={handleOpenGenerateModal}
-                className="flex items-center gap-2 px-6 py-3 rounded-full text-white transition-all text-sm font-semibold bg-gradient-to-r from-[#3351FD] to-[#5B72FF] hover:opacity-90"
-              >
-                <Icon icon="mingcute:sparkles-line" className="w-5 h-5" />
-                AI Generate for Job
-              </button>
-              <button
                 onClick={handleCreateNew}
-                className="flex items-center gap-2 px-6 py-3 rounded-full text-white transition-all text-sm font-semibold bg-gradient-to-r from-[#845BFF] to-[#F551A2] hover:opacity-90"
+                className="flex items-center gap-2 px-6 py-3 rounded-full text-white transition-all text-sm font-semibold bg-[#3351FD] hover:bg-[#2744d8]"
               >
                 <Icon icon="mingcute:add-line" className="w-5 h-5" />
                 Create From Template
+              </button>
+              <button
+                onClick={handleOpenGenerateModal}
+                className="flex items-center gap-2 px-6 py-3 rounded-full text-white transition-all text-sm font-semibold bg-gradient-to-r from-[#845BFF] to-[#F551A2] hover:opacity-90"
+              >
+                <Icon icon="mingcute:ai-fill" className="w-5 h-5" />
+                AI Generate for Job
               </button>
             </div>
           </div>

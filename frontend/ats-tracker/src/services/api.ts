@@ -487,6 +487,15 @@ class ApiService {
     );
   }
 
+  async sendDeadlineReminder(id: string) {
+    return this.request<ApiResponse<{ message: string }>>(
+      `/job-opportunities/${id}/send-deadline-reminder`,
+      {
+        method: "POST",
+      }
+    );
+  }
+
   async bulkArchiveJobOpportunities(opportunityIds: string[], archiveReason?: string) {
     return this.request<ApiResponse<{ archivedOpportunities: JobOpportunityData[]; message: string }>>(
       "/job-opportunities/bulk-archive",

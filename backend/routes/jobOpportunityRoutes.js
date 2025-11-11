@@ -38,6 +38,9 @@ router.post("/bulk-archive", jobOpportunityController.bulkArchiveJobOpportunitie
 router.post("/:id/archive", jobOpportunityController.archiveJobOpportunity);
 router.post("/:id/unarchive", jobOpportunityController.unarchiveJobOpportunity);
 
+// Send deadline reminder email (must be before generic :id routes)
+router.post("/:id/send-deadline-reminder", jobOpportunityController.sendDeadlineReminder);
+
 // Get company information (must be before generic :id routes)
 router.get("/:id/company", jobOpportunityController.getCompanyInformation);
 

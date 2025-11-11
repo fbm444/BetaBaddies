@@ -6,6 +6,8 @@ import companyService from "../services/companyService.js";
 import jobImportService from "../services/jobImportService.js";
 import skillGapService from "../services/skillGapService.js";
 import skillService from "../services/skillService.js";
+import userService from "../services/userService.js";
+import emailService from "../services/emailService.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 
 class JobOpportunityController {
@@ -962,6 +964,74 @@ class JobOpportunityController {
         weights: updatedWeights,
       },
     });
+  });
+
+  // Send deadline reminder email
+  sendDeadlineReminder = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { id } = req.params;
+
+    // Get the job opportunity
+    const opportunity = await jobOpportunityService.getJobOpportunityById(id, userId);
+    if (!opportunity) {
+      return res.status(404).json({
+        ok: false,
+        error: {
+          code: "JOB_OPPORTUNITY_NOT_FOUND",
+          message: "Job opportunity not found",
+        },
+      });
+    }
+
+    // Check if the opportunity has a deadline
+    if (!opportunity.applicationDeadline) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: "NO_DEADLINE",
+          message: "This job opportunity does not have an application deadline",
+        },
+      });
+    }
+
+    // Get user email
+    const user = await userService.getUserById(userId);
+    if (!user || !user.email) {
+      return res.status(404).json({
+        ok: false,
+        error: {
+          code: "USER_NOT_FOUND",
+          message: "User email not found",
+        },
+      });
+    }
+
+    // Send reminder email
+    try {
+      await emailService.sendDeadlineReminder(user.email, {
+        title: opportunity.title,
+        company: opportunity.company,
+        applicationDeadline: opportunity.applicationDeadline,
+        location: opportunity.location,
+        jobPostingUrl: opportunity.jobPostingUrl,
+      });
+
+      res.status(200).json({
+        ok: true,
+        data: {
+          message: "Deadline reminder email sent successfully",
+        },
+      });
+    } catch (error) {
+      console.error("Error sending deadline reminder:", error);
+      return res.status(500).json({
+        ok: false,
+        error: {
+          code: "EMAIL_SEND_FAILED",
+          message: "Failed to send reminder email",
+        },
+      });
+    }
   });
 }
 

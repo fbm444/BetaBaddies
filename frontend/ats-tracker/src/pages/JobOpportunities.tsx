@@ -14,15 +14,14 @@ import {
 } from "../utils/deadlineUtils";
 import { JobPipeline } from "../components/JobPipeline";
 import { JobOpportunityDetailModal } from "../components/JobOpportunityDetailModal";
-import {
-  JobOpportunityFilters,
-  JobOpportunityFilters as FiltersComponent,
+import { JobOpportunityFilters as FiltersComponent } from "../components/JobOpportunityFilters";
+import type {
+  JobOpportunityFilters as JobOpportunityFiltersState,
 } from "../components/JobOpportunityFilters";
 import { DeadlineCalendar } from "../components/DeadlineCalendar";
 import { ArchiveModal } from "../components/ArchiveModal";
 import { JobStatisticsSection } from "../components/JobStatisticsSection";
 import { JobImportModal } from "../components/JobImportModal";
-import type { MatchScore } from "../types";
 
 export function JobOpportunities() {
   const statisticsRef = useRef<HTMLDivElement>(null);
@@ -40,7 +39,7 @@ export function JobOpportunities() {
   const [showArchived, setShowArchived] = useState(false);
 
   // Filters state
-  const [filters, setFilters] = useState<JobOpportunityFilters>(() => {
+  const [filters, setFilters] = useState<JobOpportunityFiltersState>(() => {
     // Load saved preferences from localStorage
     const saved = localStorage.getItem("jobOpportunityFilters");
     if (saved) {
@@ -75,7 +74,8 @@ export function JobOpportunities() {
   const [quickAddStatus, setQuickAddStatus] = useState<JobStatus | undefined>(undefined);
   const [addContextNote, setAddContextNote] = useState<string | null>(null);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
-  const [pendingFilters, setPendingFilters] = useState<JobOpportunityFilters>(filters);
+  const [pendingFilters, setPendingFilters] =
+    useState<JobOpportunityFiltersState>(filters);
   const [searchValue, setSearchValue] = useState(filters.search || "");
   const messageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [matchScores, setMatchScores] = useState<Map<string, number>>(new Map());
@@ -213,8 +213,9 @@ export function JobOpportunities() {
         setLoadingMatchScores(prev => new Set(prev).add(opp.id));
         try {
           const response = await api.getMatchScore(opp.id);
-          if (response.ok && response.data && response.data.matchScore) {
-            setMatchScores(prev => new Map(prev).set(opp.id, response.data.matchScore.overallScore));
+          const overallScore = response.data?.matchScore?.overallScore;
+          if (response.ok && typeof overallScore === "number") {
+            setMatchScores((prev) => new Map(prev).set(opp.id, overallScore));
           }
         } catch (err) {
           // Silently fail - match scores are optional

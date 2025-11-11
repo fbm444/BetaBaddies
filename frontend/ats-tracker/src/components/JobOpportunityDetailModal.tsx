@@ -21,6 +21,7 @@ import { CompanyInfoModal } from "./CompanyInfoModal";
 import { JobSkillGapPanel } from "./skill-gaps/SkillGapPanel";
 import { JobMaterialsSection } from "./JobMaterialsSection";
 import { JobMatchScore } from "./JobMatchScore";
+import { api } from "../services/api";
 
 interface JobOpportunityDetailModalProps {
   opportunity: JobOpportunityData;
@@ -42,6 +43,8 @@ export function JobOpportunityDetailModal({
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showCompanyInfo, setShowCompanyInfo] = useState(false);
+  const [isSendingReminder, setIsSendingReminder] = useState(false);
+  const [reminderMessage, setReminderMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [formData, setFormData] = useState<JobOpportunityInput>({
     title: opportunity.title,
     company: opportunity.company,
@@ -118,6 +121,37 @@ export function JobOpportunityDetailModal({
       applicationDeadline: newDeadline,
     });
     setIsEditMode(true);
+  };
+
+  const handleSendReminder = async () => {
+    if (!opportunity.applicationDeadline) return;
+
+    setIsSendingReminder(true);
+    setReminderMessage(null);
+
+    try {
+      const response = await api.sendDeadlineReminder(opportunity.id);
+      if (response.ok) {
+        setReminderMessage({
+          text: "Reminder email sent successfully!",
+          type: "success",
+        });
+        // Clear message after 5 seconds
+        setTimeout(() => setReminderMessage(null), 5000);
+      } else {
+        setReminderMessage({
+          text: response.error?.message || "Failed to send reminder email",
+          type: "error",
+        });
+      }
+    } catch (error: any) {
+      setReminderMessage({
+        text: error.message || "Failed to send reminder email",
+        type: "error",
+      });
+    } finally {
+      setIsSendingReminder(false);
+    }
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -708,28 +742,65 @@ export function JobOpportunityDetailModal({
                         )}
                       </div>
                       {opportunity.applicationDeadline && !isEditMode && (
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => extendDeadline(7)}
-                            className="px-3 py-1.5 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
-                          >
-                            Extend by 7 days
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => extendDeadline(14)}
-                            className="px-3 py-1.5 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
-                          >
-                            Extend by 14 days
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => extendDeadline(30)}
-                            className="px-3 py-1.5 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
-                          >
-                            Extend by 30 days
-                          </button>
+                        <div className="space-y-3">
+                          <div className="flex gap-2 flex-wrap">
+                            <button
+                              type="button"
+                              onClick={() => extendDeadline(7)}
+                              className="px-3 py-1.5 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                            >
+                              Extend by 7 days
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => extendDeadline(14)}
+                              className="px-3 py-1.5 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                            >
+                              Extend by 14 days
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => extendDeadline(30)}
+                              className="px-3 py-1.5 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                            >
+                              Extend by 30 days
+                            </button>
+                          </div>
+                          <div className="border-t border-slate-200 pt-3">
+                            <button
+                              type="button"
+                              onClick={handleSendReminder}
+                              disabled={isSendingReminder}
+                              className="inline-flex items-center gap-2 px-4 py-2 text-sm bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {isSendingReminder ? (
+                                <>
+                                  <Icon
+                                    icon="mingcute:loading-line"
+                                    className="animate-spin"
+                                    width={16}
+                                  />
+                                  Sending...
+                                </>
+                              ) : (
+                                <>
+                                  <Icon icon="mingcute:mail-line" width={16} />
+                                  Send Email Reminder
+                                </>
+                              )}
+                            </button>
+                            {reminderMessage && (
+                              <div
+                                className={`mt-2 text-sm ${
+                                  reminderMessage.type === "success"
+                                    ? "text-green-600"
+                                    : "text-red-600"
+                                }`}
+                              >
+                                {reminderMessage.text}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>

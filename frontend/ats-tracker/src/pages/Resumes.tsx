@@ -885,7 +885,7 @@ export function Resumes() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center font-poppins">
         <div className="text-center">
           <Icon
             icon="mingcute:loading-line"
@@ -899,7 +899,7 @@ export function Resumes() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center font-poppins">
         <div className="text-center">
           <Icon
             icon="mingcute:alert-circle-line"
@@ -918,7 +918,7 @@ export function Resumes() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-[#F5F6FB] py-10 font-poppins">
       {toast && (
         <Toast
           message={toast.message}
@@ -937,7 +937,7 @@ export function Resumes() {
           }}
         >
           <div
-            className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-in zoom-in-95 duration-300"
+            className="bg-white rounded-2xl border border-[#E2E8F8] max-w-md w-full p-6 animate-in zoom-in-95 duration-300"
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="text-xl font-bold text-gray-900 mb-4">
@@ -976,7 +976,7 @@ export function Resumes() {
           }}
         >
           <div
-            className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-in zoom-in-95 duration-300"
+            className="bg-white rounded-2xl border border-[#E2E8F8] max-w-md w-full p-6 animate-in zoom-in-95 duration-300"
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="text-xl font-bold text-gray-900 mb-4">
@@ -1030,38 +1030,44 @@ export function Resumes() {
           </div>
         </div>
       )}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">My Resumes</h1>
-              <p className="text-gray-600 mt-1">
+              <h1 className="text-[42px] leading-[1.1] font-semibold text-[#0F172A]">
+                My Resumes
+              </h1>
+              <p className="text-base text-[#6F7A97] mt-1.5">
                 Manage and create tailored resumes for different positions
               </p>
             </div>
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setShowJobPipeline(!showJobPipeline)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-medium ${
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-full transition-all text-sm font-medium ${
                   showJobPipeline
-                    ? "bg-[#3351FD] text-white"
-                    : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                    ? "bg-[#5B72FF] text-white"
+                    : "bg-white text-[#0F1D3A] border border-[#D6DDF1] hover:bg-[#EEF1FF]"
                 }`}
               >
                 <Icon icon="mingcute:briefcase-line" className="w-5 h-5" />
                 Job Pipeline
                 {jobOpportunities.length > 0 && (
-                  <span className="px-2 py-0.5 bg-white/20 rounded text-xs font-medium">
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                      showJobPipeline ? "bg-white/25" : "bg-[#EEF1FF] text-[#5B72FF]"
+                    }`}
+                  >
                     {jobOpportunities.length}
                   </span>
                 )}
               </button>
               <button
                 onClick={handleCreateResume}
-                className="flex items-center gap-2 bg-black text-white px-6 py-3 rounded-lg hover:bg-gray-800 transition-colors font-medium"
+                className="flex items-center gap-2 px-6 py-3 rounded-full text-white transition-all text-sm font-semibold bg-gradient-to-r from-[#845BFF] to-[#F551A2] hover:opacity-90"
               >
-                <Icon icon="mingcute:add-line" className="w-5 h-5" />
+                <Icon icon="mingcute:sparkles-line" className="w-5 h-5" />
                 Create New Resume
               </button>
             </div>
@@ -1069,7 +1075,7 @@ export function Resumes() {
 
           {/* Selection Bar - Shows when resumes are selected */}
           {selectedResumes.size > 0 && (
-            <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="mb-5 rounded-2xl border border-[#DCE1F8] bg-[#EEF1FF] px-5 py-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <label className="flex items-center gap-2 cursor-pointer">
@@ -1077,9 +1083,9 @@ export function Resumes() {
                       type="checkbox"
                       checked={selectedResumes.size === filteredResumes.length && filteredResumes.length > 0}
                       onChange={handleSelectAll}
-                      className="w-4 h-4 text-[#3351FD] border-gray-300 rounded focus:ring-[#3351FD] focus:ring-2"
+                      className="w-4 h-4 text-[#5B72FF] border-[#BFC9F3] rounded focus:ring-[#5B72FF] focus:ring-2"
                     />
-                    <span className="text-sm font-medium text-gray-900">
+                    <span className="text-sm font-medium text-[#1B2559]">
                       {selectedResumes.size === filteredResumes.length 
                         ? "All selected" 
                         : `${selectedResumes.size} of ${filteredResumes.length} selected`}
@@ -1089,13 +1095,13 @@ export function Resumes() {
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => setSelectedResumes(new Set())}
-                    className="px-3 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                    className="px-4 py-2 text-sm text-[#1B2559] bg-white border border-[#DDE2F2] rounded-full hover:bg-[#F8FAFF] transition-colors font-medium"
                   >
                     Clear Selection
                   </button>
                   <button
                     onClick={handleBulkDelete}
-                    className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm"
+                    className="flex items-center gap-2 px-4 py-2 bg-[#EF4444] text-white rounded-full hover:bg-[#dc2626] transition-colors font-semibold text-sm"
                   >
                     <Icon icon="mingcute:delete-line" className="w-4 h-4" />
                     Delete Selected ({selectedResumes.size})
@@ -1106,49 +1112,49 @@ export function Resumes() {
           )}
 
           {/* Filters and Search */}
-          <div className="flex flex-col sm:flex-row gap-4 mt-6">
+          <div className="flex flex-col lg:flex-row lg:items-center gap-3 mt-6">
             <div className="flex-1">
-              <div className="relative">
+              <label className="relative block">
                 <Icon
                   icon="mingcute:search-line"
-                  className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5"
+                  className="absolute left-5 top-1/2 -translate-y-1/2 text-[#9AA4C2] w-[18px] h-[18px]"
                 />
                 <input
                   type="text"
                   placeholder="Search resumes..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                  className="w-full h-12 pl-12 pr-4 rounded-full border border-[#DDE2F2] bg-white text-sm text-[#1B2559] placeholder-[#9AA4C2] focus:outline-none focus:ring-2 focus:ring-[#5B72FF] focus:border-transparent transition-all"
                 />
-              </div>
+              </label>
             </div>
             <div className="flex gap-2">
               <button
                 onClick={() => setFilter("all")}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
                   filter === "all"
-                    ? "bg-[#3351FD] text-white"
-                    : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                    ? "bg-black text-white"
+                    : "bg-white text-[#1B2559] border border-[#DDE2F2] hover:bg-[#F4F6FB]"
                 }`}
               >
                 All
               </button>
               <button
                 onClick={() => setFilter("master")}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
                   filter === "master"
-                    ? "bg-[#3351FD] text-white"
-                    : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                    ? "bg-black text-white"
+                    : "bg-white text-[#1B2559] border border-[#DDE2F2] hover:bg-[#F4F6FB]"
                 }`}
               >
                 Master
               </button>
               <button
                 onClick={() => setFilter("versions")}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
                   filter === "versions"
-                    ? "bg-[#3351FD] text-white"
-                    : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                    ? "bg-black text-white"
+                    : "bg-white text-[#1B2559] border border-[#DDE2F2] hover:bg-[#F4F6FB]"
                 }`}
               >
                 Versions
@@ -1159,19 +1165,18 @@ export function Resumes() {
 
         {/* Job Pipeline Section */}
         {showJobPipeline && (
-          <div className="mb-8 bg-white rounded-lg border border-gray-200 shadow-sm">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <Icon
-                    icon="mingcute:briefcase-line"
-                    className="w-6 h-6 text-[#3351FD]"
-                  />
+          <div className="mb-8 rounded-[24px] border border-[#E2E8F8] bg-white">
+            <div className="px-8 py-5 border-b border-[#EDF1FD]">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div className="flex items-start gap-3.5">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F1F4FF]">
+                    <Icon icon="mingcute:briefcase-line" className="w-6 h-6 text-[#5B72FF]" />
+                  </div>
                   <div>
-                    <h2 className="text-xl font-semibold text-gray-900">
+                    <h2 className="text-2xl font-semibold text-[#0F172A]">
                       Job Pipeline
                     </h2>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-[#6F7A97] mt-1">
                       Select a job to create a tailored resume version
                     </p>
                   </div>
@@ -1179,7 +1184,7 @@ export function Resumes() {
                 <select
                   value={jobFilterStage}
                   onChange={(e) => setJobFilterStage(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent text-sm"
+                  className="h-11 rounded-full border border-[#DDE2F2] bg-white px-5 text-sm text-[#1B2559] focus:outline-none focus:ring-2 focus:ring-[#5B72FF] focus:border-transparent transition-all"
                 >
                   <option value="all">All Stages</option>
                   <option value="Interested">Interested</option>
@@ -1191,37 +1196,42 @@ export function Resumes() {
                 </select>
               </div>
             </div>
-            <div className="p-6">
+            <div className="px-8 py-8">
               {filteredJobs.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <Icon
-                    icon="mingcute:briefcase-line"
-                    className="w-12 h-12 mx-auto mb-3 opacity-50"
-                  />
-                  <p className="text-sm">
-                    {jobOpportunities.length === 0
-                      ? "No jobs in your pipeline. Add jobs to create tailored resume versions."
-                      : "No jobs match the selected stage filter."}
-                  </p>
+                <div className="flex flex-col items-center gap-4 py-10 text-center">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#F5F7FF]">
+                    <Icon
+                      icon="mingcute:briefcase-line"
+                      className="w-8 h-8 text-[#B4BDE2]"
+                    />
+                  </div>
+                  <div className="max-w-sm">
+                    <p className="text-sm font-semibold text-[#1B2559]">
+                      No jobs in your pipeline
+                    </p>
+                    <p className="mt-1 text-sm text-[#8A94AD]">
+                      Add jobs to start creating tailored resume versions for different opportunities.
+                    </p>
+                  </div>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {filteredJobs.map((job) => (
                     <div
                       key={job.id}
-                      className="border border-gray-200 rounded-lg p-4 hover:border-[#3351FD] hover:shadow-md transition-all cursor-pointer group"
+                      className="rounded-2xl border border-[#E2E8F8] bg-white p-5 transition-all cursor-pointer group hover:border-[#5B72FF]"
                       onClick={() => handleCreateResumeForJob(job.id)}
                     >
-                      <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-gray-900 truncate group-hover:text-[#3351FD] transition-colors">
+                          <h3 className="font-semibold text-[#0F172A] truncate group-hover:text-[#5B72FF] transition-colors">
                             {job.title}
                           </h3>
-                          <p className="text-sm text-gray-700 truncate">
+                          <p className="text-sm text-[#6F7A97] truncate">
                             {job.company}
                           </p>
                           {job.location && (
-                            <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                            <p className="mt-2 flex items-center gap-1 text-xs text-[#8A94AD]">
                               <Icon
                                 icon="mingcute:map-pin-line"
                                 className="w-3 h-3"
@@ -1231,7 +1241,7 @@ export function Resumes() {
                           )}
                         </div>
                         <span
-                          className={`px-2 py-1 rounded text-xs font-medium border flex-shrink-0 ${getStageColor(
+                          className={`px-3 py-1 rounded-full text-[11px] font-semibold border flex-shrink-0 ${getStageColor(
                             job.status
                           )}`}
                         >
@@ -1239,17 +1249,17 @@ export function Resumes() {
                         </span>
                       </div>
                       {job.description && (
-                        <p className="text-xs text-gray-600 mt-2 line-clamp-2">
+                        <p className="mt-2.5 text-xs text-[#6F7A97] line-clamp-2">
                           {job.description}
                         </p>
                       )}
-                      <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
-                        <span className="text-xs text-gray-500">
+                      <div className="mt-3.5 flex items-center justify-between border-t border-[#EEF1FD] pt-2.5">
+                        <span className="text-xs text-[#8A94AD]">
                           {job.createdAt
                             ? new Date(job.createdAt).toLocaleDateString()
                             : "N/A"}
                         </span>
-                        <div className="flex items-center gap-1 text-xs text-[#3351FD] font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center gap-1 text-xs text-[#5B72FF] font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
                           <span>Create Resume</span>
                           <Icon
                             icon="mingcute:arrow-right-line"
@@ -1267,67 +1277,67 @@ export function Resumes() {
 
         {/* Resumes Grid */}
         {filteredResumes.length === 0 ? (
-          <div className="text-center py-16 bg-white rounded-lg border-2 border-dashed border-gray-300">
+          <div className="text-center py-16 bg-white rounded-[28px] border border-dashed border-[#DCE1F1]">
             <Icon
               icon="mingcute:file-line"
-              className="w-16 h-16 mx-auto text-gray-400 mb-4"
+              className="w-16 h-16 mx-auto text-[#C2CAE6] mb-4"
             />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            <h3 className="text-xl font-semibold text-[#0F172A] mb-2">
               No resumes found
             </h3>
-            <p className="text-gray-600 mb-6">
+            <p className="text-[#6F7A97] mb-6">
               {searchQuery
                 ? "Try adjusting your search"
                 : "Get started by creating your first resume"}
             </p>
             <button
               onClick={handleCreateResume}
-              className="inline-flex items-center gap-2 bg-black text-white px-6 py-3 rounded-lg hover:bg-gray-800 transition-colors font-medium"
+              className="inline-flex items-center gap-2 bg-[#3351FD] text-white px-6 py-3 rounded-full hover:bg-[#2744d8] transition-all text-sm font-semibold"
             >
               <Icon icon="mingcute:add-line" className="w-5 h-5" />
               Create New Resume
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {filteredResumes.map((resume) => (
               <div
                 key={resume.id}
-                className={`bg-white rounded-lg border transition-shadow overflow-hidden flex flex-col ${
+                className={`bg-white rounded-[26px] border transition-all overflow-hidden flex flex-col ${
                   selectedResumes.has(resume.id)
-                    ? "border-[#3351FD] shadow-lg ring-2 ring-[#3351FD]"
-                    : "border-gray-200 hover:shadow-lg"
+                    ? "border-[#5B72FF] ring-2 ring-[#5B72FF]/40"
+                    : "border-[#E2E8F8] hover:border-[#5B72FF]"
                 }`}
               >
                 {/* Resume Preview Card */}
-                <div className="p-6 flex-1 flex flex-col">
+                <div className="p-5 flex-1 flex flex-col">
                   <div className="flex items-start gap-3">
                     <input
                       type="checkbox"
                       checked={selectedResumes.has(resume.id)}
                       onChange={() => handleToggleSelect(resume.id)}
                       onClick={(e) => e.stopPropagation()}
-                      className="mt-1 w-4 h-4 text-[#3351FD] border-gray-300 rounded focus:ring-[#3351FD] focus:ring-2 cursor-pointer flex-shrink-0"
+                      className="mt-1 w-4 h-4 text-[#5B72FF] border-[#DDE2F2] rounded focus:ring-[#5B72FF] focus:ring-2 cursor-pointer flex-shrink-0"
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-2">
-                        <h3 className="text-lg font-semibold text-gray-900">
+                        <h3 className="text-lg font-semibold text-[#0F172A]">
                           {resume.name || resume.versionName}
                         </h3>
                         {resume.isMaster && (
-                          <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded flex-shrink-0">
+                          <span className="px-2.5 py-1 text-[11px] font-semibold bg-[#EEF1FF] text-[#5B72FF] rounded-full flex-shrink-0">
                             Master
                           </span>
                         )}
                       </div>
                       {resume.description ? (
-                        <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+                        <p className="text-sm text-[#6F7A97] mb-3 line-clamp-2">
                           {resume.description}
                         </p>
                       ) : (
-                        <div className="h-5 mb-2"></div>
+                        <div className="h-5 mb-3"></div>
                       )}
-                      <div className="flex items-center gap-4 text-xs text-gray-500">
+                      <div className="flex items-center gap-3 text-xs text-[#8A94AD]">
                         <span className="flex items-center gap-1">
                           <Icon icon="mingcute:time-line" className="w-4 h-4" />
                           {new Date(resume.updatedAt).toLocaleDateString()}
@@ -1342,14 +1352,14 @@ export function Resumes() {
                 </div>
 
                 {/* Actions */}
-                <div className="border-t border-gray-200 p-4 bg-gray-50">
+                <div className="border-t border-[#EDF1FD] px-5 py-4 bg-[#F8FAFF]">
                   <div className="flex items-center gap-2">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         handleEditResume(resume.id);
                       }}
-                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a45d4] transition-colors text-sm font-medium"
+                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 bg-[#5B72FF] text-white rounded-full hover:bg-[#4a62ef] transition-colors text-sm font-semibold"
                       type="button"
                     >
                       <Icon icon="mingcute:edit-line" className="w-4 h-4" />
@@ -1360,13 +1370,13 @@ export function Resumes() {
                         e.stopPropagation();
                         handlePreviewResume(resume.id);
                       }}
-                      className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
+                      className="px-3 py-2.5 border border-[#DDE2F2] rounded-full hover:bg-white transition-colors"
                       title="Preview"
                       type="button"
                     >
                       <Icon
                         icon="mingcute:eye-line"
-                        className="w-4 h-4 text-gray-700"
+                        className="w-4 h-4 text-[#1B2559]"
                       />
                     </button>
                     <div className="relative">
@@ -1376,61 +1386,61 @@ export function Resumes() {
                             showExportMenu === resume.id ? null : resume.id
                           )
                         }
-                        className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
+                        className="px-3 py-2.5 border border-[#DDE2F2] rounded-full hover:bg-white transition-colors"
                         title="Export"
                         disabled={exportingId === resume.id}
                       >
                         {exportingId === resume.id ? (
                           <Icon
                             icon="mingcute:loading-line"
-                            className="w-4 h-4 text-gray-700 animate-spin"
+                            className="w-4 h-4 text-[#1B2559] animate-spin"
                           />
                         ) : (
                           <Icon
                             icon="mingcute:download-line"
-                            className="w-4 h-4 text-gray-700"
+                            className="w-4 h-4 text-[#1B2559]"
                           />
                         )}
                       </button>
                       {showExportMenu === resume.id && (
-                        <div className="absolute right-0 bottom-full mb-2 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[150px]">
+                        <div className="absolute right-0 bottom-full mb-2 bg-white border border-[#E2E8F8] rounded-xl z-10 min-w-[150px]">
                           <button
                             onClick={() => handleExport(resume.id, "pdf")}
-                            className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2 text-sm"
+                            className="w-full text-left px-4 py-2 hover:bg-[#F8FAFF] flex items-center gap-2 text-sm text-[#1B2559]"
                           >
                             <Icon
                               icon="mingcute:file-pdf-line"
-                              className="w-4 h-4 text-red-600"
+                              className="w-4 h-4 text-red-500"
                             />
                             Export PDF
                           </button>
                           <button
                             onClick={() => handleExport(resume.id, "docx")}
-                            className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2 text-sm"
+                            className="w-full text-left px-4 py-2 hover:bg-[#F8FAFF] flex items-center gap-2 text-sm text-[#1B2559]"
                           >
                             <Icon
                               icon="mingcute:file-word-line"
-                              className="w-4 h-4 text-blue-600"
+                              className="w-4 h-4 text-[#3351FD]"
                             />
                             Export DOCX
                           </button>
                           <button
                             onClick={() => handleExport(resume.id, "html")}
-                            className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2 text-sm"
+                            className="w-full text-left px-4 py-2 hover:bg-[#F8FAFF] flex items-center gap-2 text-sm text-[#1B2559]"
                           >
                             <Icon
                               icon="mingcute:file-html-line"
-                              className="w-4 h-4 text-orange-600"
+                              className="w-4 h-4 text-orange-500"
                             />
                             Export HTML
                           </button>
                           <button
                             onClick={() => handleExport(resume.id, "txt")}
-                            className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2 text-sm"
+                            className="w-full text-left px-4 py-2 hover:bg-[#F8FAFF] flex items-center gap-2 text-sm text-[#1B2559]"
                           >
                             <Icon
                               icon="mingcute:file-text-line"
-                              className="w-4 h-4 text-gray-600"
+                              className="w-4 h-4 text-[#6F7A97]"
                             />
                             Export TXT
                           </button>

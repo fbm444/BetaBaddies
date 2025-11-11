@@ -67,7 +67,7 @@ export function UpcomingDeadlinesWidget({
 
   const baseCardClasses =
     variant === "analytics"
-      ? "bg-white rounded-3xl p-5 md:p-6 shadow-sm font-poppins h-full flex flex-col"
+      ? "bg-white rounded-3xl p-5 md:p-6 font-poppins h-full flex flex-col"
       : "bg-white rounded-xl p-6 shadow-sm border border-slate-200 font-poppins";
 
   if (isLoading) {

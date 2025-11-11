@@ -241,14 +241,14 @@ export function JobStatisticsSection({ scrollRef }: JobStatisticsSectionProps) {
 
                   <div className="flex flex-col gap-3">
                     <div className="rounded-3xl bg-white p-5">
-                    <div className="mb-3 flex items-center justify-between">
+                      <div className="mb-3 flex items-center justify-between">
                       <h3
                         className="text-[25px] font-normal text-[#0F1D3A]"
                         style={{ fontFamily: "Poppins" }}
                       >
                         Monthly Application Volume
                       </h3>
-                    </div>
+                      </div>
                     {monthlyVolume.length > 0 ? (
                       <>
                         <div className="grid grid-cols-[32px_minmax(0,1fr)] gap-3">
@@ -299,7 +299,7 @@ export function JobStatisticsSection({ scrollRef }: JobStatisticsSectionProps) {
                 </div>
               </div>
 
-              <div className="rounded-3xl bg-white p-5 shadow-sm xl:h-full flex flex-col">
+              <div className="rounded-3xl bg-white p-5 xl:h-full flex flex-col">
                 <div className="mb-3">
                   <h3
                     className="text-[25px] font-normal text-[#0F1D3A]"
@@ -338,7 +338,7 @@ export function JobStatisticsSection({ scrollRef }: JobStatisticsSectionProps) {
           </div>
 
           {skillGapTrends && (
-            <div className="rounded-3xl bg-white p-5 shadow-sm">
+            <div className="mt-2 lg:mt-4 rounded-3xl bg-white p-5">
               <div className="mb-3 flex items-center justify-between">
                 <h3
                   className="text-[25px] font-normal text-[#0F1D3A]"

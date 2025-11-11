@@ -110,7 +110,7 @@ export function CoverLetters() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center font-poppins">
         <div className="text-center">
           <Icon
             icon="mingcute:loading-line"
@@ -123,7 +123,7 @@ export function CoverLetters() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 py-8 font-poppins">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">

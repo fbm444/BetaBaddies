@@ -556,8 +556,10 @@ CREATE TABLE IF NOT EXISTS public.coverletter (
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     file character varying(1000),
     comments_id uuid,
+    template_id uuid,
     CONSTRAINT coverletter_pkey PRIMARY KEY (id),
     CONSTRAINT coverletter_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE,
+    CONSTRAINT coverletter_template_is_fkey FOREIGN KEY (template_id) REFERENCES public.coverletter_template(id),
     CONSTRAINT coverletter_comments_id_fkey FOREIGN KEY (comments_id) REFERENCES public.resume_comments(id)
 );
 

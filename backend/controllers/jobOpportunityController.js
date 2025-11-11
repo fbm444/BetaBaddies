@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import jobOpportunityService from "../services/jobOpportunityService.js";
 import jobMaterialsService from "../services/jobMaterialsService.js";
+import jobMatchingService from "../services/jobMatchingService.js";
 import companyService from "../services/companyService.js";
 import jobImportService from "../services/jobImportService.js";
 import skillGapService from "../services/skillGapService.js";
@@ -856,6 +857,109 @@ class JobOpportunityController {
       ok: true,
       data: {
         comparison,
+      },
+    });
+  });
+
+  // ==================== Job Matching Endpoints ====================
+
+  // Calculate match score for a job opportunity
+  calculateMatchScore = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { id } = req.params;
+
+    const matchScore = await jobMatchingService.calculateMatchScore(id, userId);
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        matchScore,
+      },
+    });
+  });
+
+  // Get match score for a job opportunity
+  getMatchScore = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { id } = req.params;
+
+    const matchScore = await jobMatchingService.getMatchScore(id, userId);
+
+    if (matchScore === null) {
+      // No match score exists yet
+      return res.status(200).json({
+        ok: true,
+        data: {
+          matchScore: null,
+        },
+      });
+    }
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        matchScore,
+      },
+    });
+  });
+
+  // Get match scores for multiple jobs
+  getMatchScoresForJobs = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { jobIds } = req.body;
+
+    if (!jobIds || !Array.isArray(jobIds)) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          message: "jobIds array is required",
+          code: "VALIDATION_ERROR",
+        },
+      });
+    }
+
+    const matchScores = await jobMatchingService.getMatchScoresForJobs(
+      userId,
+      jobIds
+    );
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        matchScores,
+      },
+    });
+  });
+
+  // Get match score history and trends
+  getMatchScoreHistory = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { id } = req.params;
+
+    const history = await jobMatchingService.getMatchScoreHistory(id, userId);
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        history,
+      },
+    });
+  });
+
+  // Update matching criteria weights
+  updateMatchingWeights = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { weights } = req.body;
+
+    const updatedWeights = await jobMatchingService.updateMatchingWeights(
+      userId,
+      weights
+    );
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        weights: updatedWeights,
       },
     });
   });

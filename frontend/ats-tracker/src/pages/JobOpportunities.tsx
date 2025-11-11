@@ -22,6 +22,7 @@ import { DeadlineCalendar } from "../components/DeadlineCalendar";
 import { ArchiveModal } from "../components/ArchiveModal";
 import { JobStatisticsSection } from "../components/JobStatisticsSection";
 import { JobImportModal } from "../components/JobImportModal";
+import type { MatchScore } from "../types";
 
 export function JobOpportunities() {
   const statisticsRef = useRef<HTMLDivElement>(null);
@@ -77,6 +78,8 @@ export function JobOpportunities() {
   const [pendingFilters, setPendingFilters] = useState<JobOpportunityFilters>(filters);
   const [searchValue, setSearchValue] = useState(filters.search || "");
   const messageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [matchScores, setMatchScores] = useState<Map<string, number>>(new Map());
+  const [loadingMatchScores, setLoadingMatchScores] = useState<Set<string>>(new Set());
   
   // Notification state for undo
   const [undoArchive, setUndoArchive] = useState<{
@@ -186,6 +189,8 @@ export function JobOpportunities() {
         const response = await api.getJobOpportunities(filterParams);
         if (response.ok && response.data) {
           setOpportunities(response.data.jobOpportunities);
+          // Load match scores for opportunities
+          loadMatchScoresForOpportunities(response.data.jobOpportunities);
         }
       }
     } catch (err: any) {
@@ -196,6 +201,32 @@ export function JobOpportunities() {
       );
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Load match scores for opportunities (non-blocking)
+  const loadMatchScoresForOpportunities = async (opps: JobOpportunityData[]) => {
+    if (showArchived) return; // Don't load match scores for archived jobs
+    
+    for (const opp of opps) {
+      if (!matchScores.has(opp.id) && !loadingMatchScores.has(opp.id)) {
+        setLoadingMatchScores(prev => new Set(prev).add(opp.id));
+        try {
+          const response = await api.getMatchScore(opp.id);
+          if (response.ok && response.data && response.data.matchScore) {
+            setMatchScores(prev => new Map(prev).set(opp.id, response.data.matchScore.overallScore));
+          }
+        } catch (err) {
+          // Silently fail - match scores are optional
+          console.debug("Could not load match score for job", opp.id);
+        } finally {
+          setLoadingMatchScores(prev => {
+            const next = new Set(prev);
+            next.delete(opp.id);
+            return next;
+          });
+        }
+      }
     }
   };
 
@@ -946,6 +977,7 @@ export function JobOpportunities() {
                   showCheckbox={true}
                   searchTerm={filters.search}
                   showArchived={showArchived}
+                  matchScore={matchScores.get(opportunity.id)}
                 />
               ))}
             </div>
@@ -1068,6 +1100,7 @@ function OpportunityCard({
   showCheckbox = false,
   searchTerm,
   showArchived = false,
+  matchScore,
 }: {
   opportunity: JobOpportunityData;
   onEdit: (opportunity: JobOpportunityData) => void;
@@ -1080,6 +1113,7 @@ function OpportunityCard({
   showCheckbox?: boolean;
   searchTerm?: string;
   showArchived?: boolean;
+  matchScore?: number | null;
 }) {
   const formatSalary = () => {
     if (opportunity.salaryMin && opportunity.salaryMax) {
@@ -1175,7 +1209,7 @@ function OpportunityCard({
         </div>
       </div>
 
-      {/* Status Badge and Archive Info */}
+      {/* Status Badge, Match Score, and Archive Info */}
       <div className="mb-2 flex items-center gap-2 flex-wrap">
         <span
           className="px-2 py-1 rounded text-xs font-medium"
@@ -1186,6 +1220,21 @@ function OpportunityCard({
         >
           {opportunity.status}
         </span>
+        {matchScore !== null && matchScore !== undefined && (
+          <span
+            className={`px-2 py-1 rounded text-xs font-medium ${
+              matchScore >= 80
+                ? "bg-green-100 text-green-700"
+                : matchScore >= 60
+                ? "bg-yellow-100 text-yellow-700"
+                : "bg-red-100 text-red-700"
+            }`}
+            title="Match Score"
+          >
+            <Icon icon="mingcute:target-line" width={12} className="inline mr-1" />
+            {matchScore}% Match
+          </span>
+        )}
         {showArchived && opportunity.archivedAt && (
           <span className="px-2 py-1 rounded text-xs font-medium bg-amber-100 text-amber-700">
             Archived {formatDate(opportunity.archivedAt)}

@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Icon } from "@iconify/react";
 import { ROUTES } from "../config/routes";
-import { CoverLetter } from "../types";
+import { CoverLetter, JobOpportunityData } from "../types";
 import { coverLetterService } from "../services/coverLetterService";
+import { api } from "../services/api";
 
 export function CoverLetters() {
   const navigate = useNavigate();
@@ -14,6 +15,12 @@ export function CoverLetters() {
   const [searchQuery, setSearchQuery] = useState("");
   const [exportingId, setExportingId] = useState<string | null>(null);
   const [showExportMenu, setShowExportMenu] = useState<string | null>(null);
+  
+  // AI Generation state
+  const [showGenerateModal, setShowGenerateModal] = useState(false);
+  const [jobs, setJobs] = useState<JobOpportunityData[]>([]);
+  const [selectedJobId, setSelectedJobId] = useState<string>("");
+  const [isGenerating, setIsGenerating] = useState(false);
 
   // Fetch cover letters from API
   useEffect(() => {
@@ -49,6 +56,74 @@ export function CoverLetters() {
 
   const handleCreateNew = () => {
     navigate(`${ROUTES.COVER_LETTER_TEMPLATES}?create=true`);
+  };
+
+  const handleOpenGenerateModal = async () => {
+    try {
+      const response = await api.getJobOpportunities();
+      if (response.data) {
+        setJobs(response.data.jobOpportunities);
+      }
+      setShowGenerateModal(true);
+    } catch (err: any) {
+      setError("Failed to load jobs. Please try again.");
+    }
+  };
+
+  const handleGenerate = async () => {
+    if (!selectedJobId) {
+      setError("Please select a job");
+      return;
+    }
+
+    try {
+      setIsGenerating(true);
+      setError(null);
+
+      const selectedJob = jobs.find(j => j.id === selectedJobId);
+      if (!selectedJob) {
+        setError("Job not found");
+        return;
+      }
+
+      // Create cover letter with auto-generated name
+      const coverLetterName = `${selectedJob.company} - ${selectedJob.title} Cover Letter`;
+      
+      const createResponse = await coverLetterService.createCoverLetter({
+        versionName: coverLetterName,
+        description: `Cover letter for ${selectedJob.title} at ${selectedJob.company}`,
+        jobId: selectedJobId,
+      });
+
+      if (!createResponse.ok || !createResponse.data) {
+        throw new Error("Failed to create cover letter");
+      }
+
+      const coverLetterId = createResponse.data.coverLetter.id;
+
+      // Generate AI content with company research
+      await coverLetterService.generateContent(coverLetterId, {
+        jobId: selectedJobId,
+        includeCompanyResearch: true,
+      });
+
+      // Refresh list
+      const refreshResponse = await coverLetterService.getCoverLetters();
+      if (refreshResponse.ok && refreshResponse.data) {
+        setCoverLetters(refreshResponse.data.coverLetters);
+      }
+
+      // Close modal and navigate to builder
+      setShowGenerateModal(false);
+      setSelectedJobId("");
+      navigate(`${ROUTES.COVER_LETTER_BUILDER}?id=${coverLetterId}`);
+      
+    } catch (err: any) {
+      console.error("Failed to generate cover letter:", err);
+      setError(err.message || "Failed to generate cover letter. Please try again.");
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleEdit = (id: string) => {
@@ -136,13 +211,22 @@ export function CoverLetters() {
                 Manage and create professional cover letters
               </p>
             </div>
-            <button
-              onClick={handleCreateNew}
-              className="flex items-center gap-2 px-6 py-3 rounded-full text-white transition-all text-sm font-semibold bg-gradient-to-r from-[#845BFF] to-[#F551A2] hover:opacity-90"
-            >
-              <Icon icon="mingcute:ai-fill" className="w-5 h-5" />
-              Create New Cover Letter
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={handleOpenGenerateModal}
+                className="flex items-center gap-2 px-6 py-3 rounded-full text-white transition-all text-sm font-semibold bg-gradient-to-r from-[#3351FD] to-[#5B72FF] hover:opacity-90"
+              >
+                <Icon icon="mingcute:sparkles-line" className="w-5 h-5" />
+                AI Generate for Job
+              </button>
+              <button
+                onClick={handleCreateNew}
+                className="flex items-center gap-2 px-6 py-3 rounded-full text-white transition-all text-sm font-semibold bg-gradient-to-r from-[#845BFF] to-[#F551A2] hover:opacity-90"
+              >
+                <Icon icon="mingcute:add-line" className="w-5 h-5" />
+                Create From Template
+              </button>
+            </div>
           </div>
 
           {/* Filters and Search */}
@@ -350,6 +434,71 @@ export function CoverLetters() {
           </div>
         )}
       </div>
+
+      {/* AI Generate Modal */}
+      {showGenerateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-slate-900">Generate Cover Letter</h2>
+              <button
+                onClick={() => setShowGenerateModal(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <Icon icon="mingcute:close-line" width={24} height={24} />
+              </button>
+            </div>
+
+            <p className="text-sm text-slate-600 mb-4">
+              Select a job to generate a tailored cover letter with AI
+            </p>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Select Job
+              </label>
+              <select
+                value={selectedJobId}
+                onChange={(e) => setSelectedJobId(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3351FD]"
+              >
+                <option value="">Choose a job...</option>
+                {jobs.map((job) => (
+                  <option key={job.id} value={job.id}>
+                    {job.title} at {job.company}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowGenerateModal(false)}
+                className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-md text-sm font-medium hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleGenerate}
+                disabled={isGenerating || !selectedJobId}
+                className="flex-1 px-4 py-2 bg-[#3351FD] text-white rounded-md text-sm font-medium hover:bg-[#2641DD] disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isGenerating ? (
+                  <>
+                    <Icon icon="mingcute:loading-line" className="w-5 h-5 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Icon icon="mingcute:sparkles-line" className="w-5 h-5" />
+                    Generate
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

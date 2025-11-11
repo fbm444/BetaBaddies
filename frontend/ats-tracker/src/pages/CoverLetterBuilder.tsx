@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Icon } from "@iconify/react";
 import { ROUTES } from "../config/routes";
-import { CoverLetter, CoverLetterTemplate } from "../types";
+import { CoverLetter } from "../types";
 import { coverLetterService } from "../services/coverLetterService";
 import { CoverLetterTopBar } from "../components/coverletter/CoverLetterTopBar";
 import { CoverLetterAIAssistant } from "../components/coverletter/CoverLetterAIAssistant";
@@ -29,7 +29,6 @@ export function CoverLetterBuilder() {
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [isAutoSaving, setIsAutoSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [toast, setToast] = useState<{
     message: string;
@@ -58,7 +57,7 @@ export function CoverLetterBuilder() {
           }
         } else if (templateId) {
           // Create new cover letter from template
-          let template = null;
+          let template: any = null;
           let templateResponse = null;
           
           try {
@@ -90,7 +89,7 @@ export function CoverLetterBuilder() {
             name: template 
               ? `Cover Letter - ${template.templateName}`
               : "New Cover Letter",
-            templateId: template?.id || templateId || null,
+            templateId: template?.id || (templateId || undefined),
             content: {
               greeting: template?.tone === "casual" 
                 ? "Hi [Hiring Manager Name],"
@@ -101,9 +100,9 @@ export function CoverLetterBuilder() {
               fullText: "",
             },
             toneSettings: {
-              tone: template?.tone || "formal",
-              length: template?.length || "standard",
-              writingStyle: template?.writingStyle || "direct",
+              tone: (template?.tone || "formal") as "formal" | "casual" | "enthusiastic" | "analytical",
+              length: (template?.length || "standard") as "brief" | "standard" | "detailed",
+              writingStyle: (template?.writingStyle || "direct") as "direct" | "narrative" | "bullet-points",
             },
             customizations: {
               colors: template?.colors
@@ -155,8 +154,8 @@ export function CoverLetterBuilder() {
                      fullText: "",
                    },
                    toneSettings: {
-                     tone: "formal",
-                     length: "standard",
+                     tone: "formal" as "formal" | "casual" | "enthusiastic" | "analytical",
+                     length: "standard" as "brief" | "standard" | "detailed",
                    },
                  };
 
@@ -229,6 +228,33 @@ export function CoverLetterBuilder() {
              setIsSaving(false);
            }
          };
+
+  const handleNameChange = async (newName: string) => {
+    if (!coverLetter || !coverLetterId) return;
+
+    // Update local state immediately for responsiveness
+    setCoverLetter({
+      ...coverLetter,
+      name: newName,
+    });
+
+    // Save to backend
+    try {
+      await coverLetterService.updateCoverLetter(coverLetterId, {
+        name: newName,
+        content: coverLetter.content,
+        toneSettings: coverLetter.toneSettings,
+        customizations: coverLetter.customizations,
+      });
+      setLastSaved(new Date());
+    } catch (err: any) {
+      console.error("Failed to update name:", err);
+      setToast({
+        message: "Failed to update cover letter name",
+        type: "error",
+      });
+    }
+  };
 
   const handleExportClick = () => {
     // Show preview modal first
@@ -527,7 +553,7 @@ export function CoverLetterBuilder() {
     } catch (err: any) {
       console.error("Export error:", err);
       setToast({
-        message: err.message || `Failed to export as ${format.toUpperCase()}`,
+        message: err.message || `Failed to export as ${options.format.toUpperCase()}`,
         type: "error",
       });
     } finally {
@@ -651,7 +677,7 @@ export function CoverLetterBuilder() {
         coverLetter={coverLetter}
         coverLetterId={coverLetterId}
         isSaving={isSaving}
-        isAutoSaving={isAutoSaving}
+        isAutoSaving={false}
         lastSaved={lastSaved}
         exporting={exporting}
         showExportMenu={showExportMenu}
@@ -661,6 +687,7 @@ export function CoverLetterBuilder() {
         onExport={handleExportClick}
         onToggleExportMenu={() => setShowExportMenu(!showExportMenu)}
         onToggleCustomization={() => setShowCustomization(!showCustomization)}
+        onNameChange={handleNameChange}
       />
 
       <div className="flex h-[calc(100vh-64px)]">
@@ -783,7 +810,8 @@ export function CoverLetterBuilder() {
                             ...coverLetter,
                             toneSettings: {
                               ...coverLetter.toneSettings,
-                              tone: e.target.value as any,
+                              tone: e.target.value as "formal" | "casual" | "enthusiastic" | "analytical",
+                              length: coverLetter.toneSettings?.length || "standard",
                             },
                           })
                         }
@@ -806,7 +834,8 @@ export function CoverLetterBuilder() {
                             ...coverLetter,
                             toneSettings: {
                               ...coverLetter.toneSettings,
-                              length: e.target.value as any,
+                              tone: coverLetter.toneSettings?.tone || "formal",
+                              length: e.target.value as "brief" | "standard" | "detailed",
                             },
                           })
                         }

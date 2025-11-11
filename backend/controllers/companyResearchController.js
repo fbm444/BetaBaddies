@@ -1,5 +1,6 @@
 import companyResearchService from "../services/companyResearchService.js";
 import companyResearchAutomationService from "../services/companyResearchAutomationService.js";
+import companyInterviewInsightsService from "../services/companyInterviewInsightsService.js";
 import database from "../services/database.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 
@@ -176,6 +177,71 @@ class CompanyResearchController {
         aiSummary,
       },
     });
+  });
+
+  /**
+   * Get interview insights for a company/job
+   * GET /api/v1/company-research/job/:jobId/interview-insights
+   */
+  getInterviewInsights = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { jobId } = req.params;
+    const { role, refresh } = req.query;
+
+    try {
+      const response =
+        await companyInterviewInsightsService.getInsightsForJob(
+          jobId,
+          userId,
+          {
+            roleTitle: role,
+            forceRefresh: refresh === "true" || refresh === "1",
+          }
+        );
+
+      res.status(200).json({
+        ok: true,
+        data: {
+          interviewInsights: response.insights,
+          metadata: response.metadata,
+        },
+      });
+    } catch (error) {
+      if (error.message === "NOT_FOUND") {
+        return res.status(404).json({
+          ok: false,
+          error: {
+            code: "NOT_FOUND",
+            message: "Job not found",
+          },
+        });
+      }
+
+      if (error.message === "FORBIDDEN") {
+        return res.status(403).json({
+          ok: false,
+          error: {
+            code: "FORBIDDEN",
+            message: "You don't have permission to access this job",
+          },
+        });
+      }
+
+      console.error(
+        "[CompanyResearchController] Interview insights error:",
+        error
+      );
+
+      res.status(500).json({
+        ok: false,
+        error: {
+          code: "INTERVIEW_INSIGHTS_ERROR",
+          message:
+            error.message ||
+            "Unable to generate interview insights at this time.",
+        },
+      });
+    }
   });
 
   /**

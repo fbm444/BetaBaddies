@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import jobOpportunityService from "../services/jobOpportunityService.js";
+import jobMaterialsService from "../services/jobMaterialsService.js";
 import companyService from "../services/companyService.js";
 import jobImportService from "../services/jobImportService.js";
 import skillGapService from "../services/skillGapService.js";
@@ -698,6 +699,163 @@ class JobOpportunityController {
       data: {
         importResult,
         message: "Job data imported successfully",
+      },
+    });
+  });
+
+  // ==================== Materials Management Endpoints ====================
+
+  // Get current materials for a job opportunity
+  getCurrentMaterials = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { id } = req.params;
+
+    const materials = await jobMaterialsService.getCurrentMaterials(id, userId);
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        materials,
+      },
+    });
+  });
+
+  // Link materials to a job opportunity
+  linkMaterials = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { id } = req.params;
+    const { resumeVersionId, coverLetterVersionId } = req.body;
+
+    const materials = await jobMaterialsService.linkMaterials(
+      id,
+      userId,
+      resumeVersionId || null,
+      coverLetterVersionId || null
+    );
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        materials,
+        message: "Materials linked successfully",
+      },
+    });
+  });
+
+  // Get materials history for a job opportunity
+  getMaterialsHistory = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { id } = req.params;
+
+    const history = await jobMaterialsService.getMaterialsHistory(id, userId);
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        history,
+        count: history.length,
+      },
+    });
+  });
+
+  // Get available resume versions for the user
+  getAvailableResumes = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+
+    const resumes = await jobMaterialsService.getAvailableResumes(userId);
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        resumes,
+        count: resumes.length,
+      },
+    });
+  });
+
+  // Get available cover letter versions for the user
+  getAvailableCoverLetters = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+
+    const coverLetters = await jobMaterialsService.getAvailableCoverLetters(userId);
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        coverLetters,
+        count: coverLetters.length,
+      },
+    });
+  });
+
+  // Get materials usage analytics
+  getMaterialsUsageAnalytics = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+
+    const analytics = await jobMaterialsService.getMaterialsUsageAnalytics(userId);
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        analytics,
+      },
+    });
+  });
+
+  // Compare two resume versions
+  compareResumeVersions = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { resumeId1, resumeId2 } = req.query;
+
+    if (!resumeId1 || !resumeId2) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          message: "resumeId1 and resumeId2 are required",
+          code: "VALIDATION_ERROR",
+        },
+      });
+    }
+
+    const comparison = await jobMaterialsService.compareResumeVersions(
+      resumeId1,
+      resumeId2,
+      userId
+    );
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        comparison,
+      },
+    });
+  });
+
+  // Compare two cover letter versions
+  compareCoverLetterVersions = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { coverLetterId1, coverLetterId2 } = req.query;
+
+    if (!coverLetterId1 || !coverLetterId2) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          message: "coverLetterId1 and coverLetterId2 are required",
+          code: "VALIDATION_ERROR",
+        },
+      });
+    }
+
+    const comparison = await jobMaterialsService.compareCoverLetterVersions(
+      coverLetterId1,
+      coverLetterId2,
+      userId
+    );
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        comparison,
       },
     });
   });

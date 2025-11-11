@@ -44,6 +44,18 @@ router.get("/:id/company", jobOpportunityController.getCompanyInformation);
 // Import job from URL (must be before generic :id routes)
 router.post("/import", jobOpportunityController.importJobFromUrl);
 
+// Materials management routes (must be before generic :id routes)
+router.get("/materials/resumes", jobOpportunityController.getAvailableResumes);
+router.get("/materials/cover-letters", jobOpportunityController.getAvailableCoverLetters);
+router.get("/materials/analytics", jobOpportunityController.getMaterialsUsageAnalytics);
+router.get("/materials/compare/resumes", jobOpportunityController.compareResumeVersions);
+router.get("/materials/compare/cover-letters", jobOpportunityController.compareCoverLetterVersions);
+
+// Materials for a specific job opportunity (must be before generic :id routes)
+router.get("/:id/materials", jobOpportunityController.getCurrentMaterials);
+router.post("/:id/materials", jobOpportunityController.linkMaterials);
+router.get("/:id/materials/history", jobOpportunityController.getMaterialsHistory);
+
 // Get job opportunity by ID (must be after other routes to avoid conflicts)
 router.get("/:id", jobOpportunityController.getJobOpportunity);
 

@@ -1,6 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
 import resumeAIAssistantService from "./resumes/aiService.js";
-import resumeAIAssistantService from "./resumes/aiService.js";
 import { learningResourcesCatalog, skillSynonyms } from "../data/learningResources.js";
 
 /**

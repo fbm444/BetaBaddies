@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Icon } from "@iconify/react";
 import { DashboardProfileData } from "../types";
@@ -25,37 +25,79 @@ export function Dashboard() {
     null
   );
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
+  const fetchDashboardData = useCallback(
+    async (options?: { silent?: boolean }) => {
+      const silent = options?.silent ?? false;
+
+      if (silent) {
+        setIsRefreshing(true);
+      } else {
         setIsLoading(true);
+      }
+
+      try {
         setError(null);
         const data = await dashboardService.getDashboardData();
         setProfileData(data);
-        setIsLoading(false);
+        if (!silent) {
+          setIsLoading(false);
+        }
       } catch (err: any) {
         console.error("Failed to fetch dashboard data:", err);
-        
-        // If authentication failed (401), don't show default data
-        // Keep loading state to prevent flashing empty dashboard
-        // ProtectedRoute will handle the redirect
-        if (err?.status === 401 || err?.message?.includes('Unauthorized')) {
-          console.log('Authentication failed, staying in loading state');
-          setIsLoading(true);
+
+        if (err?.status === 401 || err?.message?.includes("Unauthorized")) {
+          console.log("Authentication failed, staying in loading state");
+          if (!silent) {
+            setIsLoading(true);
+          }
           return;
         }
-        
+
         setError("Failed to load dashboard data. Please try again.");
         setProfileData(dashboardService.getDefaultDashboardData());
-        setIsLoading(false);
+        if (!silent) {
+          setIsLoading(false);
+        }
+      } finally {
+        if (silent) {
+          setIsRefreshing(false);
+        }
       }
+    },
+    []
+  );
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  useEffect(() => {
+    const handleDashboardRefresh = (event: Event) => {
+      const customEvent = event as CustomEvent<{
+        source?: string;
+        jobId?: string;
+        snapshotId?: string;
+      }>;
+
+      if (customEvent.detail?.source === "skill-gap") {
+        console.debug(
+          "[Dashboard] Refresh requested by skill gap analysis",
+          customEvent.detail
+        );
+      }
+
+      fetchDashboardData({ silent: true });
     };
 
-    fetchDashboardData();
-  }, []);
+    window.addEventListener("dashboard:refresh", handleDashboardRefresh);
+    return () => {
+      window.removeEventListener("dashboard:refresh", handleDashboardRefresh);
+    };
+  }, [fetchDashboardData]);
 
   const handleQuickAdd = (section: string) => {
     switch (section) {
@@ -127,6 +169,15 @@ export function Dashboard() {
 
   return (
     <div className="font-poppins min-h-full">
+      {isRefreshing && (
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-10 py-2">
+          <div className="flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700 shadow-sm">
+            <Icon icon="mingcute:loading-line" width={18} className="animate-spin" />
+            <span>Refreshing dashboard insights…</span>
+          </div>
+        </div>
+      )}
+
       {/* Welcome Message */}
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-10 py-6">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">

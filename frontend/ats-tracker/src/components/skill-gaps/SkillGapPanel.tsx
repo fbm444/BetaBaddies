@@ -154,6 +154,21 @@ export function JobSkillGapPanel({ opportunity, onHistorySync }: JobSkillGapPane
     [onHistorySync]
   );
 
+  const dispatchDashboardRefresh = useCallback(
+    (snapshotId?: string) => {
+      window.dispatchEvent(
+        new CustomEvent("dashboard:refresh", {
+          detail: {
+            source: "skill-gap",
+            jobId: opportunity.id,
+            snapshotId,
+          },
+        })
+      );
+    },
+    [opportunity.id]
+  );
+
   const handleSnapshotUpdate = useCallback(
     (snapshot: SkillGapSnapshot) => {
       syncHistory((prev) => {
@@ -169,8 +184,9 @@ export function JobSkillGapPanel({ opportunity, onHistorySync }: JobSkillGapPane
           ? combined.slice(combined.length - 25)
           : combined;
       });
+      dispatchDashboardRefresh(snapshot.snapshotId);
     },
-    [syncHistory]
+    [syncHistory, dispatchDashboardRefresh]
   );
 
   const { snapshot, loading, refreshing, error, fetchSnapshot, refreshSnapshot, logProgress } =
@@ -228,7 +244,8 @@ export function JobSkillGapPanel({ opportunity, onHistorySync }: JobSkillGapPane
     setIsAnimating(true);
     try {
       // Always generate a new snapshot, don't fetch existing one
-      await refreshSnapshot();
+      const result = await refreshSnapshot();
+      dispatchDashboardRefresh(result?.snapshot?.snapshotId);
     } finally {
       // Animation will be handled by handleSnapshotUpdate
     }
@@ -243,7 +260,8 @@ export function JobSkillGapPanel({ opportunity, onHistorySync }: JobSkillGapPane
     }
     setIsAnimating(true);
     try {
-      await refreshSnapshot();
+      const result = await refreshSnapshot();
+      dispatchDashboardRefresh(result?.snapshot?.snapshotId);
     } finally {
       // Animation will be handled by handleSnapshotUpdate
     }
@@ -274,7 +292,8 @@ export function JobSkillGapPanel({ opportunity, onHistorySync }: JobSkillGapPane
         setSuccessMessage(
           `Progress recorded for ${selectedGap.skillName}.`
         );
-        await refreshSnapshot();
+        const result = await refreshSnapshot();
+        dispatchDashboardRefresh(result?.snapshot?.snapshotId);
         closeProgressModal();
       }
     } finally {

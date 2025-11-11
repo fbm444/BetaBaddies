@@ -327,115 +327,283 @@ async function populateDemoData() {
 
     // Step 8: Add job opportunities (different stages)
     console.log("\n📝 Step 8: Adding job opportunities...");
+
     const jobOpportunities = [
       {
-        title: "Senior Full Stack Engineer",
-        company: "Google",
-        location: "Mountain View, CA",
-        salary_min: 180000,
-        salary_max: 250000,
-        job_posting_url: "https://careers.google.com/jobs/results/123456",
-        application_deadline: "2024-02-15",
+        title: "Senior Frontend Engineer",
+        company: "Lunar Labs",
+        location: "Remote - US",
+        salary_min: 155000,
+        salary_max: 195000,
+        job_posting_url: "https://careers.lunarlabs.com/jobs/frontend",
+        application_deadline: "2025-12-18",
         job_description:
-          "We are looking for a Senior Full Stack Engineer to join our team. You will work on building scalable web applications, mentor junior engineers, and collaborate with cross-functional teams. Requirements: 5+ years experience, React, Node.js, cloud experience.",
-        industry: "Technology",
-        job_type: "Full-time",
-        status: "Interested",
-        notes:
-          "Great opportunity at a top tech company. Need to tailor resume for this role.",
-        recruiter_name: "Sarah Chen",
-        recruiter_email: "sarah.chen@google.com",
-      },
-      {
-        title: "Software Engineer III",
-        company: "Microsoft",
-        location: "Seattle, WA",
-        salary_min: 160000,
-        salary_max: 220000,
-        job_posting_url: "https://careers.microsoft.com/jobs/results/789012",
-        application_deadline: "2024-02-20",
-        job_description:
-          "Join Microsoft's cloud services team. Build and maintain large-scale distributed systems. Work with Azure, .NET, and modern web technologies.",
+          "Lead the development of a modern design system and data visualization suite for our AI observability platform.",
         industry: "Technology",
         job_type: "Full-time",
         status: "Applied",
-        notes: "Applied on 2024-01-15. Waiting for response.",
-        recruiter_name: "Michael Rodriguez",
-        recruiter_email: "mrodriguez@microsoft.com",
+        notes:
+          "Submitted tailored resume. Waiting to hear back, follow up with recruiter next week.",
+        recruiter_name: "Maya Chen",
+        recruiter_email: "maya.chen@lunarlabs.com",
+        salary_negotiation_notes:
+          "Open to discussing equity-heavy comp depending on scope.",
+        status_updated_at: "2024-08-05T10:15:00.000Z",
+        created_at: "2024-07-29T18:42:00.000Z",
+        updated_at: "2024-08-05T10:15:00.000Z",
       },
       {
-        title: "Lead Frontend Developer",
-        company: "Netflix",
-        location: "Los Gatos, CA",
-        salary_min: 170000,
-        salary_max: 240000,
-        job_posting_url: "https://jobs.netflix.com/jobs/345678",
-        application_deadline: "2024-02-25",
+        title: "Staff Software Engineer",
+        company: "Helios Energy",
+        location: "Austin, TX",
+        salary_min: 175000,
+        salary_max: 220000,
+        job_posting_url: "https://heliosenergy.com/careers/staff-engineer",
+        application_deadline: "2025-12-28",
         job_description:
-          "Lead frontend development for Netflix's streaming platform. Work with React, TypeScript, and modern frontend architectures. Lead a team of 5 engineers.",
-        industry: "Entertainment",
+          "Own end-to-end architecture for Helios' smart grid analytics platform with a focus on scalability.",
+        industry: "Clean Energy",
         job_type: "Full-time",
         status: "Phone Screen",
         notes:
-          "Phone screen scheduled for 2024-01-20 at 2 PM. Prepare for technical questions.",
-        recruiter_name: "Emily Watson",
-        recruiter_email: "ewatson@netflix.com",
+          "Initial call complete. Need to prepare system design stories related to energy telemetry.",
+        recruiter_name: "Jordan Lee",
+        recruiter_email: "jordan.lee@heliosenergy.com",
+        salary_negotiation_notes: "Target $210k base + bonus.",
+        status_updated_at: "2024-09-12T15:20:00.000Z",
+        created_at: "2024-08-19T14:03:00.000Z",
+        updated_at: "2024-09-12T15:20:00.000Z",
       },
       {
-        title: "Full Stack Developer",
-        company: "Airbnb",
-        location: "San Francisco, CA",
-        salary_min: 150000,
-        salary_max: 200000,
-        job_posting_url: "https://careers.airbnb.com/jobs/456789",
-        application_deadline: "2024-03-01",
+        title: "Lead Full Stack Engineer",
+        company: "Atlas Health",
+        location: "Boston, MA",
+        salary_min: 165000,
+        salary_max: 205000,
+        job_posting_url: "https://atlashealth.com/jobs/lead-engineer",
+        application_deadline: "2026-01-05",
         job_description:
-          "Build features for Airbnb's platform. Work with Ruby on Rails, React, and modern web technologies. Focus on user experience and scalability.",
-        industry: "Travel",
+          "Build patient engagement applications and mentor a pod of 4 engineers across React and Node stacks.",
+        industry: "Healthcare",
         job_type: "Full-time",
         status: "Interview",
         notes:
-          "On-site interview scheduled for 2024-01-25. Prepare system design questions.",
-        recruiter_name: "David Kim",
-        recruiter_email: "dkim@airbnb.com",
+          "Panel interview scheduled. Review HIPAA compliance stories and patient data integrations.",
+        recruiter_name: "Priya Natarajan",
+        recruiter_email: "priya.n@atlashealth.com",
+        salary_negotiation_notes:
+          "Discuss remote flexibility and relocation support.",
+        status_updated_at: "2024-10-02T17:00:00.000Z",
+        created_at: "2024-09-28T09:48:00.000Z",
+        updated_at: "2024-10-02T17:00:00.000Z",
       },
       {
-        title: "Senior Software Engineer",
-        company: "Meta",
-        location: "Menlo Park, CA",
+        title: "Principal Platform Engineer",
+        company: "Nimbus AI",
+        location: "Seattle, WA",
         salary_min: 190000,
-        salary_max: 260000,
-        job_posting_url: "https://www.metacareers.com/jobs/567890",
-        application_deadline: "2024-02-28",
+        salary_max: 245000,
+        job_posting_url: "https://nimbus.ai/careers/platform-principal",
+        application_deadline: "2026-01-06",
         job_description:
-          "Work on Meta's social media platforms. Build scalable backend systems, optimize performance, and work with large-scale data processing.",
-        industry: "Technology",
+          "Design and operate large-scale ML feature stores and streaming infrastructure powering Nimbus AI products.",
+        industry: "Artificial Intelligence",
         job_type: "Full-time",
         status: "Offer",
         notes:
-          "Received offer on 2024-01-18. Negotiating salary and benefits. Base: $200k, RSU: $50k/year.",
-        recruiter_name: "Jennifer Lee",
-        recruiter_email: "jlee@meta.com",
+          "Offer received. Evaluating comp package vs. market. Need to respond by Nov 5.",
+        recruiter_name: "Alex Romero",
+        recruiter_email: "alex.romero@nimbus.ai",
         salary_negotiation_notes:
-          "Initial offer: $200k base + $50k RSU. Countering with $220k base + $60k RSU.",
+          "Ask for signing bonus and specify remote work agreement.",
+        status_updated_at: "2024-10-25T12:30:00.000Z",
+        created_at: "2024-10-10T11:25:00.000Z",
+        updated_at: "2024-10-25T12:30:00.000Z",
       },
       {
-        title: "Backend Engineer",
-        company: "Uber",
+        title: "Engineering Manager, Developer Experience",
+        company: "Starboard",
         location: "San Francisco, CA",
-        salary_min: 140000,
-        salary_max: 190000,
-        job_posting_url: "https://www.uber.com/careers/jobs/678901",
-        application_deadline: "2024-02-10",
+        salary_min: 185000,
+        salary_max: 230000,
+        job_posting_url: "https://starboard.dev/careers/devex-manager",
+        application_deadline: "2025-12-15",
         job_description:
-          "Build backend services for Uber's platform. Work with microservices, distributed systems, and high-traffic applications.",
-        industry: "Transportation",
+          "Lead the developer experience team, focusing on internal tooling, CI/CD, and productivity improvements.",
+        industry: "Developer Tools",
         job_type: "Full-time",
         status: "Rejected",
         notes:
-          "Rejected on 2024-01-12. Feedback: Looking for more Go experience.",
-        recruiter_name: "Robert Taylor",
-        recruiter_email: "rtaylor@uber.com",
+          "Company paused hiring for Q4. Keep warm for potential reopening next year.",
+        recruiter_name: "Beatrice Holt",
+        recruiter_email: "beatrice.holt@starboard.dev",
+        salary_negotiation_notes: null,
+        status_updated_at: "2024-06-18T09:10:00.000Z",
+        created_at: "2024-05-22T13:37:00.000Z",
+        updated_at: "2024-06-18T09:10:00.000Z",
+        archive_after_insert: true,
+        archive_reason: "Role paused due to hiring freeze",
+        archived_at: "2024-06-18T09:10:00.000Z",
+      },
+      {
+        title: "Senior Backend Engineer",
+        company: "Harbor Fintech",
+        location: "Chicago, IL",
+        salary_min: 150000,
+        salary_max: 190000,
+        job_posting_url: "https://harborfintech.com/careers/backend",
+        application_deadline: "2026-01-08",
+        job_description:
+          "Modernize payment reconciliation services using event-driven architecture and Go microservices.",
+        industry: "Fintech",
+        job_type: "Full-time",
+        status: "Applied",
+        notes:
+          "Great culture fit. Need to follow up after ATS confirmation. Prepare Go concurrency stories.",
+        recruiter_name: "Leslie Cho",
+        recruiter_email: "leslie.cho@harborfintech.com",
+        salary_negotiation_notes:
+          "Aim for $185k base with 15% bonus opportunity.",
+        status_updated_at: "2024-04-08T16:45:00.000Z",
+        created_at: "2024-03-27T08:30:00.000Z",
+        updated_at: "2024-04-08T16:45:00.000Z",
+      },
+      {
+        title: "Director of Engineering",
+        company: "Aurora Robotics",
+        location: "Los Angeles, CA",
+        salary_min: 210000,
+        salary_max: 260000,
+        job_posting_url: "https://aurorarobotics.com/jobs/director-eng",
+        application_deadline: "2025-12-30",
+        job_description:
+          "Oversee robotics software teams delivering perception and motion planning systems.",
+        industry: "Robotics",
+        job_type: "Full-time",
+        status: "Applied",
+        notes:
+          "Long-term target role. Need to expand robotics portfolio. Follow up monthly.",
+        recruiter_name: "Diego Alvarez",
+        recruiter_email: "diego.alvarez@aurorarobotics.com",
+        salary_negotiation_notes:
+          "Clarify equity refresh cadence and leadership bonus structure.",
+        status_updated_at: "2024-02-20T10:05:00.000Z",
+        created_at: "2024-01-18T12:15:00.000Z",
+        updated_at: "2024-02-20T10:05:00.000Z",
+      },
+      {
+        title: "Principal Cloud Architect",
+        company: "Verdant Analytics",
+        location: "Denver, CO",
+        salary_min: 200000,
+        salary_max: 255000,
+        job_posting_url: "https://verdantanalytics.com/careers/cloud-architect",
+        application_deadline: "2026-01-03",
+        job_description:
+          "Define multi-cloud architecture standards and lead a hybrid cloud migration roadmap.",
+        industry: "Data & Analytics",
+        job_type: "Full-time",
+        status: "Rejected",
+        notes:
+          "Role closed after final panel. Keep in touch for future openings.",
+        recruiter_name: "Hannah Brooks",
+        recruiter_email: "hannah.brooks@verdantanalytics.com",
+        salary_negotiation_notes: null,
+        status_updated_at: "2024-05-05T11:55:00.000Z",
+        created_at: "2024-04-14T09:40:00.000Z",
+        updated_at: "2024-05-05T11:55:00.000Z",
+        archive_after_insert: true,
+        archive_reason: "Role closed after final panel",
+        archived_at: "2024-05-05T11:55:00.000Z",
+      },
+      {
+        title: "AI Platform Engineer",
+        company: "Circuit Labs",
+        location: "Remote - North America",
+        salary_min: 160000,
+        salary_max: 205000,
+        job_posting_url: "https://circuitlabs.ai/careers/ai-platform-engineer",
+        application_deadline: "2025-12-27",
+        job_description:
+          "Build and scale the core AI experimentation platform. Collaborate with ML researchers to productionize models.",
+        industry: "Artificial Intelligence",
+        job_type: "Full-time",
+        status: "Interested",
+        notes:
+          "Exciting AI infra role. Need to tailor resume around MLOps and experimentation pipelines.",
+        recruiter_name: "Sonia Patel",
+        recruiter_email: "sonia.patel@circuitlabs.ai",
+        salary_negotiation_notes: null,
+        status_updated_at: "2024-11-12T09:30:00.000Z",
+        created_at: "2024-11-05T14:10:00.000Z",
+        updated_at: "2024-11-12T09:30:00.000Z",
+      },
+      {
+        title: "Senior GraphQL Engineer",
+        company: "Voyage Network",
+        location: "New York, NY",
+        salary_min: 150000,
+        salary_max: 195000,
+        job_posting_url: "https://voyagenetwork.com/jobs/graphql-engineer",
+        application_deadline: "2026-01-02",
+        job_description:
+          "Own the evolution of our federated GraphQL gateway supporting real-time travel personalization.",
+        industry: "Travel Technology",
+        job_type: "Full-time",
+        status: "Interested",
+        notes:
+          "Matches prior experience with Apollo Federation. Need to highlight schema governance wins.",
+        recruiter_name: "Miles Carter",
+        recruiter_email: "miles.carter@voyagenetwork.com",
+        salary_negotiation_notes: "Target 190k base + 10% bonus.",
+        status_updated_at: "2024-12-04T16:45:00.000Z",
+        created_at: "2024-12-01T18:25:00.000Z",
+        updated_at: "2024-12-04T16:45:00.000Z",
+      },
+      {
+        title: "Headless Commerce Architect",
+        company: "Aurora Retail",
+        location: "Chicago, IL",
+        salary_min: 170000,
+        salary_max: 215000,
+        job_posting_url: "https://auroraretail.com/careers/headless-architect",
+        application_deadline: "2026-01-07",
+        job_description:
+          "Design modern commerce architecture with composable services, focusing on DX and scalability.",
+        industry: "E-commerce",
+        job_type: "Full-time",
+        status: "Interested",
+        notes:
+          "Need to craft case study around the modular checkout system project.",
+        recruiter_name: "Lena Ortiz",
+        recruiter_email: "lena.ortiz@auroraretail.com",
+        salary_negotiation_notes:
+          "Ask about remote-first policy and relocation stipend.",
+        status_updated_at: "2025-01-15T13:05:00.000Z",
+        created_at: "2025-01-10T11:00:00.000Z",
+        updated_at: "2025-01-15T13:05:00.000Z",
+      },
+      {
+        title: "Principal Reliability Engineer",
+        company: "Nimbus Cloud",
+        location: "Seattle, WA",
+        salary_min: 180000,
+        salary_max: 235000,
+        job_posting_url: "https://nimbuscloud.com/careers/reliability-principal",
+        application_deadline: "2025-12-22",
+        job_description:
+          "Lead reliability engineering initiatives for multi-region cloud services with strict SLOs.",
+        industry: "Cloud Infrastructure",
+        job_type: "Full-time",
+        status: "Rejected",
+        notes:
+          "Reached final round but received a rejection. Capture feedback for future roles.",
+        recruiter_name: "Chris Lang",
+        recruiter_email: "chris.lang@nimbuscloud.com",
+        salary_negotiation_notes: null,
+        status_updated_at: "2025-02-18T20:40:00.000Z",
+        created_at: "2025-02-02T15:55:00.000Z",
+        updated_at: "2025-02-18T20:40:00.000Z",
       },
     ];
 
@@ -449,7 +617,7 @@ async function populateDemoData() {
           job_posting_url, application_deadline, job_description, industry,
           job_type, status, notes, recruiter_name, recruiter_email,
           salary_negotiation_notes, status_updated_at, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NOW(), NOW(), NOW())`,
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)`,
         [
           jobId,
           userId,
@@ -468,12 +636,40 @@ async function populateDemoData() {
           job.recruiter_name,
           job.recruiter_email,
           job.salary_negotiation_notes || null,
+          job.status_updated_at || job.created_at,
+          job.created_at,
+          job.updated_at || job.created_at,
         ]
       );
     }
     console.log(
       `   ✓ Added ${jobOpportunities.length} job opportunities across all stages`
     );
+
+    // Archive selected jobs to simulate historical data
+    const archivePromises = jobOpportunities
+      .map((job, index) => {
+        if (!job.archive_after_insert) {
+          return null;
+        }
+        return database.query(
+          `UPDATE job_opportunities
+           SET archived = true,
+               archived_at = $1,
+               archive_reason = $2,
+               updated_at = $1
+           WHERE id = $3`,
+          [job.archived_at || job.updated_at || job.created_at, job.archive_reason || "Archived via demo script", jobIds[index]]
+        );
+      })
+      .filter(Boolean);
+
+    if (archivePromises.length) {
+      await Promise.all(archivePromises);
+      console.log(
+        `   ✓ Archived ${archivePromises.length} job opportunities for historical metrics`
+      );
+    }
 
     // Step 9: Add prospective jobs (legacy table)
     console.log("\n📝 Step 9: Adding prospective jobs...");
@@ -485,7 +681,7 @@ async function populateDemoData() {
         salary_low: 175000,
         salary_high: 240000,
         job_url: "https://jobs.apple.com/jobs/123456",
-        deadline: "2024-02-18",
+        deadline: "2025-12-19",
         stage: "Interested",
         description: "Work on Apple's software platforms",
         industry: "Technology",
@@ -499,7 +695,7 @@ async function populateDemoData() {
         salary_low: 155000,
         salary_high: 210000,
         job_url: "https://salesforce.com/careers/789012",
-        deadline: "2024-02-22",
+        deadline: "2026-01-04",
         stage: "Applied",
         description: "Build cloud-based applications",
         industry: "Technology",

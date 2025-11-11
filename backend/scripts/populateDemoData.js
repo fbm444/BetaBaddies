@@ -605,6 +605,97 @@ async function populateDemoData() {
         created_at: "2025-02-02T15:55:00.000Z",
         updated_at: "2025-02-18T20:40:00.000Z",
       },
+      {
+        title: "Senior AI Product Manager",
+        company: "Nova Robotics",
+        location: "San Jose, CA",
+        salary_min: 165000,
+        salary_max: 210000,
+        job_posting_url: "https://novarobotics.com/careers/senior-ai-product-manager",
+        application_deadline: "2025-12-24",
+        job_description:
+          "Partner with engineering to launch AI copilots, translating research breakthroughs into commercial features.",
+        industry: "Robotics",
+        job_type: "Full-time",
+        status: "Applied",
+        notes:
+          "Sent application with revised resume focused on go-to-market launches.",
+        recruiter_name: "Ivy Nakamura",
+        recruiter_email: "ivy.nakamura@novarobotics.com",
+        salary_negotiation_notes: "Target $205k base plus performance bonus.",
+        status_updated_at: "2025-03-20T11:20:00.000Z",
+        created_at: "2025-03-14T09:15:00.000Z",
+        updated_at: "2025-03-20T11:20:00.000Z",
+      },
+      {
+        title: "Platform Reliability Lead",
+        company: "SignalFire Security",
+        location: "Austin, TX",
+        salary_min: 170000,
+        salary_max: 220000,
+        job_posting_url: "https://signalfiresecurity.com/careers/platform-reliability-lead",
+        application_deadline: "2026-01-06",
+        job_description:
+          "Lead a squad focused on observability and high-availability initiatives across a zero-trust security platform.",
+        industry: "Cybersecurity",
+        job_type: "Full-time",
+        status: "Interview",
+        notes:
+          "Onsite interview scheduled; prepare materials on incident command improvements.",
+        recruiter_name: "Reed Lawson",
+        recruiter_email: "reed.lawson@signalfiresecurity.com",
+        salary_negotiation_notes:
+          "Clarify on-call rotation expectations and stipend.",
+        status_updated_at: "2025-05-18T15:35:00.000Z",
+        created_at: "2025-05-10T17:50:00.000Z",
+        updated_at: "2025-05-18T15:35:00.000Z",
+      },
+      {
+        title: "Cloud Cost Optimization Lead",
+        company: "Compass Analytics",
+        location: "Remote - US",
+        salary_min: 155000,
+        salary_max: 200000,
+        job_posting_url: "https://compassanalytics.io/jobs/cloud-cost-optimization-lead",
+        application_deadline: "2026-01-04",
+        job_description:
+          "Drive FinOps strategy across multi-cloud workloads, partnering with engineering and finance to reduce spend.",
+        industry: "Data Analytics",
+        job_type: "Full-time",
+        status: "Offer",
+        notes:
+          "Offer received; reviewing equity vs. competing roles before responding.",
+        recruiter_name: "Jamie Whitaker",
+        recruiter_email: "jamie.whitaker@compassanalytics.io",
+        salary_negotiation_notes:
+          "Request remote allowance and confirm annual refresher grants.",
+        status_updated_at: "2025-08-26T19:05:00.000Z",
+        created_at: "2025-08-12T13:40:00.000Z",
+        updated_at: "2025-08-26T19:05:00.000Z",
+      },
+      {
+        title: "Data Platform Engineering Manager",
+        company: "Evergreen Health",
+        location: "Portland, OR",
+        salary_min: 175000,
+        salary_max: 225000,
+        job_posting_url: "https://evergreenhealth.org/careers/data-platform-engineering-manager",
+        application_deadline: "2025-12-30",
+        job_description:
+          "Mentor data platform squads building HIPAA-compliant streaming and warehouse solutions.",
+        industry: "Healthcare",
+        job_type: "Full-time",
+        status: "Phone Screen",
+        notes:
+          "Phone interview complete. Need examples showcasing regulated data handling.",
+        recruiter_name: "Morgan Ellis",
+        recruiter_email: "morgan.ellis@evergreenhealth.org",
+        salary_negotiation_notes:
+          "Discuss relocation package and flex hybrid policy.",
+        status_updated_at: "2025-10-19T14:42:00.000Z",
+        created_at: "2025-10-07T10:05:00.000Z",
+        updated_at: "2025-10-19T14:42:00.000Z",
+      },
     ];
 
     const jobIds = [];

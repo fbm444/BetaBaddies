@@ -26,7 +26,7 @@ interface UseSkillGapResult {
 }
 
 const DEFAULT_OPTIONS: UseSkillGapOptions = {
-  autoFetch: true,
+  autoFetch: false,
 };
 
 export function useSkillGap(

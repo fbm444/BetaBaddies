@@ -496,7 +496,10 @@ export function JobOpportunities() {
     setShowAddModal(false);
     setQuickAddStatus(undefined);
     setAddContextNote(null);
-    setImportedJobData(null);
+    // Clear imported data after a delay to allow form to initialize
+    setTimeout(() => {
+      setImportedJobData(null);
+    }, 100);
   };
 
   const hasActiveFilters = useMemo(() => {
@@ -990,14 +993,17 @@ export function JobOpportunities() {
       {showImportModal && (
         <JobImportModal
           onImport={(data) => {
+            // Set imported data first, then open modal
             setImportedJobData(data);
             setShowImportModal(false);
-            // Open add modal with imported data
-            setShowAddModal(true);
+            // Small delay to ensure state is set before opening modal
+            setTimeout(() => {
+              setShowAddModal(true);
+            }, 50);
           }}
           onClose={() => {
             setShowImportModal(false);
-            setImportedJobData(null);
+            // Don't clear imported data immediately - let form use it first
           }}
         />
       )}

@@ -491,7 +491,7 @@ CREATE TABLE IF NOT EXISTS public.archived_prospectivejobs (
     CONSTRAINT archived_prospectivejobs_current_resume_id_fkey FOREIGN KEY (current_resume_id) REFERENCES public.resume(id)
 );
 
--- Table: company_info (depends on prospectivejobs)
+-- Table: company_info (depends on job_opportunities)
 CREATE TABLE IF NOT EXISTS public.company_info (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     job_id uuid NOT NULL,
@@ -504,7 +504,7 @@ CREATE TABLE IF NOT EXISTS public.company_info (
     contact_email character varying(255),
     contact_phone character varying(255),
     CONSTRAINT company_info_pkey PRIMARY KEY (id),
-    CONSTRAINT company_info_job_id_fkey FOREIGN KEY (job_id) REFERENCES public.prospectivejobs(id) ON DELETE CASCADE
+    CONSTRAINT company_info_job_id_fkey FOREIGN KEY (job_id) REFERENCES public.job_opportunities(id) ON DELETE CASCADE
 );
 
 -- Table: company_media (depends on company_info)

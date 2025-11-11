@@ -215,6 +215,7 @@ export function ResumeBuilder() {
   const [showImportResumeModal, setShowImportResumeModal] = useState(false);
   const [importingResume, setImportingResume] = useState(false);
   const [parsedResumeContent, setParsedResumeContent] = useState<any>(null);
+  const [parsedResumeMessage, setParsedResumeMessage] = useState<string | null>(null);
   const [showParseLoader, setShowParseLoader] = useState(false);
   const [fileToParse, setFileToParse] = useState<File | null>(null);
   const [shouldAutoAnalyzeResume, setShouldAutoAnalyzeResume] = useState(false);
@@ -3348,6 +3349,41 @@ export function ResumeBuilder() {
     }
   };
 
+  const handleUpdateResume = async (resumeIdToUpdate: string, updates: { name: string }) => {
+    if (!isValidUUID(resumeIdToUpdate)) {
+      showToast("Invalid resume ID", "error");
+      return;
+    }
+
+    try {
+      const response = await resumeService.updateResume(resumeIdToUpdate, {
+        name: updates.name,
+      });
+
+      if (response.ok && response.data?.resume) {
+        const updatedResume = response.data.resume;
+        // Update the current resume state
+        if (resume && resume.id === resumeIdToUpdate) {
+          setResume({ ...resume, name: updatedResume.name || updatedResume.versionName });
+        }
+        // Refresh versions if needed
+        const parentId = resume?.parentResumeId || resumeId;
+        if (parentId && isValidUUID(parentId)) {
+          const versionsRes = await resumeService.getVersions(parentId);
+          if (versionsRes.ok) {
+            setVersions(versionsRes.data?.resumes || []);
+          }
+        }
+        showToast("Resume name updated successfully", "success");
+      } else {
+        showToast(response.error?.message || "Failed to update resume name", "error");
+      }
+    } catch (error: any) {
+      console.error("Error updating resume name:", error);
+      showToast(error.message || "Failed to update resume name", "error");
+    }
+  };
+
   const handleSetMasterVersion = async (versionId: string) => {
     if (!isValidUUID(versionId)) {
       showToast("Invalid version ID", "error");
@@ -3904,6 +3940,12 @@ export function ResumeBuilder() {
         onShowImportResumeModal={() => setShowImportResumeModal(true)}
         onSwitchVersion={handleSwitchVersion}
         onSetMasterVersion={handleSetMasterVersion}
+        onUpdateResume={handleUpdateResume}
+        onUpdateResumeName={(name: string) => {
+          if (resume) {
+            setResume({ ...resume, name });
+          }
+        }}
         onShowVersionCompare={() => {
           setSelectedVersion1(resumeId);
           setSelectedVersion2(null);
@@ -7580,9 +7622,13 @@ export function ResumeBuilder() {
                 resume={resume}
                 resumeId={resumeId}
                 isOpen={showAIPanel}
-                onClose={() => setShowAIPanel(false)}
+                onClose={() => {
+                  setShowAIPanel(false);
+                  // Clear parsed message when closing
+                  setParsedResumeMessage(null);
+                }}
                 initialJobId={jobId && isValidUUID(jobId) ? jobId : null}
-                initialMessage={getDecodedExplanation(aiExplanation)}
+                initialMessage={parsedResumeMessage || getDecodedExplanation(aiExplanation)}
                 initialUserAndAssistant={enhancedConversation}
                 autoAnalyzeJob={
                   !!(
@@ -7591,12 +7637,15 @@ export function ResumeBuilder() {
                     resumeId &&
                     resumeId !== "new" &&
                     !aiExplanation &&
-                    !shouldAutoAnalyzeResume
+                    !shouldAutoAnalyzeResume &&
+                    !parsedResumeMessage
                   )
                 }
-                autoAnalyzeResume={shouldAutoAnalyzeResume}
+                autoAnalyzeResume={shouldAutoAnalyzeResume && !parsedResumeMessage}
                 onAnalysisComplete={() => {
                   setShouldAutoAnalyzeResume(false);
+                  // Clear parsed message after analysis
+                  setParsedResumeMessage(null);
                   showToast(
                     "Resume analysis complete! Check the AI assistant for feedback.",
                     "success"
@@ -10364,9 +10413,14 @@ export function ResumeBuilder() {
       {showParseLoader && fileToParse && (
         <ResumeParseLoader
           file={fileToParse}
-          onComplete={async (parsedContent) => {
+          onComplete={async (parsedContent, message) => {
             setShowParseLoader(false);
             setFileToParse(null);
+
+            // Store the AI message
+            if (message) {
+              setParsedResumeMessage(message);
+            }
 
             // Create a resume from the parsed content
             try {
@@ -10464,16 +10518,13 @@ export function ResumeBuilder() {
                 }
               }
 
-              // Trigger auto-analysis of the resume
+              // Open the AI panel and display the parsed message
+              setShowAIPanel(true);
               if (currentResumeId && currentResumeId !== "new") {
-                // Open the AI panel and trigger auto-analysis
-                // The AI will automatically analyze the resume and display the response in chat
-                setShowAIPanel(true);
-                setShouldAutoAnalyzeResume(true);
-                showToast("Resume imported! Analyzing with AI...", "info");
+                // For existing resumes, show the parsed message and optionally trigger analysis
+                showToast("Resume imported successfully!", "success");
               } else {
-                // For new resumes, just open the AI panel
-                setShowAIPanel(true);
+                // For new resumes, just open the AI panel with the message
                 showToast("Resume imported successfully!", "success");
               }
             } catch (err: any) {

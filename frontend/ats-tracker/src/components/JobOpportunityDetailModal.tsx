@@ -20,6 +20,7 @@ import {
 import { CompanyInfoModal } from "./CompanyInfoModal";
 import { JobSkillGapPanel } from "./skill-gaps/SkillGapPanel";
 import { JobMaterialsSection } from "./JobMaterialsSection";
+import { JobMatchScore } from "./JobMatchScore";
 
 interface JobOpportunityDetailModalProps {
   opportunity: JobOpportunityData;
@@ -1052,6 +1053,15 @@ export function JobOpportunityDetailModal({
                 </p>
               )}
             </section>
+
+            {/* Job Match Score */}
+            <JobMatchScore
+              opportunity={opportunity}
+              onScoreUpdate={(score) => {
+                // Match score updated
+                console.log("Match score updated:", score);
+              }}
+            />
 
             {/* Application Materials */}
             <JobMaterialsSection

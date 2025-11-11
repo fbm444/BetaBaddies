@@ -272,3 +272,88 @@ export interface CurrentMaterials {
   coverLetter: CoverLetterVersion | null;
 }
 
+// Job Matching Types
+export interface MatchScoreBreakdown {
+  skills: {
+    score: number;
+    matched: Array<{
+      name: string;
+      category: string;
+      proficiency: string;
+      score: number;
+      partialMatch?: boolean;
+    }>;
+    missing: Array<{
+      name: string;
+      category: string;
+    }>;
+    matchPercentage: number;
+    totalRequired: number;
+    matchedCount: number;
+  };
+  experience: {
+    score: number;
+    totalYears: number;
+    requiredYears: number | null;
+    levelMatch: number;
+    yearsMatch: number;
+    titleMatch: number;
+    industryMatch: number;
+    userExpLevel: string;
+    requiredLevel: string;
+  };
+  education: {
+    score: number;
+    matched: string[];
+    missing: string[];
+    matchPercentage: number;
+    userHighestLevel: string;
+    requiredLevel: string;
+  };
+}
+
+export interface MatchStrength {
+  category: string;
+  description: string;
+  score: number;
+}
+
+export interface MatchGap {
+  category: string;
+  items: string[];
+  description: string;
+}
+
+export interface MatchSuggestion {
+  category: string;
+  suggestion: string;
+  priority: "High" | "Medium" | "Low";
+}
+
+export interface MatchScore {
+  overallScore: number;
+  breakdown: MatchScoreBreakdown;
+  strengths: MatchStrength[];
+  gaps: MatchGap[];
+  suggestions: MatchSuggestion[];
+  calculatedAt: string;
+  weights?: {
+    skills: number;
+    experience: number;
+    education: number;
+  };
+}
+
+export interface MatchScoreHistoryEntry {
+  score: number;
+  timestamp: string;
+  breakdown: MatchScoreBreakdown;
+}
+
+export interface MatchScoreComparison {
+  jobId: string;
+  matchScore: number | null;
+  breakdown: MatchScoreBreakdown | null;
+  error?: string;
+}
+

@@ -4,7 +4,7 @@ import { resumeService } from "../../services/resumeService";
 
 interface ResumeParseLoaderProps {
   file: File;
-  onComplete: (parsedContent: any) => void;
+  onComplete: (parsedContent: any, message?: string) => void;
   onError: (error: string) => void;
 }
 
@@ -123,7 +123,7 @@ export function ResumeParseLoader({
 
         // Wait a moment to show completion, then call onComplete
         setTimeout(() => {
-          onComplete(response.data.content);
+          onComplete(response.data.content, response.data.message);
         }, 500);
       } catch (err: any) {
         console.error("Resume parsing error:", err);

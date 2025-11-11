@@ -282,13 +282,21 @@ Provide a JSON response with:
       let experience = [];
       try {
         const employmentQuery = `
-          SELECT job_title, company, location, start_date, end_date, description, is_current
-          FROM employment
+          SELECT title AS job_title, company, location, start_date, end_date, description, is_current
+          FROM jobs
           WHERE user_id = $1
           ORDER BY start_date DESC
         `;
         const employmentResult = await database.query(employmentQuery, [userId]);
-        experience = employmentResult.rows;
+        experience = employmentResult.rows.map((row) => ({
+          job_title: row.job_title,
+          company: row.company,
+          location: row.location,
+          start_date: row.start_date,
+          end_date: row.end_date,
+          description: row.description,
+          is_current: row.is_current,
+        }));
       } catch (error) {
         console.warn("Could not fetch employment data:", error.message);
       }

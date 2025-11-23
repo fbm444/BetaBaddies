@@ -299,49 +299,6 @@ CREATE TABLE IF NOT EXISTS public.files (
     CONSTRAINT files_pkey PRIMARY KEY (file_id)
 );
 
--- Table: interviews
-CREATE TABLE IF NOT EXISTS public.interviews (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
-    user_id uuid NOT NULL,
-    type character varying(20) NOT NULL,
-    date timestamp with time zone,
-    outcome_link character varying(255),
-    job_opportunity_id uuid,
-    title character varying(255),
-    company character varying(255),
-    scheduled_at timestamp with time zone,
-    duration integer DEFAULT 60,
-    location character varying(500),
-    video_link character varying(1000),
-    phone_number character varying(50),
-    interviewer_name character varying(255),
-    interviewer_email character varying(255),
-    interviewer_title character varying(255),
-    notes text,
-    preparation_notes text,
-    status character varying(20) DEFAULT 'scheduled'::character varying,
-    outcome character varying(20) DEFAULT 'pending'::character varying,
-    outcome_notes text,
-    reminder_sent boolean DEFAULT false,
-    reminder_sent_at timestamp with time zone,
-    cancelled_at timestamp with time zone,
-    cancellation_reason text,
-    rescheduled_from uuid,
-    rescheduled_to uuid,
-    conflict_detected boolean DEFAULT false,
-    google_calendar_event_id character varying(255),
-    created_at timestamp with time zone DEFAULT now(),
-    updated_at timestamp with time zone DEFAULT now(),
-    CONSTRAINT interviews_pkey PRIMARY KEY (id),
-    CONSTRAINT interviews_type_check CHECK (((type)::text = ANY ((ARRAY['phone'::character varying, 'video'::character varying, 'in-person'::character varying])::text[]))),
-    CONSTRAINT interviews_status_check CHECK (status IN ('scheduled', 'completed', 'cancelled', 'rescheduled')),
-    CONSTRAINT interviews_outcome_check CHECK (outcome IN ('pending', 'passed', 'failed', 'no_decision', 'offer_extended', 'rejected')),
-    CONSTRAINT fk_interviews_user FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE,
-    CONSTRAINT fk_interviews_job_opportunity FOREIGN KEY (job_opportunity_id) REFERENCES public.job_opportunities(id) ON DELETE CASCADE,
-    CONSTRAINT fk_interviews_rescheduled_from FOREIGN KEY (rescheduled_from) REFERENCES public.interviews(id) ON DELETE SET NULL,
-    CONSTRAINT fk_interviews_rescheduled_to FOREIGN KEY (rescheduled_to) REFERENCES public.interviews(id) ON DELETE SET NULL
-);
-
 -- Table: prospectivejobs
 CREATE TABLE IF NOT EXISTS public.prospectivejobs (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -431,6 +388,49 @@ COMMENT ON COLUMN public.job_opportunities.application_history IS 'Application h
 COMMENT ON COLUMN public.job_opportunities.archived IS 'Whether the job opportunity has been archived';
 COMMENT ON COLUMN public.job_opportunities.archived_at IS 'Timestamp when the job opportunity was archived';
 COMMENT ON COLUMN public.job_opportunities.archive_reason IS 'Reason for archiving the job opportunity';
+
+-- Table: interviews (depends on users and job_opportunities - must be created after job_opportunities)
+CREATE TABLE IF NOT EXISTS public.interviews (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    type character varying(20) NOT NULL,
+    date timestamp with time zone,
+    outcome_link character varying(255),
+    job_opportunity_id uuid,
+    title character varying(255),
+    company character varying(255),
+    scheduled_at timestamp with time zone,
+    duration integer DEFAULT 60,
+    location character varying(500),
+    video_link character varying(1000),
+    phone_number character varying(50),
+    interviewer_name character varying(255),
+    interviewer_email character varying(255),
+    interviewer_title character varying(255),
+    notes text,
+    preparation_notes text,
+    status character varying(20) DEFAULT 'scheduled'::character varying,
+    outcome character varying(20) DEFAULT 'pending'::character varying,
+    outcome_notes text,
+    reminder_sent boolean DEFAULT false,
+    reminder_sent_at timestamp with time zone,
+    cancelled_at timestamp with time zone,
+    cancellation_reason text,
+    rescheduled_from uuid,
+    rescheduled_to uuid,
+    conflict_detected boolean DEFAULT false,
+    google_calendar_event_id character varying(255),
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
+    CONSTRAINT interviews_pkey PRIMARY KEY (id),
+    CONSTRAINT interviews_type_check CHECK (((type)::text = ANY ((ARRAY['phone'::character varying, 'video'::character varying, 'in-person'::character varying])::text[]))),
+    CONSTRAINT interviews_status_check CHECK (status IN ('scheduled', 'completed', 'cancelled', 'rescheduled')),
+    CONSTRAINT interviews_outcome_check CHECK (outcome IN ('pending', 'passed', 'failed', 'no_decision', 'offer_extended', 'rejected')),
+    CONSTRAINT fk_interviews_user FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE,
+    CONSTRAINT fk_interviews_job_opportunity FOREIGN KEY (job_opportunity_id) REFERENCES public.job_opportunities(id) ON DELETE CASCADE,
+    CONSTRAINT fk_interviews_rescheduled_from FOREIGN KEY (rescheduled_from) REFERENCES public.interviews(id) ON DELETE SET NULL,
+    CONSTRAINT fk_interviews_rescheduled_to FOREIGN KEY (rescheduled_to) REFERENCES public.interviews(id) ON DELETE SET NULL
+);
 
 -- Table: resume_template (created early - no dependencies)
 CREATE TABLE IF NOT EXISTS public.resume_template (
@@ -783,9 +783,19 @@ CREATE TRIGGER trg_company_interview_insights_updated_at
 
 -- Add template_id (foreign key to coverletter_template)
 ALTER TABLE coverletter ADD COLUMN IF NOT EXISTS template_id UUID;
-ALTER TABLE coverletter ADD CONSTRAINT fk_coverletter_template 
-  FOREIGN KEY (template_id) REFERENCES coverletter_template(id) 
-  ON DELETE SET NULL;
+ALTER TABLE coverletter DROP CONSTRAINT IF EXISTS fk_coverletter_template;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'fk_coverletter_template' 
+        AND conrelid = 'coverletter'::regclass
+    ) THEN
+        ALTER TABLE coverletter ADD CONSTRAINT fk_coverletter_template 
+          FOREIGN KEY (template_id) REFERENCES coverletter_template(id) 
+          ON DELETE SET NULL;
+    END IF;
+END $$;
 
 -- Add job_id (foreign key to job_opportunities)
 ALTER TABLE coverletter ADD COLUMN IF NOT EXISTS job_id UUID;
@@ -793,10 +803,19 @@ ALTER TABLE coverletter ADD COLUMN IF NOT EXISTS job_id UUID;
 -- Drop old constraint if it exists (from previous schema)
 ALTER TABLE coverletter DROP CONSTRAINT IF EXISTS fk_coverletter_job;
 
--- Add new constraint pointing to job_opportunities
-ALTER TABLE coverletter ADD CONSTRAINT fk_coverletter_job 
-  FOREIGN KEY (job_id) REFERENCES job_opportunities(id) 
-  ON DELETE SET NULL;
+-- Add new constraint pointing to job_opportunities (only if it doesn't exist)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'fk_coverletter_job' 
+        AND conrelid = 'coverletter'::regclass
+    ) THEN
+        ALTER TABLE coverletter ADD CONSTRAINT fk_coverletter_job 
+          FOREIGN KEY (job_id) REFERENCES job_opportunities(id) 
+          ON DELETE SET NULL;
+    END IF;
+END $$;
 
 -- Add content (JSONB for cover letter content)
 ALTER TABLE coverletter ADD COLUMN IF NOT EXISTS content JSONB;
@@ -812,9 +831,19 @@ ALTER TABLE coverletter ADD COLUMN IF NOT EXISTS version_number INTEGER DEFAULT 
 
 -- Add parent_coverletter_id (self-referencing foreign key for cover letter versions)
 ALTER TABLE coverletter ADD COLUMN IF NOT EXISTS parent_coverletter_id UUID;
-ALTER TABLE coverletter ADD CONSTRAINT fk_coverletter_parent 
-  FOREIGN KEY (parent_coverletter_id) REFERENCES coverletter(id) 
-  ON DELETE CASCADE;
+ALTER TABLE coverletter DROP CONSTRAINT IF EXISTS fk_coverletter_parent;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'fk_coverletter_parent' 
+        AND conrelid = 'coverletter'::regclass
+    ) THEN
+        ALTER TABLE coverletter ADD CONSTRAINT fk_coverletter_parent 
+          FOREIGN KEY (parent_coverletter_id) REFERENCES coverletter(id) 
+          ON DELETE CASCADE;
+    END IF;
+END $$;
 
 -- Add is_master (boolean to indicate master cover letter)
 ALTER TABLE coverletter ADD COLUMN IF NOT EXISTS is_master BOOLEAN DEFAULT false;
@@ -842,10 +871,30 @@ CREATE TABLE IF NOT EXISTS cover_letter_performance (
     notes TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT cover_letter_performance_pkey PRIMARY KEY (id),
-    CONSTRAINT fk_performance_coverletter FOREIGN KEY (coverletter_id) REFERENCES coverletter(id) ON DELETE CASCADE,
-    CONSTRAINT fk_performance_job FOREIGN KEY (job_id) REFERENCES prospectivejobs(id) ON DELETE SET NULL
+    CONSTRAINT cover_letter_performance_pkey PRIMARY KEY (id)
 );
+
+-- Add constraints separately to handle existing ones
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'fk_performance_coverletter' 
+        AND conrelid = 'cover_letter_performance'::regclass
+    ) THEN
+        ALTER TABLE cover_letter_performance ADD CONSTRAINT fk_performance_coverletter 
+          FOREIGN KEY (coverletter_id) REFERENCES coverletter(id) ON DELETE CASCADE;
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'fk_performance_job' 
+        AND conrelid = 'cover_letter_performance'::regclass
+    ) THEN
+        ALTER TABLE cover_letter_performance ADD CONSTRAINT fk_performance_job 
+          FOREIGN KEY (job_id) REFERENCES prospectivejobs(id) ON DELETE SET NULL;
+    END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_performance_coverletter_id ON cover_letter_performance(coverletter_id);
 CREATE INDEX IF NOT EXISTS idx_performance_job_id ON cover_letter_performance(job_id);

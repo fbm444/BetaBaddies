@@ -211,7 +211,6 @@ END $$;
 -- DROP TABLE IF EXISTS public.time_tracking CASCADE;
 -- DROP TABLE IF EXISTS public.productivity_analysis CASCADE;
 -- DROP TABLE IF EXISTS public.competitive_benchmarks CASCADE;
--- DROP TABLE IF EXISTS public.competitive_positioning CASCADE;
 -- DROP TABLE IF EXISTS public.success_patterns CASCADE;
 -- DROP TABLE IF EXISTS public.custom_reports CASCADE;
 -- DROP TABLE IF EXISTS public.report_templates CASCADE;
@@ -2160,7 +2159,6 @@ CREATE TABLE IF NOT EXISTS public.market_salary_data (
     salary_25th_percentile numeric,
     salary_50th_percentile numeric,
     salary_75th_percentile numeric,
-    salary_90th_percentile numeric,
     data_source character varying(255),
     data_date date,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
@@ -2238,7 +2236,6 @@ CREATE TABLE IF NOT EXISTS public.time_tracking (
     activity_description text,
     time_spent_minutes integer,
     activity_date date DEFAULT CURRENT_DATE,
-    productivity_score integer,
     energy_level character varying(50),
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT time_tracking_pkey PRIMARY KEY (id),
@@ -2258,6 +2255,9 @@ CREATE TABLE IF NOT EXISTS public.productivity_analysis (
     time_vs_outcome_correlation jsonb,
     burnout_indicators jsonb,
     recommendations jsonb,
+    avg_productivity_score numeric,
+    productivity_score_trends jsonb,
+    productivity_score_by_activity jsonb,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT productivity_analysis_pkey PRIMARY KEY (id),
     CONSTRAINT productivity_analysis_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE
@@ -2276,20 +2276,6 @@ CREATE TABLE IF NOT EXISTS public.competitive_benchmarks (
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT competitive_benchmarks_pkey PRIMARY KEY (id),
     CONSTRAINT competitive_benchmarks_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS public.competitive_positioning (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
-    user_id uuid NOT NULL,
-    skills_comparison jsonb,
-    experience_comparison jsonb,
-    achievement_comparison jsonb,
-    skill_gaps jsonb,
-    differentiation_strategies jsonb,
-    market_positioning_score integer,
-    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT competitive_positioning_pkey PRIMARY KEY (id),
-    CONSTRAINT competitive_positioning_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE
 );
 
 -- UC-105: Success Pattern Recognition
@@ -2954,7 +2940,6 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.industry_trends TO "ats_use
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.time_tracking TO "ats_user";
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.productivity_analysis TO "ats_user";
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.competitive_benchmarks TO "ats_user";
-GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.competitive_positioning TO "ats_user";
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.success_patterns TO "ats_user";
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.custom_reports TO "ats_user";
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.report_templates TO "ats_user";

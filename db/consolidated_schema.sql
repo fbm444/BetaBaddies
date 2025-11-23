@@ -224,7 +224,6 @@ END $$;
 -- DROP TABLE IF EXISTS public.mentor_dashboard_views CASCADE;
 -- DROP TABLE IF EXISTS public.coaching_sessions CASCADE;
 -- DROP TABLE IF EXISTS public.document_review_requests CASCADE;
--- DROP TABLE IF EXISTS public.document_versions CASCADE;
 -- DROP TABLE IF EXISTS public.document_approvals CASCADE;
 -- DROP TABLE IF EXISTS public.progress_sharing_settings CASCADE;
 -- DROP TABLE IF EXISTS public.progress_reports CASCADE;
@@ -387,6 +386,61 @@ CREATE OR REPLACE FUNCTION public.update_thank_you_note_timestamp() RETURNS trig
     AS $$
 BEGIN
     NEW.updated_at := CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$;
+
+-- Function: update_document_review_request_status() - Updates request status based on approval actions
+CREATE OR REPLACE FUNCTION public.update_document_review_request_status() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+    v_review_request_id uuid;
+BEGIN
+    -- Get review_request_id from the approval record
+    v_review_request_id := NEW.review_request_id;
+    
+    -- If no review_request_id is provided, try to find it by matching document_id and document_type
+    IF v_review_request_id IS NULL THEN
+        SELECT id INTO v_review_request_id
+        FROM public.document_review_requests
+        WHERE document_id = NEW.document_id
+          AND document_type = NEW.document_type
+          AND request_status IN ('pending', 'in_progress')
+        ORDER BY created_at DESC
+        LIMIT 1;
+    END IF;
+    
+    -- Only proceed if we found a review request
+    IF v_review_request_id IS NOT NULL THEN
+        -- On INSERT: When a reviewer accepts a request (creates approval record), set to 'in_progress'
+        IF TG_OP = 'INSERT' THEN
+            UPDATE public.document_review_requests
+            SET request_status = 'in_progress'
+            WHERE id = v_review_request_id
+              AND request_status = 'pending';
+        
+        -- On UPDATE: Handle status changes based on approval state
+        ELSIF TG_OP = 'UPDATE' THEN
+            -- If approved=true and approved_at is set, mark as completed
+            IF NEW.approved = true AND NEW.approved_at IS NOT NULL 
+               AND (OLD.approved = false OR OLD.approved_at IS NULL) THEN
+                UPDATE public.document_review_requests
+                SET request_status = 'completed',
+                    review_completed_at = NEW.approved_at
+                WHERE id = v_review_request_id
+                  AND request_status IN ('pending', 'in_progress');
+            
+            -- If explicitly rejected/cancelled (approved=false with notes indicating cancellation)
+            ELSIF NEW.approved = false AND OLD.approved = true THEN
+                UPDATE public.document_review_requests
+                SET request_status = 'cancelled'
+                WHERE id = v_review_request_id
+                  AND request_status IN ('pending', 'in_progress');
+            END IF;
+        END IF;
+    END IF;
+    
     RETURN NEW;
 END;
 $$;
@@ -975,6 +1029,10 @@ CREATE INDEX IF NOT EXISTS idx_mentor_dashboard_views_mentor_id ON public.mentor
 CREATE INDEX IF NOT EXISTS idx_mentor_dashboard_views_mentee_id ON public.mentor_dashboard_views(mentee_id);
 CREATE INDEX IF NOT EXISTS idx_coaching_sessions_mentor_id ON public.coaching_sessions(mentor_id);
 CREATE INDEX IF NOT EXISTS idx_document_review_requests_requestor_id ON public.document_review_requests(requestor_id);
+CREATE INDEX IF NOT EXISTS idx_document_review_requests_reviewer_id ON public.document_review_requests(reviewer_id);
+CREATE INDEX IF NOT EXISTS idx_document_review_requests_document ON public.document_review_requests(document_type, document_id);
+CREATE INDEX IF NOT EXISTS idx_document_approvals_review_request_id ON public.document_approvals(review_request_id);
+CREATE INDEX IF NOT EXISTS idx_document_approvals_document ON public.document_approvals(document_type, document_id);
 CREATE INDEX IF NOT EXISTS idx_progress_sharing_settings_user_id ON public.progress_sharing_settings(user_id);
 CREATE INDEX IF NOT EXISTS idx_group_memberships_group_id ON public.group_memberships(group_id);
 CREATE INDEX IF NOT EXISTS idx_group_memberships_user_id ON public.group_memberships(user_id);
@@ -1172,6 +1230,14 @@ CREATE TRIGGER trg_enterprise_accounts_updated_at
     BEFORE UPDATE ON public.enterprise_accounts
     FOR EACH ROW
     EXECUTE FUNCTION public.addupdatetime();
+
+-- Triggers for document review request status updates
+-- Trigger: trg_document_approval_status_update - Updates request status when approval is created or updated
+DROP TRIGGER IF EXISTS trg_document_approval_status_update ON public.document_approvals;
+CREATE TRIGGER trg_document_approval_status_update
+    AFTER INSERT OR UPDATE ON public.document_approvals
+    FOR EACH ROW
+    EXECUTE FUNCTION public.update_document_review_request_status();
 
 
 -- Add missing columns to coverletter table
@@ -2448,7 +2514,7 @@ CREATE TABLE IF NOT EXISTS public.coaching_sessions (
 -- UC-110: Collaborative Resume and Cover Letter Review (additional tables)
 CREATE TABLE IF NOT EXISTS public.document_review_requests (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
-    document_type character varying(50),
+    document_type character varying(50) NOT NULL,
     document_id uuid NOT NULL,
     requestor_id uuid NOT NULL,
     reviewer_id uuid NOT NULL,
@@ -2458,32 +2524,29 @@ CREATE TABLE IF NOT EXISTS public.document_review_requests (
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT document_review_requests_pkey PRIMARY KEY (id),
     CONSTRAINT document_review_requests_requestor_id_fkey FOREIGN KEY (requestor_id) REFERENCES public.users(u_id) ON DELETE CASCADE,
-    CONSTRAINT document_review_requests_reviewer_id_fkey FOREIGN KEY (reviewer_id) REFERENCES public.users(u_id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS public.document_versions (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
-    document_type character varying(50),
-    document_id uuid NOT NULL,
-    version_number integer,
-    created_by uuid NOT NULL,
-    change_summary text,
-    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT document_versions_pkey PRIMARY KEY (id),
-    CONSTRAINT document_versions_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(u_id) ON DELETE CASCADE
+    CONSTRAINT document_review_requests_reviewer_id_fkey FOREIGN KEY (reviewer_id) REFERENCES public.users(u_id) ON DELETE CASCADE,
+    CONSTRAINT document_review_requests_check_type CHECK (document_type IN ('resume', 'coverletter')),
+    CONSTRAINT document_review_requests_check_status CHECK (request_status IN ('pending', 'in_progress', 'completed', 'cancelled'))
+    -- Note: document_id cannot have a foreign key constraint because it references different tables
+    -- (resume.id or coverletter.id) based on document_type. Application logic must validate this.
 );
 
 CREATE TABLE IF NOT EXISTS public.document_approvals (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
+    review_request_id uuid,
     document_id uuid NOT NULL,
-    document_type character varying(50),
+    document_type character varying(50) NOT NULL,
     approver_id uuid NOT NULL,
     approved boolean DEFAULT false,
     approval_notes text,
     approved_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT document_approvals_pkey PRIMARY KEY (id),
-    CONSTRAINT document_approvals_approver_id_fkey FOREIGN KEY (approver_id) REFERENCES public.users(u_id) ON DELETE CASCADE
+    CONSTRAINT document_approvals_review_request_id_fkey FOREIGN KEY (review_request_id) REFERENCES public.document_review_requests(id) ON DELETE CASCADE,
+    CONSTRAINT document_approvals_approver_id_fkey FOREIGN KEY (approver_id) REFERENCES public.users(u_id) ON DELETE CASCADE,
+    CONSTRAINT document_approvals_check_type CHECK (document_type IN ('resume', 'coverletter'))
+    -- Note: document_id cannot have a foreign key constraint because it references different tables
+    -- (resume.id or coverletter.id) based on document_type. Application logic must validate this.
 );
 
 -- UC-111: Progress Sharing and Accountability
@@ -2953,7 +3016,6 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.team_billing TO "ats_user";
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.mentor_dashboard_views TO "ats_user";
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.coaching_sessions TO "ats_user";
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.document_review_requests TO "ats_user";
-GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.document_versions TO "ats_user";
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.document_approvals TO "ats_user";
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.progress_sharing_settings TO "ats_user";
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.progress_reports TO "ats_user";

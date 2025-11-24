@@ -12,6 +12,8 @@ export const ROUTES = {
   JOB_STATISTICS: "/job-opportunities/statistics",
   COMPANY_RESEARCH: "/company-research",
   INTERVIEW_SCHEDULING: "/interview-scheduling",
+  INTERVIEW_PREPARATION: "/interview-preparation",
+  INTERVIEW_PREPARATION_WITH_ID: "/interview-preparation/:interviewId",
   SKILLS: "/skills",
   EDUCATION: "/education",
   PROJECTS: "/projects",
@@ -87,11 +89,24 @@ export const navigationGroups: NavigationGroup[] = [
         icon: "mdi:office-building",
         path: ROUTES.COMPANY_RESEARCH,
       },
+    ],
+  },
+  {
+    id: "interviews",
+    label: "Interviews",
+    icon: "mingcute:calendar-line",
+    items: [
       {
         id: "interview-scheduling",
         label: "Interview Scheduling",
         icon: "mingcute:calendar-line",
         path: ROUTES.INTERVIEW_SCHEDULING,
+      },
+      {
+        id: "interview-preparation",
+        label: "Interview Preparation",
+        icon: "mingcute:book-line",
+        path: ROUTES.INTERVIEW_PREPARATION,
       },
     ],
   },

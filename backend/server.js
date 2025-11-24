@@ -21,6 +21,7 @@ import prospectiveJobRoutes from "./routes/prospectiveJobRoutes.js";
 import coverLetterRoutes from "./routes/coverletters/index.js";
 import companyResearchRoutes from "./routes/companyResearchRoutes.js";
 import interviewRoutes from "./routes/interviewRoutes.js";
+import interviewPrepRoutes from "./routes/interviewPrepRoutes.js";
 import googleCalendarRoutes from "./routes/googleCalendarRoutes.js";
 
 // Import middleware
@@ -127,6 +128,7 @@ app.use("/api/v1/prospective-jobs", prospectiveJobRoutes);
 app.use("/api/v1/coverletter", coverLetterRoutes);
 app.use("/api/v1/company-research", companyResearchRoutes);
 app.use("/api/v1/interviews", interviewRoutes);
+app.use("/api/v1/interview-prep", interviewPrepRoutes);
 app.use("/api/v1/calendar", googleCalendarRoutes);
 
 // 404 handler

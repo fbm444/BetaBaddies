@@ -31,6 +31,11 @@ router.post("/:id/reschedule", interviewController.rescheduleInterview);
 // Update preparation task
 router.put("/:interviewId/tasks/:taskId", interviewController.updatePreparationTask);
 
+// UC-074: Company Research endpoints
+router.get("/:id/company-research", interviewController.getCompanyResearch);
+router.post("/:id/company-research/generate", interviewController.generateCompanyResearch);
+router.get("/:id/company-research/export", interviewController.exportCompanyResearch);
+
 // Delete interview
 router.delete("/:id", interviewController.deleteInterview);
 

@@ -14,6 +14,7 @@ class NetworkingEventService {
       endDate,
       endTime,
       eventUrl,
+      isVirtual,
       description,
       networkingGoals,
       preparationNotes,
@@ -30,11 +31,11 @@ class NetworkingEventService {
       const query = `
         INSERT INTO networking_events (
           id, user_id, event_name, event_type, industry, location,
-          event_date, event_time, end_date, end_time, event_url, description, networking_goals,
-          preparation_notes, attended, attendance_date, post_event_notes,
-          roi_score, connections_made_count
+          event_date, event_time, end_date, end_time, event_url, is_virtual,
+          description, networking_goals, preparation_notes, attended, attendance_date,
+          post_event_notes, roi_score, connections_made_count
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
         RETURNING *
       `;
 
@@ -50,6 +51,7 @@ class NetworkingEventService {
         endDate || null,
         endTime || null,
         eventUrl || null,
+        isVirtual || false,
         description || null,
         networkingGoals || null,
         preparationNotes || null,
@@ -618,6 +620,7 @@ class NetworkingEventService {
         endDate: "end_date",
         endTime: "end_time",
         eventUrl: "event_url",
+        isVirtual: "is_virtual",
         description: "description",
         networkingGoals: "networking_goals",
         preparationNotes: "preparation_notes",
@@ -866,6 +869,7 @@ class NetworkingEventService {
       endDate: row.end_date,
       endTime: row.end_time,
       eventUrl: row.event_url,
+      isVirtual: row.is_virtual || false,
       description: row.description,
       networkingGoals: row.networking_goals,
       preparationNotes: row.preparation_notes,

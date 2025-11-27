@@ -13,36 +13,6 @@ class ReferralRequestController {
 
     const referral = await referralRequestService.createReferralRequest(userId, referralData);
 
-    // Send email notification to contact
-    try {
-      // Get contact details
-      const contact = await professionalContactService.getContactById(referralData.contactId, userId);
-      
-      // Get job opportunity details
-      const job = await jobOpportunityService.getJobOpportunityById(referralData.jobId, userId);
-      
-      // Get user profile for requester name
-      const profile = await profileService.getProfileByUserId(userId);
-      const requesterName = profile ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() : "A colleague";
-
-      // Send email if contact has email
-      if (contact && contact.email) {
-        const contactName = `${contact.firstName || ""} ${contact.lastName || ""}`.trim() || "Contact";
-        
-        await emailService.sendReferralRequestNotification(contact.email, {
-          contactName,
-          requesterName: requesterName || "A colleague",
-          jobTitle: job?.title || "Position",
-          jobCompany: job?.company || "Company",
-          jobLocation: job?.location || null,
-          personalizedMessage: referralData.personalizedMessage || null,
-        });
-      }
-    } catch (emailError) {
-      // Log error but don't fail the request creation
-      console.error("❌ Error sending referral request email:", emailError);
-    }
-
     res.status(201).json({
       ok: true,
       data: {
@@ -104,12 +74,33 @@ class ReferralRequestController {
 
     // Get existing referral to check if we're sending it now
     const existingReferral = await referralRequestService.getReferralRequestById(id, userId);
-    const isBeingSent = referralData.sentAt && !existingReferral?.sentAt;
+    const shouldSendEmail =
+      Boolean(referralData.resend) || (referralData.sentAt && !existingReferral?.sentAt);
 
-    const referral = await referralRequestService.updateReferralRequest(id, userId, referralData);
+    const sanitizedData = { ...referralData };
+    delete sanitizedData.resend;
 
-    // Send email notification if referral is being sent
-    if (isBeingSent) {
+    if (shouldSendEmail && existingReferral?.requestTemplateId) {
+      try {
+        sanitizedData.personalizedMessage =
+          await referralRequestService.generatePersonalizedMessage({
+            userId,
+            contactId: existingReferral.contactId,
+            jobId: existingReferral.jobId,
+            templateId: existingReferral.requestTemplateId,
+            templateBody: sanitizedData.personalizedMessage || existingReferral.personalizedMessage,
+            tone: sanitizedData.tone,
+          });
+      } catch (personalizeError) {
+        console.error("❌ Error personalizing referral message:", personalizeError);
+      }
+    }
+    delete sanitizedData.tone;
+
+    const referral = await referralRequestService.updateReferralRequest(id, userId, sanitizedData);
+
+    // Send email notification if referral is being sent or explicitly resent
+    if (shouldSendEmail) {
       try {
         // Get contact details
         const contact = await professionalContactService.getContactById(referral.contactId, userId);
@@ -131,7 +122,7 @@ class ReferralRequestController {
             jobTitle: job?.title || "Position",
             jobCompany: job?.company || "Company",
             jobLocation: job?.location || null,
-            personalizedMessage: referral.personalizedMessage || referralData.personalizedMessage || null,
+            personalizedMessage: referral.personalizedMessage || sanitizedData.personalizedMessage || null,
           });
         }
       } catch (emailError) {
@@ -216,6 +207,41 @@ class ReferralRequestController {
       data: {
         template,
         message: "Referral template created successfully",
+      },
+    });
+  });
+
+  // Delete referral template
+  deleteTemplate = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+
+    await referralRequestService.deleteReferralTemplate(id);
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        message: "Referral template deleted successfully",
+      },
+    });
+  });
+
+  personalizeMessage = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { contactId, jobId, templateBody, templateId, tone } = req.body;
+
+    const message = await referralRequestService.generatePersonalizedMessage({
+      userId,
+      contactId,
+      jobId,
+      templateBody,
+      templateId,
+      tone,
+    });
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        message,
       },
     });
   });

@@ -602,10 +602,22 @@ const schemas = {
     followupSentAt: Joi.date().allow(null).optional(),
     gratitudeExpressed: Joi.boolean().optional(),
     relationshipImpact: Joi.string().max(50).allow(null, "").optional(),
+    resend: Joi.boolean().optional(),
+    tone: Joi.string().max(50).allow(null, "").optional(),
   }),
 
   referralRequestId: Joi.object({
     id: Joi.string().uuid().required(),
+  }),
+  referralTemplateId: Joi.object({
+    id: Joi.string().uuid().required(),
+  }),
+  personalizeReferralRequest: Joi.object({
+    contactId: Joi.string().uuid().required(),
+    jobId: Joi.string().uuid().required(),
+    templateBody: Joi.string().allow(null, "").optional(),
+    templateId: Joi.string().uuid().optional(),
+    tone: Joi.string().max(50).allow(null, "").optional(),
   }),
 };
 
@@ -709,3 +721,7 @@ export const validateAddEventConnection = validate(schemas.addEventConnection);
 export const validateCreateReferralRequest = validate(schemas.createReferralRequest);
 export const validateUpdateReferralRequest = validate(schemas.updateReferralRequest);
 export const validateReferralRequestId = validateParams(schemas.referralRequestId);
+export const validateReferralTemplateId = validateParams(schemas.referralTemplateId);
+export const validatePersonalizeReferralRequest = validate(
+  schemas.personalizeReferralRequest
+);

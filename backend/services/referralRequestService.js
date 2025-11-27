@@ -1,6 +1,11 @@
 import { v4 as uuidv4 } from "uuid";
 import OpenAI from "openai";
 import database from "./database.js";
+import professionalContactService from "./professionalContactService.js";
+import jobOpportunityService from "./jobOpportunityService.js";
+import profileService from "./profileService.js";
+import skillService from "./skillService.js";
+import projectService from "./projectService.js";
 
 class ReferralRequestService {
   constructor() {
@@ -403,6 +408,9 @@ class ReferralRequestService {
       industry,
       relationshipType,
       tone = "professional",
+      jobTitle,
+      jobCompany,
+      jobLocation,
     } = options;
 
     try {
@@ -419,6 +427,8 @@ class ReferralRequestService {
 5. Be concise but warm
 ${industry ? `6. Be tailored for the ${industry} industry` : ""}
 ${relationshipType ? `7. Be appropriate for a ${relationshipType} relationship` : ""}
+${jobTitle || jobCompany ? `8. Tailor the content specifically for the role ${jobTitle || "N/A"} at ${jobCompany || "N/A"}` : ""}
+${jobLocation ? `9. Reference the job location (${jobLocation}) when relevant` : ""}
 
 Provide the response as JSON with the following structure:
 {
@@ -460,8 +470,10 @@ Make the template professional, personalized, and respectful of the contact's ti
         // Fallback if JSON parsing fails
         parsedContent = {
           templateBody: content,
-          etiquetteGuidance: "Send referral requests when you have a strong relationship with the contact and the job is a good fit for your background.",
-          timingGuidance: "Request referrals 1-2 weeks before application deadlines, or when you're actively applying. Avoid busy periods like holidays.",
+          etiquetteGuidance:
+            "Send referral requests when you have a strong relationship with the contact and the job is a good fit for your background.",
+          timingGuidance:
+            "Request referrals 1-2 weeks before application deadlines, or when you're actively applying. Avoid busy periods like holidays.",
         };
       }
 
@@ -538,6 +550,153 @@ Make the template professional, personalized, and respectful of the contact's ti
     }
   }
 
+  // Delete referral template
+  async deleteReferralTemplate(templateId) {
+    try {
+      const query = `
+        DELETE FROM referral_templates
+        WHERE id = $1
+        RETURNING *
+      `;
+
+      const result = await database.query(query, [templateId]);
+      if (result.rows.length === 0) {
+        const error = new Error("Referral template not found");
+        error.status = 404;
+        throw error;
+      }
+
+      return {
+        id: result.rows[0].id,
+        templateName: result.rows[0].template_name,
+      };
+    } catch (error) {
+      console.error("❌ Error deleting referral template:", error);
+      throw error;
+    }
+  }
+
+  async generatePersonalizedMessage({
+    userId,
+    contactId,
+    jobId,
+    templateBody,
+    templateId,
+    tone = "warm professional",
+  }) {
+    if (!this.openai) {
+      throw new Error("OpenAI API key not configured");
+    }
+
+    let resolvedTemplateBody = templateBody || null;
+    let resolvedTone = tone;
+
+    if ((!resolvedTemplateBody || !resolvedTone || resolvedTone === "warm professional") && templateId) {
+      const templateResult = await database.query(
+        `
+          SELECT template_body, template_name
+          FROM referral_templates
+          WHERE id = $1
+        `,
+        [templateId]
+      );
+
+      if (templateResult.rows.length > 0) {
+        resolvedTemplateBody = resolvedTemplateBody || templateResult.rows[0].template_body;
+        if (!tone || tone === "warm professional") {
+          const toneMatch =
+            templateResult.rows[0].template_name?.match(/Tone:\s*([^•]+)/i) ||
+            templateResult.rows[0].template_name?.match(/\((?:Tone|tone):\s*([^)]+)\)/);
+          if (toneMatch) {
+            resolvedTone = toneMatch[1].trim();
+          }
+        }
+      }
+    }
+
+    const [contact, job, profile, skills, projects] = await Promise.all([
+      professionalContactService.getContactById(contactId, userId),
+      jobOpportunityService.getJobOpportunityById(jobId, userId),
+      profileService.getProfileByUserId(userId),
+      skillService.getSkillsByUserId(userId),
+      projectService.getProjectsByUserId(userId, {}, { sortBy: "start_date", sortOrder: "desc" }),
+    ]);
+
+    if (!contact) {
+      const error = new Error("Contact not found");
+      error.status = 404;
+      throw error;
+    }
+
+    if (!job) {
+      const error = new Error("Job opportunity not found");
+      error.status = 404;
+      throw error;
+    }
+
+    const requesterName =
+      (profile &&
+        (`${profile.first_name || ""} ${profile.last_name || ""}`.trim() || profile.fullName)) ||
+      "A colleague";
+    const requesterTitle = profile?.job_title || profile?.jobTitle || null;
+    const highlightSkill = skills?.[0]?.skillName;
+    const highlightProject = projects?.[0]?.name;
+
+    const templateGuide = resolvedTemplateBody
+      ? `Use the following template as inspiration, but output a fully personalized, ready-to-send message with no placeholders:\n"""${resolvedTemplateBody}""" \n`
+      : "";
+
+    const userPrompt = `
+Write a concise referral request email that is ready to send. Do not include placeholders or bracketed tokens.
+
+Contact:
+- Name: ${[contact.firstName, contact.lastName].filter(Boolean).join(" ").trim() || contact.email || "the contact"}
+- Company: ${contact.company || job.company || "Not specified"}
+- Relationship Context: ${contact.relationshipContext || contact.relationshipType || "Not specified"}
+
+Requester:
+- Name: ${requesterName}
+- Current Title: ${requesterTitle || "Not specified"}
+- Highlighted Skill: ${highlightSkill || "Not provided"}
+- Highlighted Project: ${highlightProject || "Not provided"}
+
+Job Opportunity:
+- Role: ${job.title || "Not specified"}
+- Company: ${job.company || "Not specified"}
+- Location: ${job.location || "Not specified"}
+- Description / Notes: ${job.description || job.notes || "Not provided"}
+
+Instructions:
+- Tone: ${resolvedTone}
+- Length: under 180 words
+- Reference the highlighted skill or project naturally.
+- Offer to share a resume or additional details.
+- Close with gratitude.
+
+${templateGuide}
+Return only the email body text.
+    `.trim();
+
+    const response = await this.openai.chat.completions.create({
+      model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+      temperature: 0.4,
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a helpful career coach who writes polished, friendly referral request emails on behalf of job seekers.",
+        },
+        { role: "user", content: userPrompt },
+      ],
+    });
+
+    const message = response.choices[0]?.message?.content?.trim();
+    if (!message) {
+      throw new Error("Failed to generate personalized referral message");
+    }
+
+    return message;
+  }
 }
 
 export default new ReferralRequestService();

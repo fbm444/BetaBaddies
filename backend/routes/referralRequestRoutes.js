@@ -5,6 +5,8 @@ import {
   validateCreateReferralRequest,
   validateUpdateReferralRequest,
   validateReferralRequestId,
+  validateReferralTemplateId,
+  validatePersonalizeReferralRequest,
 } from "../middleware/validation.js";
 
 const router = express.Router();
@@ -15,6 +17,18 @@ router.get("/followup", isAuthenticated, referralRequestController.getNeedingFol
 router.get("/templates", isAuthenticated, referralRequestController.getTemplates);
 router.post("/templates/ai", isAuthenticated, referralRequestController.createTemplateWithAI);
 router.post("/templates", isAuthenticated, referralRequestController.createTemplate);
+router.delete(
+  "/templates/:id",
+  isAuthenticated,
+  validateReferralTemplateId,
+  referralRequestController.deleteTemplate
+);
+router.post(
+  "/personalize",
+  isAuthenticated,
+  validatePersonalizeReferralRequest,
+  referralRequestController.personalizeMessage
+);
 router.post("/", isAuthenticated, validateCreateReferralRequest, referralRequestController.create);
 router.get("/:id", isAuthenticated, validateReferralRequestId, referralRequestController.getById);
 router.put("/:id", isAuthenticated, validateReferralRequestId, validateUpdateReferralRequest, referralRequestController.update);

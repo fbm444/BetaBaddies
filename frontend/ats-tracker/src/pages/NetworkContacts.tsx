@@ -13,6 +13,7 @@ import {
 } from "../types/network.types";
 import { validateEmail, validatePhone, validateUrl } from "../utils/validation";
 import { INDUSTRIES } from "../types/jobOpportunity.types";
+import type { JobOpportunityData } from "../types";
 
 export function NetworkContacts() {
   const location = useLocation();
@@ -51,6 +52,8 @@ export function NetworkContacts() {
   const [isLoadingWhoHaveYou, setIsLoadingWhoHaveYou] = useState(false);
   const [peopleInYourIndustry, setPeopleInYourIndustry] = useState<DiscoveredContact[]>([]);
   const [isLoadingIndustry, setIsLoadingIndustry] = useState(false);
+  const [suggestedContacts, setSuggestedContacts] = useState<DiscoveredContact[]>([]);
+  const [isLoadingSuggested, setIsLoadingSuggested] = useState(false);
 
   useEffect(() => {
     fetchContacts();
@@ -181,6 +184,92 @@ export function NetworkContacts() {
     }
   };
 
+  const fetchSuggestedContacts = async () => {
+    try {
+      setIsLoadingSuggested(true);
+      // Fetch job opportunities
+      const jobsResponse = await api.getJobOpportunities({
+        limit: 100,
+        sort: "-created_at",
+      });
+
+      if (!jobsResponse.ok || !jobsResponse.data) {
+        return;
+      }
+
+      const jobOpportunities = jobsResponse.data.jobOpportunities.filter(
+        (job: JobOpportunityData) => !job.archived
+      );
+
+      if (jobOpportunities.length === 0) {
+        setSuggestedContacts([]);
+        return;
+      }
+
+      // Extract unique companies from job opportunities
+      const companies = Array.from(
+        new Set(
+          jobOpportunities
+            .map((job: JobOpportunityData) => job.company)
+            .filter((company): company is string => !!company)
+        )
+      );
+
+      // Get existing contact emails to avoid duplicates
+      const existingContactEmails = new Set(
+        contacts.map((c) => c.email?.toLowerCase()).filter((e): e is string => !!e)
+      );
+
+      // Fetch contacts for each company from explore network
+      const allSuggestedContacts: DiscoveredContact[] = [];
+      const seenContactIds = new Set<string>();
+
+      for (const company of companies.slice(0, 10)) {
+        // Limit to first 10 companies to avoid too many API calls
+        try {
+          const searchResponse = await api.getExploreNetworkContacts({
+            search: company,
+            degree: "all",
+          });
+
+          if (searchResponse.ok && searchResponse.data) {
+            const matchingContacts = searchResponse.data.suggestions.filter(
+              (contact: DiscoveredContact) => {
+                // Filter contacts that:
+                // 1. Work at the company (case-insensitive match)
+                // 2. Are not already in contacts
+                // 3. Haven't been added to suggestions yet
+                const companyMatch =
+                  contact.company?.toLowerCase().includes(company.toLowerCase()) ||
+                  company.toLowerCase().includes(contact.company?.toLowerCase() || "");
+                const notAlreadyAdded = !existingContactEmails.has(
+                  contact.email?.toLowerCase() || ""
+                );
+                const notDuplicate = !seenContactIds.has(contact.id);
+
+                if (companyMatch && notAlreadyAdded && notDuplicate) {
+                  seenContactIds.add(contact.id);
+                  return true;
+                }
+                return false;
+              }
+            );
+            allSuggestedContacts.push(...matchingContacts);
+          }
+        } catch (err) {
+          console.error(`Failed to search contacts for company ${company}:`, err);
+        }
+      }
+
+      // Limit to top 20 suggestions
+      setSuggestedContacts(allSuggestedContacts.slice(0, 20));
+    } catch (err: any) {
+      console.error("Failed to load suggested contacts:", err);
+    } finally {
+      setIsLoadingSuggested(false);
+    }
+  };
+
   useEffect(() => {
     if (activeTab !== "explore") {
       return;
@@ -188,6 +277,7 @@ export function NetworkContacts() {
     fetchExploreContacts();
     fetchPeopleWhoHaveYou();
     fetchPeopleInYourIndustry();
+    fetchSuggestedContacts();
   }, [activeTab, degreeFilter, exploreSearch]);
 
 
@@ -404,6 +494,15 @@ export function NetworkContacts() {
         }));
         // Remove from people in your industry list by ID and also by email
         setPeopleInYourIndustry((prev) => prev.filter((c) => {
+          if (c.id === contact.id) return false;
+          // Also remove if email matches (case-insensitive)
+          if (contact.email && c.email && contact.email.toLowerCase() === c.email.toLowerCase()) {
+            return false;
+          }
+          return true;
+        }));
+        // Remove from suggested contacts list by ID and also by email
+        setSuggestedContacts((prev) => prev.filter((c) => {
           if (c.id === contact.id) return false;
           // Also remove if email matches (case-insensitive)
           if (contact.email && c.email && contact.email.toLowerCase() === c.email.toLowerCase()) {
@@ -1013,6 +1112,104 @@ export function NetworkContacts() {
 
   const renderExploreNetworkSection = () => (
     <>
+      {/* Suggested Contacts from Job Opportunities */}
+      {suggestedContacts.length > 0 && (
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg border border-amber-200 p-6 mb-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+              <Icon icon="mingcute:briefcase-line" width={24} height={24} className="text-amber-600" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-slate-900">Suggested Contacts from Your Job Opportunities</h3>
+              <p className="text-sm text-slate-600">Connect with people who work at companies in your tracked job opportunities.</p>
+            </div>
+          </div>
+          {isLoadingSuggested ? (
+            <div className="text-center py-8">
+              <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-amber-600"></div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {suggestedContacts.map((contact) => (
+                <div
+                  key={contact.id}
+                  className="bg-white rounded-lg border border-amber-200 p-6 hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-3 flex-1">
+                      <div className="w-12 h-12 rounded-full bg-slate-200 flex-shrink-0 overflow-hidden flex items-center justify-center">
+                        {contact.profilePicture && !contact.profilePicture.includes('blank-profile-picture') ? (
+                          <img
+                            src={contact.profilePicture}
+                            alt={contact.contactName || "Suggested contact"}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                              const parent = target.parentElement;
+                              if (parent) {
+                                const fallback = parent.querySelector('.profile-fallback') as HTMLElement;
+                                if (fallback) fallback.style.display = 'flex';
+                              }
+                            }}
+                          />
+                        ) : null}
+                        <span className="profile-fallback w-full h-full items-center justify-center text-slate-500 text-lg font-semibold" style={{ display: (contact.profilePicture && !contact.profilePicture.includes('blank-profile-picture')) ? 'none' : 'flex' }}>
+                          {(contact.contactName?.[0] || '?').toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-lg font-semibold text-slate-900">
+                          {contact.contactName || "Suggested contact"}
+                        </h3>
+                        {contact.contactTitle && (
+                          <p className="text-sm text-slate-600 mt-1">{contact.contactTitle}</p>
+                        )}
+                        {contact.company && (
+                          <p className="text-sm text-slate-500 mt-1">{contact.company}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {contact.connectionPath && (
+                    <p className="mt-3 text-sm text-slate-600">{contact.connectionPath}</p>
+                  )}
+
+                  <div className="mt-4 flex items-center justify-between gap-3">
+                    <div className="flex flex-wrap gap-3 text-xs text-slate-500">
+                      {contact.email && (
+                        <span className="flex items-center gap-1">
+                          <Icon icon="mingcute:mail-line" width={14} height={14} />
+                          {contact.email}
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => handleAddFromExplore(contact)}
+                      disabled={addingContactIds.has(contact.id)}
+                      className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a43d4] transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      {addingContactIds.has(contact.id) ? (
+                        <>
+                          <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          <span>Adding...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Icon icon="mingcute:add-line" width={16} height={16} />
+                          <span>Add to Contacts</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* People Who Have You Card */}
       {peopleWhoHaveYou.length > 0 && (
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 p-6 mb-6">

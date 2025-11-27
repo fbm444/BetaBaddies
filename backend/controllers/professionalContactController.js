@@ -178,6 +178,26 @@ class ProfessionalContactController {
       },
     });
   });
+
+  // Get contact's network (contacts of this contact)
+  getContactNetwork = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { id } = req.params;
+
+    try {
+      const network = await professionalContactService.getContactNetwork(id, userId);
+
+      res.status(200).json({
+        ok: true,
+        data: {
+          network,
+        },
+      });
+    } catch (error) {
+      console.error("❌ Error in getContactNetwork controller:", error);
+      throw error;
+    }
+  });
 }
 
 export default new ProfessionalContactController();

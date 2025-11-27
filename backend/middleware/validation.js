@@ -481,6 +481,10 @@ const schemas = {
     notes: Joi.string().allow(null, "").optional(),
   }),
 
+  googleContactsImport: Joi.object({
+    maxResults: Joi.number().integer().min(1).max(1000).default(250),
+  }),
+
   // Networking Event Validation
   createEvent: Joi.object({
     eventName: Joi.string().max(255).required().messages({
@@ -714,6 +718,7 @@ export const validateCreateContact = validate(schemas.createContact);
 export const validateUpdateContact = validate(schemas.updateContact);
 export const validateContactId = validateParams(schemas.contactId);
 export const validateAddContactInteraction = validate(schemas.addContactInteraction);
+export const validateGoogleContactsImport = validate(schemas.googleContactsImport);
 export const validateCreateEvent = validate(schemas.createEvent);
 export const validateUpdateEvent = validate(schemas.updateEvent);
 export const validateEventId = validateParams(schemas.eventId);

@@ -24,6 +24,9 @@ export function NetworkContacts() {
   const [selectedContact, setSelectedContact] = useState<ProfessionalContact | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [industryFilter, setIndustryFilter] = useState<string>("");
+  const [roleFilter, setRoleFilter] = useState<string>("");
+  const [sourceFilter, setSourceFilter] = useState<string>("");
   const [googleStatus, setGoogleStatus] = useState<GoogleContactsStatus | null>(null);
   const [isGoogleModalOpen, setIsGoogleModalOpen] = useState(false);
   const [importSummary, setImportSummary] = useState<GoogleContactsImportSummary | null>(null);
@@ -70,7 +73,12 @@ export function NetworkContacts() {
     try {
       setIsLoading(true);
       setError(null); // Always clear error at the start
-      const filters = searchTerm ? { search: searchTerm } : {};
+      const filters: {
+        search?: string;
+        industry?: string;
+      } = {};
+      if (searchTerm) filters.search = searchTerm;
+      if (industryFilter) filters.industry = industryFilter;
       const response = await api.getContacts(filters);
       if (response.ok && response.data) {
         setContacts(response.data.contacts);
@@ -139,7 +147,7 @@ export function NetworkContacts() {
 
   useEffect(() => {
     fetchContacts();
-  }, [searchTerm]);
+  }, [searchTerm, industryFilter]);
 
   const fetchPeopleWhoHaveYou = async () => {
     try {
@@ -577,41 +585,87 @@ export function NetworkContacts() {
     return degree;
   };
 
+  // Extract unique values for filter dropdowns
+  const uniqueIndustries = Array.from(
+    new Set(contacts.map((c) => c.industry).filter((v): v is string => !!v))
+  ).sort();
+
+  const uniqueRoles = Array.from(
+    new Set(contacts.map((c) => c.jobTitle).filter((v): v is string => !!v))
+  ).sort();
+
+  // Helper function to determine contact source
+  const getContactSource = (contact: ProfessionalContact): string => {
+    if (contact.importedFrom === "google_contacts") {
+      return "Google Contacts";
+    }
+    if (contact.relationshipType === "Event Attendee") {
+      return "Event Attendee";
+    }
+    return "Other";
+  };
+
+  // Always show all three source options in the dropdown
+  const sourceOptions = ["Google Contacts", "Event Attendee", "Other"];
+
   const filteredContacts = contacts.filter((contact) => {
-    if (!searchTerm) return true;
-    const search = searchTerm.toLowerCase();
-    return (
-      contact.firstName?.toLowerCase().includes(search) ||
-      contact.lastName?.toLowerCase().includes(search) ||
-      contact.email?.toLowerCase().includes(search) ||
-      contact.company?.toLowerCase().includes(search) ||
-      contact.jobTitle?.toLowerCase().includes(search)
-    );
+    // Apply search filter
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      const matchesSearch =
+        contact.firstName?.toLowerCase().includes(search) ||
+        contact.lastName?.toLowerCase().includes(search) ||
+        contact.email?.toLowerCase().includes(search) ||
+        contact.company?.toLowerCase().includes(search) ||
+        contact.jobTitle?.toLowerCase().includes(search);
+      if (!matchesSearch) return false;
+    }
+
+    // Apply industry filter
+    if (industryFilter && contact.industry !== industryFilter) {
+      return false;
+    }
+
+    // Apply role filter
+    if (roleFilter && contact.jobTitle !== roleFilter) {
+      return false;
+    }
+
+    // Apply source filter
+    if (sourceFilter) {
+      const contactSource = getContactSource(contact);
+      if (contactSource !== sourceFilter) {
+        return false;
+      }
+    }
+
+    return true;
   });
 
   const renderMyContactsSection = () => (
     <>
       {/* Actions Bar */}
       <div className="bg-white rounded-lg border border-slate-200 p-4 mb-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex-1 w-full md:max-w-md">
-            <div className="relative">
-              <Icon
-                icon="mingcute:search-line"
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400"
-                width={20}
-                height={20}
-              />
-              <input
-                type="text"
-                placeholder="Search contacts..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
-              />
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex-1 w-full md:max-w-md">
+              <div className="relative">
+                <Icon
+                  icon="mingcute:search-line"
+                  className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400"
+                  width={20}
+                  height={20}
+                />
+                <input
+                  type="text"
+                  placeholder="Search contacts..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                />
+              </div>
             </div>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
             <button
               onClick={() => setIsAddModalOpen(true)}
               className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a43d4] transition-colors flex items-center gap-2"
@@ -640,6 +694,70 @@ export function NetworkContacts() {
             )}
           </div>
         </div>
+        {/* Filter Options */}
+        <div className="flex flex-col gap-3 pt-4 border-t border-slate-200">
+          <div className="flex flex-wrap gap-3">
+            <div className="flex-1 min-w-[150px]">
+              <label className="block text-xs font-medium text-slate-700 mb-1">Industry</label>
+              <select
+                value={industryFilter}
+                onChange={(e) => setIndustryFilter(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent bg-white"
+              >
+                <option value="">All Industries</option>
+                {uniqueIndustries.map((industry) => (
+                  <option key={industry} value={industry}>
+                    {industry}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex-1 min-w-[150px]">
+              <label className="block text-xs font-medium text-slate-700 mb-1">Role</label>
+              <select
+                value={roleFilter}
+                onChange={(e) => setRoleFilter(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent bg-white"
+              >
+                <option value="">All Roles</option>
+                {uniqueRoles.map((role) => (
+                  <option key={role} value={role}>
+                    {role}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex-1 min-w-[150px]">
+              <label className="block text-xs font-medium text-slate-700 mb-1">Source</label>
+              <select
+                value={sourceFilter}
+                onChange={(e) => setSourceFilter(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent bg-white"
+              >
+                <option value="">All Sources</option>
+                {sourceOptions.map((source) => (
+                  <option key={source} value={source}>
+                    {source}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {(industryFilter || roleFilter || sourceFilter) && (
+              <div className="flex items-end">
+                <button
+                  onClick={() => {
+                    setIndustryFilter("");
+                    setRoleFilter("");
+                    setSourceFilter("");
+                  }}
+                  className="px-4 py-2 text-sm text-slate-600 hover:text-slate-800 hover:underline"
+                >
+                  Clear Filters
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
         {googleStatus && (
           <div className="mt-3 text-xs text-slate-500 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
             <span>
@@ -656,6 +774,7 @@ export function NetworkContacts() {
             )}
           </div>
         )}
+        </div>
       </div>
 
       {statusBanner && (
@@ -794,17 +913,35 @@ export function NetworkContacts() {
                   </div>
                 )}
                 <div className="flex flex-wrap items-center gap-2">
-                  {contact.relationshipType && (
+                  {contact.relationshipType && contact.relationshipType !== "Event Attendee" && (
                     <div className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs">
                       {contact.relationshipType}
                     </div>
                   )}
-                  {contact.importedFrom === "google_contacts" && (
-                    <div className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-blue-50 text-[#3351FD]">
-                      <Icon icon="mdi:google-contacts" width={14} height={14} />
-                      Google Contacts
-                    </div>
-                  )}
+                  {(() => {
+                    const source = getContactSource(contact);
+                    if (source === "Google Contacts") {
+                      return (
+                        <div className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-blue-50 text-[#3351FD]">
+                          <Icon icon="mdi:google-contacts" width={14} height={14} />
+                          Google Contacts
+                        </div>
+                      );
+                    }
+                    if (source === "Event Attendee") {
+                      return (
+                        <div className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-purple-50 text-purple-700">
+                          <Icon icon="mingcute:calendar-line" width={14} height={14} />
+                          Event Attendee
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-slate-100 text-slate-700">
+                        Other
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             </div>

@@ -494,6 +494,7 @@ const schemas = {
     eventType: Joi.string().max(50).allow(null, "").optional(),
     industry: Joi.string().max(255).allow(null, "").optional(),
     location: Joi.string().max(255).allow(null, "").optional(),
+    company: Joi.string().max(255).allow(null, "").optional(),
     eventDate: Joi.date().required().messages({
       "any.required": "Event date is required",
       "date.base": "Event date must be a valid date",
@@ -528,6 +529,7 @@ const schemas = {
     eventType: Joi.string().max(50).allow(null, "").optional(),
     industry: Joi.string().max(255).allow(null, "").optional(),
     location: Joi.string().max(255).allow(null, "").optional(),
+    company: Joi.string().max(255).allow(null, "").optional(),
     eventDate: Joi.date().optional(),
     eventTime: Joi.string()
       .pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/)

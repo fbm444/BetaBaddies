@@ -181,6 +181,115 @@ class ProfessionalContactService {
     }
   }
 
+  // Sync contact information from user profile if contact has contact_user_id
+  async syncContactFromProfile(contactId, contactUserId) {
+    try {
+      if (!contactUserId) {
+        return; // No user to sync from
+      }
+
+      // Get profile information
+      const profileQuery = `
+        SELECT 
+          p.first_name, 
+          p.last_name, 
+          p.phone, 
+          p.job_title, 
+          p.industry,
+          p.city,
+          p.state,
+          p.pfp_link,
+          u.email
+        FROM profiles p
+        JOIN users u ON p.user_id = u.u_id
+        WHERE p.user_id = $1
+      `;
+      const profileResult = await database.query(profileQuery, [contactUserId]);
+
+      if (profileResult.rows.length === 0) {
+        return; // Profile doesn't exist
+      }
+
+      const profile = profileResult.rows[0];
+
+      // Get current job from jobs table
+      const jobQuery = `
+        SELECT company, title, location
+        FROM jobs
+        WHERE user_id = $1 AND is_current = true
+        ORDER BY start_date DESC
+        LIMIT 1
+      `;
+      const jobResult = await database.query(jobQuery, [contactUserId]);
+
+      // Build update fields
+      const updates = [];
+      const values = [];
+      let paramIndex = 1;
+
+      // Sync profile information if available
+      if (profile.first_name) {
+        updates.push(`first_name = $${paramIndex++}`);
+        values.push(profile.first_name);
+      }
+      if (profile.last_name) {
+        updates.push(`last_name = $${paramIndex++}`);
+        values.push(profile.last_name);
+      }
+      if (profile.email) {
+        updates.push(`email = $${paramIndex++}`);
+        values.push(profile.email);
+      }
+      if (profile.phone) {
+        updates.push(`phone = $${paramIndex++}`);
+        values.push(profile.phone);
+      }
+      if (profile.job_title) {
+        updates.push(`job_title = $${paramIndex++}`);
+        values.push(profile.job_title);
+      }
+      if (profile.industry) {
+        updates.push(`industry = $${paramIndex++}`);
+        values.push(profile.industry);
+      }
+      if (profile.city && profile.state) {
+        updates.push(`location = $${paramIndex++}`);
+        values.push(`${profile.city}, ${profile.state}`);
+      }
+
+      // Sync current job information if available
+      if (jobResult.rows.length > 0) {
+        const job = jobResult.rows[0];
+        if (job.company) {
+          updates.push(`company = $${paramIndex++}`);
+          values.push(job.company);
+        }
+        if (job.title && !profile.job_title) {
+          // Only update job_title from job if profile doesn't have one
+          updates.push(`job_title = $${paramIndex++}`);
+          values.push(job.title);
+        }
+      }
+
+      // Only update if there are fields to update
+      if (updates.length > 0) {
+        updates.push(`updated_at = NOW()`);
+        values.push(contactId);
+
+        const updateQuery = `
+          UPDATE professional_contacts
+          SET ${updates.join(', ')}
+          WHERE id = $${paramIndex}
+        `;
+
+        await database.query(updateQuery, values);
+      }
+    } catch (error) {
+      console.error(`❌ Error syncing contact ${contactId} from profile:`, error);
+      // Don't throw - continue with other contacts even if one fails
+    }
+  }
+
   // Get all contacts for a user
   async getContactsByUserId(userId, filters = {}) {
     try {
@@ -222,7 +331,27 @@ class ProfessionalContactService {
       query += ` ORDER BY first_name ASC, last_name ASC`;
 
       const result = await database.query(query, params);
-      return result.rows.map(this.mapRowToContact);
+      let contacts = result.rows.map(this.mapRowToContact);
+
+      // Sync contact information from profiles for contacts that have contact_user_id
+      // This updates the database with the latest information from user profiles
+      const contactsToSync = contacts.filter(contact => contact.contactUserId);
+      if (contactsToSync.length > 0) {
+        // Sync all contacts that have a linked user account
+        // Use Promise.allSettled to ensure we don't fail if one sync fails
+        await Promise.allSettled(
+          contactsToSync.map(contact => 
+            this.syncContactFromProfile(contact.id, contact.contactUserId)
+          )
+        );
+
+        // Re-fetch all contacts after syncing to get updated information
+        // This ensures we return the latest data with all filters applied
+        const refreshResult = await database.query(query, params);
+        contacts = refreshResult.rows.map(this.mapRowToContact);
+      }
+
+      return contacts;
     } catch (error) {
       console.error("❌ Error getting contacts:", error);
       throw error;
@@ -247,7 +376,20 @@ class ProfessionalContactService {
         return null;
       }
 
-      return this.mapRowToContact(result.rows[0]);
+      const contact = this.mapRowToContact(result.rows[0]);
+
+      // Sync contact information from profile if it has contact_user_id
+      if (contact.contactUserId) {
+        await this.syncContactFromProfile(contactId, contact.contactUserId);
+        
+        // Re-fetch to get updated information
+        const refreshResult = await database.query(query, [contactId, userId]);
+        if (refreshResult.rows.length > 0) {
+          return this.mapRowToContact(refreshResult.rows[0]);
+        }
+      }
+
+      return contact;
     } catch (error) {
       console.error("❌ Error getting contact by ID:", error);
       throw error;

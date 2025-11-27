@@ -9,6 +9,7 @@ class NetworkingEventService {
       eventType,
       industry,
       location,
+      company,
       eventDate,
       eventTime,
       endDate,
@@ -30,12 +31,12 @@ class NetworkingEventService {
 
       const query = `
         INSERT INTO networking_events (
-          id, user_id, event_name, event_type, industry, location,
+          id, user_id, event_name, event_type, industry, location, company,
           event_date, event_time, end_date, end_time, event_url, is_virtual,
           description, networking_goals, preparation_notes, attended, attendance_date,
           post_event_notes, roi_score, connections_made_count
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
         RETURNING *
       `;
 
@@ -46,6 +47,7 @@ class NetworkingEventService {
         eventType || null,
         industry || null,
         location || null,
+        company || null,
         eventDate,
         eventTime || null,
         endDate || null,
@@ -615,6 +617,7 @@ class NetworkingEventService {
         eventType: "event_type",
         industry: "industry",
         location: "location",
+        company: "company",
         eventDate: "event_date",
         eventTime: "event_time",
         endDate: "end_date",
@@ -634,7 +637,7 @@ class NetworkingEventService {
       for (const [key, value] of Object.entries(eventData)) {
         if (value !== undefined && fieldMap[key]) {
           // Convert empty strings to null for optional fields
-          const dbValue = (value === "" && (key === "industry" || key === "location" || key === "eventUrl" || key === "description" || key === "eventTime" || key === "endTime")) 
+          const dbValue = (value === "" && (key === "industry" || key === "location" || key === "company" || key === "eventUrl" || key === "description" || key === "eventTime" || key === "endTime")) 
             ? null 
             : value;
           fields.push(`${fieldMap[key]} = $${paramIndex}`);
@@ -864,6 +867,7 @@ class NetworkingEventService {
       eventType: row.event_type,
       industry: row.industry,
       location: row.location,
+      company: row.company,
       eventDate: row.event_date,
       eventTime: row.event_time,
       endDate: row.end_date,

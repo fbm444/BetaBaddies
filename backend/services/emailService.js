@@ -366,6 +366,20 @@ class EmailService {
           </div>
           ` : ''}
           
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${appUrl}/network/referrals?tab=write" 
+               style="background: linear-gradient(to right, #3351FD, #2a43d4); 
+                      color: white; 
+                      padding: 14px 32px; 
+                      text-decoration: none; 
+                      border-radius: 8px; 
+                      display: inline-block;
+                      font-weight: 600;
+                      font-size: 16px;">
+              Write Referral Template
+            </a>
+          </div>
+          
           <hr style="border: 1px solid #E5E7EB; margin: 20px 0;">
           <p style="color: #6B7280; font-size: 12px;">
             This is an automated notification from ATS Tracker. Please respond directly to ${requesterName || 'the requester'} to proceed with the referral.
@@ -379,6 +393,97 @@ class EmailService {
       console.log('✅ Referral request email sent to:', contactEmail);
     } catch (error) {
       console.error('❌ Error sending referral request email:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send referral letter notification email to requester
+   * @param {string} requesterEmail - Requester's email address
+   * @param {Object} referralDetails - Referral letter details
+   * @returns {Promise<void>}
+   */
+  async sendReferralLetterNotification(requesterEmail, referralDetails) {
+    const {
+      writerName,
+      jobTitle,
+      jobCompany,
+      referralLetter,
+    } = referralDetails;
+
+    // Development mode - log to console
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('\n========== REFERRAL LETTER EMAIL ==========');
+      console.log(`To: ${requesterEmail}`);
+      console.log(`Subject: Referral Letter for ${jobTitle} at ${jobCompany}`);
+      console.log(`\nDear ${requesterEmail},`);
+      console.log(`\n${writerName || 'Your contact'} has provided a referral letter for the following position:`);
+      console.log(`\nPosition: ${jobTitle}`);
+      console.log(`Company: ${jobCompany}`);
+      if (referralLetter) {
+        console.log(`\nReferral Letter:\n${referralLetter}`);
+      }
+      console.log('\n============================================\n');
+      return;
+    }
+
+    // Production mode - use nodemailer
+    if (!this.transporter) {
+      console.error('❌ Email service not initialized');
+      return;
+    }
+
+    const appUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const mailOptions = {
+      from: process.env.EMAIL_FROM || 'noreply@atstracker.com',
+      to: requesterEmail,
+      subject: `Referral Letter: ${jobTitle} at ${jobCompany}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #3351FD;">Referral Letter Received</h2>
+          <p>Dear ${requesterEmail},</p>
+          
+          <p>${writerName || 'Your contact'} has provided a referral letter for the following position:</p>
+          
+          <div style="background: #F3F4F6; border-left: 4px solid #3351FD; padding: 20px; margin: 20px 0; border-radius: 8px;">
+            <h3 style="color: #1F2937; margin-top: 0; font-size: 20px;">${jobTitle}</h3>
+            <p style="color: #4B5563; font-size: 16px; margin: 8px 0;"><strong>Company:</strong> ${jobCompany}</p>
+          </div>
+          
+          ${referralLetter ? `
+          <div style="background: #FFFFFF; border: 1px solid #E5E7EB; padding: 20px; margin: 20px 0; border-radius: 8px;">
+            <h3 style="color: #1F2937; margin-top: 0; font-size: 18px;">Referral Letter</h3>
+            <p style="color: #1F2937; font-size: 14px; line-height: 1.6; white-space: pre-wrap;">${referralLetter.replace(/\n/g, '<br>')}</p>
+          </div>
+          ` : ''}
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${appUrl}/network/referrals" 
+               style="background: linear-gradient(to right, #3351FD, #2a43d4); 
+                      color: white; 
+                      padding: 14px 32px; 
+                      text-decoration: none; 
+                      border-radius: 8px; 
+                      display: inline-block;
+                      font-weight: 600;
+                      font-size: 16px;">
+              View in ATS Tracker
+            </a>
+          </div>
+          
+          <hr style="border: 1px solid #E5E7EB; margin: 20px 0;">
+          <p style="color: #6B7280; font-size: 12px;">
+            This is an automated notification from ATS Tracker. Thank you for using our platform.
+          </p>
+        </div>
+      `,
+    };
+
+    try {
+      await this.transporter.sendMail(mailOptions);
+      console.log('✅ Referral letter email sent to:', requesterEmail);
+    } catch (error) {
+      console.error('❌ Error sending referral letter email:', error);
       throw error;
     }
   }

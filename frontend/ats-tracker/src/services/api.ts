@@ -44,6 +44,9 @@ import {
   ContactInput,
   ContactInteraction,
   ContactInteractionInput,
+  DiscoveredContact,
+  GoogleContactsStatus,
+  GoogleContactsImportSummary,
   NetworkingEvent,
   NetworkingEventInput,
   EventConnection,
@@ -1137,6 +1140,74 @@ class ApiService {
     });
   }
 
+  // Google Contacts import endpoints
+  async getGoogleContactsStatus() {
+    return this.request<
+      ApiResponse<{
+        status: GoogleContactsStatus;
+      }>
+    >("/network/google-contacts/status");
+  }
+
+  async getGoogleContactsAuthUrl() {
+    return this.request<ApiResponse<{ authUrl: string }>>("/network/google-contacts/auth/url");
+  }
+
+  async importGoogleContacts(options: { maxResults?: number } = {}) {
+    return this.request<
+      ApiResponse<{
+        summary: GoogleContactsImportSummary;
+        message: string;
+      }>
+    >("/network/google-contacts/import", {
+      method: "POST",
+      body: JSON.stringify(options),
+    });
+  }
+
+  async disconnectGoogleContacts() {
+    return this.request<ApiResponse<{ message: string }>>("/network/google-contacts/disconnect", {
+      method: "POST",
+    });
+  }
+
+  async getExploreNetworkContacts(filters?: { degree?: "2nd" | "3rd"; search?: string }) {
+    const params = new URLSearchParams();
+    if (filters?.degree) params.append("degree", filters.degree);
+    if (filters?.search) params.append("search", filters.search);
+    const query = params.toString();
+
+    return this.request<
+      ApiResponse<{
+        suggestions: DiscoveredContact[];
+      }>
+    >(`/network/explore${query ? `?${query}` : ""}`);
+  }
+
+  async getPeopleWhoHaveYou(filters?: { search?: string }) {
+    const params = new URLSearchParams();
+    if (filters?.search) params.append("search", filters.search);
+    const query = params.toString();
+
+    return this.request<
+      ApiResponse<{
+        contacts: DiscoveredContact[];
+      }>
+    >(`/network/explore/who-have-you${query ? `?${query}` : ""}`);
+  }
+
+  async getPeopleInYourIndustry(filters?: { search?: string }) {
+    const params = new URLSearchParams();
+    if (filters?.search) params.append("search", filters.search);
+    const query = params.toString();
+
+    return this.request<
+      ApiResponse<{
+        contacts: DiscoveredContact[];
+      }>
+    >(`/network/explore/same-industry${query ? `?${query}` : ""}`);
+  }
+
   // Network Contacts endpoints
   async getContacts(filters?: {
     industry?: string;
@@ -1159,6 +1230,12 @@ class ApiService {
   async getContact(id: string) {
     return this.request<ApiResponse<{ contact: ProfessionalContact }>>(
       `/network/contacts/${id}`
+    );
+  }
+
+  async getContactNetwork(id: string) {
+    return this.request<ApiResponse<{ network: ContactNetworkItem[] }>>(
+      `/network/contacts/${id}/network`
     );
   }
 
@@ -1395,14 +1472,40 @@ class ApiService {
     );
   }
 
-  async createReferralTemplateWithAI(options?: {
+  async getReferralRecommendationTemplates() {
+    return this.request<ApiResponse<{ templates: ReferralTemplate[] }>>(
+      "/network/referrals/templates/recommendations"
+    );
+  }
+
+  // Create referral request template with AI (for "Ask for Referrals" tab)
+  async createReferralRequestTemplateWithAI(options?: {
     templateName?: string;
-    industry?: string;
-    relationshipType?: string;
     tone?: string;
+    length?: string;
+    jobId?: string;
+    jobTitle?: string;
+    jobCompany?: string;
+    jobLocation?: string;
+    jobIndustry?: string;
   }) {
     return this.request<ApiResponse<{ template: ReferralTemplate; message: string }>>(
       "/network/referrals/templates/ai",
+      {
+        method: "POST",
+        body: JSON.stringify(options || {}),
+      }
+    );
+  }
+
+  // Create referral recommendation template with AI (for "Write Referrals" tab)
+  async createReferralTemplateWithAI(options?: {
+    templateName?: string;
+    tone?: string;
+    length?: string;
+  }) {
+    return this.request<ApiResponse<{ template: ReferralTemplate; message: string }>>(
+      "/network/referrals/templates/recommendations/ai",
       {
         method: "POST",
         body: JSON.stringify(options || {}),
@@ -1422,6 +1525,82 @@ class ApiService {
         method: "POST",
         body: JSON.stringify(templateData),
       }
+    );
+  }
+
+  async deleteReferralTemplate(id: string) {
+    return this.request<ApiResponse<{ message: string }>>(
+      `/network/referrals/templates/${id}`,
+      {
+        method: "DELETE",
+      }
+    );
+  }
+
+  async generateReferralMessage(payload: {
+    contactId: string;
+    jobId: string;
+    templateBody?: string | null;
+    templateId?: string;
+    tone?: string;
+  }) {
+    return this.request<ApiResponse<{ message: string }>>(
+      "/network/referrals/personalize",
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }
+    );
+  }
+
+  async generateReferralLetter(payload: {
+    templateId: string;
+    referralRequestId: string;
+  }) {
+    return this.request<ApiResponse<{ message: string }>>(
+      "/network/referrals/generate-letter",
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }
+    );
+  }
+
+  async saveDraftReferralLetter(payload: {
+    referralRequestId: string;
+    letterContent: string;
+  }) {
+    return this.request<ApiResponse<{ referral: ReferralRequest; message: string }>>(
+      "/network/referrals/save-draft-letter",
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }
+    );
+  }
+
+  async submitReferralLetter(payload: {
+    referralRequestId: string;
+    letterContent?: string;
+  }) {
+    return this.request<ApiResponse<{ referral: ReferralRequest; message: string }>>(
+      "/network/referrals/submit-letter",
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }
+    );
+  }
+
+  async getReferralRequestsToWrite() {
+    return this.request<ApiResponse<{ referrals: ReferralRequest[] }>>(
+      "/network/referrals/to-write"
+    );
+  }
+
+  async getReferralTemplatePreview(templateId: string) {
+    return this.request<ApiResponse<{ template: ReferralTemplate }>>(
+      `/network/referrals/templates/${templateId}/preview`
     );
   }
 

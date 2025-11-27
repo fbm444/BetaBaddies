@@ -467,11 +467,21 @@ export function NetworkEvents() {
   };
 
   const handleToggleEventTabs = (eventId: string, tab: "planning" | "debrief" | "outcomes") => {
-    setExpandedEventId(expandedEventId === eventId ? null : eventId);
+    const isCurrentlyExpanded = expandedEventId === eventId;
+    const currentTab = eventTab[eventId];
+    
+    // If clicking the same tab that's already open, collapse it
+    if (isCurrentlyExpanded && currentTab === tab) {
+      setExpandedEventId(null);
+      return;
+    }
+    
+    // Otherwise, expand the event (if not already expanded) and switch to the selected tab
+    setExpandedEventId(eventId);
     setEventTab(prev => ({ ...prev, [eventId]: tab }));
     
-    // Load connections when opening debrief or outcomes tab
-    if ((tab === "debrief" || tab === "outcomes") && expandedEventId !== eventId) {
+    // Load connections when opening debrief or outcomes tab (only if not already loaded)
+    if ((tab === "debrief" || tab === "outcomes") && !isCurrentlyExpanded) {
       handleLoadConnections(eventId);
       loadJobOutcomes();
     }
@@ -713,6 +723,25 @@ export function NetworkEvents() {
                         {event.description && (
                           <p className="mt-3 text-sm text-slate-600 line-clamp-2">{event.description}</p>
                         )}
+                        {event.eventUrl && (
+                          <div className="mt-2">
+                            <a
+                              href={event.eventUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-2 text-sm text-[#3351FD] hover:text-[#2a43d4] font-medium"
+                            >
+                              <Icon icon="mingcute:link-line" width={16} height={16} />
+                              Event URL
+                            </a>
+                          </div>
+                        )}
+                        {event.isVirtual && (
+                          <div className="mt-2 flex items-center gap-2">
+                            <Icon icon="mingcute:video-line" className="text-blue-600" width={16} height={16} />
+                            <span className="text-sm text-blue-600 font-medium">Virtual Event</span>
+                          </div>
+                        )}
                         {event.attended && (
                           <p className="mt-2 text-sm text-green-600 font-medium">✓ Will be attending</p>
                         )}
@@ -927,8 +956,8 @@ function AttendeesModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 p-2 sm:p-4 pt-16 sm:pt-20 overflow-y-auto">
+      <div className="bg-white rounded-lg max-w-4xl w-full mb-4 sm:mb-8 max-h-[85vh] sm:max-h-[80vh] overflow-y-auto">
         <div className="p-6 border-b border-slate-200">
           <h2 className="text-2xl font-bold text-slate-900">Event Attendees</h2>
           <p className="text-sm text-slate-600 mt-1">{event.eventName}</p>
@@ -1114,8 +1143,8 @@ function EventGoalsModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 p-2 sm:p-4 pt-16 sm:pt-20 overflow-y-auto">
+      <div className="bg-white rounded-lg max-w-2xl w-full mb-4 sm:mb-8 max-h-[85vh] sm:max-h-[80vh] overflow-y-auto">
         <div className="p-6 border-b border-slate-200">
           <h2 className="text-2xl font-bold text-slate-900">Event Goals</h2>
           <p className="text-sm text-slate-600 mt-1">{event.eventName}</p>
@@ -1265,6 +1294,7 @@ function EventModal({
     description: event?.description || "",
     attended: event?.attended || false,
     eventUrl: event?.eventUrl || "",
+    isVirtual: event?.isVirtual || false,
     eventTime: event?.eventTime || "",
     endDate: event?.endDate || "",
     endTime: event?.endTime || "",
@@ -1345,6 +1375,7 @@ function EventModal({
           description: event.description || "",
           attended: event.attended || false,
           eventUrl: event.eventUrl || "",
+          isVirtual: event.isVirtual || false,
           eventTime: timeValue,
           endDate: endDateValue,
           endTime: endTimeValue,
@@ -1359,6 +1390,7 @@ function EventModal({
           description: "",
           attended: false,
           eventUrl: "",
+          isVirtual: false,
           eventTime: "",
           endDate: "",
           endTime: "",
@@ -1409,8 +1441,8 @@ function EventModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 p-2 sm:p-4 pt-16 sm:pt-20 overflow-y-auto">
+      <div className="bg-white rounded-lg max-w-2xl w-full mb-4 sm:mb-8 max-h-[85vh] sm:max-h-[80vh] overflow-y-auto">
         <div className="p-6 border-b border-slate-200">
           <h2 className="text-2xl font-bold text-slate-900">
             {event ? "Edit Event" : "Create Event"}
@@ -1580,6 +1612,18 @@ function EventModal({
             {errors.eventUrl && (
               <p className="mt-1 text-sm text-red-600">{errors.eventUrl}</p>
             )}
+          </div>
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="isVirtual"
+              checked={formData.isVirtual || false}
+              onChange={(e) => handleFieldChange("isVirtual", e.target.checked)}
+              className="w-4 h-4 text-[#3351FD] border-slate-300 rounded focus:ring-[#3351FD]"
+            />
+            <label htmlFor="isVirtual" className="ml-2 text-sm font-medium text-slate-700">
+              Virtual Event
+            </label>
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>

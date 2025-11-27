@@ -23,6 +23,8 @@ export interface ProfessionalContact {
   importedFrom?: string;
   lastInteractionDate?: string;
   nextReminderDate?: string;
+  contactUserId?: string;
+  profilePicture?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -46,6 +48,7 @@ export interface ContactInput {
   importedFrom?: string;
   lastInteractionDate?: string;
   nextReminderDate?: string;
+  contactUserId?: string;
 }
 
 export interface ContactInteraction {
@@ -56,6 +59,30 @@ export interface ContactInteraction {
   summary?: string;
   notes?: string;
   createdAt?: string;
+  source?: "interaction" | "event" | "referral";
+  // Event-specific fields
+  eventId?: string;
+  eventName?: string;
+  eventType?: string;
+  eventDate?: string;
+  eventTime?: string;
+  location?: string;
+  industry?: string;
+  userAttended?: boolean;
+  attendanceDate?: string;
+  // Referral-specific fields
+  referralId?: string;
+  requestStatus?: string;
+  sentAt?: string;
+  responseReceivedAt?: string;
+  responseContent?: string;
+  referralSuccessful?: boolean;
+  personalizedMessage?: string;
+  followupRequired?: boolean;
+  gratitudeExpressed?: boolean;
+  relationshipImpact?: string;
+  jobTitle?: string;
+  jobCompany?: string;
 }
 
 export interface ContactInteractionInput {
@@ -63,6 +90,59 @@ export interface ContactInteractionInput {
   interactionDate?: string;
   summary?: string;
   notes?: string;
+}
+
+export interface ContactNetworkItem {
+  id: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  company?: string;
+  jobTitle?: string;
+  industry?: string;
+  location?: string;
+  linkedinUrl?: string;
+  profilePicture?: string;
+  connectionStrength?: string;
+}
+
+export interface DiscoveredContact {
+  id: string;
+  contactName?: string;
+  contactTitle?: string;
+  company?: string;
+  email?: string;
+  phone?: string;
+  industry?: string;
+  location?: string;
+  linkedinUrl?: string;
+  profilePicture?: string;
+  discoverySource?: string;
+  connectionDegree?: string;
+  mutualConnections?: Array<Record<string, any>> | string[] | null;
+  connectionPath?: string;
+  relevanceScore?: number;
+  outreachInitiated?: boolean;
+  addedToContacts?: boolean;
+  createdAt?: string;
+}
+
+export interface GoogleContactsStatus {
+  connected: boolean;
+  lastSyncAt?: string | null;
+  totalImported?: number;
+  lastImportCount?: number;
+  needsReconnect?: boolean;
+}
+
+export interface GoogleContactsImportSummary {
+  fetched: number;
+  processed: number;
+  created: number;
+  skippedNoEmail: number;
+  skippedExisting: number;
+  errors: { email?: string | null; message: string }[];
 }
 
 // Networking Events
@@ -78,6 +158,7 @@ export interface NetworkingEvent {
   endDate?: string;
   endTime?: string;
   eventUrl?: string;
+  isVirtual?: boolean;
   description?: string;
   networkingGoals?: string;
   preparationNotes?: string;
@@ -104,6 +185,7 @@ export interface NetworkingEventInput {
   endDate?: string;
   endTime?: string;
   eventUrl?: string;
+  isVirtual?: boolean;
   description?: string;
   networkingGoals?: string;
   preparationNotes?: string;
@@ -149,6 +231,7 @@ export interface ReferralRequest {
   sentAt?: string;
   responseReceivedAt?: string;
   responseContent?: string;
+  draftReferralLetter?: string;
   referralSuccessful?: boolean;
   followupRequired: boolean;
   followupSentAt?: string;
@@ -162,6 +245,9 @@ export interface ReferralRequest {
   contactCompany?: string;
   jobTitle?: string;
   jobCompany?: string;
+  jobLocation?: string;
+  requesterName?: string;
+  requesterEmail?: string;
 }
 
 export interface ReferralRequestInput {
@@ -186,6 +272,8 @@ export interface ReferralTemplate {
   templateBody?: string;
   etiquetteGuidance?: string;
   timingGuidance?: string;
+  tone?: "warm professional" | "friendly casual" | "formal respectful" | "enthusiastic";
+  length?: "brief" | "standard" | "detailed";
   createdAt?: string;
 }
 

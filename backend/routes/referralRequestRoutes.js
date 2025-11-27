@@ -52,6 +52,8 @@ router.post("/", isAuthenticated, validateCreateReferralRequest, referralRequest
 router.get("/:id", isAuthenticated, validateReferralRequestId, referralRequestController.getById);
 router.put("/:id", isAuthenticated, validateReferralRequestId, validateUpdateReferralRequest, referralRequestController.update);
 router.delete("/:id", isAuthenticated, validateReferralRequestId, referralRequestController.delete);
+router.post("/:id/gratitude/generate", isAuthenticated, validateReferralRequestId, referralRequestController.generateGratitudeMessage);
+router.post("/:id/gratitude/send", isAuthenticated, validateReferralRequestId, referralRequestController.sendGratitudeMessage);
 
 export default router;
 

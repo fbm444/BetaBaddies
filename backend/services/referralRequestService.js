@@ -1197,6 +1197,85 @@ Return only the email body text.
     return message;
   }
 
+  // Generate a gratitude message for thanking someone who provided a referral
+  async generateGratitudeMessage({
+    userId,
+    referralId,
+    tone = "warm professional",
+  }) {
+    if (!this.openai) {
+      throw new Error("OpenAI API key not configured");
+    }
+
+    // Get referral details
+    const referral = await this.getReferralRequestById(referralId, userId);
+    if (!referral) {
+      throw new Error("Referral request not found");
+    }
+
+    const [contact, job, profile] = await Promise.all([
+      professionalContactService.getContactById(referral.contactId, userId),
+      jobOpportunityService.getJobOpportunityById(referral.jobId, userId),
+      profileService.getProfileByUserId(userId),
+    ]);
+
+    if (!contact) {
+      throw new Error("Contact not found");
+    }
+
+    if (!job) {
+      throw new Error("Job opportunity not found");
+    }
+
+    const requesterName =
+      (profile &&
+        (`${profile.first_name || ""} ${profile.last_name || ""}`.trim() || profile.fullName)) ||
+      "A colleague";
+    const contactName = `${contact.firstName || ""} ${contact.lastName || ""}`.trim() || contact.email || "Contact";
+    const wasSuccessful = referral.referralSuccessful === true;
+
+    const userPrompt = `
+Write a concise gratitude message (thank you email) that is ready to send. Do not include placeholders or bracketed tokens.
+
+Context:
+- You are ${requesterName} thanking ${contactName} for providing a referral
+- They provided a referral for: ${job.title} at ${job.company}
+- Referral was ${wasSuccessful ? "successful" : "received"}
+- ${referral.responseReceivedAt ? `Referral was received on ${new Date(referral.responseReceivedAt).toLocaleDateString()}` : ""}
+
+Instructions:
+- Tone: ${tone}
+- Length: 100-150 words
+- Express genuine appreciation
+- Be specific about what you're thanking them for
+- ${wasSuccessful ? "Mention the successful outcome" : "Acknowledge their time and effort"}
+- Keep it warm and professional
+- Close with appreciation
+
+Return only the message body text, ready to send.
+    `.trim();
+
+    const response = await this.openai.chat.completions.create({
+      model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+      temperature: 0.4,
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a helpful career coach who writes polished, genuine gratitude messages for people thanking their contacts for providing referrals.",
+        },
+        { role: "user", content: userPrompt },
+      ],
+    });
+
+    const message = response.choices[0]?.message?.content?.trim();
+    if (!message) {
+      throw new Error("Failed to generate gratitude message");
+    }
+
+    return message;
+  }
+
   // Generate a referral letter (recommendation letter) for writing referrals
   async generateReferralLetter({
     currentUserId,

@@ -466,6 +466,100 @@ class ReferralRequestController {
       },
     });
   });
+
+  // Generate gratitude message
+  generateGratitudeMessage = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { id } = req.params;
+    const { tone } = req.body;
+
+    const message = await referralRequestService.generateGratitudeMessage({
+      userId,
+      referralId: id,
+      tone: tone || "warm professional",
+    });
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        message,
+      },
+    });
+  });
+
+  // Send gratitude message
+  sendGratitudeMessage = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { id } = req.params;
+    const { message, tone } = req.body;
+
+    // Get referral details
+    const referral = await referralRequestService.getReferralRequestById(id, userId);
+    if (!referral) {
+      return res.status(404).json({
+        ok: false,
+        error: {
+          message: "Referral request not found",
+        },
+      });
+    }
+
+    // Generate message if not provided
+    let gratitudeMessage = message;
+    if (!gratitudeMessage) {
+      gratitudeMessage = await referralRequestService.generateGratitudeMessage({
+        userId,
+        referralId: id,
+        tone: tone || "warm professional",
+      });
+    }
+
+    // Get contact and profile details
+    const contact = await professionalContactService.getContactById(referral.contactId, userId);
+    const job = await jobOpportunityService.getJobOpportunityById(referral.jobId, userId);
+    const profile = await profileService.getProfileByUserId(userId);
+    const requesterName = profile ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() : "A colleague";
+
+    if (!contact || !contact.email) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          message: "Contact email not found",
+        },
+      });
+    }
+
+    // Send email
+    try {
+      await emailService.sendGratitudeMessage(contact.email, {
+        contactName: `${contact.firstName || ""} ${contact.lastName || ""}`.trim() || "Contact",
+        requesterName: requesterName || "A colleague",
+        jobTitle: job?.title,
+        jobCompany: job?.company,
+        message: gratitudeMessage,
+      });
+
+      // Update referral to mark gratitude as expressed
+      await referralRequestService.updateReferralRequest(id, userId, {
+        gratitudeExpressed: true,
+      });
+
+      res.status(200).json({
+        ok: true,
+        data: {
+          message: "Gratitude message sent successfully",
+        },
+      });
+    } catch (error) {
+      console.error("Error sending gratitude message:", error);
+      res.status(500).json({
+        ok: false,
+        error: {
+          message: error.message || "Failed to send gratitude message",
+        },
+      });
+    }
+  });
 }
 
 export default new ReferralRequestController();

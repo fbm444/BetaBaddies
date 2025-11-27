@@ -398,6 +398,76 @@ class EmailService {
   }
 
   /**
+   * Send gratitude message email to contact
+   * @param {string} contactEmail - Contact's email address
+   * @param {Object} gratitudeDetails - Gratitude message details
+   * @returns {Promise<void>}
+   */
+  async sendGratitudeMessage(contactEmail, gratitudeDetails) {
+    const {
+      contactName,
+      requesterName,
+      jobTitle,
+      jobCompany,
+      message,
+    } = gratitudeDetails;
+
+    // Development mode - log to console
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('\n========== GRATITUDE MESSAGE EMAIL ==========');
+      console.log(`To: ${contactEmail}`);
+      console.log(`Subject: Thank You for Your Referral`);
+      console.log(`\nDear ${contactName || 'Contact'},`);
+      console.log(`\n${message}`);
+      console.log('\n============================================\n');
+      return;
+    }
+
+    // Production mode - use nodemailer
+    if (!this.transporter) {
+      console.error('❌ Email service not initialized');
+      return;
+    }
+
+    const mailOptions = {
+      from: process.env.EMAIL_FROM || 'noreply@atstracker.com',
+      to: contactEmail,
+      subject: `Thank You for Your Referral${jobTitle ? `: ${jobTitle} at ${jobCompany}` : ''}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #3351FD;">Thank You for Your Referral</h2>
+          <p>Dear ${contactName || 'Contact'},</p>
+          
+          <div style="background: #FFFFFF; border: 1px solid #E5E7EB; padding: 20px; margin: 20px 0; border-radius: 8px;">
+            <p style="color: #1F2937; font-size: 14px; line-height: 1.6; white-space: pre-wrap;">${message.replace(/\n/g, '<br>')}</p>
+          </div>
+          
+          ${jobTitle ? `
+          <div style="background: #F3F4F6; border-left: 4px solid #3351FD; padding: 20px; margin: 20px 0; border-radius: 8px;">
+            <p style="color: #4B5563; font-size: 14px; margin: 0;"><strong>Position:</strong> ${jobTitle}</p>
+            ${jobCompany ? `<p style="color: #4B5563; font-size: 14px; margin: 8px 0 0 0;"><strong>Company:</strong> ${jobCompany}</p>` : ''}
+          </div>
+          ` : ''}
+          
+          <hr style="border: 1px solid #E5E7EB; margin: 20px 0;">
+          <p style="color: #6B7280; font-size: 12px;">
+            Best regards,<br>
+            ${requesterName || 'A colleague'}
+          </p>
+        </div>
+      `,
+    };
+
+    try {
+      await this.transporter.sendMail(mailOptions);
+      console.log('✅ Gratitude message email sent to:', contactEmail);
+    } catch (error) {
+      console.error('❌ Error sending gratitude message email:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Send referral letter notification email to requester
    * @param {string} requesterEmail - Requester's email address
    * @param {Object} referralDetails - Referral letter details

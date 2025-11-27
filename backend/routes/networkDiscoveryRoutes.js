@@ -9,6 +9,7 @@ router.use(isAuthenticated);
 router.get("/", networkDiscoveryController.getExploreNetwork);
 router.get("/who-have-you", networkDiscoveryController.getPeopleWhoHaveYou);
 router.get("/same-industry", networkDiscoveryController.getPeopleInYourIndustry);
+router.get("/alumni", networkDiscoveryController.getAlumniConnections);
 
 export default router;
 

@@ -232,6 +232,158 @@ class NetworkDiscoveryService {
     }
   }
   /**
+   * Get alumni connections - people who completed education at the same educational institutions
+   * An alumni connection means both users have COMPLETED education at the same school
+   */
+  async getAlumniConnections(userId, filters = {}) {
+    const {
+      search,
+      limit = 50,
+      offset = 0,
+    } = filters;
+
+    try {
+      // Get current user's completed education institutions only
+      // Education is considered completed if is_enrolled = false OR graddate IS NOT NULL
+      const userEducationQuery = `
+        SELECT DISTINCT LOWER(TRIM(school)) as school
+        FROM educations
+        WHERE user_id = $1 
+          AND school IS NOT NULL 
+          AND TRIM(school) != ''
+          AND (is_enrolled = false OR graddate IS NOT NULL)
+      `;
+      const userEducationResult = await database.query(userEducationQuery, [userId]);
+      
+      if (userEducationResult.rows.length === 0) {
+        return [];
+      }
+
+      const userSchools = userEducationResult.rows.map((row) => row.school);
+
+      // Get all your contact IDs, emails, and contact_user_ids to exclude them
+      const myContactsResult = await database.query(
+        `SELECT id, email, contact_user_id FROM professional_contacts WHERE user_id = $1`,
+        [userId]
+      );
+      const myContactUserIds = myContactsResult.rows
+        .map((row) => row.contact_user_id)
+        .filter((id) => id);
+      const myContactEmails = myContactsResult.rows
+        .map((row) => row.email)
+        .filter((email) => email);
+
+      // Find users who also completed education at the same schools
+      // Must also be completed (is_enrolled = false OR graddate IS NOT NULL)
+      let query = `
+        SELECT DISTINCT
+          p.user_id,
+          p.first_name,
+          p.last_name,
+          u.email,
+          p.phone,
+          NULL as company,
+          p.job_title,
+          p.industry,
+          CONCAT(p.city, ', ', p.state) as location,
+          NULL as linkedin_url,
+          p.pfp_link as contact_profile_picture,
+          e.school,
+          e.degree_type,
+          e.field
+        FROM educations e
+        INNER JOIN profiles p ON e.user_id = p.user_id
+        INNER JOIN users u ON e.user_id = u.u_id
+        WHERE LOWER(TRIM(e.school)) = ANY($1::text[])
+          AND e.user_id != $2
+          AND (e.is_enrolled = false OR e.graddate IS NOT NULL)
+      `;
+
+      const params = [userSchools, userId];
+      let paramIndex = 3;
+
+      // Exclude people you already have in your contacts (by their user_id)
+      if (myContactUserIds.length > 0) {
+        query += ` AND p.user_id != ALL($${paramIndex}::uuid[])`;
+        params.push(myContactUserIds);
+        paramIndex++;
+      }
+
+      // Exclude people you already have in your contacts (by email)
+      if (myContactEmails.length > 0) {
+        query += ` AND (u.email IS NULL OR LOWER(u.email) != ALL($${paramIndex}::text[]))`;
+        params.push(myContactEmails.map((e) => e.toLowerCase()));
+        paramIndex++;
+      }
+
+      // Apply search filter
+      if (search) {
+        query += ` AND (
+          p.first_name ILIKE $${paramIndex} OR
+          p.last_name ILIKE $${paramIndex} OR
+          u.email ILIKE $${paramIndex} OR
+          p.job_title ILIKE $${paramIndex} OR
+          e.school ILIKE $${paramIndex}
+        )`;
+        const searchTerm = `%${search}%`;
+        params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
+        paramIndex += 5;
+      }
+
+      query += ` ORDER BY p.first_name ASC, p.last_name ASC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+      params.push(limit, offset);
+
+      const result = await database.query(query, params);
+
+      // Group by user_id to handle multiple schools
+      const alumniMap = new Map();
+      result.rows.forEach((row) => {
+        const userId = row.user_id;
+        if (!alumniMap.has(userId)) {
+          alumniMap.set(userId, {
+            id: row.user_id,
+            contactName: `${row.first_name || ""} ${row.last_name || ""}`.trim() || "Unknown",
+            contactTitle: row.job_title,
+            company: row.company,
+            email: row.email,
+            phone: row.phone,
+            industry: row.industry,
+            location: row.location,
+            linkedinUrl: row.linkedin_url,
+            profilePicture: row.contact_profile_picture,
+            contactUserId: row.user_id,
+            discoverySource: "alumni",
+            connectionDegree: "Alumni",
+            mutualConnections: [],
+            schools: [],
+            connectionPath: "",
+            relevanceScore: 85,
+            outreachInitiated: false,
+            addedToContacts: false,
+            createdAt: new Date().toISOString(),
+          });
+        }
+        const alumni = alumniMap.get(userId);
+        if (row.school && !alumni.schools.includes(row.school)) {
+          alumni.schools.push(row.school);
+        }
+      });
+
+      // Build connection path for each alumni
+      const alumniList = Array.from(alumniMap.values()).map((alumni) => {
+        const schoolNames = alumni.schools.join(", ");
+        alumni.connectionPath = `Alumni from: ${schoolNames}`;
+        return alumni;
+      });
+
+      return alumniList;
+    } catch (error) {
+      console.error("❌ Error getting alumni connections:", error);
+      throw error;
+    }
+  }
+
+  /**
    * Get 2nd and 3rd degree contacts by traversing the contact graph using contact_user_id
    * 2nd degree: contacts of your contacts (contacts that belong to your contacts' user accounts)
    * 3rd degree: contacts of your 2nd degree contacts (contacts that belong to 2nd degree contacts' user accounts)

@@ -73,6 +73,24 @@ class NetworkDiscoveryController {
       },
     });
   });
+
+  getAlumniConnections = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const filters = {
+      search: req.query.search,
+      limit: Math.min(parseInt(req.query.limit, 10) || 50, 100),
+      offset: parseInt(req.query.offset, 10) || 0,
+    };
+
+    const contacts = await networkDiscoveryService.getAlumniConnections(userId, filters);
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        contacts,
+      },
+    });
+  });
 }
 
 export default new NetworkDiscoveryController();

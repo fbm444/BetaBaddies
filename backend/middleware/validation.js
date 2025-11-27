@@ -352,6 +352,261 @@ const schemas = {
       .allow(null, "")
       .optional(),
   }),
+
+  // Network Contact Validation
+  createContact: Joi.object({
+    firstName: Joi.string().max(255).allow(null, "").optional(),
+    lastName: Joi.string().max(255).allow(null, "").optional(),
+    email: Joi.string()
+      .email()
+      .max(255)
+      .required()
+      .min(1)
+      .messages({
+        "any.required": "Email is required",
+        "string.email": "Please enter a valid email address",
+        "string.empty": "Email is required",
+        "string.min": "Email is required",
+      }),
+    phone: Joi.string()
+      .custom((value, helpers) => {
+        if (!value || value.trim() === "") {
+          return value; // Allow empty/optional
+        }
+        // Remove all non-digit characters
+        const digitsOnly = value.replace(/\D/g, "");
+        if (digitsOnly.length !== 10) {
+          return helpers.error("phone.invalidLength");
+        }
+        return value;
+      })
+      .max(50)
+      .allow(null, "")
+      .optional()
+      .messages({
+        "phone.invalidLength": "Phone number must be exactly 10 digits",
+      }),
+    company: Joi.string().max(255).allow(null, "").optional(),
+    jobTitle: Joi.string().max(255).allow(null, "").optional(),
+    industry: Joi.string().max(255).allow(null, "").optional(),
+    location: Joi.string().max(255).allow(null, "").optional(),
+    relationshipType: Joi.string().max(50).allow(null, "").optional(),
+    relationshipStrength: Joi.string()
+      .valid("Weak", "Medium", "Strong")
+      .allow(null, "")
+      .optional(),
+    relationshipContext: Joi.string().allow(null, "").optional(),
+    personalInterests: Joi.string().allow(null, "").optional(),
+    professionalInterests: Joi.string().allow(null, "").optional(),
+    linkedinUrl: Joi.string()
+      .uri()
+      .max(1000)
+      .allow(null, "")
+      .optional()
+      .messages({
+        "string.uri": "Please enter a valid URL",
+      }),
+    notes: Joi.string().allow(null, "").optional(),
+    importedFrom: Joi.string().max(50).allow(null, "").optional(),
+    lastInteractionDate: Joi.date().allow(null).optional(),
+    nextReminderDate: Joi.date().allow(null).optional(),
+  }),
+
+  updateContact: Joi.object({
+    firstName: Joi.string().max(255).allow(null, "").optional(),
+    lastName: Joi.string().max(255).allow(null, "").optional(),
+    email: Joi.string()
+      .email()
+      .max(255)
+      .required()
+      .min(1)
+      .messages({
+        "any.required": "Email is required",
+        "string.email": "Please enter a valid email address",
+        "string.empty": "Email is required",
+        "string.min": "Email is required",
+      }),
+    phone: Joi.string()
+      .custom((value, helpers) => {
+        if (!value || value.trim() === "") {
+          return value; // Allow empty/optional
+        }
+        // Remove all non-digit characters
+        const digitsOnly = value.replace(/\D/g, "");
+        if (digitsOnly.length !== 10) {
+          return helpers.error("phone.invalidLength");
+        }
+        return value;
+      })
+      .max(50)
+      .allow(null, "")
+      .optional()
+      .messages({
+        "phone.invalidLength": "Phone number must be exactly 10 digits",
+      }),
+    company: Joi.string().max(255).allow(null, "").optional(),
+    jobTitle: Joi.string().max(255).allow(null, "").optional(),
+    industry: Joi.string().max(255).allow(null, "").optional(),
+    location: Joi.string().max(255).allow(null, "").optional(),
+    relationshipType: Joi.string().max(50).allow(null, "").optional(),
+    relationshipStrength: Joi.string()
+      .valid("Weak", "Medium", "Strong")
+      .allow(null, "")
+      .optional(),
+    relationshipContext: Joi.string().allow(null, "").optional(),
+    personalInterests: Joi.string().allow(null, "").optional(),
+    professionalInterests: Joi.string().allow(null, "").optional(),
+    linkedinUrl: Joi.string()
+      .uri()
+      .max(1000)
+      .allow(null, "")
+      .optional()
+      .messages({
+        "string.uri": "Please enter a valid URL",
+      }),
+    notes: Joi.string().allow(null, "").optional(),
+    importedFrom: Joi.string().max(50).allow(null, "").optional(),
+    lastInteractionDate: Joi.date().allow(null).optional(),
+    nextReminderDate: Joi.date().allow(null).optional(),
+  }),
+
+  contactId: Joi.object({
+    id: Joi.string().uuid().required(),
+  }),
+
+  addContactInteraction: Joi.object({
+    interactionType: Joi.string().max(50).allow(null, "").optional(),
+    interactionDate: Joi.date().allow(null).optional(),
+    summary: Joi.string().allow(null, "").optional(),
+    notes: Joi.string().allow(null, "").optional(),
+  }),
+
+  // Networking Event Validation
+  createEvent: Joi.object({
+    eventName: Joi.string().max(255).required().messages({
+      "any.required": "Event name is required",
+      "string.empty": "Event name cannot be empty",
+    }),
+    eventType: Joi.string().max(50).allow(null, "").optional(),
+    industry: Joi.string().max(255).allow(null, "").optional(),
+    location: Joi.string().max(255).allow(null, "").optional(),
+    eventDate: Joi.date().required().messages({
+      "any.required": "Event date is required",
+      "date.base": "Event date must be a valid date",
+    }),
+    eventTime: Joi.string()
+      .pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/)
+      .allow(null, "")
+      .optional()
+      .messages({
+        "string.pattern.base": "Please enter a valid time (HH:MM format)",
+      }),
+    eventUrl: Joi.string()
+      .uri()
+      .max(1000)
+      .allow(null, "")
+      .optional()
+      .messages({
+        "string.uri": "Please enter a valid URL",
+      }),
+    description: Joi.string().allow(null, "").optional(),
+    networkingGoals: Joi.string().allow(null, "").optional(),
+    preparationNotes: Joi.string().allow(null, "").optional(),
+    attended: Joi.boolean().optional(),
+    attendanceDate: Joi.date().allow(null).optional(),
+    postEventNotes: Joi.string().allow(null, "").optional(),
+    roiScore: Joi.number().integer().min(0).max(100).allow(null).optional(),
+    connectionsMadeCount: Joi.number().integer().min(0).allow(null).optional(),
+  }),
+
+  updateEvent: Joi.object({
+    eventName: Joi.string().max(255).optional(),
+    eventType: Joi.string().max(50).allow(null, "").optional(),
+    industry: Joi.string().max(255).allow(null, "").optional(),
+    location: Joi.string().max(255).allow(null, "").optional(),
+    eventDate: Joi.date().optional(),
+    eventTime: Joi.string()
+      .pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/)
+      .allow(null, "")
+      .optional()
+      .messages({
+        "string.pattern.base": "Please enter a valid time (HH:MM format)",
+      }),
+    eventUrl: Joi.string()
+      .uri()
+      .max(1000)
+      .allow(null, "")
+      .optional()
+      .messages({
+        "string.uri": "Please enter a valid URL",
+      }),
+    description: Joi.string().allow(null, "").optional(),
+    networkingGoals: Joi.string().allow(null, "").optional(),
+    preparationNotes: Joi.string().allow(null, "").optional(),
+    attended: Joi.boolean().optional(),
+    attendanceDate: Joi.date().allow(null).optional(),
+    postEventNotes: Joi.string().allow(null, "").optional(),
+    roiScore: Joi.number().integer().min(0).max(100).allow(null).optional(),
+    connectionsMadeCount: Joi.number().integer().min(0).allow(null).optional(),
+  }),
+
+  eventId: Joi.object({
+    id: Joi.string().uuid().required(),
+  }),
+
+  addEventConnection: Joi.object({
+    contactId: Joi.string().uuid().required().messages({
+      "any.required": "Contact ID is required",
+    }),
+    connectionQuality: Joi.string().max(50).allow(null, "").optional(),
+    followupRequired: Joi.boolean().optional(),
+    notes: Joi.string().allow(null, "").optional(),
+  }),
+
+  // Referral Request Validation
+  createReferralRequest: Joi.object({
+    contactId: Joi.string().uuid().required().messages({
+      "any.required": "Contact ID is required",
+    }),
+    jobId: Joi.string().uuid().required().messages({
+      "any.required": "Job ID is required",
+    }),
+    requestTemplateId: Joi.string().uuid().allow(null).optional(),
+    personalizedMessage: Joi.string().allow(null, "").optional(),
+    requestStatus: Joi.string()
+      .valid("pending", "sent", "accepted", "declined", "completed")
+      .optional(),
+    sentAt: Joi.date().allow(null).optional(),
+    responseReceivedAt: Joi.date().allow(null).optional(),
+    responseContent: Joi.string().allow(null, "").optional(),
+    referralSuccessful: Joi.boolean().allow(null).optional(),
+    followupRequired: Joi.boolean().optional(),
+    followupSentAt: Joi.date().allow(null).optional(),
+    gratitudeExpressed: Joi.boolean().optional(),
+    relationshipImpact: Joi.string().max(50).allow(null, "").optional(),
+  }),
+
+  updateReferralRequest: Joi.object({
+    contactId: Joi.string().uuid().optional(),
+    jobId: Joi.string().uuid().optional(),
+    requestTemplateId: Joi.string().uuid().allow(null).optional(),
+    personalizedMessage: Joi.string().allow(null, "").optional(),
+    requestStatus: Joi.string()
+      .valid("pending", "sent", "accepted", "declined", "completed")
+      .optional(),
+    sentAt: Joi.date().allow(null).optional(),
+    responseReceivedAt: Joi.date().allow(null).optional(),
+    responseContent: Joi.string().allow(null, "").optional(),
+    referralSuccessful: Joi.boolean().allow(null).optional(),
+    followupRequired: Joi.boolean().optional(),
+    followupSentAt: Joi.date().allow(null).optional(),
+    gratitudeExpressed: Joi.boolean().optional(),
+    relationshipImpact: Joi.string().max(50).allow(null, "").optional(),
+  }),
+
+  referralRequestId: Joi.object({
+    id: Joi.string().uuid().required(),
+  }),
 };
 
 // Validation middleware factory
@@ -443,3 +698,14 @@ export const validateCreateProfile = validate(schemas.createProfile);
 export const validateUpdateProfile = validate(schemas.updateProfile);
 export const validateForgotPassword = validate(schemas.forgotPassword);
 export const validateResetPassword = validate(schemas.resetPassword);
+export const validateCreateContact = validate(schemas.createContact);
+export const validateUpdateContact = validate(schemas.updateContact);
+export const validateContactId = validateParams(schemas.contactId);
+export const validateAddContactInteraction = validate(schemas.addContactInteraction);
+export const validateCreateEvent = validate(schemas.createEvent);
+export const validateUpdateEvent = validate(schemas.updateEvent);
+export const validateEventId = validateParams(schemas.eventId);
+export const validateAddEventConnection = validate(schemas.addEventConnection);
+export const validateCreateReferralRequest = validate(schemas.createReferralRequest);
+export const validateUpdateReferralRequest = validate(schemas.updateReferralRequest);
+export const validateReferralRequestId = validateParams(schemas.referralRequestId);

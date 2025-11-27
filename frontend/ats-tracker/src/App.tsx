@@ -23,6 +23,9 @@ import { CoverLetterTemplates } from './pages/CoverLetterTemplates'
 import { CoverLetterBuilder } from './pages/CoverLetterBuilder'
 import { CompanyResearch } from './pages/CompanyResearch'
 import { InterviewScheduling } from './pages/InterviewScheduling'
+import { NetworkContacts } from './pages/NetworkContacts'
+import { NetworkEvents } from './pages/NetworkEvents'
+import { NetworkReferrals } from './pages/NetworkReferrals'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { ROUTES } from './config/routes'
@@ -121,6 +124,9 @@ function App() {
 		  <Route path={ROUTES.COVER_LETTERS} element={<CoverLetters />} />
 		  <Route path={ROUTES.COVER_LETTER_BUILDER} element={<CoverLetterBuilder />} />
 		  <Route path={ROUTES.COVER_LETTER_TEMPLATES} element={<CoverLetterTemplates />} />
+		  <Route path={ROUTES.NETWORK_CONTACTS} element={<NetworkContacts />} />
+		  <Route path={ROUTES.NETWORK_EVENTS} element={<NetworkEvents />} />
+		  <Route path={ROUTES.NETWORK_REFERRALS} element={<NetworkReferrals />} />
 		</Route>
 	      </Routes>
 	    </div>

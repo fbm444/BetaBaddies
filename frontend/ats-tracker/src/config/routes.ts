@@ -25,6 +25,9 @@ export const ROUTES = {
   COVER_LETTERS: "/coverletter",
   COVER_LETTER_BUILDER: "/coverletter/builder",
   COVER_LETTER_TEMPLATES: "/coverletter/templates",
+  NETWORK_CONTACTS: "/network/contacts",
+  NETWORK_EVENTS: "/network/events",
+  NETWORK_REFERRALS: "/network/referrals",
 } as const;
 
 // Navigation item type
@@ -149,6 +152,31 @@ export const navigationGroups: NavigationGroup[] = [
         label: "Cover Letters",
         icon: "mingcute:mail-line",
         path: ROUTES.COVER_LETTERS,
+      },
+    ],
+  },
+  {
+    id: "network",
+    label: "Network",
+    icon: "mingcute:user-3-line",
+    items: [
+      {
+        id: "contacts",
+        label: "Contacts",
+        icon: "mingcute:user-3-line",
+        path: ROUTES.NETWORK_CONTACTS,
+      },
+      {
+        id: "events",
+        label: "Events",
+        icon: "mingcute:calendar-line",
+        path: ROUTES.NETWORK_EVENTS,
+      },
+      {
+        id: "referrals",
+        label: "Referrals",
+        icon: "mingcute:handshake-line",
+        path: ROUTES.NETWORK_REFERRALS,
       },
     ],
   },

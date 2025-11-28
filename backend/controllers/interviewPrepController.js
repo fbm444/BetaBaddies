@@ -4,6 +4,7 @@ import {
   interviewResponseCoachingService,
   mockInterviewService,
   technicalInterviewPrepService,
+  responseCoachingChatService,
 } from "../services/interviewPrep/index.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 
@@ -20,10 +21,11 @@ class InterviewPrepController {
     const userId = req.session.userId;
     const { id } = req.params;
 
-    const research = await interviewCompanyResearchService.getCompanyResearchForInterview(
-      id,
-      userId
-    );
+    const research =
+      await interviewCompanyResearchService.getCompanyResearchForInterview(
+        id,
+        userId
+      );
 
     res.status(200).json({
       ok: true,
@@ -42,17 +44,39 @@ class InterviewPrepController {
     const { id } = req.params;
     const { forceRefresh } = req.body;
 
-    const result = await interviewCompanyResearchService.generateCompanyResearch(
-      id,
-      userId,
-      { forceRefresh }
-    );
+    const result =
+      await interviewCompanyResearchService.generateCompanyResearch(
+        id,
+        userId,
+        { forceRefresh }
+      );
 
     res.status(200).json({
       ok: true,
       data: {
         ...result,
         message: "Company research generated successfully",
+      },
+    });
+  });
+
+  /**
+   * GET /api/interview-prep/interviews/:id/company-research/ai-content
+   * Generate AI content (competitive landscape, talking points, questions)
+   */
+  getAIContent = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { id } = req.params;
+
+    const aiContent = await interviewCompanyResearchService.generateAIContent(
+      id,
+      userId
+    );
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        aiContent,
       },
     });
   });
@@ -123,11 +147,11 @@ class InterviewPrepController {
       });
     }
 
-    const questionBank = await interviewQuestionBankService.getQuestionBankByJob(
-      jobId,
-      userId,
-      { category, difficulty }
-    );
+    const questionBank =
+      await interviewQuestionBankService.getQuestionBankByJob(jobId, userId, {
+        category,
+        difficulty,
+      });
 
     res.status(200).json({
       ok: true,
@@ -250,11 +274,11 @@ class InterviewPrepController {
    */
   getResponseHistory = asyncHandler(async (req, res) => {
     const userId = req.session.userId;
-    const { interviewId, questionId } = req.query;
+    const { interviewId, questionId, jobId } = req.query;
 
     const history = await interviewResponseCoachingService.getResponseHistory(
       userId,
-      { interviewId, questionId }
+      { interviewId, questionId, jobId }
     );
 
     res.status(200).json({
@@ -282,17 +306,70 @@ class InterviewPrepController {
       });
     }
 
-    const comparison =
-      await interviewResponseCoachingService.compareResponses(
-        responseId1,
-        responseId2,
-        userId
-      );
+    const comparison = await interviewResponseCoachingService.compareResponses(
+      responseId1,
+      responseId2,
+      userId
+    );
 
     res.status(200).json({
       ok: true,
       data: {
         comparison,
+      },
+    });
+  });
+
+  /**
+   * POST /api/interview-prep/coaching-chat
+   * Send a message to the coaching chat
+   */
+  sendCoachingMessage = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { message, interviewId } = req.body;
+
+    if (!message || !message.trim()) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          message: "message is required",
+        },
+      });
+    }
+
+    const coachingResponse =
+      await responseCoachingChatService.generateCoachingResponse(
+        userId,
+        message,
+        interviewId
+      );
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        response: coachingResponse.content,
+        error: coachingResponse.error,
+      },
+    });
+  });
+
+  /**
+   * GET /api/interview-prep/coaching-chat/suggestions
+   * Get suggested coaching questions
+   */
+  getCoachingSuggestions = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { interviewId } = req.query;
+
+    const suggestions = await responseCoachingChatService.getSuggestedQuestions(
+      userId,
+      interviewId
+    );
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        suggestions,
       },
     });
   });
@@ -307,13 +384,8 @@ class InterviewPrepController {
    */
   createMockSession = asyncHandler(async (req, res) => {
     const userId = req.session.userId;
-    const {
-      interviewId,
-      jobId,
-      targetRole,
-      targetCompany,
-      interviewFormat,
-    } = req.body;
+    const { interviewId, jobId, targetRole, targetCompany, interviewFormat } =
+      req.body;
 
     const session = await mockInterviewService.createMockInterviewSession(
       userId,
@@ -493,7 +565,7 @@ class InterviewPrepController {
     const userId = req.session.userId;
     const { interviewId } = req.params;
     const { jobId } = req.query;
-    
+
     // interviewId can come from params or query
     const finalInterviewId = interviewId || req.query.interviewId;
 
@@ -550,11 +622,10 @@ class InterviewPrepController {
   getCodingChallenges = asyncHandler(async (req, res) => {
     const { techStack, difficulty } = req.query;
 
-    const challenges =
-      await technicalInterviewPrepService.getCodingChallenges(
-        techStack ? techStack.split(",") : null,
-        difficulty
-      );
+    const challenges = await technicalInterviewPrepService.getCodingChallenges(
+      techStack ? techStack.split(",") : null,
+      difficulty
+    );
 
     res.status(200).json({
       ok: true,
@@ -583,12 +654,59 @@ class InterviewPrepController {
   });
 
   /**
+   * POST /api/interview-prep/technical/run
+   * Run code and test against test cases
+   */
+  runCode = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { challengeId, solution, language, input, runOnce } = req.body;
+
+    if (!challengeId || !solution) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          message: "challengeId and solution are required",
+        },
+      });
+    }
+
+    // If runOnce is true, execute code once with the provided input
+    if (runOnce) {
+      const result = await technicalInterviewPrepService.executeCodeOnce(
+        challengeId,
+        solution,
+        language || "python",
+        input,
+        userId
+      );
+
+      return res.status(200).json({
+        ok: true,
+        data: result,
+      });
+    }
+
+    // Otherwise, run all test cases
+    const result = await technicalInterviewPrepService.runCode(
+      challengeId,
+      solution,
+      language || "python",
+      userId
+    );
+
+    res.status(200).json({
+      ok: true,
+      data: result,
+    });
+  });
+
+  /**
    * POST /api/interview-prep/technical/solutions
    * Submit solution to a technical challenge
    */
   submitTechnicalSolution = asyncHandler(async (req, res) => {
     const userId = req.session.userId;
-    const { challengeId, solution, timeTakenSeconds } = req.body;
+    const { challengeId, solution, timeTakenSeconds, testResults } = req.body;
 
     if (!challengeId || !solution) {
       return res.status(400).json({
@@ -603,7 +721,8 @@ class InterviewPrepController {
       challengeId,
       solution,
       userId,
-      timeTakenSeconds
+      timeTakenSeconds,
+      testResults
     );
 
     res.status(201).json({
@@ -622,13 +741,34 @@ class InterviewPrepController {
   getTechnicalProgress = asyncHandler(async (req, res) => {
     const userId = req.session.userId;
 
-    const progress =
-      await technicalInterviewPrepService.trackTechnicalProgress(userId);
+    const progress = await technicalInterviewPrepService.trackTechnicalProgress(
+      userId
+    );
 
     res.status(200).json({
       ok: true,
       data: {
         progress,
+      },
+    });
+  });
+
+  /**
+   * GET /api/interview-prep/technical/whiteboarding
+   * Get whiteboarding techniques and tips
+   */
+  getWhiteboardingTechniques = asyncHandler(async (req, res) => {
+    const { challengeType = "coding" } = req.query;
+
+    const techniques =
+      await technicalInterviewPrepService.getWhiteboardingTechniques(
+        challengeType
+      );
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        techniques,
       },
     });
   });
@@ -682,4 +822,3 @@ class InterviewPrepController {
 }
 
 export default new InterviewPrepController();
-

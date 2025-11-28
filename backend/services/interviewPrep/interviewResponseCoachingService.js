@@ -285,10 +285,10 @@ Focus on:
    */
   async getResponseHistory(userId, options = {}) {
     try {
-      const { interviewId, questionId } = options;
+      const { interviewId, questionId, jobId } = options;
 
       let query = `
-        SELECT ir.*, iqb.question_text, iqb.category
+        SELECT ir.*, iqb.question_text, iqb.category, iqb.job_id
         FROM interview_response_coaching ir
         JOIN interview_question_banks iqb ON ir.question_id = iqb.id
         WHERE ir.user_id = $1
@@ -298,6 +298,11 @@ Focus on:
       if (questionId) {
         query += ` AND ir.question_id = $${params.length + 1}`;
         params.push(questionId);
+      }
+
+      if (jobId) {
+        query += ` AND iqb.job_id = $${params.length + 1}`;
+        params.push(jobId);
       }
 
       query += ` ORDER BY ir.created_at DESC LIMIT 50`;

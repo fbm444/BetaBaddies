@@ -7,7 +7,7 @@
 -- This script is idempotent - it can be run multiple times safely
 --
 -- Usage:
---   psql -U postgres -d ats_tracker -f db/migrations/add_interview_prep_jsonb_columns.sql
+--   psql -d ats_tracker -f db/migrations/interview_preparation_features/add_interview_prep_jsonb_columns.sql
 -- ============================================================================
 
 BEGIN;

@@ -12,6 +12,7 @@ import {
   AlignmentType,
   HeadingLevel,
 } from "docx";
+import OpenAI from "openai";
 import database from "../database.js";
 import companyResearchService from "../companyResearchService.js";
 import companyInterviewInsightsService from "../companyInterviewInsightsService.js";
@@ -33,6 +34,14 @@ class InterviewCompanyResearchService {
       "company-research"
     );
     this.ensureExportDir();
+    this.openaiApiKey = process.env.OPENAI_API_KEY;
+    this.openaiApiUrl = process.env.OPENAI_API_URL;
+    if (this.openaiApiKey) {
+      this.openai = new OpenAI({
+        apiKey: this.openaiApiKey,
+        ...(this.openaiApiUrl && { baseURL: this.openaiApiUrl }),
+      });
+    }
   }
 
   async ensureExportDir() {
@@ -86,12 +95,69 @@ class InterviewCompanyResearchService {
 
       let companyNews = [];
       let companyMedia = [];
+      let enrichedCompanyData = null;
 
       if (companyInfo) {
         [companyNews, companyMedia] = await Promise.all([
           companyResearchService.getCompanyNews(companyInfo.id, { limit: 20 }),
           companyResearchService.getCompanyMedia(companyInfo.id),
         ]);
+
+        // Generate enriched data on-the-fly if not already stored
+        // Check if enriched fields exist in companyInfo first
+        if (companyInfo.mission || companyInfo.culture || companyInfo.values) {
+          // Use existing enriched data from database
+          enrichedCompanyData = {
+            mission: companyInfo.mission,
+            culture: companyInfo.culture,
+            values: companyInfo.values,
+            recentDevelopments: companyInfo.recentDevelopments,
+            products: companyInfo.products,
+            competitors: companyInfo.competitors,
+            whyWorkHere: companyInfo.whyWorkHere,
+            interviewTips: companyInfo.interviewTips,
+            foundedYear: companyInfo.foundedYear,
+          };
+        } else {
+          // Generate enriched data using AI on-the-fly
+          try {
+            // Get job details for AI enrichment
+            const jobQuery = await database.query(
+              "SELECT company, title, job_description FROM job_opportunities WHERE id = $1",
+              [interview.job_opportunity_id]
+            );
+
+            if (jobQuery.rows.length > 0) {
+              const job = jobQuery.rows[0];
+              const aiEnrichment =
+                await companyResearchAutomationService.enrichWithAI(
+                  interview.company || job.company,
+                  null, // abstractData - not needed for on-the-fly generation
+                  companyNews.slice(0, 5), // Use existing news
+                  job
+                );
+
+              if (aiEnrichment) {
+                enrichedCompanyData = {
+                  mission: aiEnrichment.mission,
+                  culture: aiEnrichment.culture,
+                  values: null, // AI doesn't generate this separately
+                  recentDevelopments: aiEnrichment.recentDevelopments,
+                  products: aiEnrichment.products,
+                  competitors: aiEnrichment.competitors,
+                  whyWorkHere: aiEnrichment.whyWorkHere,
+                  interviewTips: aiEnrichment.interviewTips,
+                  foundedYear: companyInfo.foundedYear,
+                };
+              }
+            }
+          } catch (error) {
+            console.warn(
+              "[InterviewCompanyResearchService] Failed to generate enriched company data:",
+              error.message
+            );
+          }
+        }
       }
 
       // Get interview insights (contains common_questions, interviewer_profiles, etc.)
@@ -113,13 +179,48 @@ class InterviewCompanyResearchService {
 
       // Compile comprehensive research report using existing tables
       // All data comes from company_info, company_news, company_media, and company_interview_insights
+      // Merge enriched data (mission, culture, values) with basic company info
+      const mergedCompanyInfo = companyInfo
+        ? {
+            ...companyInfo,
+            // Add enriched fields if available
+            mission:
+              enrichedCompanyData?.mission || companyInfo.mission || null,
+            culture:
+              enrichedCompanyData?.culture || companyInfo.culture || null,
+            values: enrichedCompanyData?.values || companyInfo.values || null,
+            recentDevelopments:
+              enrichedCompanyData?.recentDevelopments ||
+              companyInfo.recentDevelopments ||
+              null,
+            products:
+              enrichedCompanyData?.products || companyInfo.products || null,
+            competitors:
+              enrichedCompanyData?.competitors ||
+              companyInfo.competitors ||
+              null,
+            whyWorkHere:
+              enrichedCompanyData?.whyWorkHere ||
+              companyInfo.whyWorkHere ||
+              null,
+            interviewTips:
+              enrichedCompanyData?.interviewTips ||
+              companyInfo.interviewTips ||
+              null,
+            foundedYear:
+              enrichedCompanyData?.foundedYear ||
+              companyInfo.foundedYear ||
+              null,
+          }
+        : null;
+
       return {
         interview: {
           id: interview.id,
           company: interview.company,
           title: interview.title,
         },
-        companyInfo: companyInfo || null,
+        companyInfo: mergedCompanyInfo,
         companyNews: companyNews.map((news) => ({
           heading: news.heading,
           description: news.description,
@@ -147,22 +248,128 @@ class InterviewCompanyResearchService {
               additionalResources: interviewInsights.additional_resources || [],
             }
           : null,
-        // Generate talking points and questions on-the-fly from available data
-        talkingPoints: this.generateTalkingPointsSync(
-          interview,
-          companyInfo,
-          interviewInsights
-        ),
-        questionsToAsk: this.generateQuestionsToAskSync(
-          interview,
-          companyInfo,
-          interviewInsights
-        ),
-        competitiveLandscape: interviewInsights?.competitive_landscape || null,
+        // AI-generated content - return null initially, will be generated separately
+        competitiveLandscape: null,
+        talkingPoints: null,
+        questionsToAsk: null,
+        aiContentLoading: true,
       };
     } catch (error) {
       console.error(
         "[InterviewCompanyResearchService] Error getting company research:",
+        error
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Generate AI content (competitive landscape, talking points, questions) for an interview
+   * Called separately to avoid blocking the initial data load
+   */
+  async generateAIContent(interviewId, userId) {
+    try {
+      // Verify interview belongs to user
+      const interviewQuery = `
+        SELECT id, job_opportunity_id, company, title
+        FROM interviews
+        WHERE id = $1 AND user_id = $2
+      `;
+      const interviewResult = await database.query(interviewQuery, [
+        interviewId,
+        userId,
+      ]);
+
+      if (interviewResult.rows.length === 0) {
+        throw new Error("Interview not found");
+      }
+
+      const interview = interviewResult.rows[0];
+
+      if (!interview.job_opportunity_id) {
+        throw new Error(
+          "Interview must be linked to a job opportunity to generate AI content"
+        );
+      }
+
+      // Get company research data (non-AI)
+      const companyInfo = await companyResearchService.getCompanyInfoByJobId(
+        interview.job_opportunity_id
+      );
+
+      let companyNews = [];
+      let interviewInsights = null;
+
+      if (companyInfo) {
+        companyNews = await companyResearchService.getCompanyNews(
+          companyInfo.id,
+          { limit: 20 }
+        );
+      }
+
+      // Get interview insights
+      try {
+        const insights =
+          await companyInterviewInsightsService.getInsightsForJob(
+            interview.job_opportunity_id,
+            userId,
+            { roleTitle: interview.title }
+          );
+        interviewInsights = insights.insights;
+      } catch (error) {
+        console.warn(
+          "[InterviewCompanyResearchService] Failed to get interview insights:",
+          error.message
+        );
+      }
+
+      // Merge company info
+      const mergedCompanyInfo = companyInfo
+        ? {
+            ...companyInfo,
+            mission: companyInfo.mission || null,
+            culture: companyInfo.culture || null,
+            values: companyInfo.values || null,
+            recentDevelopments: companyInfo.recentDevelopments || null,
+            products: companyInfo.products || null,
+            competitors: companyInfo.competitors || null,
+            whyWorkHere: companyInfo.whyWorkHere || null,
+            interviewTips: companyInfo.interviewTips || null,
+            foundedYear: companyInfo.foundedYear || null,
+          }
+        : null;
+
+      // Generate AI content in parallel
+      const [competitiveLandscape, talkingPoints, questionsToAsk] =
+        await Promise.all([
+          this.generateCompetitiveLandscape(
+            interview,
+            mergedCompanyInfo,
+            companyNews,
+            interviewInsights
+          ),
+          this.generateTalkingPointsWithAI(
+            interview,
+            mergedCompanyInfo,
+            companyNews,
+            interviewInsights
+          ),
+          this.generateQuestionsToAskWithAI(
+            interview,
+            mergedCompanyInfo,
+            companyNews,
+            interviewInsights
+          ),
+        ]);
+
+      return {
+        competitiveLandscape,
+        talkingPoints,
+        questionsToAsk,
+      };
+    } catch (error) {
+      console.error(
+        "[InterviewCompanyResearchService] Error generating AI content:",
         error
       );
       throw error;
@@ -393,6 +600,339 @@ class InterviewCompanyResearchService {
           "What are the opportunities for growth and development?",
           "What do you enjoy most about working here?",
         ];
+  }
+
+  /**
+   * Generate competitive landscape and market position using AI
+   */
+  async generateCompetitiveLandscape(
+    interview,
+    companyInfo,
+    companyNews,
+    interviewInsights
+  ) {
+    // If we already have competitors data, use it
+    if (
+      companyInfo?.competitors &&
+      Array.isArray(companyInfo.competitors) &&
+      companyInfo.competitors.length > 0
+    ) {
+      return {
+        marketPosition:
+          companyInfo.description || "Market leader in their industry",
+        competitors: companyInfo.competitors,
+      };
+    }
+
+    // Try to get from interview insights
+    if (interviewInsights?.competitive_landscape) {
+      return interviewInsights.competitive_landscape;
+    }
+
+    // Generate using AI if available
+    if (!this.openai) {
+      return {
+        marketPosition:
+          "Research the company's market position and competitive landscape",
+        competitors: [],
+      };
+    }
+
+    try {
+      const newsSummary = companyNews
+        .slice(0, 5)
+        .map((n) => n.heading)
+        .join(", ");
+
+      const prompt = `Analyze the competitive landscape and market position for ${
+        interview.company
+      } (Role: ${interview.title}).
+
+Company Information:
+${companyInfo?.description || "No description available"}
+${companyInfo?.industry ? `Industry: ${companyInfo.industry}` : ""}
+${
+  companyInfo?.products
+    ? `Products: ${
+        Array.isArray(companyInfo.products)
+          ? companyInfo.products.join(", ")
+          : companyInfo.products
+      }`
+    : ""
+}
+
+Recent News:
+${newsSummary || "No recent news available"}
+
+Provide a JSON response with:
+{
+  "marketPosition": "Detailed analysis of the company's position in the market, their strengths, and market share",
+  "competitors": ["Competitor 1", "Competitor 2", "Competitor 3", "Competitor 4", "Competitor 5"]
+}
+
+Focus on:
+- Market position and competitive advantages
+- Key competitors in the same space
+- Industry trends affecting the company
+- Strategic positioning`;
+
+      const response = await this.openai.chat.completions.create({
+        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+        temperature: 0.7,
+        max_tokens: 1000,
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are a business analyst providing competitive landscape analysis for interview preparation.",
+          },
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+      });
+
+      const content = response.choices[0]?.message?.content;
+      if (!content) {
+        throw new Error("No content returned from OpenAI");
+      }
+
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      }
+
+      throw new Error("Could not parse JSON from OpenAI response");
+    } catch (error) {
+      console.warn(
+        "[InterviewCompanyResearchService] Failed to generate competitive landscape:",
+        error.message
+      );
+      return {
+        marketPosition:
+          "Research the company's market position and competitive landscape",
+        competitors: [],
+      };
+    }
+  }
+
+  /**
+   * Generate intelligent talking points using AI
+   */
+  async generateTalkingPointsWithAI(
+    interview,
+    companyInfo,
+    companyNews,
+    interviewInsights
+  ) {
+    if (!this.openai) {
+      return this.generateTalkingPointsSync(
+        interview,
+        companyInfo,
+        interviewInsights
+      );
+    }
+
+    try {
+      const newsSummary = companyNews
+        .slice(0, 5)
+        .map((n) => `${n.heading}: ${n.description || ""}`)
+        .join("\n");
+
+      const prompt = `Generate intelligent talking points for a candidate interviewing for ${
+        interview.title
+      } at ${interview.company}.
+
+Company Information:
+${companyInfo?.description || "No description available"}
+${companyInfo?.mission ? `Mission: ${companyInfo.mission}` : ""}
+${
+  companyInfo?.values
+    ? `Values: ${
+        Array.isArray(companyInfo.values)
+          ? companyInfo.values.join(", ")
+          : companyInfo.values
+      }`
+    : ""
+}
+${companyInfo?.culture ? `Culture: ${companyInfo.culture}` : ""}
+${
+  companyInfo?.recentDevelopments
+    ? `Recent Developments: ${companyInfo.recentDevelopments}`
+    : ""
+}
+
+Recent News:
+${newsSummary || "No recent news available"}
+
+Generate 5-8 intelligent talking points that:
+1. Demonstrate knowledge of the company
+2. Show genuine interest and research
+3. Connect the candidate's background to company values/mission
+4. Reference recent news or developments
+5. Are natural conversation starters
+6. Highlight why the candidate is interested in this specific company
+
+Respond with ONLY a JSON array of strings:
+["Talking point 1", "Talking point 2", "Talking point 3", ...]`;
+
+      const response = await this.openai.chat.completions.create({
+        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+        temperature: 0.7,
+        max_tokens: 1000,
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are an interview coach helping candidates prepare intelligent talking points.",
+          },
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+      });
+
+      const content = response.choices[0]?.message?.content;
+      if (!content) {
+        throw new Error("No content returned from OpenAI");
+      }
+
+      const jsonMatch = content.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      }
+
+      throw new Error("Could not parse JSON from OpenAI response");
+    } catch (error) {
+      console.warn(
+        "[InterviewCompanyResearchService] Failed to generate talking points with AI:",
+        error.message
+      );
+      return this.generateTalkingPointsSync(
+        interview,
+        companyInfo,
+        interviewInsights
+      );
+    }
+  }
+
+  /**
+   * Generate intelligent questions to ask using AI
+   */
+  async generateQuestionsToAskWithAI(
+    interview,
+    companyInfo,
+    companyNews,
+    interviewInsights
+  ) {
+    if (!this.openai) {
+      return this.generateQuestionsToAskSync(
+        interview,
+        companyInfo,
+        interviewInsights
+      );
+    }
+
+    try {
+      const newsSummary = companyNews
+        .slice(0, 5)
+        .map((n) => `${n.heading}: ${n.description || ""}`)
+        .join("\n");
+
+      const fundingNews = companyNews.filter(
+        (n) =>
+          n.heading?.toLowerCase().includes("funding") ||
+          n.heading?.toLowerCase().includes("raised") ||
+          n.heading?.toLowerCase().includes("investment")
+      );
+
+      const strategicNews = companyNews.filter(
+        (n) =>
+          n.heading?.toLowerCase().includes("partnership") ||
+          n.heading?.toLowerCase().includes("acquisition") ||
+          n.heading?.toLowerCase().includes("expansion")
+      );
+
+      const prompt = `Generate intelligent questions for a candidate to ask during an interview for ${
+        interview.title
+      } at ${interview.company}.
+
+Company Information:
+${companyInfo?.description || "No description available"}
+${companyInfo?.mission ? `Mission: ${companyInfo.mission}` : ""}
+${
+  companyInfo?.recentDevelopments
+    ? `Recent Developments: ${companyInfo.recentDevelopments}`
+    : ""
+}
+
+Recent News:
+${newsSummary || "No recent news available"}
+${
+  fundingNews.length > 0
+    ? `\nFunding News: ${fundingNews.map((n) => n.heading).join(", ")}`
+    : ""
+}
+${
+  strategicNews.length > 0
+    ? `\nStrategic Initiatives: ${strategicNews
+        .map((n) => n.heading)
+        .join(", ")}`
+    : ""
+}
+
+Generate 5-8 intelligent questions that:
+1. Demonstrate research and genuine interest
+2. Reference specific company news, funding, or strategic initiatives
+3. Show understanding of the role and company direction
+4. Are thoughtful and not generic
+5. Help the candidate evaluate if the role/company is a good fit
+6. Can lead to meaningful conversation
+
+Respond with ONLY a JSON array of strings:
+["Question 1", "Question 2", "Question 3", ...]`;
+
+      const response = await this.openai.chat.completions.create({
+        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+        temperature: 0.7,
+        max_tokens: 1000,
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are an interview coach helping candidates prepare intelligent questions to ask interviewers.",
+          },
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+      });
+
+      const content = response.choices[0]?.message?.content;
+      if (!content) {
+        throw new Error("No content returned from OpenAI");
+      }
+
+      const jsonMatch = content.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      }
+
+      throw new Error("Could not parse JSON from OpenAI response");
+    } catch (error) {
+      console.warn(
+        "[InterviewCompanyResearchService] Failed to generate questions with AI:",
+        error.message
+      );
+      return this.generateQuestionsToAskSync(
+        interview,
+        companyInfo,
+        interviewInsights
+      );
+    }
   }
 
   /**

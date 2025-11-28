@@ -20,6 +20,16 @@ class CompanyResearchService {
       companyLogo,
       contactEmail,
       contactPhone,
+      mission,
+      culture,
+      values,
+      recentDevelopments,
+      products,
+      competitors,
+      whyWorkHere,
+      interviewTips,
+      foundedYear,
+      enrichedData,
     } = companyData;
 
     try {
@@ -40,8 +50,11 @@ class CompanyResearchService {
         const updateQuery = `
           UPDATE company_info 
           SET size = $1, industry = $2, location = $3, website = $4, 
-              description = $5, company_logo = $6, contact_email = $7, contact_phone = $8
-          WHERE id = $9
+              description = $5, company_logo = $6, contact_email = $7, contact_phone = $8,
+              mission = $9, culture = $10, values = $11, recent_developments = $12,
+              products = $13, competitors = $14, why_work_here = $15, interview_tips = $16,
+              founded_year = $17, enriched_data = $18
+          WHERE id = $19
           RETURNING *
         `;
         const result = await database.query(updateQuery, [
@@ -53,6 +66,16 @@ class CompanyResearchService {
           companyLogo || null,
           contactEmail || null,
           contactPhone || null,
+          mission || null,
+          culture || null,
+          typeof values === "string" ? values : values ? JSON.stringify(values) : null,
+          recentDevelopments || null,
+          typeof products === "string" ? products : products ? JSON.stringify(products) : null,
+          typeof competitors === "string" ? competitors : competitors ? JSON.stringify(competitors) : null,
+          whyWorkHere || null,
+          interviewTips || null,
+          foundedYear || null,
+          enrichedData ? JSON.stringify(enrichedData) : null,
           companyInfoId,
         ]);
         return this.mapCompanyInfoRow(result.rows[0]);
@@ -61,8 +84,9 @@ class CompanyResearchService {
         companyInfoId = uuidv4();
         const insertQuery = `
           INSERT INTO company_info 
-            (id, job_id, size, industry, location, website, description, company_logo, contact_email, contact_phone)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            (id, job_id, size, industry, location, website, description, company_logo, contact_email, contact_phone,
+             mission, culture, values, recent_developments, products, competitors, why_work_here, interview_tips, founded_year, enriched_data)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
           RETURNING *
         `;
         const result = await database.query(insertQuery, [
@@ -76,6 +100,16 @@ class CompanyResearchService {
           companyLogo || null,
           contactEmail || null,
           contactPhone || null,
+          mission || null,
+          culture || null,
+          typeof values === "string" ? values : values ? JSON.stringify(values) : null,
+          recentDevelopments || null,
+          typeof products === "string" ? products : products ? JSON.stringify(products) : null,
+          typeof competitors === "string" ? competitors : competitors ? JSON.stringify(competitors) : null,
+          whyWorkHere || null,
+          interviewTips || null,
+          foundedYear || null,
+          enrichedData ? JSON.stringify(enrichedData) : null,
         ]);
         return this.mapCompanyInfoRow(result.rows[0]);
       }
@@ -357,6 +391,16 @@ class CompanyResearchService {
       companyLogo: row.company_logo,
       contactEmail: row.contact_email,
       contactPhone: row.contact_phone,
+      mission: row.mission,
+      culture: row.culture,
+      values: row.values ? (typeof row.values === "string" ? (row.values.startsWith("[") || row.values.startsWith("{") ? JSON.parse(row.values) : row.values) : row.values) : null,
+      recentDevelopments: row.recent_developments,
+      products: row.products ? (typeof row.products === "string" ? (row.products.startsWith("[") ? JSON.parse(row.products) : row.products) : row.products) : null,
+      competitors: row.competitors ? (typeof row.competitors === "string" ? (row.competitors.startsWith("[") ? JSON.parse(row.competitors) : row.competitors) : row.competitors) : null,
+      whyWorkHere: row.why_work_here,
+      interviewTips: row.interview_tips,
+      foundedYear: row.founded_year,
+      enrichedData: row.enriched_data ? (typeof row.enriched_data === "string" ? JSON.parse(row.enriched_data) : row.enriched_data) : null,
     };
   }
 

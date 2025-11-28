@@ -1126,6 +1126,12 @@ class ApiService {
     );
   }
 
+  async getInterviewCompanyResearchAIContent(interviewId: string) {
+    return this.request<ApiResponse<{ aiContent: any }>>(
+      `/interview-prep/interviews/${interviewId}/company-research/ai-content`
+    );
+  }
+
   async generateInterviewCompanyResearch(
     interviewId: string,
     forceRefresh = false
@@ -1226,10 +1232,15 @@ class ApiService {
     );
   }
 
-  async getResponseHistory(interviewId?: string, questionId?: string) {
+  async getResponseHistory(
+    interviewId?: string,
+    questionId?: string,
+    jobId?: string
+  ) {
     const params = new URLSearchParams();
     if (interviewId) params.append("interviewId", interviewId);
     if (questionId) params.append("questionId", questionId);
+    if (jobId) params.append("jobId", jobId);
     return this.request<ApiResponse<{ responses: any[] }>>(
       `/interview-prep/responses?${params.toString()}`
     );
@@ -1242,6 +1253,25 @@ class ApiService {
         method: "POST",
         body: JSON.stringify({ responseId1, responseId2 }),
       }
+    );
+  }
+
+  // Coaching Chat
+  async sendCoachingMessage(message: string, interviewId?: string) {
+    return this.request<ApiResponse<{ response: string; error: boolean }>>(
+      `/interview-prep/coaching-chat`,
+      {
+        method: "POST",
+        body: JSON.stringify({ message, interviewId }),
+      }
+    );
+  }
+
+  async getCoachingSuggestions(interviewId?: string) {
+    const params = new URLSearchParams();
+    if (interviewId) params.append("interviewId", interviewId);
+    return this.request<ApiResponse<{ suggestions: string[] }>>(
+      `/interview-prep/coaching-chat/suggestions?${params.toString()}`
     );
   }
 
@@ -1358,22 +1388,56 @@ class ApiService {
     );
   }
 
+  async runTechnicalCode(
+    challengeId: string,
+    solution: string,
+    language: string = "python",
+    input?: any,
+    runOnce: boolean = false
+  ) {
+    return this.request<
+      ApiResponse<{
+        success: boolean;
+        testResults?: any[];
+        message?: string;
+        output?: any;
+        error?: string;
+        rawOutput?: string;
+      }>
+    >(`/interview-prep/technical/run`, {
+      method: "POST",
+      body: JSON.stringify({ challengeId, solution, language, input, runOnce }),
+    });
+  }
+
   async submitTechnicalSolution(
     challengeId: string,
     solution: string,
-    timeTakenSeconds?: number
+    timeTakenSeconds?: number,
+    testResults?: any
   ) {
     return this.request<
       ApiResponse<{ id: string; feedback: any; message: string }>
     >(`/interview-prep/technical/solutions`, {
       method: "POST",
-      body: JSON.stringify({ challengeId, solution, timeTakenSeconds }),
+      body: JSON.stringify({
+        challengeId,
+        solution,
+        timeTakenSeconds,
+        testResults,
+      }),
     });
   }
 
   async getTechnicalProgress() {
     return this.request<ApiResponse<{ progress: any }>>(
       `/interview-prep/technical/progress`
+    );
+  }
+
+  async getWhiteboardingTechniques(challengeType: string = "coding") {
+    return this.request<ApiResponse<{ techniques: any }>>(
+      `/interview-prep/technical/whiteboarding?challengeType=${challengeType}`
     );
   }
 

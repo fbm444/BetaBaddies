@@ -1,10 +1,14 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { Icon } from "@iconify/react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import Editor from "@monaco-editor/react";
 import { api } from "../services/api";
 import type { InterviewData, JobOpportunityData } from "../types";
+import { CompanyResearchPreviewModal } from "../components/interviewPrep/CompanyResearchPreviewModal";
+import { CompanyResearchExportModal } from "../components/interviewPrep/CompanyResearchExportModal";
+import type { ExportFormat } from "../components/interviewPrep/CompanyResearchExportModal";
 
 type TabType = "research" | "questions" | "coaching" | "mock" | "technical";
 
@@ -25,6 +29,8 @@ export function InterviewPreparation() {
   const [showInterviewSelector, setShowInterviewSelector] = useState(
     !interviewId
   );
+  const [showInterviewModal, setShowInterviewModal] = useState(false);
+  const [pendingTab, setPendingTab] = useState<TabType | null>(null);
 
   useEffect(() => {
     if (interviewId) {
@@ -41,6 +47,9 @@ export function InterviewPreparation() {
       fetchJobOpportunity();
     }
   }, [interview?.jobOpportunityId]);
+
+  // Listen for tab switch events from question detail modal
+  useEffect(() => {}, [interviewId, navigate]);
 
   const fetchInterviews = async () => {
     try {
@@ -77,9 +86,7 @@ export function InterviewPreparation() {
   const fetchJobOpportunity = async () => {
     if (!interview?.jobOpportunityId) return;
     try {
-      const response = await api.getJobOpportunityById(
-        interview.jobOpportunityId
-      );
+      const response = await api.getJobOpportunity(interview.jobOpportunityId);
       if (response.ok && response.data) {
         setJobOpportunity(response.data.jobOpportunity);
       }
@@ -95,6 +102,15 @@ export function InterviewPreparation() {
       `/interview-preparation/${selectedInterview.id}?tab=${activeTab}`,
       { replace: true }
     );
+  };
+
+  const handleGeneralPrepClick = (tab: TabType) => {
+    if (interviews.length === 0) {
+      alert("Please schedule an interview first to use preparation tools.");
+      return;
+    }
+    setPendingTab(tab);
+    setShowInterviewModal(true);
   };
 
   if (isLoading) {
@@ -113,7 +129,10 @@ export function InterviewPreparation() {
   }
 
   // Show interview selector if no interview is selected
-  if (showInterviewSelector || (!interview && !interviewId)) {
+  if (
+    (showInterviewSelector || (!interview && !interviewId)) &&
+    !showInterviewModal
+  ) {
     return (
       <div className="min-h-screen bg-slate-50 p-6 font-poppins">
         <div className="max-w-7xl mx-auto">
@@ -187,17 +206,15 @@ export function InterviewPreparation() {
             {/* General Preparation Tools */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
               <h2 className="text-xl font-semibold text-slate-900 mb-4">
-                General Preparation
+                Preparation Tools
               </h2>
               <p className="text-slate-600 mb-6">
-                Access preparation tools without selecting a specific interview.
+                Select a tool to begin. You'll be prompted to choose an
+                interview.
               </p>
               <div className="space-y-3">
                 <button
-                  onClick={() => {
-                    setShowInterviewSelector(false);
-                    setInterview(null);
-                  }}
+                  onClick={() => handleGeneralPrepClick("questions")}
                   className="w-full text-left p-4 border border-slate-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition"
                 >
                   <div className="flex items-center gap-3">
@@ -211,17 +228,13 @@ export function InterviewPreparation() {
                         Question Bank
                       </h3>
                       <p className="text-sm text-slate-600">
-                        Practice with general interview questions
+                        Practice with role-specific interview questions
                       </p>
                     </div>
                   </div>
                 </button>
                 <button
-                  onClick={() => {
-                    setShowInterviewSelector(false);
-                    setInterview(null);
-                    setActiveTab("mock");
-                  }}
+                  onClick={() => handleGeneralPrepClick("mock")}
                   className="w-full text-left p-4 border border-slate-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition"
                 >
                   <div className="flex items-center gap-3">
@@ -241,11 +254,7 @@ export function InterviewPreparation() {
                   </div>
                 </button>
                 <button
-                  onClick={() => {
-                    setShowInterviewSelector(false);
-                    setInterview(null);
-                    setActiveTab("technical");
-                  }}
+                  onClick={() => handleGeneralPrepClick("technical")}
                   className="w-full text-left p-4 border border-slate-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition"
                 >
                   <div className="flex items-center gap-3">
@@ -266,6 +275,97 @@ export function InterviewPreparation() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Interview Selection Modal
+  if (showInterviewModal) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 z-[110] flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto shadow-2xl">
+          <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+            <h2 className="text-2xl font-bold text-slate-900">
+              Select an Interview
+            </h2>
+            <button
+              onClick={() => {
+                setShowInterviewModal(false);
+                setPendingTab(null);
+              }}
+              className="p-2 hover:bg-slate-100 rounded-lg transition"
+            >
+              <Icon icon="mingcute:close-line" width={24} />
+            </button>
+          </div>
+
+          <div className="p-6">
+            <p className="text-slate-600 mb-6">
+              Please select an interview to access{" "}
+              {pendingTab === "questions"
+                ? "Question Bank"
+                : pendingTab === "mock"
+                ? "Mock Interview"
+                : "Technical Prep"}
+              .
+            </p>
+
+            {interviews.length === 0 ? (
+              <div className="text-center py-12">
+                <Icon
+                  icon="mingcute:calendar-line"
+                  width={64}
+                  className="mx-auto text-slate-300 mb-4"
+                />
+                <p className="text-slate-600 mb-4">
+                  No scheduled interviews found.
+                </p>
+                <button
+                  onClick={() => navigate("/interview-scheduling")}
+                  className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition"
+                >
+                  Schedule an Interview
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {interviews.map((int) => (
+                  <button
+                    key={int.id}
+                    onClick={() => {
+                      handleSelectInterview(int);
+                      setShowInterviewModal(false);
+                      setPendingTab(null);
+                      if (pendingTab) {
+                        setActiveTab(pendingTab);
+                      }
+                    }}
+                    className="w-full text-left p-4 border border-slate-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-semibold text-slate-900">
+                          {int.title}
+                        </h3>
+                        <p className="text-sm text-slate-600">{int.company}</p>
+                        {int.scheduledAt && (
+                          <p className="text-xs text-slate-500 mt-1">
+                            {new Date(int.scheduledAt).toLocaleDateString()}
+                          </p>
+                        )}
+                      </div>
+                      <Icon
+                        icon="mingcute:arrow-right-line"
+                        width={20}
+                        className="text-slate-400"
+                      />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -504,26 +604,11 @@ function CompanyResearchTab({
   const [research, setResearch] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isLoadingAI, setIsLoadingAI] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showExportMenu, setShowExportMenu] = useState(false);
-
-  // Close export menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      if (
-        !target.closest('[id="export-menu"]') &&
-        !target.closest('button[class*="bg-blue-500"]')
-      ) {
-        setShowExportMenu(false);
-      }
-    };
-
-    if (showExportMenu) {
-      document.addEventListener("click", handleClickOutside);
-      return () => document.removeEventListener("click", handleClickOutside);
-    }
-  }, [showExportMenu]);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     if (interview?.id) {
@@ -538,13 +623,48 @@ function CompanyResearchTab({
       setError(null);
       const response = await api.getInterviewCompanyResearch(interview.id);
       if (response.ok && response.data) {
-        setResearch(response.data.research);
+        const researchData = response.data.research;
+        setResearch(researchData);
+
+        // If AI content is marked as loading, fetch it separately
+        if (researchData.aiContentLoading) {
+          fetchAIContent();
+        }
       }
     } catch (err: any) {
       console.error("Failed to fetch research:", err);
       setError(err.message || "Failed to load company research");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchAIContent = async () => {
+    if (!interview?.id) return;
+    try {
+      setIsLoadingAI(true);
+      const response = await api.getInterviewCompanyResearchAIContent(
+        interview.id
+      );
+      if (response.ok && response.data) {
+        const aiContent = response.data.aiContent;
+        setResearch((prev: any) => ({
+          ...prev,
+          competitiveLandscape: aiContent.competitiveLandscape,
+          talkingPoints: aiContent.talkingPoints,
+          questionsToAsk: aiContent.questionsToAsk,
+          aiContentLoading: false,
+        }));
+      }
+    } catch (err: any) {
+      console.error("Failed to fetch AI content:", err);
+      // Don't show error to user, just mark as not loading
+      setResearch((prev: any) => ({
+        ...prev,
+        aiContentLoading: false,
+      }));
+    } finally {
+      setIsLoadingAI(false);
     }
   };
 
@@ -559,6 +679,8 @@ function CompanyResearchTab({
       );
       if (response.ok) {
         await fetchResearch();
+        // Also fetch AI content after generating research
+        await fetchAIContent();
       }
     } catch (err: any) {
       console.error("Failed to generate research:", err);
@@ -568,39 +690,518 @@ function CompanyResearchTab({
     }
   };
 
-  const handleExport = async (format: "markdown" | "json" | "pdf" | "docx") => {
-    if (!interview?.id) return;
-    try {
-      const response = await api.exportInterviewCompanyResearch(
-        interview.id,
-        format
-      );
+  const handleExportClick = () => {
+    // Show preview modal first
+    setShowPreviewModal(true);
+  };
 
-      if (format === "pdf" || format === "docx") {
-        // For PDF and DOCX, response is a blob
+  const handleExportFromPreview = (format: "pdf" | "docx" | "txt" | "html") => {
+    // For PDF, we need the preview element, so keep preview modal open
+    // For other formats, close preview and open export modal
+    if (format === "pdf") {
+      // Keep preview modal open, just trigger export directly
+      handleExport({
+        format: "pdf",
+        filename: `company-research-${interview?.company || "research"}`,
+      });
+    } else {
+      // For other formats, trigger export directly (they use backend)
+      handleExport({
+        format: format,
+        filename: `company-research-${interview?.company || "research"}`,
+      });
+    }
+  };
+
+  const handleExport = async (options: {
+    format: ExportFormat;
+    filename: string;
+  }) => {
+    if (!interview?.id || !research) return;
+
+    try {
+      setIsExporting(true);
+
+      const format = options.format;
+      const filename =
+        options.filename ||
+        `company-research-${interview.company || "research"}`;
+
+      // For PDF - use pdfmake to generate from data (no image conversion)
+      if (format === "pdf") {
+        try {
+          // Dynamically import pdfmake
+          const pdfMakeModule = await import("pdfmake/build/pdfmake");
+          const pdfFontsModule = await import("pdfmake/build/vfs_fonts");
+          const pdfMake = (pdfMakeModule as any).default || pdfMakeModule;
+
+          // Set fonts
+          if (pdfFontsModule && (pdfFontsModule as any).pdfMake) {
+            pdfMake.vfs = (pdfFontsModule as any).pdfMake.vfs;
+          } else if ((pdfFontsModule as any).default) {
+            pdfMake.vfs =
+              (pdfFontsModule as any).default.pdfMake?.vfs ||
+              (pdfFontsModule as any).default;
+          }
+
+          // Create deep copies of data to prevent pdfmake from mutating React state
+          const researchCopy = JSON.parse(JSON.stringify(research));
+          const interviewCompany =
+            interview?.company ||
+            researchCopy?.companyInfo?.name ||
+            "Company Research";
+          const interviewTitle =
+            interview?.title || jobOpportunity?.title || "";
+
+          // Build PDF document definition from research data (using copies)
+          const docDefinition: any = {
+            pageSize: "A4",
+            pageMargins: [40, 60, 40, 60],
+            defaultStyle: {
+              font: "Roboto",
+              fontSize: 11,
+              lineHeight: 1.4,
+              color: "#1a1a1a",
+            },
+            styles: {
+              header: {
+                fontSize: 24,
+                bold: true,
+                color: "#1a1a1a",
+                marginBottom: 10,
+              },
+              subheader: {
+                fontSize: 18,
+                bold: true,
+                color: "#1a1a1a",
+                marginTop: 20,
+                marginBottom: 10,
+              },
+              sectionTitle: {
+                fontSize: 16,
+                bold: true,
+                color: "#3b82f6",
+                marginTop: 15,
+                marginBottom: 8,
+              },
+              body: {
+                fontSize: 11,
+                color: "#334155",
+                marginBottom: 5,
+              },
+              bullet: {
+                fontSize: 11,
+                color: "#334155",
+                marginLeft: 10,
+                marginBottom: 3,
+              },
+            },
+            content: [
+              // Header
+              {
+                text: interviewCompany,
+                style: "header",
+              },
+              {
+                text: interviewTitle,
+                style: "body",
+                fontSize: 14,
+                marginBottom: 5,
+              },
+              {
+                text: "Company Research for Interview Preparation",
+                style: "body",
+                fontSize: 10,
+                color: "#64748b",
+                marginBottom: 20,
+              },
+              { text: "", marginBottom: 10 },
+
+              // Company Overview
+              ...(researchCopy.companyInfo
+                ? [
+                    {
+                      text: "Company Overview",
+                      style: "sectionTitle",
+                    },
+                    ...(researchCopy.companyInfo.description
+                      ? [
+                          { text: "About", style: "subheader", fontSize: 14 },
+                          {
+                            text: researchCopy.companyInfo.description,
+                            style: "body",
+                            marginBottom: 10,
+                          },
+                        ]
+                      : []),
+                    ...(researchCopy.companyInfo.mission
+                      ? [
+                          {
+                            text: "Mission & Values",
+                            style: "subheader",
+                            fontSize: 14,
+                          },
+                          {
+                            text: researchCopy.companyInfo.mission,
+                            style: "body",
+                            marginBottom: 10,
+                          },
+                        ]
+                      : []),
+                    ...(researchCopy.companyInfo.values
+                      ? [
+                          {
+                            text: "Core Values",
+                            style: "subheader",
+                            fontSize: 14,
+                          },
+                          {
+                            ul: Array.isArray(researchCopy.companyInfo.values)
+                              ? researchCopy.companyInfo.values
+                              : [researchCopy.companyInfo.values],
+                            style: "bullet",
+                            marginBottom: 10,
+                          },
+                        ]
+                      : []),
+                    ...(researchCopy.companyInfo.culture
+                      ? [
+                          {
+                            text: "Company Culture",
+                            style: "subheader",
+                            fontSize: 14,
+                          },
+                          {
+                            text: researchCopy.companyInfo.culture,
+                            style: "body",
+                            marginBottom: 10,
+                          },
+                        ]
+                      : []),
+                  ]
+                : []),
+
+              // Leadership Team
+              ...(researchCopy.interviewInsights?.interviewerProfiles?.length >
+              0
+                ? [
+                    {
+                      text: "Leadership Team & Potential Interviewers",
+                      style: "sectionTitle",
+                    },
+                    {
+                      columns:
+                        researchCopy.interviewInsights.interviewerProfiles.map(
+                          (profile: any) => ({
+                            width: "auto",
+                            stack: [
+                              {
+                                text: profile.name || profile.title || "",
+                                bold: true,
+                                marginBottom: 3,
+                              },
+                              ...(profile.role
+                                ? [
+                                    {
+                                      text: profile.role,
+                                      fontSize: 10,
+                                      color: "#64748b",
+                                      marginBottom: 2,
+                                    },
+                                  ]
+                                : []),
+                              ...(profile.background
+                                ? [
+                                    {
+                                      text: profile.background,
+                                      fontSize: 10,
+                                      marginBottom: 5,
+                                    },
+                                  ]
+                                : []),
+                            ],
+                            margin: [0, 0, 10, 10],
+                          })
+                        ),
+                      columnGap: 10,
+                      marginBottom: 15,
+                    },
+                  ]
+                : []),
+
+              // Competitive Landscape
+              ...(researchCopy.competitiveLandscape
+                ? [
+                    {
+                      text: "Competitive Landscape & Market Position",
+                      style: "sectionTitle",
+                    },
+                    ...(typeof researchCopy.competitiveLandscape === "string"
+                      ? [
+                          {
+                            text: researchCopy.competitiveLandscape,
+                            style: "body",
+                            marginBottom: 10,
+                          },
+                        ]
+                      : [
+                          ...(researchCopy.competitiveLandscape.marketPosition
+                            ? [
+                                {
+                                  text: "Market Position",
+                                  bold: true,
+                                  marginBottom: 5,
+                                },
+                                {
+                                  text:
+                                    typeof researchCopy.competitiveLandscape
+                                      .marketPosition === "string"
+                                      ? researchCopy.competitiveLandscape
+                                          .marketPosition
+                                      : JSON.stringify(
+                                          researchCopy.competitiveLandscape
+                                            .marketPosition
+                                        ),
+                                  style: "body",
+                                  marginBottom: 10,
+                                },
+                              ]
+                            : []),
+                          ...(researchCopy.competitiveLandscape.analysis
+                            ? [
+                                {
+                                  text: "Market Analysis",
+                                  bold: true,
+                                  marginBottom: 5,
+                                },
+                                {
+                                  text:
+                                    typeof researchCopy.competitiveLandscape
+                                      .analysis === "string"
+                                      ? researchCopy.competitiveLandscape
+                                          .analysis
+                                      : typeof researchCopy.competitiveLandscape
+                                          .analysis === "object"
+                                      ? Object.entries(
+                                          researchCopy.competitiveLandscape
+                                            .analysis
+                                        )
+                                          .map(([k, v]) => `${k}: ${v}`)
+                                          .join("\n")
+                                      : JSON.stringify(
+                                          researchCopy.competitiveLandscape
+                                            .analysis
+                                        ),
+                                  style: "body",
+                                  marginBottom: 10,
+                                },
+                              ]
+                            : []),
+                          ...(researchCopy.competitiveLandscape.strengths
+                            ? [
+                                {
+                                  text: "Competitive Strengths",
+                                  bold: true,
+                                  marginBottom: 5,
+                                },
+                                {
+                                  ul: Array.isArray(
+                                    researchCopy.competitiveLandscape.strengths
+                                  )
+                                    ? researchCopy.competitiveLandscape.strengths.map(
+                                        (s: any) =>
+                                          typeof s === "string"
+                                            ? s
+                                            : JSON.stringify(s)
+                                      )
+                                    : [
+                                        String(
+                                          researchCopy.competitiveLandscape
+                                            .strengths
+                                        ),
+                                      ],
+                                  style: "bullet",
+                                  marginBottom: 10,
+                                },
+                              ]
+                            : []),
+                          ...(researchCopy.competitiveLandscape.competitors
+                            ? [
+                                {
+                                  text: "Key Competitors",
+                                  bold: true,
+                                  marginBottom: 5,
+                                },
+                                {
+                                  ul: researchCopy.competitiveLandscape.competitors.map(
+                                    (c: any) =>
+                                      typeof c === "string"
+                                        ? c
+                                        : c.name || JSON.stringify(c)
+                                  ),
+                                  style: "bullet",
+                                  marginBottom: 10,
+                                },
+                              ]
+                            : []),
+                        ]),
+                  ]
+                : []),
+
+              // Recent News
+              ...(researchCopy.news && researchCopy.news.length > 0
+                ? [
+                    {
+                      text: "Recent News & Developments",
+                      style: "sectionTitle",
+                    },
+                    ...researchCopy.news.map((article: any) => ({
+                      stack: [
+                        {
+                          text: article.title || "",
+                          bold: true,
+                          marginBottom: 3,
+                        },
+                        ...(article.publishedAt
+                          ? [
+                              {
+                                text: new Date(
+                                  article.publishedAt
+                                ).toLocaleDateString(),
+                                fontSize: 9,
+                                color: "#64748b",
+                                marginBottom: 3,
+                              },
+                            ]
+                          : []),
+                        ...(article.description
+                          ? [
+                              {
+                                text: article.description,
+                                style: "body",
+                                fontSize: 10,
+                                marginBottom: 8,
+                              },
+                            ]
+                          : []),
+                      ],
+                      marginBottom: 8,
+                    })),
+                  ]
+                : []),
+
+              // Talking Points
+              ...(researchCopy.talkingPoints &&
+              researchCopy.talkingPoints.length > 0
+                ? [
+                    {
+                      text: "Key Talking Points",
+                      style: "sectionTitle",
+                    },
+                    {
+                      ul: researchCopy.talkingPoints,
+                      style: "bullet",
+                      marginBottom: 15,
+                    },
+                  ]
+                : []),
+
+              // Questions to Ask
+              ...(researchCopy.questionsToAsk &&
+              researchCopy.questionsToAsk.length > 0
+                ? [
+                    {
+                      text: "Intelligent Questions to Ask",
+                      style: "sectionTitle",
+                    },
+                    {
+                      ul: researchCopy.questionsToAsk,
+                      style: "bullet",
+                      marginBottom: 15,
+                    },
+                  ]
+                : []),
+
+              // Interview Insights
+              ...(researchCopy.interviewInsights?.preparationRecommendations
+                ? [
+                    {
+                      text: "Interview Preparation Recommendations",
+                      style: "sectionTitle",
+                    },
+                    {
+                      ul: Array.isArray(
+                        researchCopy.interviewInsights
+                          .preparationRecommendations
+                      )
+                        ? researchCopy.interviewInsights
+                            .preparationRecommendations
+                        : [
+                            researchCopy.interviewInsights
+                              .preparationRecommendations,
+                          ],
+                      style: "bullet",
+                      marginBottom: 15,
+                    },
+                  ]
+                : []),
+            ],
+          };
+
+          // Generate and download PDF
+          pdfMake.createPdf(docDefinition).download(`${filename}.pdf`);
+        } catch (err: any) {
+          console.error("PDF export error:", err);
+          // Ensure error message is a string, not an object
+          const errorMessage =
+            err?.message || err?.toString() || "Failed to export PDF";
+          setError(
+            typeof errorMessage === "string"
+              ? errorMessage
+              : "Failed to export PDF"
+          );
+        }
+      } else if (format === "docx") {
+        // For DOCX, use backend
+        const response = await api.exportInterviewCompanyResearch(
+          interview.id,
+          "docx"
+        );
         const blob = await response.blob();
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `company-research-${
-          interview.company
-        }-${Date.now()}.${format}`;
+        a.download = `${filename}.docx`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-      } else {
-        // For markdown and JSON, response is JSON
+      } else if (format === "txt" || format === "html") {
+        // For TXT and HTML, use backend with markdown format and convert
+        const response = await api.exportInterviewCompanyResearch(
+          interview.id,
+          "markdown"
+        );
         if (response.ok && response.data) {
-          const blob = new Blob([response.data.report], {
-            type: format === "json" ? "application/json" : "text/markdown",
-          });
+          let content = response.data.report;
+          let mimeType = "text/plain";
+          let extension = "txt";
+
+          if (format === "html") {
+            // Convert markdown to HTML
+            const ReactMarkdown = (await import("react-markdown")).default;
+            const remarkGfm = (await import("remark-gfm")).default;
+            // For now, just use markdown as HTML (you could use a markdown-to-html converter)
+            content = `<html><head><title>${filename}</title></head><body><pre>${content}</pre></body></html>`;
+            mimeType = "text/html";
+            extension = "html";
+          }
+
+          const blob = new Blob([content], { type: mimeType });
           const url = URL.createObjectURL(blob);
           const a = document.createElement("a");
           a.href = url;
-          a.download = `company-research-${interview.company}-${Date.now()}.${
-            format === "json" ? "json" : "md"
-          }`;
+          a.download = `${filename}.${extension}`;
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
@@ -609,7 +1210,16 @@ function CompanyResearchTab({
       }
     } catch (err: any) {
       console.error("Failed to export research:", err);
-      setError(err.message || "Failed to export research");
+      // Ensure error message is a string, not an object
+      const errorMessage =
+        err?.message || err?.toString() || "Failed to export research";
+      setError(
+        typeof errorMessage === "string"
+          ? errorMessage
+          : "Failed to export research"
+      );
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -688,10 +1298,6 @@ function CompanyResearchTab({
                 <h2 className="text-2xl font-bold text-slate-900">
                   Company Research Automation
                 </h2>
-                <p className="text-sm text-slate-600 mt-1">
-                  UC-074: Comprehensive company profiles for interview
-                  preparation
-                </p>
               </div>
             </div>
             <p className="text-slate-700 mt-3">
@@ -725,65 +1331,14 @@ function CompanyResearchTab({
             <Icon icon="mingcute:refresh-line" width={20} />
             {isGenerating ? "Generating..." : "Refresh Research"}
           </button>
-          <div className="relative">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowExportMenu(!showExportMenu);
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
-            >
-              <Icon icon="mingcute:download-line" width={20} />
-              Export
-              <Icon icon="mingcute:arrow-down-line" width={16} />
-            </button>
-            {showExportMenu && (
-              <div
-                className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg p-1 z-10 min-w-[180px]"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <button
-                  onClick={() => {
-                    handleExport("pdf");
-                    setShowExportMenu(false);
-                  }}
-                  className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 rounded whitespace-nowrap flex items-center gap-2"
-                >
-                  <Icon icon="mingcute:file-pdf-line" width={16} />
-                  Export as PDF
-                </button>
-                <button
-                  onClick={() => {
-                    handleExport("docx");
-                    setShowExportMenu(false);
-                  }}
-                  className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 rounded whitespace-nowrap flex items-center gap-2"
-                >
-                  <Icon icon="mingcute:file-word-line" width={16} />
-                  Export as DOCX
-                </button>
-                <div className="border-t border-slate-200 my-1" />
-                <button
-                  onClick={() => {
-                    handleExport("markdown");
-                    setShowExportMenu(false);
-                  }}
-                  className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 rounded whitespace-nowrap"
-                >
-                  Export as Markdown
-                </button>
-                <button
-                  onClick={() => {
-                    handleExport("json");
-                    setShowExportMenu(false);
-                  }}
-                  className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 rounded whitespace-nowrap"
-                >
-                  Export as JSON
-                </button>
-              </div>
-            )}
-          </div>
+          <button
+            onClick={handleExportClick}
+            disabled={!research}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Icon icon="mingcute:download-line" width={20} />
+            Export
+          </button>
         </div>
       </div>
 
@@ -911,72 +1466,242 @@ function CompanyResearchTab({
         )}
 
       {/* Competitive Landscape & Market Position */}
-      {research.competitiveLandscape && (
-        <div className="border border-slate-200 rounded-lg p-6 bg-white">
-          <div className="flex items-center gap-2 mb-4">
-            <Icon
-              icon="mingcute:chart-line"
-              width={24}
-              className="text-blue-500"
-            />
-            <h3 className="text-xl font-semibold text-slate-900">
-              Competitive Landscape & Market Position
-            </h3>
+      <div className="border border-slate-200 rounded-lg p-6 bg-white">
+        <div className="flex items-center gap-2 mb-4">
+          <Icon
+            icon="mingcute:chart-line"
+            width={24}
+            className="text-blue-500"
+          />
+          <h3 className="text-xl font-semibold text-slate-900">
+            Competitive Landscape & Market Position
+          </h3>
+        </div>
+        {isLoadingAI || research.aiContentLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="flex flex-col items-center gap-3">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+              <p className="text-sm text-slate-500">
+                Generating competitive landscape analysis...
+              </p>
+            </div>
           </div>
-          {typeof research.competitiveLandscape === "string" ? (
+        ) : research.competitiveLandscape ? (
+          typeof research.competitiveLandscape === "string" ? (
             <p className="text-slate-700 leading-relaxed">
               {research.competitiveLandscape}
             </p>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-6">
+              {/* Market Position - Primary field */}
               {research.competitiveLandscape.marketPosition && (
-                <div>
-                  <h4 className="font-semibold text-slate-900 mb-2">
+                <div className="p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500">
+                  <h4 className="font-semibold text-slate-900 mb-2 flex items-center gap-2">
+                    <Icon icon="mingcute:target-line" width={18} />
                     Market Position
                   </h4>
-                  <p className="text-slate-700">
-                    {research.competitiveLandscape.marketPosition}
+                  {typeof research.competitiveLandscape.marketPosition ===
+                  "string" ? (
+                    <p className="text-slate-700 leading-relaxed">
+                      {research.competitiveLandscape.marketPosition}
+                    </p>
+                  ) : typeof research.competitiveLandscape.marketPosition ===
+                      "object" &&
+                    research.competitiveLandscape.marketPosition !== null ? (
+                    <div className="space-y-3">
+                      {Object.entries(
+                        research.competitiveLandscape.marketPosition
+                      ).map(([key, value]: [string, any]) => (
+                        <div key={key}>
+                          <span className="font-medium text-slate-800 capitalize">
+                            {key.replace(/([A-Z])/g, " $1").trim()}:{" "}
+                          </span>
+                          <span className="text-slate-700">
+                            {typeof value === "string"
+                              ? value
+                              : Array.isArray(value)
+                              ? value.join(", ")
+                              : typeof value === "object"
+                              ? Object.entries(value)
+                                  .map(([k, v]: [string, any]) => `${k}: ${v}`)
+                                  .join(", ")
+                              : String(value)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-slate-700 leading-relaxed">
+                      {String(research.competitiveLandscape.marketPosition)}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Market Analysis - Alternative field name */}
+              {research.competitiveLandscape.analysis && (
+                <div className="p-4 bg-indigo-50 rounded-lg border-l-4 border-indigo-500">
+                  <h4 className="font-semibold text-slate-900 mb-2 flex items-center gap-2">
+                    <Icon icon="mingcute:analysis-line" width={18} />
+                    Market Analysis
+                  </h4>
+                  <p className="text-slate-700 leading-relaxed">
+                    {typeof research.competitiveLandscape.analysis === "string"
+                      ? research.competitiveLandscape.analysis
+                      : typeof research.competitiveLandscape.analysis ===
+                          "object" &&
+                        research.competitiveLandscape.analysis !== null
+                      ? Object.entries(
+                          research.competitiveLandscape.analysis
+                        ).map(([key, value]: [string, any]) => (
+                          <div key={key} className="mb-2">
+                            <span className="font-medium text-slate-800">
+                              {key}:{" "}
+                            </span>
+                            <span className="text-slate-700">
+                              {typeof value === "string"
+                                ? value
+                                : JSON.stringify(value)}
+                            </span>
+                          </div>
+                        ))
+                      : JSON.stringify(research.competitiveLandscape.analysis)}
                   </p>
                 </div>
               )}
-              {research.competitiveLandscape.competitors && (
+
+              {/* Competitive Strengths */}
+              {research.competitiveLandscape.strengths && (
                 <div>
-                  <h4 className="font-semibold text-slate-900 mb-2">
-                    Key Competitors
+                  <h4 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                    <Icon icon="mingcute:star-line" width={18} />
+                    Competitive Strengths
                   </h4>
-                  <ul className="list-disc list-inside space-y-1 text-slate-700">
-                    {Array.isArray(
-                      research.competitiveLandscape.competitors
-                    ) ? (
-                      research.competitiveLandscape.competitors.map(
-                        (competitor: string, idx: number) => (
-                          <li key={idx}>{competitor}</li>
+                  {Array.isArray(research.competitiveLandscape.strengths) ? (
+                    <ul className="list-disc list-inside space-y-2 text-slate-700 ml-2">
+                      {research.competitiveLandscape.strengths.map(
+                        (strength: any, idx: number) => (
+                          <li key={idx} className="leading-relaxed">
+                            {typeof strength === "string"
+                              ? strength
+                              : JSON.stringify(strength)}
+                          </li>
                         )
-                      )
-                    ) : (
-                      <li>{research.competitiveLandscape.competitors}</li>
-                    )}
-                  </ul>
+                      )}
+                    </ul>
+                  ) : typeof research.competitiveLandscape.strengths ===
+                    "string" ? (
+                    <p className="text-slate-700 leading-relaxed">
+                      {research.competitiveLandscape.strengths}
+                    </p>
+                  ) : (
+                    <p className="text-slate-700 leading-relaxed">
+                      {JSON.stringify(research.competitiveLandscape.strengths)}
+                    </p>
+                  )}
                 </div>
               )}
+
+              {/* Market Share */}
+              {research.competitiveLandscape.marketShare && (
+                <div>
+                  <h4 className="font-semibold text-slate-900 mb-2 flex items-center gap-2">
+                    <Icon icon="mingcute:pie-chart-line" width={18} />
+                    Market Share
+                  </h4>
+                  <p className="text-slate-700 leading-relaxed">
+                    {typeof research.competitiveLandscape.marketShare ===
+                    "string"
+                      ? research.competitiveLandscape.marketShare
+                      : JSON.stringify(
+                          research.competitiveLandscape.marketShare
+                        )}
+                  </p>
+                </div>
+              )}
+
+              {/* Key Competitors */}
+              {research.competitiveLandscape.competitors &&
+                (Array.isArray(research.competitiveLandscape.competitors) &&
+                research.competitiveLandscape.competitors.length > 0 ? (
+                  <div>
+                    <h4 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                      <Icon icon="mingcute:users-line" width={18} />
+                      Key Competitors
+                    </h4>
+                    <ul className="list-disc list-inside space-y-2 text-slate-700 ml-2">
+                      {research.competitiveLandscape.competitors.map(
+                        (competitor: any, idx: number) => (
+                          <li key={idx} className="leading-relaxed">
+                            {typeof competitor === "string"
+                              ? competitor
+                              : JSON.stringify(competitor)}
+                          </li>
+                        )
+                      )}
+                    </ul>
+                  </div>
+                ) : typeof research.competitiveLandscape.competitors ===
+                  "string" ? (
+                  <div>
+                    <h4 className="font-semibold text-slate-900 mb-2 flex items-center gap-2">
+                      <Icon icon="mingcute:users-line" width={18} />
+                      Key Competitors
+                    </h4>
+                    <p className="text-slate-700 leading-relaxed">
+                      {research.competitiveLandscape.competitors}
+                    </p>
+                  </div>
+                ) : null)}
+
+              {/* Fallback: If no recognized fields, show all data */}
+              {!research.competitiveLandscape.marketPosition &&
+                !research.competitiveLandscape.analysis &&
+                !research.competitiveLandscape.strengths &&
+                !research.competitiveLandscape.marketShare &&
+                (!research.competitiveLandscape.competitors ||
+                  (Array.isArray(research.competitiveLandscape.competitors) &&
+                    research.competitiveLandscape.competitors.length ===
+                      0)) && (
+                  <div className="p-4 bg-amber-50 rounded-lg border-l-4 border-amber-500">
+                    <h4 className="font-semibold text-slate-900 mb-2">
+                      Competitive Landscape
+                    </h4>
+                    <pre className="text-slate-700 text-sm whitespace-pre-wrap font-sans">
+                      {JSON.stringify(research.competitiveLandscape, null, 2)}
+                    </pre>
+                  </div>
+                )}
             </div>
-          )}
-        </div>
-      )}
+          )
+        ) : (
+          <div className="text-center py-8 text-slate-500">
+            <Icon
+              icon="mingcute:chart-line"
+              width={48}
+              className="mx-auto mb-2 text-slate-300"
+            />
+            <p>
+              Click "Refresh Research" to generate competitive landscape
+              analysis
+            </p>
+          </div>
+        )}
+      </div>
 
       {/* Recent News, Funding & Strategic Initiatives */}
-      {research.companyNews && research.companyNews.length > 0 && (
-        <div className="border border-slate-200 rounded-lg p-6 bg-white">
-          <div className="flex items-center gap-2 mb-4">
-            <Icon
-              icon="mingcute:news-line"
-              width={24}
-              className="text-blue-500"
-            />
-            <h3 className="text-xl font-semibold text-slate-900">
-              Recent News, Funding & Strategic Initiatives
-            </h3>
-          </div>
+      <div className="border border-slate-200 rounded-lg p-6 bg-white">
+        <div className="flex items-center gap-2 mb-4">
+          <Icon
+            icon="mingcute:news-line"
+            width={24}
+            className="text-blue-500"
+          />
+          <h3 className="text-xl font-semibold text-slate-900">
+            Recent News, Funding & Strategic Initiatives
+          </h3>
+        </div>
+        {research.companyNews && research.companyNews.length > 0 ? (
           <div className="space-y-4">
             {research.companyNews.slice(0, 10).map((news: any, idx: number) => {
               const isFunding =
@@ -1041,8 +1766,20 @@ function CompanyResearchTab({
               );
             })}
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="text-center py-8 text-slate-500">
+            <Icon
+              icon="mingcute:news-line"
+              width={48}
+              className="mx-auto mb-2 text-slate-300"
+            />
+            <p>
+              Click "Refresh Research" to compile recent news, funding
+              announcements, and strategic initiatives
+            </p>
+          </div>
+        )}
+      </div>
 
       {/* Interview Insights */}
       {research.interviewInsights && (
@@ -1120,74 +1857,146 @@ function CompanyResearchTab({
       )}
 
       {/* Talking Points */}
-      {research.talkingPoints && research.talkingPoints.length > 0 && (
-        <div className="border border-slate-200 rounded-lg p-6 bg-gradient-to-br from-green-50 to-emerald-50">
-          <div className="flex items-center gap-2 mb-4">
+      <div className="border border-slate-200 rounded-lg p-6 bg-gradient-to-br from-green-50 to-emerald-50">
+        <div className="flex items-center gap-2 mb-4">
+          <Icon
+            icon="mingcute:chat-3-line"
+            width={24}
+            className="text-green-600"
+          />
+          <h3 className="text-xl font-semibold text-slate-900">
+            Intelligent Talking Points
+          </h3>
+        </div>
+        {isLoadingAI || research.aiContentLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="flex flex-col items-center gap-3">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
+              <p className="text-sm text-slate-500">
+                Generating intelligent talking points...
+              </p>
+            </div>
+          </div>
+        ) : research.talkingPoints && research.talkingPoints.length > 0 ? (
+          <>
+            <p className="text-sm text-slate-600 mb-4">
+              Use these points to demonstrate your knowledge and interest during
+              the interview:
+            </p>
+            <div className="space-y-3">
+              {research.talkingPoints.map((point: string, idx: number) => (
+                <div
+                  key={idx}
+                  className="flex items-start gap-3 p-3 bg-white rounded-lg border border-green-200"
+                >
+                  <Icon
+                    icon="mingcute:message-2-line"
+                    width={20}
+                    className="text-green-600 mt-0.5 flex-shrink-0"
+                  />
+                  <p className="text-slate-700 flex-1">{point}</p>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="text-center py-8 text-slate-500">
             <Icon
               icon="mingcute:chat-3-line"
-              width={24}
-              className="text-green-600"
+              width={48}
+              className="mx-auto mb-2 text-slate-300"
             />
-            <h3 className="text-xl font-semibold text-slate-900">
-              Intelligent Talking Points
-            </h3>
+            <p>
+              Click "Refresh Research" to generate intelligent talking points
+            </p>
           </div>
-          <p className="text-sm text-slate-600 mb-4">
-            Use these points to demonstrate your knowledge and interest during
-            the interview:
-          </p>
-          <div className="space-y-3">
-            {research.talkingPoints.map((point: string, idx: number) => (
-              <div
-                key={idx}
-                className="flex items-start gap-3 p-3 bg-white rounded-lg border border-green-200"
-              >
-                <Icon
-                  icon="mingcute:message-2-line"
-                  width={20}
-                  className="text-green-600 mt-0.5 flex-shrink-0"
-                />
-                <p className="text-slate-700 flex-1">{point}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Questions to Ask */}
-      {research.questionsToAsk && research.questionsToAsk.length > 0 && (
-        <div className="border border-slate-200 rounded-lg p-6 bg-gradient-to-br from-blue-50 to-indigo-50">
-          <div className="flex items-center gap-2 mb-4">
+      <div className="border border-slate-200 rounded-lg p-6 bg-gradient-to-br from-blue-50 to-indigo-50">
+        <div className="flex items-center gap-2 mb-4">
+          <Icon
+            icon="mingcute:question-answer-line"
+            width={24}
+            className="text-blue-600"
+          />
+          <h3 className="text-xl font-semibold text-slate-900">
+            Intelligent Questions to Ask
+          </h3>
+        </div>
+        {isLoadingAI || research.aiContentLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="flex flex-col items-center gap-3">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+              <p className="text-sm text-slate-500">
+                Generating intelligent questions...
+              </p>
+            </div>
+          </div>
+        ) : research.questionsToAsk && research.questionsToAsk.length > 0 ? (
+          <>
+            <p className="text-sm text-slate-600 mb-4">
+              These thoughtful questions demonstrate your research and genuine
+              interest:
+            </p>
+            <div className="space-y-3">
+              {research.questionsToAsk.map((question: string, idx: number) => (
+                <div
+                  key={idx}
+                  className="flex items-start gap-3 p-4 bg-white rounded-lg border border-blue-200 hover:shadow-md transition"
+                >
+                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">
+                    <span className="text-blue-600 text-xs font-semibold">
+                      {idx + 1}
+                    </span>
+                  </div>
+                  <p className="text-slate-700 flex-1 font-medium">
+                    {question}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="text-center py-8 text-slate-500">
             <Icon
               icon="mingcute:question-answer-line"
-              width={24}
-              className="text-blue-600"
+              width={48}
+              className="mx-auto mb-2 text-slate-300"
             />
-            <h3 className="text-xl font-semibold text-slate-900">
-              Intelligent Questions to Ask
-            </h3>
+            <p>
+              Click "Refresh Research" to generate intelligent questions to ask
+            </p>
           </div>
-          <p className="text-sm text-slate-600 mb-4">
-            These thoughtful questions demonstrate your research and genuine
-            interest:
-          </p>
-          <div className="space-y-3">
-            {research.questionsToAsk.map((question: string, idx: number) => (
-              <div
-                key={idx}
-                className="flex items-start gap-3 p-4 bg-white rounded-lg border border-blue-200 hover:shadow-md transition"
-              >
-                <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">
-                  <span className="text-blue-600 text-xs font-semibold">
-                    {idx + 1}
-                  </span>
-                </div>
-                <p className="text-slate-700 flex-1 font-medium">{question}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+        )}
+      </div>
+
+      {/* Preview Modal */}
+      <CompanyResearchPreviewModal
+        isOpen={showPreviewModal}
+        onClose={() => setShowPreviewModal(false)}
+        research={research}
+        companyName={interview?.company || ""}
+        jobTitle={interview?.title || ""}
+        onExport={handleExportFromPreview}
+        onShowAdvancedExport={() => {
+          setShowPreviewModal(false);
+          setTimeout(() => {
+            setShowExportModal(true);
+          }, 150);
+        }}
+        isExporting={isExporting}
+      />
+
+      {/* Export Modal */}
+      <CompanyResearchExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        onExport={handleExport}
+        defaultFilename={`company-research-${interview?.company || "research"}`}
+        isExporting={isExporting}
+      />
     </div>
   );
 }
@@ -1204,25 +2013,213 @@ function QuestionBankTab({
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [selectedDifficulty, setSelectedDifficulty] = useState<string>("all");
+  const [categoryDifficulty, setCategoryDifficulty] = useState<string>("all"); // Difficulty within selected category
   const [error, setError] = useState<string | null>(null);
+
+  // Detect role seniority level from job title and description
+  const detectRoleSeniority = (
+    roleTitle: string | null | undefined,
+    jobDescription: string | null | undefined
+  ): "entry" | "mid" | "senior" | null => {
+    if (!roleTitle && !jobDescription) return null;
+
+    const text = `${roleTitle || ""} ${jobDescription || ""}`.toLowerCase();
+
+    // Senior level indicators
+    const seniorIndicators = [
+      "senior",
+      "lead",
+      "principal",
+      "staff",
+      "architect",
+      "director",
+      "manager",
+      "head of",
+      "vp ",
+      "vice president",
+      "5+ years",
+      "7+ years",
+      "10+ years",
+      "8+ years",
+    ];
+
+    // Entry level indicators
+    const entryIndicators = [
+      "junior",
+      "entry",
+      "associate",
+      "intern",
+      "internship",
+      "0-2 years",
+      "1-2 years",
+      "new grad",
+      "new graduate",
+      "recent graduate",
+    ];
+
+    // Check for senior first (more specific)
+    if (seniorIndicators.some((indicator) => text.includes(indicator))) {
+      return "senior";
+    }
+
+    // Check for entry level
+    if (entryIndicators.some((indicator) => text.includes(indicator))) {
+      return "entry";
+    }
+
+    // Check for mid-level indicators (if explicitly mentioned)
+    const midIndicators = ["mid-level", "mid level", "3-5 years", "4-6 years"];
+    if (midIndicators.some((indicator) => text.includes(indicator))) {
+      return "mid";
+    }
+
+    // If no specific seniority detected, return null
+    return null;
+  };
+
+  const detectedSeniority = detectRoleSeniority(
+    interview?.title || jobOpportunity?.title,
+    jobOpportunity?.description
+  );
+  const [selectedQuestion, setSelectedQuestion] = useState<any>(null);
+  const [showQuestionDetail, setShowQuestionDetail] = useState(false);
+  const [showAnswerModal, setShowAnswerModal] = useState(false);
+  const [responseText, setResponseText] = useState("");
+  const [feedback, setFeedback] = useState<any>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [practicedQuestionIds, setPracticedQuestionIds] = useState<Set<string>>(
+    new Set()
+  );
+  const [pastResponses, setPastResponses] = useState<any[]>([]);
+  const [isLoadingPastResponses, setIsLoadingPastResponses] = useState(false);
+
+  const fetchPracticedQuestions = async () => {
+    if (!interview?.jobOpportunityId) return;
+    try {
+      const response = await api.getResponseHistory(
+        undefined,
+        undefined,
+        interview.jobOpportunityId
+      );
+      if (response.ok && response.data) {
+        const practicedIds = new Set(
+          (response.data.responses || [])
+            .map((r: any) => r.questionId)
+            .filter(Boolean)
+        );
+        setPracticedQuestionIds(practicedIds);
+      }
+    } catch (err: any) {
+      console.error("Failed to fetch practiced questions:", err);
+    }
+  };
+
+  const fetchPastResponses = async (questionId: string) => {
+    try {
+      setIsLoadingPastResponses(true);
+      const response = await api.getResponseHistory(undefined, questionId);
+      if (response.ok && response.data) {
+        setPastResponses(response.data.responses || []);
+      }
+    } catch (err: any) {
+      console.error("Failed to fetch past responses:", err);
+      setPastResponses([]);
+    } finally {
+      setIsLoadingPastResponses(false);
+    }
+  };
 
   useEffect(() => {
     if (interview?.jobOpportunityId) {
       fetchQuestions();
+      fetchPracticedQuestions();
     }
-  }, [interview?.jobOpportunityId, selectedCategory]);
+  }, [interview?.jobOpportunityId, selectedCategory, selectedDifficulty]);
+
+  // Filter questions based on detected seniority
+  const filteredQuestions = useMemo(() => {
+    let filtered = questions || [];
+
+    // If seniority is detected, only show questions at that level
+    // But include questions with null/undefined difficultyLevel (they might be from company insights)
+    if (detectedSeniority) {
+      const beforeFilter = filtered.length;
+      filtered = filtered.filter((q) => {
+        const qDifficulty = q.difficultyLevel?.toLowerCase()?.trim();
+        // Include questions that match the detected seniority OR have no difficulty level set
+        return qDifficulty === detectedSeniority || !qDifficulty;
+      });
+
+      // Log if questions were filtered out
+      if (beforeFilter > 0 && filtered.length === 0) {
+        console.warn(
+          `[QuestionBankTab] Detected ${detectedSeniority} seniority but no questions match. Total questions: ${beforeFilter}, difficulty levels:`,
+          questions.map((q) => q.difficultyLevel)
+        );
+      }
+    }
+
+    // Apply category filter
+    if (selectedCategory !== "all") {
+      filtered = filtered.filter(
+        (q) => q.category?.toLowerCase() === selectedCategory.toLowerCase()
+      );
+    }
+
+    // Apply difficulty filter only if no seniority is detected
+    if (!detectedSeniority && selectedDifficulty !== "all") {
+      filtered = filtered.filter(
+        (q) => q.difficultyLevel?.toLowerCase()?.trim() === selectedDifficulty
+      );
+    }
+
+    // Apply category-specific difficulty filter only if no seniority is detected
+    if (
+      !detectedSeniority &&
+      selectedCategory !== "all" &&
+      categoryDifficulty !== "all"
+    ) {
+      filtered = filtered.filter(
+        (q) => q.difficultyLevel?.toLowerCase()?.trim() === categoryDifficulty
+      );
+    }
+
+    return filtered;
+  }, [
+    questions,
+    selectedCategory,
+    selectedDifficulty,
+    categoryDifficulty,
+    detectedSeniority,
+  ]);
+
+  // Reset category difficulty when category changes
+  useEffect(() => {
+    setCategoryDifficulty("all");
+  }, [selectedCategory]);
 
   const fetchQuestions = async () => {
-    if (!interview.jobOpportunityId) return;
+    if (!interview?.jobOpportunityId) return;
     try {
       setIsLoading(true);
       setError(null);
       const response = await api.getQuestionBank(
         interview.jobOpportunityId,
-        selectedCategory !== "all" ? selectedCategory : undefined
+        selectedCategory !== "all" ? selectedCategory : undefined,
+        selectedDifficulty !== "all" ? selectedDifficulty : undefined
       );
       if (response.ok && response.data) {
-        setQuestions(response.data.questionBank.questions || []);
+        const questionsList = response.data.questionBank?.questions || [];
+        console.log(
+          `[QuestionBankTab] Fetched ${
+            questionsList.length
+          } questions. Detected seniority: ${detectedSeniority || "none"}`
+        );
+        setQuestions(questionsList);
+      } else {
+        console.error("[QuestionBankTab] Failed to fetch questions:", response);
+        setError(response.error?.message || "Failed to load questions");
       }
     } catch (err: any) {
       console.error("Failed to fetch questions:", err);
@@ -1242,8 +2239,19 @@ function QuestionBankTab({
         interview?.title,
         jobOpportunity?.industry
       );
-      if (response.ok) {
+      if (response.ok && response.data) {
+        console.log(
+          "[QuestionBankTab] Generated questions:",
+          response.data.count || response.data.questions?.length || 0
+        );
+        // Wait a bit for the database to be updated
+        await new Promise((resolve) => setTimeout(resolve, 500));
         await fetchQuestions();
+      } else {
+        setError(
+          response.error?.message ||
+            "Failed to generate question bank. Please try again."
+        );
       }
     } catch (err: any) {
       console.error("Failed to generate questions:", err);
@@ -1253,11 +2261,39 @@ function QuestionBankTab({
     }
   };
 
+  const handleSubmitResponse = async () => {
+    if (!selectedQuestion || !responseText.trim() || !interview?.id) return;
+    try {
+      setIsSubmitting(true);
+      setError(null);
+      const response = await api.submitInterviewResponse(
+        selectedQuestion.id,
+        responseText,
+        interview.id,
+        undefined,
+        interview.jobOpportunityId
+      );
+      if (response.ok && response.data) {
+        setFeedback(response.data.feedback);
+        // Refresh practiced questions after submitting a response
+        await fetchPracticedQuestions();
+      } else {
+        setError(response.error || "Failed to submit response");
+      }
+    } catch (err: any) {
+      console.error("Failed to submit response:", err);
+      setError(err.message || "Failed to submit response. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const categories = [
     "all",
     "behavioral",
     "technical",
     "situational",
+    "company",
     "culture",
     "other",
   ];
@@ -1291,31 +2327,132 @@ function QuestionBankTab({
         </button>
       </div>
 
+      {/* Job Description Highlight */}
+      {jobOpportunity?.jobDescription && (
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">
+          <div className="flex items-start gap-3 mb-3">
+            <Icon
+              icon="mingcute:file-text-line"
+              width={24}
+              className="text-blue-600 mt-1"
+            />
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-slate-900 mb-2">
+                Job Description Reference
+              </h3>
+              <p className="text-sm text-slate-600 mb-3">
+                Questions are linked to skills and requirements from this job
+                description
+              </p>
+              <div className="bg-white rounded-lg p-4 border border-blue-100 max-h-48 overflow-y-auto">
+                <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
+                  {jobOpportunity.jobDescription}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
           {error}
         </div>
       )}
 
-      {/* Category Filter */}
-      <div className="flex gap-2 flex-wrap">
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setSelectedCategory(cat)}
-            className={`px-4 py-2 rounded-lg font-medium transition ${
-              selectedCategory === cat
-                ? "bg-blue-500 text-white"
-                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-            }`}
-          >
-            {cat.charAt(0).toUpperCase() + cat.slice(1)}
-          </button>
-        ))}
+      {/* Filters */}
+      <div className="space-y-4">
+        <div>
+          <label className="text-sm font-medium text-slate-700 mb-2 block">
+            Filter by Category
+          </label>
+          <div className="flex gap-2 flex-wrap">
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-4 py-2 rounded-lg font-medium transition ${
+                  selectedCategory === cat
+                    ? "bg-blue-500 text-white"
+                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                }`}
+              >
+                {cat.charAt(0).toUpperCase() + cat.slice(1)}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Show difficulty filter only if no inherent seniority is detected */}
+        {!detectedSeniority && (
+          <>
+            {selectedCategory === "all" ? (
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-2 block">
+                  Filter by Difficulty Level
+                </label>
+                <div className="flex gap-2 flex-wrap">
+                  {["all", "entry", "mid", "senior"].map((diff) => (
+                    <button
+                      key={diff}
+                      onClick={() => setSelectedDifficulty(diff)}
+                      className={`px-4 py-2 rounded-lg font-medium transition ${
+                        selectedDifficulty === diff
+                          ? "bg-purple-500 text-white"
+                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                      }`}
+                    >
+                      {diff.charAt(0).toUpperCase() + diff.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-2 block">
+                  Difficulty Level for{" "}
+                  {selectedCategory.charAt(0).toUpperCase() +
+                    selectedCategory.slice(1)}{" "}
+                  Questions
+                </label>
+                <div className="flex gap-2 flex-wrap">
+                  {["all", "entry", "mid", "senior"].map((diff) => (
+                    <button
+                      key={diff}
+                      onClick={() => {
+                        setCategoryDifficulty(diff);
+                        setSelectedDifficulty(diff);
+                      }}
+                      className={`px-4 py-2 rounded-lg font-medium transition ${
+                        categoryDifficulty === diff
+                          ? "bg-purple-500 text-white"
+                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                      }`}
+                    >
+                      {diff.charAt(0).toUpperCase() + diff.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+        {detectedSeniority && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <p className="text-sm text-blue-700">
+              <strong>Note:</strong> This role is{" "}
+              <span className="font-semibold capitalize">
+                {detectedSeniority}-level
+              </span>
+              . Showing only {detectedSeniority}-level questions. Difficulty
+              filters are hidden since the role already specifies seniority.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Questions List */}
-      {questions.length === 0 ? (
+      {filteredQuestions.length === 0 ? (
         <div className="text-center py-12 border border-slate-200 rounded-lg">
           <Icon
             icon="mingcute:question-line"
@@ -1338,46 +2475,713 @@ function QuestionBankTab({
           </button>
         </div>
       ) : (
-        <div className="space-y-4">
-          {questions.map((q, idx) => (
-            <div
-              key={q.id || idx}
-              className="border border-slate-200 rounded-lg p-6 hover:shadow-md transition"
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded">
-                      {q.category || "other"}
-                    </span>
-                    {q.difficultyLevel && (
-                      <span className="px-2 py-1 bg-slate-100 text-slate-700 text-xs font-medium rounded">
-                        {q.difficultyLevel}
+        <>
+          {/* Group questions by difficulty when category is selected and no seniority is detected */}
+          {selectedCategory !== "all" &&
+          categoryDifficulty === "all" &&
+          !detectedSeniority ? (
+            <div className="space-y-6">
+              {["entry", "mid", "senior"].map((difficulty) => {
+                const difficultyQuestions = filteredQuestions.filter(
+                  (q) => q.difficultyLevel?.toLowerCase() === difficulty
+                );
+                if (difficultyQuestions.length === 0) return null;
+
+                return (
+                  <div key={difficulty} className="space-y-3">
+                    <div className="flex items-center gap-3 mb-4">
+                      <h3 className="text-xl font-bold text-slate-900 capitalize">
+                        {difficulty} Level Questions
+                      </h3>
+                      <span className="px-3 py-1 bg-purple-100 text-purple-700 text-sm font-semibold rounded-full">
+                        {difficultyQuestions.length}{" "}
+                        {difficultyQuestions.length === 1
+                          ? "question"
+                          : "questions"}
                       </span>
+                    </div>
+                    <div className="space-y-4">
+                      {difficultyQuestions.map((q, idx) => {
+                        const isPracticed = practicedQuestionIds.has(q.id);
+                        return (
+                          <div
+                            key={q.id || idx}
+                            onClick={async () => {
+                              setSelectedQuestion(q);
+                              setShowQuestionDetail(true);
+                              if (q.id) {
+                                await fetchPastResponses(q.id);
+                              }
+                            }}
+                            className={`border rounded-lg p-6 hover:shadow-md transition cursor-pointer ${
+                              isPracticed
+                                ? "border-green-300 bg-green-50/30"
+                                : "border-slate-200"
+                            }`}
+                          >
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-3 flex-wrap">
+                                  <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full">
+                                    {q.category || "other"}
+                                  </span>
+                                  <span className="px-3 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full">
+                                    {q.difficultyLevel}
+                                  </span>
+                                  {q.industrySpecific && (
+                                    <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
+                                      Industry-Specific
+                                    </span>
+                                  )}
+                                  {isPracticed && (
+                                    <span className="px-3 py-1 bg-green-500 text-white text-xs font-semibold rounded-full flex items-center gap-1">
+                                      <Icon
+                                        icon="mingcute:check-circle-line"
+                                        width={14}
+                                      />
+                                      Practiced
+                                    </span>
+                                  )}
+                                </div>
+                                <h4 className="text-lg font-semibold text-slate-900 mb-3">
+                                  {q.questionText}
+                                </h4>
+                                {q.linkedSkills &&
+                                  q.linkedSkills.length > 0 && (
+                                    <div className="flex flex-wrap gap-2 mb-3">
+                                      <span className="text-xs font-medium text-slate-600 self-center mr-1">
+                                        Skills:
+                                      </span>
+                                      {q.linkedSkills.map(
+                                        (skill: string, skillIdx: number) => (
+                                          <span
+                                            key={skillIdx}
+                                            className="px-2 py-1 bg-indigo-50 text-indigo-700 text-xs font-medium rounded border border-indigo-200"
+                                          >
+                                            {skill}
+                                          </span>
+                                        )
+                                      )}
+                                    </div>
+                                  )}
+                                {q.starFrameworkGuidance && (
+                                  <div className="bg-blue-50 border-l-4 border-blue-500 pl-4 py-2 rounded mb-2">
+                                    <p className="text-sm text-slate-700 line-clamp-2">
+                                      <strong className="text-blue-700">
+                                        STAR:
+                                      </strong>{" "}
+                                      {q.starFrameworkGuidance}
+                                    </p>
+                                  </div>
+                                )}
+                                <div className="flex items-center gap-2 text-sm text-blue-600 mt-3">
+                                  <Icon icon="mingcute:eye-line" width={16} />
+                                  <span className="font-medium">
+                                    Click to view detailed answer guidance
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {filteredQuestions.map((q, idx) => {
+                const isPracticed = practicedQuestionIds.has(q.id);
+                return (
+                  <div
+                    key={q.id || idx}
+                    onClick={async () => {
+                      setSelectedQuestion(q);
+                      setShowQuestionDetail(true);
+                      // Fetch past responses for this question
+                      if (q.id) {
+                        await fetchPastResponses(q.id);
+                      }
+                    }}
+                    className={`border rounded-lg p-6 hover:shadow-md transition cursor-pointer ${
+                      isPracticed
+                        ? "border-green-300 bg-green-50/30"
+                        : "border-slate-200"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-3 flex-wrap">
+                          <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full">
+                            {q.category || "other"}
+                          </span>
+                          {q.difficultyLevel && (
+                            <span className="px-3 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full">
+                              {q.difficultyLevel}
+                            </span>
+                          )}
+                          {q.industrySpecific && (
+                            <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
+                              Industry-Specific
+                            </span>
+                          )}
+                          {isPracticed && (
+                            <span className="px-3 py-1 bg-green-500 text-white text-xs font-semibold rounded-full flex items-center gap-1">
+                              <Icon
+                                icon="mingcute:check-circle-line"
+                                width={14}
+                              />
+                              Practiced
+                            </span>
+                          )}
+                        </div>
+                        <h4 className="text-lg font-semibold text-slate-900 mb-3">
+                          {q.questionText}
+                        </h4>
+                        {q.linkedSkills && q.linkedSkills.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mb-3">
+                            <span className="text-xs font-medium text-slate-600 self-center mr-1">
+                              Skills:
+                            </span>
+                            {q.linkedSkills.map(
+                              (skill: string, skillIdx: number) => (
+                                <span
+                                  key={skillIdx}
+                                  className="px-2 py-1 bg-indigo-50 text-indigo-700 text-xs font-medium rounded border border-indigo-200"
+                                >
+                                  {skill}
+                                </span>
+                              )
+                            )}
+                          </div>
+                        )}
+                        {q.starFrameworkGuidance && (
+                          <div className="bg-blue-50 border-l-4 border-blue-500 pl-4 py-2 rounded mb-2">
+                            <p className="text-sm text-slate-700 line-clamp-2">
+                              <strong className="text-blue-700">STAR:</strong>{" "}
+                              {q.starFrameworkGuidance}
+                            </p>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2 text-sm text-blue-600 mt-3">
+                          <Icon icon="mingcute:eye-line" width={16} />
+                          <span className="font-medium">
+                            Click to view detailed answer guidance
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Answer Question Modal */}
+          {showAnswerModal && selectedQuestion && (
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[110] p-4"
+              onClick={() => {
+                setShowAnswerModal(false);
+                setFeedback(null);
+              }}
+            >
+              <div
+                className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+                  <h3 className="text-2xl font-bold text-slate-900">
+                    Answer Question
+                  </h3>
+                  <button
+                    onClick={() => {
+                      setShowAnswerModal(false);
+                      setFeedback(null);
+                    }}
+                    className="p-2 hover:bg-slate-100 rounded-lg transition"
+                  >
+                    <Icon icon="mingcute:close-line" width={24} />
+                  </button>
+                </div>
+
+                <div className="p-6 space-y-6">
+                  {/* Question */}
+                  <div className="bg-blue-50 border-l-4 border-blue-500 rounded-lg p-4">
+                    <h4 className="font-semibold text-slate-900 mb-2">
+                      Question:
+                    </h4>
+                    <p className="text-slate-700">
+                      {selectedQuestion.questionText}
+                    </p>
+                    {selectedQuestion.starFrameworkGuidance && (
+                      <div className="mt-3 pt-3 border-t border-blue-200">
+                        <p className="text-sm text-slate-600">
+                          <strong>STAR Framework:</strong>{" "}
+                          {selectedQuestion.starFrameworkGuidance}
+                        </p>
+                      </div>
                     )}
                   </div>
-                  <h4 className="text-lg font-semibold text-slate-900 mb-2">
-                    {q.questionText}
-                  </h4>
-                  {q.starFrameworkGuidance && (
-                    <div className="bg-slate-50 border-l-4 border-blue-500 pl-4 py-2 rounded">
-                      <p className="text-sm text-slate-700">
-                        <strong>STAR Guidance:</strong>{" "}
-                        {q.starFrameworkGuidance}
-                      </p>
+
+                  {/* Response Input */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Your Response
+                    </label>
+                    <textarea
+                      value={responseText}
+                      onChange={(e) => setResponseText(e.target.value)}
+                      placeholder="Write your response here... Use the STAR method for behavioral questions."
+                      className="w-full h-64 p-4 border border-slate-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  {/* Feedback Display */}
+                  {feedback && (
+                    <div className="space-y-4 border-t border-slate-200 pt-6">
+                      <h4 className="text-xl font-semibold text-slate-900">
+                        AI Feedback
+                      </h4>
+
+                      {feedback.scores && (
+                        <div className="border border-slate-200 rounded-lg p-4">
+                          <h5 className="font-semibold text-slate-900 mb-3">
+                            Scores
+                          </h5>
+                          <div className="grid grid-cols-2 gap-4">
+                            {Object.entries(feedback.scores).map(
+                              ([key, value]: [string, any]) => (
+                                <div key={key}>
+                                  <div className="flex items-center justify-between mb-1">
+                                    <span className="text-sm text-slate-600 capitalize">
+                                      {key}
+                                    </span>
+                                    <span className="font-semibold text-slate-900">
+                                      {value}/100
+                                    </span>
+                                  </div>
+                                  <div className="w-full bg-slate-200 rounded-full h-2">
+                                    <div
+                                      className="bg-blue-500 h-2 rounded-full"
+                                      style={{ width: `${value}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              )
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {feedback.aiFeedback && (
+                        <div className="border border-slate-200 rounded-lg p-4">
+                          <h5 className="font-semibold text-slate-900 mb-3">
+                            Detailed Feedback
+                          </h5>
+                          {feedback.aiFeedback.content && (
+                            <div className="mb-3">
+                              <p className="text-sm font-medium text-slate-700 mb-1">
+                                Content:
+                              </p>
+                              <p className="text-slate-600 text-sm">
+                                {feedback.aiFeedback.content}
+                              </p>
+                            </div>
+                          )}
+                          {feedback.aiFeedback.strengths &&
+                            feedback.aiFeedback.strengths.length > 0 && (
+                              <div className="mb-3">
+                                <p className="text-sm font-medium text-green-700 mb-1">
+                                  Strengths:
+                                </p>
+                                <ul className="list-disc list-inside text-slate-600 text-sm">
+                                  {feedback.aiFeedback.strengths.map(
+                                    (s: string, idx: number) => (
+                                      <li key={idx}>{s}</li>
+                                    )
+                                  )}
+                                </ul>
+                              </div>
+                            )}
+                          {feedback.aiFeedback.weaknesses &&
+                            feedback.aiFeedback.weaknesses.length > 0 && (
+                              <div>
+                                <p className="text-sm font-medium text-red-700 mb-1">
+                                  Areas for Improvement:
+                                </p>
+                                <ul className="list-disc list-inside text-slate-600 text-sm">
+                                  {feedback.aiFeedback.weaknesses.map(
+                                    (w: string, idx: number) => (
+                                      <li key={idx}>{w}</li>
+                                    )
+                                  )}
+                                </ul>
+                              </div>
+                            )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {error && (
+                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                      {error}
                     </div>
                   )}
                 </div>
+
+                <div className="sticky bottom-0 bg-slate-50 border-t border-slate-200 px-6 py-4 flex justify-end gap-3">
+                  <button
+                    onClick={() => {
+                      setShowAnswerModal(false);
+                      setFeedback(null);
+                      setResponseText("");
+                    }}
+                    className="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={handleSubmitResponse}
+                    disabled={!responseText.trim() || isSubmitting}
+                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50"
+                  >
+                    {isSubmitting
+                      ? "Analyzing..."
+                      : feedback
+                      ? "Submit Another Response"
+                      : "Get AI Feedback"}
+                  </button>
+                </div>
               </div>
             </div>
-          ))}
-        </div>
+          )}
+
+          {/* Question Detail Modal */}
+          {showQuestionDetail && selectedQuestion && (
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[110] p-4"
+              onClick={() => setShowQuestionDetail(false)}
+            >
+              <div
+                className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+                  <h3 className="text-2xl font-bold text-slate-900">
+                    Question Details
+                  </h3>
+                  <button
+                    onClick={() => setShowQuestionDetail(false)}
+                    className="p-2 hover:bg-slate-100 rounded-lg transition"
+                  >
+                    <Icon icon="mingcute:close-line" width={24} />
+                  </button>
+                </div>
+
+                <div className="p-6 space-y-6">
+                  {/* Question Header */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-4 flex-wrap">
+                      <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full">
+                        {selectedQuestion.category || "other"}
+                      </span>
+                      {selectedQuestion.difficultyLevel && (
+                        <span className="px-3 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full">
+                          {selectedQuestion.difficultyLevel}
+                        </span>
+                      )}
+                      {selectedQuestion.industrySpecific && (
+                        <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
+                          Industry-Specific
+                        </span>
+                      )}
+                    </div>
+                    <h4 className="text-2xl font-bold text-slate-900 mb-4">
+                      {selectedQuestion.questionText}
+                    </h4>
+                  </div>
+
+                  {/* Linked Skills */}
+                  {selectedQuestion.linkedSkills &&
+                    selectedQuestion.linkedSkills.length > 0 && (
+                      <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+                        <h5 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                          <Icon icon="mingcute:link-line" width={18} />
+                          Linked Skills from Job Description
+                        </h5>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedQuestion.linkedSkills.map(
+                            (skill: string, idx: number) => (
+                              <span
+                                key={idx}
+                                className="px-3 py-1 bg-indigo-100 text-indigo-700 text-sm font-medium rounded-full border border-indigo-300"
+                              >
+                                {skill}
+                              </span>
+                            )
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                  {/* Why This Question is Asked */}
+                  {selectedQuestion.whyAsked && (
+                    <div className="bg-amber-50 border-l-4 border-amber-500 rounded-lg p-4">
+                      <h5 className="font-semibold text-slate-900 mb-2 flex items-center gap-2">
+                        <Icon icon="mingcute:lightbulb-line" width={18} />
+                        Why This Question is Asked
+                      </h5>
+                      <p className="text-slate-700 leading-relaxed">
+                        {selectedQuestion.whyAsked}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* STAR Framework Guidance */}
+                  {selectedQuestion.starFrameworkGuidance && (
+                    <div className="bg-blue-50 border-l-4 border-blue-500 rounded-lg p-4">
+                      <h5 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                        <Icon icon="mingcute:target-line" width={18} />
+                        STAR Method Framework
+                      </h5>
+                      <div className="space-y-3">
+                        {selectedQuestion.starFrameworkGuidance.includes(
+                          "Situation"
+                        ) ||
+                        selectedQuestion.starFrameworkGuidance.includes(
+                          "Task"
+                        ) ||
+                        selectedQuestion.starFrameworkGuidance.includes(
+                          "Action"
+                        ) ||
+                        selectedQuestion.starFrameworkGuidance.includes(
+                          "Result"
+                        ) ? (
+                          <div className="space-y-2">
+                            {selectedQuestion.starFrameworkGuidance
+                              .split(/(?=Situation|Task|Action|Result)/)
+                              .map((section: string, idx: number) => {
+                                if (!section.trim()) return null;
+                                const isHeader =
+                                  /^(Situation|Task|Action|Result)/i.test(
+                                    section
+                                  );
+                                return (
+                                  <div
+                                    key={idx}
+                                    className={
+                                      isHeader ? "mt-3 first:mt-0" : ""
+                                    }
+                                  >
+                                    {isHeader ? (
+                                      <p className="font-semibold text-blue-700 mb-1">
+                                        {section.split(":")[0]}:
+                                      </p>
+                                    ) : null}
+                                    <p className="text-slate-700 leading-relaxed ml-4">
+                                      {isHeader
+                                        ? section
+                                            .split(":")
+                                            .slice(1)
+                                            .join(":")
+                                            .trim()
+                                        : section}
+                                    </p>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        ) : (
+                          <p className="text-slate-700 leading-relaxed">
+                            {selectedQuestion.starFrameworkGuidance}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Detailed Answer Guidance */}
+                  {selectedQuestion.answerGuidance && (
+                    <div className="bg-green-50 border-l-4 border-green-500 rounded-lg p-4">
+                      <h5 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                        <Icon icon="mingcute:check-circle-line" width={18} />
+                        How to Answer This Question
+                      </h5>
+                      <div className="text-slate-700 leading-relaxed whitespace-pre-wrap">
+                        {selectedQuestion.answerGuidance}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Job Description Reference */}
+                  {jobOpportunity?.jobDescription && (
+                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                      <h5 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                        <Icon icon="mingcute:file-text-line" width={18} />
+                        Job Description Reference
+                      </h5>
+                      <div className="max-h-48 overflow-y-auto">
+                        <p className="text-sm text-slate-700 leading-relaxed">
+                          {jobOpportunity.jobDescription}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Past Responses */}
+                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                    <h5 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                      <Icon icon="mingcute:history-line" width={18} />
+                      Past Practice Responses
+                    </h5>
+                    {isLoadingPastResponses ? (
+                      <div className="flex items-center justify-center py-4">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-500"></div>
+                        <span className="ml-2 text-sm text-slate-600">
+                          Loading responses...
+                        </span>
+                      </div>
+                    ) : pastResponses.length > 0 ? (
+                      <div className="space-y-4 max-h-96 overflow-y-auto">
+                        {pastResponses.map((response: any, idx: number) => (
+                          <div
+                            key={response.id || idx}
+                            className="bg-white rounded-lg p-4 border border-purple-200"
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xs font-medium text-slate-500">
+                                {new Date(
+                                  response.createdAt || response.created_at
+                                ).toLocaleDateString()}{" "}
+                                at{" "}
+                                {new Date(
+                                  response.createdAt || response.created_at
+                                ).toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </span>
+                              {response.scores && (
+                                <div className="flex items-center gap-2">
+                                  {Object.entries(response.scores)
+                                    .slice(0, 2)
+                                    .map(([key, value]: [string, any]) => (
+                                      <span
+                                        key={key}
+                                        className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded"
+                                      >
+                                        {key}: {value}/100
+                                      </span>
+                                    ))}
+                                </div>
+                              )}
+                            </div>
+                            <div className="mb-3">
+                              <p className="text-xs font-medium text-slate-600 mb-1">
+                                Your Response:
+                              </p>
+                              <p className="text-sm text-slate-700 bg-slate-50 p-2 rounded border border-slate-200">
+                                {response.originalResponse ||
+                                  response.original_response}
+                              </p>
+                            </div>
+                            {response.aiFeedback && (
+                              <div className="border-t border-purple-200 pt-3">
+                                <p className="text-xs font-medium text-slate-600 mb-1">
+                                  AI Feedback:
+                                </p>
+                                {response.aiFeedback.content && (
+                                  <p className="text-xs text-slate-600 mb-2">
+                                    {response.aiFeedback.content}
+                                  </p>
+                                )}
+                                {response.aiFeedback.strengths &&
+                                  response.aiFeedback.strengths.length > 0 && (
+                                    <div className="mb-2">
+                                      <p className="text-xs font-medium text-green-700 mb-1">
+                                        Strengths:
+                                      </p>
+                                      <ul className="text-xs text-slate-600 list-disc list-inside">
+                                        {response.aiFeedback.strengths
+                                          .slice(0, 2)
+                                          .map((s: string, i: number) => (
+                                            <li key={i}>{s}</li>
+                                          ))}
+                                      </ul>
+                                    </div>
+                                  )}
+                                {response.aiFeedback.weaknesses &&
+                                  response.aiFeedback.weaknesses.length > 0 && (
+                                    <div>
+                                      <p className="text-xs font-medium text-red-700 mb-1">
+                                        Areas to Improve:
+                                      </p>
+                                      <ul className="text-xs text-slate-600 list-disc list-inside">
+                                        {response.aiFeedback.weaknesses
+                                          .slice(0, 2)
+                                          .map((w: string, i: number) => (
+                                            <li key={i}>{w}</li>
+                                          ))}
+                                      </ul>
+                                    </div>
+                                  )}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-6 text-slate-500">
+                        <Icon
+                          icon="mingcute:file-text-line"
+                          width={32}
+                          className="mx-auto mb-2 text-slate-300"
+                        />
+                        <p className="text-sm">
+                          No past responses yet. Practice this question to see
+                          your responses here.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="sticky bottom-0 bg-slate-50 border-t border-slate-200 px-6 py-4 flex justify-end gap-3">
+                  <button
+                    onClick={() => {
+                      setShowQuestionDetail(false);
+                      setFeedback(null);
+                    }}
+                    className="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowQuestionDetail(false);
+                      setShowAnswerModal(true);
+                      setResponseText("");
+                      setFeedback(null);
+                    }}
+                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
+                  >
+                    Answer This Question
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
 }
 
-// Response Coaching Tab Component (UC-076)
+// Response Coaching Tab Component (UC-076) - Chat-based coaching
 function ResponseCoachingTab({
   interview,
   jobOpportunity,
@@ -1385,295 +3189,262 @@ function ResponseCoachingTab({
   interview: InterviewData | null;
   jobOpportunity: JobOpportunityData | null;
 }) {
-  const [selectedQuestion, setSelectedQuestion] = useState<any>(null);
-  const [responseText, setResponseText] = useState("");
-  const [feedback, setFeedback] = useState<any>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [questions, setQuestions] = useState<any[]>([]);
-  const [responseHistory, setResponseHistory] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [messages, setMessages] = useState<
+    Array<{ role: "user" | "assistant"; content: string; timestamp: Date }>
+  >([]);
+  const [inputMessage, setInputMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(true);
+  const [isSuggestionsMinimized, setIsSuggestionsMinimized] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (interview?.jobOpportunityId) {
-      fetchQuestions();
-      fetchResponseHistory();
-    }
-  }, [interview?.jobOpportunityId]);
+    fetchSuggestions();
+    // Add initial greeting message
+    setMessages([
+      {
+        role: "assistant",
+        content:
+          "Hi! I'm your interview coach. I can help you improve your interview performance based on your past mock interview sessions. What would you like to work on?",
+        timestamp: new Date(),
+      },
+    ]);
+  }, [interview?.id]);
 
-  const fetchQuestions = async () => {
-    if (!interview.jobOpportunityId) return;
+  useEffect(() => {
+    // Auto-scroll to bottom when new messages arrive
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const fetchSuggestions = async () => {
     try {
-      const response = await api.getQuestionBank(interview.jobOpportunityId);
+      setIsLoadingSuggestions(true);
+      const response = await api.getCoachingSuggestions(interview?.id);
       if (response.ok && response.data) {
-        setQuestions(response.data.questionBank.questions || []);
+        setSuggestions(response.data.suggestions || []);
       }
     } catch (err: any) {
-      console.error("Failed to fetch questions:", err);
+      console.error("Failed to fetch suggestions:", err);
+    } finally {
+      setIsLoadingSuggestions(false);
+    }
+  };
+
+  const handleSendMessage = async (message?: string) => {
+    const messageToSend = message || inputMessage.trim();
+    if (!messageToSend || isLoading) return;
+
+    // Add user message
+    const userMessage = {
+      role: "user" as const,
+      content: messageToSend,
+      timestamp: new Date(),
+    };
+    setMessages((prev) => [...prev, userMessage]);
+    setInputMessage("");
+
+    // Get AI response
+    try {
+      setIsLoading(true);
+      const response = await api.sendCoachingMessage(
+        messageToSend,
+        interview?.id
+      );
+      if (response.ok && response.data) {
+        const aiMessage = {
+          role: "assistant" as const,
+          content: response.data.response,
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, aiMessage]);
+      } else {
+        const errorMessage = {
+          role: "assistant" as const,
+          content:
+            "I apologize, but I'm having trouble responding right now. Please try again.",
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, errorMessage]);
+      }
+    } catch (err: any) {
+      console.error("Failed to send message:", err);
+      const errorMessage = {
+        role: "assistant" as const,
+        content: "I apologize, but I encountered an error. Please try again.",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const fetchResponseHistory = async () => {
-    try {
-      const response = await api.getResponseHistory(interview?.id);
-      if (response.ok && response.data) {
-        setResponseHistory(response.data.responses || []);
-      }
-    } catch (err: any) {
-      console.error("Failed to fetch response history:", err);
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
     }
   };
-
-  const handleSubmitResponse = async () => {
-    if (!selectedQuestion || !responseText.trim()) return;
-    try {
-      setIsSubmitting(true);
-      const response = await api.submitInterviewResponse(
-        selectedQuestion.id,
-        responseText,
-        interview?.id,
-        undefined,
-        interview?.jobOpportunityId
-      );
-      if (response.ok && response.data) {
-        setFeedback(response.data.feedback);
-        setResponseText("");
-        await fetchResponseHistory();
-      }
-    } catch (err: any) {
-      console.error("Failed to submit response:", err);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <div className="text-center py-12">
-        <Icon
-          icon="mingcute:loading-line"
-          width={48}
-          className="animate-spin mx-auto text-blue-500 mb-4"
-        />
-        <p className="text-slate-600">Loading questions...</p>
-      </div>
-    );
-  }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Left: Question Selection and Response Writing */}
-      <div className="space-y-6">
-        <div>
-          <h3 className="text-xl font-semibold text-slate-900 mb-4">
-            Select a Question
-          </h3>
-          <div className="space-y-2 max-h-96 overflow-y-auto">
-            {questions.length === 0 ? (
-              <p className="text-slate-600 text-center py-8">
-                No questions available. Generate a question bank first.
-              </p>
-            ) : (
-              questions.map((q, idx) => (
-                <button
-                  key={q.id || idx}
-                  onClick={() => {
-                    setSelectedQuestion(q);
-                    setFeedback(null);
-                    setResponseText("");
-                  }}
-                  className={`w-full text-left p-4 rounded-lg border transition ${
-                    selectedQuestion?.id === q.id
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-slate-200 hover:border-slate-300"
-                  }`}
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="px-2 py-1 bg-slate-100 text-slate-700 text-xs font-medium rounded">
-                      {q.category}
-                    </span>
-                  </div>
-                  <p className="font-medium text-slate-900">{q.questionText}</p>
-                </button>
-              ))
-            )}
+    <div className="flex flex-col h-[calc(100vh-300px)] max-h-[800px] bg-white border border-slate-200 rounded-xl overflow-hidden">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-green-200 px-6 py-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-green-500 rounded-lg">
+            <Icon icon="mingcute:chat-line" width={24} className="text-white" />
           </div>
-        </div>
-
-        {selectedQuestion && (
           <div>
-            <h3 className="text-xl font-semibold text-slate-900 mb-4">
-              Write Your Response
-            </h3>
-            <div className="border border-slate-200 rounded-lg p-4 mb-4 bg-slate-50">
-              <p className="text-slate-900 font-medium mb-2">
-                {selectedQuestion.questionText}
-              </p>
-              {selectedQuestion.starFrameworkGuidance && (
-                <p className="text-sm text-slate-600">
-                  {selectedQuestion.starFrameworkGuidance}
-                </p>
-              )}
-            </div>
-            <textarea
-              value={responseText}
-              onChange={(e) => setResponseText(e.target.value)}
-              placeholder="Write your response here... Use the STAR method for behavioral questions."
-              className="w-full h-48 p-4 border border-slate-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <button
-              onClick={handleSubmitResponse}
-              disabled={!responseText.trim() || isSubmitting}
-              className="mt-4 w-full bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition disabled:opacity-50"
-            >
-              {isSubmitting ? "Analyzing..." : "Get AI Feedback"}
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Right: Feedback Display */}
-      <div>
-        <h3 className="text-xl font-semibold text-slate-900 mb-4">
-          AI Feedback
-        </h3>
-        {feedback ? (
-          <div className="space-y-4">
-            {/* Scores */}
-            {feedback.scores && (
-              <div className="border border-slate-200 rounded-lg p-6">
-                <h4 className="font-semibold text-slate-900 mb-4">Scores</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  {Object.entries(feedback.scores).map(
-                    ([key, value]: [string, any]) => (
-                      <div key={key}>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm text-slate-600 capitalize">
-                            {key}
-                          </span>
-                          <span className="font-semibold text-slate-900">
-                            {value}/100
-                          </span>
-                        </div>
-                        <div className="w-full bg-slate-200 rounded-full h-2">
-                          <div
-                            className="bg-blue-500 h-2 rounded-full"
-                            style={{ width: `${value}%` }}
-                          />
-                        </div>
-                      </div>
-                    )
-                  )}
-                </div>
-                {feedback.starScore !== null &&
-                  feedback.starScore !== undefined && (
-                    <div className="mt-4 pt-4 border-t border-slate-200">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm text-slate-600">
-                          STAR Method Adherence
-                        </span>
-                        <span className="font-semibold text-slate-900">
-                          {feedback.starScore}/100
-                        </span>
-                      </div>
-                      <div className="w-full bg-slate-200 rounded-full h-2">
-                        <div
-                          className="bg-green-500 h-2 rounded-full"
-                          style={{ width: `${feedback.starScore}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
-              </div>
-            )}
-
-            {/* AI Feedback */}
-            {feedback.aiFeedback && (
-              <div className="border border-slate-200 rounded-lg p-6">
-                <h4 className="font-semibold text-slate-900 mb-4">
-                  Detailed Feedback
-                </h4>
-                {feedback.aiFeedback.content && (
-                  <div className="mb-4">
-                    <h5 className="font-medium text-slate-900 mb-2">Content</h5>
-                    <p className="text-slate-700 text-sm">
-                      {feedback.aiFeedback.content}
-                    </p>
-                  </div>
-                )}
-                {feedback.aiFeedback.structure && (
-                  <div className="mb-4">
-                    <h5 className="font-medium text-slate-900 mb-2">
-                      Structure
-                    </h5>
-                    <p className="text-slate-700 text-sm">
-                      {feedback.aiFeedback.structure}
-                    </p>
-                  </div>
-                )}
-                {feedback.aiFeedback.strengths &&
-                  feedback.aiFeedback.strengths.length > 0 && (
-                    <div className="mb-4">
-                      <h5 className="font-medium text-green-700 mb-2">
-                        Strengths
-                      </h5>
-                      <ul className="list-disc list-inside space-y-1 text-slate-700 text-sm">
-                        {feedback.aiFeedback.strengths.map(
-                          (s: string, idx: number) => (
-                            <li key={idx}>{s}</li>
-                          )
-                        )}
-                      </ul>
-                    </div>
-                  )}
-                {feedback.aiFeedback.weaknesses &&
-                  feedback.aiFeedback.weaknesses.length > 0 && (
-                    <div>
-                      <h5 className="font-medium text-red-700 mb-2">
-                        Areas for Improvement
-                      </h5>
-                      <ul className="list-disc list-inside space-y-1 text-slate-700 text-sm">
-                        {feedback.aiFeedback.weaknesses.map(
-                          (w: string, idx: number) => (
-                            <li key={idx}>{w}</li>
-                          )
-                        )}
-                      </ul>
-                    </div>
-                  )}
-              </div>
-            )}
-
-            {/* Improvement Suggestions */}
-            {feedback.improvementSuggestions &&
-              feedback.improvementSuggestions.length > 0 && (
-                <div className="border border-slate-200 rounded-lg p-6">
-                  <h4 className="font-semibold text-slate-900 mb-4">
-                    Improvement Suggestions
-                  </h4>
-                  <ul className="list-disc list-inside space-y-2 text-slate-700">
-                    {feedback.improvementSuggestions.map(
-                      (s: string, idx: number) => (
-                        <li key={idx}>{s}</li>
-                      )
-                    )}
-                  </ul>
-                </div>
-              )}
-          </div>
-        ) : (
-          <div className="border border-slate-200 rounded-lg p-12 text-center">
-            <Icon
-              icon="mingcute:chat-line"
-              width={64}
-              className="mx-auto text-slate-300 mb-4"
-            />
-            <p className="text-slate-600">
-              Select a question and write a response to receive AI feedback.
+            <h2 className="text-xl font-bold text-slate-900">
+              Interview Response Coaching
+            </h2>
+            <p className="text-sm text-slate-600">
+              Get personalized coaching based on your mock interview performance
             </p>
           </div>
+        </div>
+      </div>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50">
+        {messages.map((message, idx) => (
+          <div
+            key={idx}
+            className={`flex ${
+              message.role === "user" ? "justify-end" : "justify-start"
+            }`}
+          >
+            <div
+              className={`max-w-[80%] rounded-lg p-4 ${
+                message.role === "user"
+                  ? "bg-blue-500 text-white"
+                  : "bg-white border border-slate-200 text-slate-900"
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                {message.role === "assistant" && (
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+                    <Icon
+                      icon="mingcute:robot-line"
+                      width={18}
+                      className="text-green-600"
+                    />
+                  </div>
+                )}
+                <div className="flex-1">
+                  {message.role === "assistant" ? (
+                    <div className="prose prose-sm max-w-none prose-slate prose-headings:text-slate-900 prose-p:text-slate-700 prose-strong:text-slate-900 prose-ul:text-slate-700 prose-ol:text-slate-700 prose-li:text-slate-700 prose-code:text-slate-900 prose-code:bg-slate-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-slate-100 prose-pre:text-slate-900 prose-a:text-green-600 prose-a:no-underline hover:prose-a:underline">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {message.content}
+                      </ReactMarkdown>
+                    </div>
+                  ) : (
+                    <p className="whitespace-pre-wrap leading-relaxed">
+                      {message.content}
+                    </p>
+                  )}
+                  <span
+                    className={`text-xs mt-2 block ${
+                      message.role === "user"
+                        ? "text-blue-100"
+                        : "text-slate-500"
+                    }`}
+                  >
+                    {message.timestamp.toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                </div>
+                {message.role === "user" && (
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-400 flex items-center justify-center">
+                    <Icon
+                      icon="mingcute:user-line"
+                      width={18}
+                      className="text-white"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+        {isLoading && (
+          <div className="flex justify-start">
+            <div className="bg-white border border-slate-200 rounded-lg p-4">
+              <div className="flex items-center gap-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-500"></div>
+                <span className="text-slate-600 text-sm">Thinking...</span>
+              </div>
+            </div>
+          </div>
         )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Suggested Questions */}
+      {suggestions.length > 0 && (
+        <div className="bg-slate-100 border-t border-slate-200">
+          <button
+            onClick={() => setIsSuggestionsMinimized(!isSuggestionsMinimized)}
+            className="w-full px-6 py-2 flex items-center justify-between hover:bg-slate-200 transition"
+          >
+            <p className="text-xs font-medium text-slate-600">
+              Suggested questions
+            </p>
+            <Icon
+              icon={
+                isSuggestionsMinimized
+                  ? "mingcute:up-line"
+                  : "mingcute:down-line"
+              }
+              width={16}
+              className="text-slate-600"
+            />
+          </button>
+          {!isSuggestionsMinimized && (
+            <div className="px-6 pb-3">
+              <div className="flex flex-wrap gap-2">
+                {suggestions.map((suggestion, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handleSendMessage(suggestion)}
+                    className="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition"
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Input */}
+      <div className="border-t border-slate-200 bg-white p-4">
+        <div className="flex gap-3">
+          <textarea
+            value={inputMessage}
+            onChange={(e) => setInputMessage(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder="Ask me about your interview performance, areas to improve, or how to structure better answers..."
+            className="flex-1 p-3 border border-slate-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-green-500"
+            rows={2}
+            disabled={isLoading}
+          />
+          <button
+            onClick={() => handleSendMessage()}
+            disabled={!inputMessage.trim() || isLoading}
+            className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            <Icon icon="mingcute:send-plane-line" width={20} />
+            <span className="hidden sm:inline">Send</span>
+          </button>
+        </div>
+        <p className="text-xs text-slate-500 mt-2">
+          Press Enter to send, Shift+Enter for new line
+        </p>
       </div>
     </div>
   );
@@ -1855,13 +3626,13 @@ function MockInterviewTab({
       setIsCompleting(true);
       setIsGeneratingSummary(true);
       setShowPerformanceModal(true);
-      
+
       const response = await api.completeMockInterviewSession(session.id);
       if (response.ok && response.data) {
         // Get the performance summary from the response
         const summary = response.data.performanceSummary;
         setPerformanceSummary(summary);
-        
+
         await fetchSessionHistory();
         // Reload session to update status
         const sessionResponse = await api.getMockInterviewSession(session.id);
@@ -2160,7 +3931,10 @@ function MockInterviewTab({
                     Analyzing your responses and generating feedback...
                   </p>
                   <div className="w-full max-w-md mt-6 bg-slate-200 rounded-full h-2">
-                    <div className="bg-blue-500 h-2 rounded-full animate-pulse" style={{ width: "60%" }}></div>
+                    <div
+                      className="bg-blue-500 h-2 rounded-full animate-pulse"
+                      style={{ width: "60%" }}
+                    ></div>
                   </div>
                 </div>
               ) : performanceSummary ? (
@@ -2333,13 +4107,17 @@ function MockInterviewTab({
                           <div className="text-3xl font-bold text-blue-600 mb-1">
                             {performanceSummary.responseQuality.relevance}
                           </div>
-                          <div className="text-sm text-slate-600">Relevance</div>
+                          <div className="text-sm text-slate-600">
+                            Relevance
+                          </div>
                         </div>
                         <div className="text-center">
                           <div className="text-3xl font-bold text-green-600 mb-1">
                             {performanceSummary.responseQuality.specificity}
                           </div>
-                          <div className="text-sm text-slate-600">Specificity</div>
+                          <div className="text-sm text-slate-600">
+                            Specificity
+                          </div>
                         </div>
                         <div className="text-center">
                           <div className="text-3xl font-bold text-purple-600 mb-1">
@@ -2357,7 +4135,8 @@ function MockInterviewTab({
                       <h3 className="text-lg font-semibold text-slate-900 mb-4">
                         Confidence Building
                       </h3>
-                      {performanceSummary.confidenceBuilding.exercises?.length > 0 && (
+                      {performanceSummary.confidenceBuilding.exercises?.length >
+                        0 && (
                         <div className="mb-4">
                           <h4 className="font-semibold text-slate-800 mb-2">
                             Recommended Exercises
@@ -2381,7 +4160,8 @@ function MockInterviewTab({
                           </ul>
                         </div>
                       )}
-                      {performanceSummary.confidenceBuilding.techniques?.length > 0 && (
+                      {performanceSummary.confidenceBuilding.techniques
+                        ?.length > 0 && (
                         <div>
                           <h4 className="font-semibold text-slate-800 mb-2">
                             Techniques to Try
@@ -2465,9 +4245,20 @@ function TechnicalPrepTab({
   );
   const [attemptHistory, setAttemptHistory] = useState<any[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [expandedAttemptId, setExpandedAttemptId] = useState<string | null>(
+    null
+  );
   const [progress, setProgress] = useState<any>(null);
   const [startTime, setStartTime] = useState<number | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
+  const [editorLanguage, setEditorLanguage] = useState<
+    "python" | "javascript" | "java" | "cpp"
+  >("python");
+  const [testResults, setTestResults] = useState<any>(null);
+  const [isRunning, setIsRunning] = useState(false);
+  const [isRunningTests, setIsRunningTests] = useState(false);
+  const [consoleOutput, setConsoleOutput] = useState<string[]>([]);
+  const [codeOutput, setCodeOutput] = useState<any>(null);
 
   useEffect(() => {
     fetchChallenges();
@@ -2532,15 +4323,564 @@ function TechnicalPrepTab({
     }
   };
 
+  const executeJavaScript = (code: string, testCases: any[]): any[] => {
+    const results: any[] = [];
+    const consoleLogs: string[] = [];
+
+    // Capture console.log
+    const originalConsoleLog = console.log;
+    console.log = (...args: any[]) => {
+      consoleLogs.push(
+        args
+          .map((arg) =>
+            typeof arg === "object" ? JSON.stringify(arg, null, 2) : String(arg)
+          )
+          .join(" ")
+      );
+      originalConsoleLog.apply(console, args);
+    };
+
+    // Wrap code in an IIFE to capture the function
+    // Try to extract function name or create a wrapper
+    let userFunction: any = null;
+    let functionName: string | null = null;
+
+    // Try to find function declarations
+    const functionPatterns = [
+      /function\s+(\w+)\s*\(/,
+      /const\s+(\w+)\s*=\s*(?:\([^)]*\)\s*=>|function)/,
+      /let\s+(\w+)\s*=\s*(?:\([^)]*\)\s*=>|function)/,
+      /var\s+(\w+)\s*=\s*(?:\([^)]*\)\s*=>|function)/,
+    ];
+
+    for (const pattern of functionPatterns) {
+      const match = code.match(pattern);
+      if (match) {
+        functionName = match[1];
+        break;
+      }
+    }
+
+    try {
+      // Create isolated scope for execution
+      const isolatedCode = `
+        (function() {
+          ${code}
+          ${functionName ? `return ${functionName};` : "return null;"}
+        })()
+      `;
+
+      // Execute in a try-catch to capture the function
+      try {
+        userFunction = eval(isolatedCode);
+      } catch (e) {
+        // If that fails, try executing the code directly and then accessing the function
+        eval(code);
+        if (functionName) {
+          userFunction =
+            (window as any)[functionName] || (globalThis as any)[functionName];
+        }
+      }
+
+      // If we still don't have a function, try to wrap the code
+      if (!userFunction) {
+        // Assume the code is a function body and wrap it
+        const wrappedCode = `(function() { return (${code}); })()`;
+        try {
+          userFunction = eval(wrappedCode);
+        } catch (e) {
+          // Last resort: try to execute as-is
+          userFunction = eval(`(${code})`);
+        }
+      }
+
+      // Store console logs (will be set after execution)
+      const logsToStore = [...consoleLogs];
+
+      // Execute test cases
+      testCases.forEach((testCase, idx) => {
+        const startTime = performance.now();
+        try {
+          let actualOutput: any;
+
+          if (userFunction && typeof userFunction === "function") {
+            // Call the function with test input
+            if (Array.isArray(testCase.input)) {
+              actualOutput = userFunction(...testCase.input);
+            } else if (
+              typeof testCase.input === "object" &&
+              testCase.input !== null &&
+              !Array.isArray(testCase.input)
+            ) {
+              // For object inputs, try to spread or pass as single arg
+              const keys = Object.keys(testCase.input);
+              if (keys.length === 1) {
+                actualOutput = userFunction(testCase.input[keys[0]]);
+              } else {
+                actualOutput = userFunction(...Object.values(testCase.input));
+              }
+            } else {
+              actualOutput = userFunction(testCase.input);
+            }
+          } else {
+            throw new Error(
+              "Could not find or execute function. Make sure your code defines a function."
+            );
+          }
+
+          const executionTime = performance.now() - startTime;
+
+          // Normalize outputs for comparison
+          const normalize = (val: any) => {
+            if (Array.isArray(val)) {
+              return JSON.stringify(val.sort ? val.sort() : val);
+            }
+            return JSON.stringify(val);
+          };
+
+          const normalizedActual = normalize(actualOutput);
+          const normalizedExpected = normalize(testCase.expectedOutput);
+          const passed = normalizedActual === normalizedExpected;
+
+          results.push({
+            testCase: idx + 1,
+            input: JSON.stringify(testCase.input),
+            expectedOutput: normalizedExpected,
+            actualOutput: normalizedActual,
+            passed,
+            error: null,
+            executionTime: Math.round(executionTime * 100) / 100,
+          });
+        } catch (e: any) {
+          const executionTime = performance.now() - startTime;
+          results.push({
+            testCase: idx + 1,
+            input: JSON.stringify(testCase.input),
+            expectedOutput: JSON.stringify(testCase.expectedOutput),
+            actualOutput: "Error",
+            passed: false,
+            error: e.message || "Execution error",
+            executionTime: Math.round(executionTime * 100) / 100,
+          });
+        }
+      });
+    } catch (e: any) {
+      // If execution fails completely
+      testCases.forEach((testCase, idx) => {
+        results.push({
+          testCase: idx + 1,
+          input: JSON.stringify(testCase.input),
+          expectedOutput: JSON.stringify(testCase.expectedOutput),
+          actualOutput: "Execution Error",
+          passed: false,
+          error: e.message || "Failed to execute code",
+          executionTime: null,
+        });
+      });
+    } finally {
+      // Restore original console.log
+      console.log = originalConsoleLog;
+      // Set console output after execution
+      setConsoleOutput(consoleLogs);
+    }
+
+    return results;
+  };
+
+  const executeCodeOnly = (
+    code: string,
+    testInput?: any
+  ): { output: any; error: string | null; input: any } => {
+    const consoleLogs: string[] = [];
+    let output: any = null;
+    let error: string | null = null;
+
+    // Capture console.log
+    const originalConsoleLog = console.log;
+    console.log = (...args: any[]) => {
+      consoleLogs.push(
+        args
+          .map((arg) =>
+            typeof arg === "object" ? JSON.stringify(arg, null, 2) : String(arg)
+          )
+          .join(" ")
+      );
+      originalConsoleLog.apply(console, args);
+    };
+
+    try {
+      // Try to extract and execute the function
+      let userFunction: any = null;
+      let functionName: string | null = null;
+
+      const functionPatterns = [
+        /function\s+(\w+)\s*\(/,
+        /const\s+(\w+)\s*=\s*(?:\([^)]*\)\s*=>|function)/,
+        /let\s+(\w+)\s*=\s*(?:\([^)]*\)\s*=>|function)/,
+        /var\s+(\w+)\s*=\s*(?:\([^)]*\)\s*=>|function)/,
+      ];
+
+      for (const pattern of functionPatterns) {
+        const match = code.match(pattern);
+        if (match) {
+          functionName = match[1];
+          break;
+        }
+      }
+
+      // Execute code to get the function
+      const isolatedCode = `
+        (function() {
+          ${code}
+          ${functionName ? `return ${functionName};` : "return null;"}
+        })()
+      `;
+
+      try {
+        userFunction = eval(isolatedCode);
+      } catch (e) {
+        eval(code);
+        if (functionName) {
+          userFunction =
+            (window as any)[functionName] || (globalThis as any)[functionName];
+        }
+      }
+
+      // If we have a function and test input, execute it
+      if (
+        userFunction &&
+        typeof userFunction === "function" &&
+        testInput !== undefined
+      ) {
+        try {
+          // Call the function with test input
+          if (Array.isArray(testInput)) {
+            output = userFunction(...testInput);
+          } else if (
+            typeof testInput === "object" &&
+            testInput !== null &&
+            !Array.isArray(testInput)
+          ) {
+            // For object inputs, try to spread or pass as single arg
+            const keys = Object.keys(testInput);
+            if (keys.length === 1) {
+              output = userFunction(testInput[keys[0]]);
+            } else {
+              output = userFunction(...Object.values(testInput));
+            }
+          } else {
+            output = userFunction(testInput);
+          }
+        } catch (e: any) {
+          error = e.message || "Error executing function";
+          output = null;
+        }
+      } else if (userFunction && typeof userFunction === "function") {
+        // Function defined but no test input provided
+        output = `Function "${
+          functionName || "anonymous"
+        }" is defined. Provide input to see output.`;
+      } else {
+        // If no function found, try to execute the code as a script
+        try {
+          const result = eval(`(${code})`);
+          if (result !== undefined) {
+            output = result;
+          } else {
+            // Try executing as a statement
+            eval(code);
+            output = "Code executed successfully (no return value)";
+          }
+        } catch (e: any) {
+          error = e.message || "Error executing code";
+        }
+      }
+    } catch (e: any) {
+      error = e.message || "Error executing code";
+    } finally {
+      console.log = originalConsoleLog;
+      setConsoleOutput(consoleLogs);
+    }
+
+    return { output, error, input: testInput };
+  };
+
+  const handleRunCode = async () => {
+    if (!selectedChallenge || !solution.trim()) return;
+    try {
+      setIsRunning(true);
+      setCodeOutput(null);
+      setConsoleOutput([]);
+
+      // For JavaScript, execute in browser
+      if (editorLanguage === "javascript") {
+        // Get first test case for execution
+        const testCases = extractTestCasesFromQuestion(
+          selectedChallenge.questionText || ""
+        );
+        const firstTestCase = testCases.length > 0 ? testCases[0] : null;
+
+        const result = executeCodeOnly(solution, firstTestCase?.input);
+
+        if (result.error) {
+          setCodeOutput({
+            value: result.error,
+            type: "error",
+            input: firstTestCase ? JSON.stringify(firstTestCase.input) : null,
+          });
+        } else {
+          setCodeOutput({
+            value: result.output,
+            type: typeof result.output,
+            input: firstTestCase ? JSON.stringify(firstTestCase.input) : null,
+          });
+        }
+        setIsRunning(false);
+        return;
+      }
+
+      // For other languages, use backend execution
+      try {
+        // Get first test case for execution
+        const testCases = extractTestCasesFromQuestion(
+          selectedChallenge.questionText || ""
+        );
+        const firstTestCase = testCases.length > 0 ? testCases[0] : null;
+
+        const response = await api.runTechnicalCode(
+          selectedChallenge.id,
+          solution,
+          editorLanguage,
+          firstTestCase?.input,
+          true // runOnce = true for single execution
+        );
+
+        if (response.ok && response.data) {
+          // Check for output (including empty strings)
+          if (
+            response.data.output !== undefined &&
+            response.data.output !== null
+          ) {
+            setCodeOutput({
+              value:
+                response.data.output === ""
+                  ? "(empty output)"
+                  : response.data.output,
+              type: response.data.error ? "error" : typeof response.data.output,
+              input: firstTestCase ? JSON.stringify(firstTestCase.input) : null,
+            });
+          } else if (
+            response.data.rawOutput !== undefined &&
+            response.data.rawOutput !== null
+          ) {
+            // Fallback to rawOutput if output is not available
+            setCodeOutput({
+              value:
+                response.data.rawOutput === ""
+                  ? "(empty output)"
+                  : response.data.rawOutput,
+              type: response.data.error ? "error" : "string",
+              input: firstTestCase ? JSON.stringify(firstTestCase.input) : null,
+            });
+          } else if (response.data.error) {
+            setCodeOutput({
+              value: response.data.error,
+              type: "error",
+              input: firstTestCase ? JSON.stringify(firstTestCase.input) : null,
+            });
+          } else {
+            setCodeOutput({
+              value: "No output received from server",
+              type: "error",
+              input: firstTestCase ? JSON.stringify(firstTestCase.input) : null,
+            });
+          }
+        } else {
+          setCodeOutput({
+            value: response.error || "Failed to execute code",
+            type: "error",
+            input: null,
+          });
+        }
+      } catch (err: any) {
+        setCodeOutput({
+          value: `Error: ${err.message || "Failed to execute code"}`,
+          type: "error",
+          input: null,
+        });
+      }
+    } catch (err: any) {
+      console.error("Failed to run code:", err);
+      setCodeOutput({
+        value: `Error: ${err.message || "Failed to execute code"}`,
+        type: "error",
+        input: null,
+      });
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
+  const handleRunTests = async () => {
+    if (!selectedChallenge || !solution.trim()) return;
+    try {
+      setIsRunningTests(true);
+      setTestResults(null);
+
+      // For JavaScript, execute in browser
+      if (editorLanguage === "javascript") {
+        // Extract test cases from the challenge
+        const testCases = extractTestCasesFromQuestion(
+          selectedChallenge.questionText || ""
+        );
+
+        if (testCases.length === 0) {
+          setTestResults({
+            success: false,
+            testResults: [],
+            message: "No test cases found in problem statement",
+          });
+          setIsRunningTests(false);
+          return;
+        }
+
+        const results = executeJavaScript(solution, testCases);
+        const allPassed = results.every((r) => r.passed);
+
+        setTestResults({
+          success: true,
+          testResults: results,
+          message: allPassed
+            ? "All test cases passed!"
+            : `${results.filter((r) => r.passed).length}/${
+                results.length
+              } test cases passed`,
+        });
+        setIsRunningTests(false);
+        return;
+      }
+
+      // For other languages, use backend
+      const response = await api.runTechnicalCode(
+        selectedChallenge.id,
+        solution,
+        editorLanguage
+      );
+      if (response.ok && response.data) {
+        setTestResults(response.data);
+      } else {
+        setTestResults({
+          success: false,
+          testResults: [],
+          message: response.error || "Failed to run tests",
+        });
+      }
+    } catch (err: any) {
+      console.error("Failed to run tests:", err);
+      setTestResults({
+        success: false,
+        testResults: [],
+        message: err.message || "Failed to run tests",
+      });
+    } finally {
+      setIsRunningTests(false);
+    }
+  };
+
+  const extractTestCasesFromQuestion = (questionText: string): any[] => {
+    const testCases: any[] = [];
+    if (!questionText) return testCases;
+
+    // Look for Example patterns
+    const exampleRegex =
+      /Example\s+(\d+):\s*\nInput:\s*([^\n]+)\nOutput:\s*([^\n]+)/gi;
+    let match;
+    while ((match = exampleRegex.exec(questionText)) !== null) {
+      try {
+        let input = match[2].trim();
+        // Remove common prefixes
+        input = input.replace(/^(nums|target|s|str)\s*=\s*/i, "").trim();
+
+        const output = match[3].trim();
+
+        testCases.push({
+          input: parseInput(input),
+          expectedOutput: parseOutput(output),
+          exampleNumber: parseInt(match[1]),
+        });
+      } catch (e) {
+        console.warn("Failed to parse test case:", e);
+      }
+    }
+
+    return testCases;
+  };
+
+  const parseInput = (inputStr: string): any => {
+    try {
+      return JSON.parse(inputStr);
+    } catch {
+      return inputStr;
+    }
+  };
+
+  const parseOutput = (outputStr: string): any => {
+    try {
+      return JSON.parse(outputStr);
+    } catch {
+      return outputStr;
+    }
+  };
+
   const handleSubmitSolution = async () => {
     if (!selectedChallenge || !solution.trim() || !startTime) return;
     try {
       setIsSubmitting(true);
       const timeTaken = Math.floor((Date.now() - startTime) / 1000);
+
+      // First, run the tests to get execution results
+      let testResults = null;
+      try {
+        if (editorLanguage === "javascript") {
+          // For JavaScript, run tests client-side
+          const testCases = extractTestCasesFromQuestion(
+            selectedChallenge.questionText || ""
+          );
+          if (testCases.length > 0) {
+            const results = executeJavaScript(solution, testCases);
+            const allPassed = results.every((r) => r.passed);
+            testResults = {
+              success: allPassed,
+              testResults: results,
+              message: allPassed
+                ? "All test cases passed!"
+                : `${results.filter((r) => r.passed).length}/${
+                    results.length
+                  } test cases passed`,
+            };
+          }
+        } else {
+          // For other languages, run tests via backend
+          const testResponse = await api.runTechnicalCode(
+            selectedChallenge.id,
+            solution,
+            editorLanguage
+          );
+          if (testResponse.ok && testResponse.data) {
+            testResults = testResponse.data;
+          }
+        }
+      } catch (testErr: any) {
+        console.warn("Failed to run tests before submission:", testErr);
+        // Continue with submission even if tests fail
+      }
+
+      // Submit solution with test results
       const response = await api.submitTechnicalSolution(
         selectedChallenge.id,
         solution,
-        timeTaken
+        timeTaken,
+        testResults
       );
       if (response.ok && response.data) {
         setFeedback(response.data.feedback);
@@ -2573,9 +4913,56 @@ function TechnicalPrepTab({
     );
   }
 
+  const getDefaultSolution = (language: string, questionText: string) => {
+    // Try to extract function signature from question text
+    const functionMatch = questionText.match(
+      /(?:def|function|public\s+static|class\s+Solution)\s+(\w+)\s*\([^)]*\)/
+    );
+    const isLeetCodeStyle =
+      questionText.includes("Example") ||
+      questionText.includes("Constraints") ||
+      functionMatch;
+
+    if (!isLeetCodeStyle) {
+      return `// Write your solution here\n// Use proper syntax and formatting\n\n`;
+    }
+
+    switch (language) {
+      case "python":
+        return `# Solution
+# Write your solution function here
+# The input will be automatically passed to your function
+# Make sure to return the result (it will be printed automatically)
+
+def solve(nums):
+    # Your code here
+    # Example: return the sum of all numbers
+    return sum(nums) if nums else 0
+
+# Or use a class-based approach:
+# class Solution:
+#     def solve(self, nums):
+#         # Your code here
+#         return sum(nums) if nums else 0
+`;
+      case "javascript":
+        return `// Solution\n/**\n * @param {number[]} nums\n * @return {number[]}\n */\nvar solve = function(nums) {\n    // Your code here\n    return [];\n};\n`;
+      case "java":
+        return `// Solution\nclass Solution {\n    public int[] solve(int[] nums) {\n        // Your code here\n        return new int[]{};\n    }\n}\n`;
+      case "cpp":
+        return `// Solution\n#include <vector>\nusing namespace std;\n\nclass Solution {\npublic:\n    vector<int> solve(vector<int>& nums) {\n        // Your code here\n        return {};\n    }\n};\n`;
+      default:
+        return `// Write your solution here\n`;
+    }
+  };
+
   const handleOpenChallenge = async (challenge: any) => {
     setSelectedChallenge(challenge);
-    setSolution("");
+    const defaultSolution = getDefaultSolution(
+      editorLanguage,
+      challenge.questionText || ""
+    );
+    setSolution(defaultSolution);
     setFeedback(null);
     setActiveView("problem");
     setShowModal(true);
@@ -2755,7 +5142,7 @@ function TechnicalPrepTab({
             {/* Main Content - Split View */}
             <div className="flex-1 flex overflow-hidden">
               {/* Left: Problem Description */}
-              <div className="w-1/2 border-r border-slate-200 overflow-y-auto p-6 bg-slate-50">
+              <div className="w-1/2 border-r border-slate-200 overflow-y-auto p-6 bg-white">
                 <div className="space-y-6">
                   {/* Problem Statement */}
                   <div>
@@ -2811,6 +5198,137 @@ function TechnicalPrepTab({
                     </div>
                   )}
 
+                  {/* Whiteboarding Techniques */}
+                  {selectedChallenge.whiteboardingTechniques && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                        <Icon icon="mingcute:edit-line" width={20} />
+                        Whiteboarding Techniques
+                      </h3>
+                      <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border-l-4 border-purple-500 rounded-lg p-4">
+                        <p className="text-slate-700 text-sm whitespace-pre-wrap leading-relaxed">
+                          {selectedChallenge.whiteboardingTechniques}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Performance Metrics */}
+                  {selectedChallenge.performanceMetrics &&
+                    Object.keys(selectedChallenge.performanceMetrics).length >
+                      0 && (
+                      <div>
+                        <h3 className="text-lg font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                          <Icon icon="mingcute:chart-line" width={20} />
+                          Performance Metrics
+                        </h3>
+                        <div className="bg-white rounded-lg p-4 border border-slate-200">
+                          <div className="grid grid-cols-2 gap-4">
+                            {selectedChallenge.performanceMetrics
+                              .timeComplexity && (
+                              <div>
+                                <div className="text-xs font-medium text-slate-500 mb-1">
+                                  Time Complexity
+                                </div>
+                                <div className="text-sm font-semibold text-slate-900">
+                                  {
+                                    selectedChallenge.performanceMetrics
+                                      .timeComplexity
+                                  }
+                                </div>
+                              </div>
+                            )}
+                            {selectedChallenge.performanceMetrics
+                              .spaceComplexity && (
+                              <div>
+                                <div className="text-xs font-medium text-slate-500 mb-1">
+                                  Space Complexity
+                                </div>
+                                <div className="text-sm font-semibold text-slate-900">
+                                  {
+                                    selectedChallenge.performanceMetrics
+                                      .spaceComplexity
+                                  }
+                                </div>
+                              </div>
+                            )}
+                            {selectedChallenge.performanceMetrics
+                              .codeQuality && (
+                              <div className="col-span-2">
+                                <div className="text-xs font-medium text-slate-500 mb-1">
+                                  Code Quality Standards
+                                </div>
+                                <div className="text-sm text-slate-700">
+                                  {
+                                    selectedChallenge.performanceMetrics
+                                      .codeQuality
+                                  }
+                                </div>
+                              </div>
+                            )}
+                            {selectedChallenge.performanceMetrics
+                              .testCoverage && (
+                              <div className="col-span-2">
+                                <div className="text-xs font-medium text-slate-500 mb-1">
+                                  Test Coverage Expectations
+                                </div>
+                                <div className="text-sm text-slate-700">
+                                  {
+                                    selectedChallenge.performanceMetrics
+                                      .testCoverage
+                                  }
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                  {/* Challenge Type Badge Enhancement */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {selectedChallenge.type === "system_design" && (
+                      <div className="px-3 py-1 bg-amber-100 text-amber-800 text-xs font-semibold rounded-full border border-amber-300">
+                        <Icon
+                          icon="mingcute:server-line"
+                          width={14}
+                          className="inline mr-1"
+                        />
+                        System Design
+                      </div>
+                    )}
+                    {selectedChallenge.type === "case_study" && (
+                      <div className="px-3 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full border border-green-300">
+                        <Icon
+                          icon="mingcute:file-chart-line"
+                          width={14}
+                          className="inline mr-1"
+                        />
+                        Case Study
+                      </div>
+                    )}
+                    {selectedChallenge.type === "coding" && (
+                      <div className="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full border border-blue-300">
+                        <Icon
+                          icon="mingcute:code-line"
+                          width={14}
+                          className="inline mr-1"
+                        />
+                        Coding Challenge
+                      </div>
+                    )}
+                    {selectedChallenge.type === "whiteboarding" && (
+                      <div className="px-3 py-1 bg-purple-100 text-purple-800 text-xs font-semibold rounded-full border border-purple-300">
+                        <Icon
+                          icon="mingcute:edit-line"
+                          width={14}
+                          className="inline mr-1"
+                        />
+                        Whiteboarding
+                      </div>
+                    )}
+                  </div>
+
                   {/* Attempt History */}
                   <div>
                     <h3 className="text-lg font-semibold text-slate-900 mb-3">
@@ -2833,67 +5351,121 @@ function TechnicalPrepTab({
                       </div>
                     ) : (
                       <div className="space-y-3 max-h-64 overflow-y-auto">
-                        {attemptHistory.map((attempt, idx) => (
-                          <div
-                            key={attempt.id || idx}
-                            className="bg-white rounded-lg p-4 border border-slate-200 hover:border-blue-300 transition"
-                          >
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-medium text-slate-500">
-                                  Attempt #{attemptHistory.length - idx}
-                                </span>
-                                {attempt.completedAt && (
-                                  <span className="text-xs text-slate-500">
-                                    {new Date(
-                                      attempt.completedAt
-                                    ).toLocaleDateString()}
-                                  </span>
+                        {attemptHistory.map((attempt, idx) => {
+                          const attemptId = attempt.id || `attempt-${idx}`;
+                          const isExpanded = expandedAttemptId === attemptId;
+                          const hasFeedback =
+                            attempt.feedback && attempt.feedback.trim();
+
+                          return (
+                            <div
+                              key={attemptId}
+                              className="bg-white rounded-lg border border-slate-200 hover:border-blue-300 transition"
+                            >
+                              <div className="p-4">
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-medium text-slate-500">
+                                      Attempt #{attemptHistory.length - idx}
+                                    </span>
+                                    {attempt.completedAt && (
+                                      <span className="text-xs text-slate-500">
+                                        {new Date(
+                                          attempt.completedAt
+                                        ).toLocaleDateString()}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {attempt.performanceScore !== null && (
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-sm text-slate-600">
+                                        Score:
+                                      </span>
+                                      <span
+                                        className={`text-lg font-bold ${
+                                          attempt.performanceScore >= 80
+                                            ? "text-green-600"
+                                            : attempt.performanceScore >= 60
+                                            ? "text-yellow-600"
+                                            : "text-red-600"
+                                        }`}
+                                      >
+                                        {attempt.performanceScore}/100
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                                {attempt.timeTakenSeconds && (
+                                  <div className="text-xs text-slate-500 mb-2">
+                                    Time:{" "}
+                                    {Math.floor(attempt.timeTakenSeconds / 60)}m{" "}
+                                    {attempt.timeTakenSeconds % 60}s
+                                  </div>
+                                )}
+                                {hasFeedback && (
+                                  <div>
+                                    <div
+                                      className={`text-xs text-slate-600 ${
+                                        !isExpanded ? "line-clamp-2" : ""
+                                      }`}
+                                    >
+                                      {!isExpanded ? (
+                                        <span>
+                                          {attempt.feedback.substring(0, 150)}
+                                          ...
+                                        </span>
+                                      ) : (
+                                        <div className="prose prose-xs max-w-none prose-slate mt-2">
+                                          <ReactMarkdown
+                                            remarkPlugins={[remarkGfm]}
+                                          >
+                                            {attempt.feedback}
+                                          </ReactMarkdown>
+                                        </div>
+                                      )}
+                                    </div>
+                                    <button
+                                      onClick={() =>
+                                        setExpandedAttemptId(
+                                          isExpanded ? null : attemptId
+                                        )
+                                      }
+                                      className="mt-2 text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+                                    >
+                                      {isExpanded ? (
+                                        <>
+                                          <Icon
+                                            icon="mingcute:up-line"
+                                            width={14}
+                                          />
+                                          Show Less
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Icon
+                                            icon="mingcute:down-line"
+                                            width={14}
+                                          />
+                                          Show Full Analysis
+                                        </>
+                                      )}
+                                    </button>
+                                  </div>
                                 )}
                               </div>
-                              {attempt.performanceScore !== null && (
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm text-slate-600">
-                                    Score:
-                                  </span>
-                                  <span
-                                    className={`text-lg font-bold ${
-                                      attempt.performanceScore >= 80
-                                        ? "text-green-600"
-                                        : attempt.performanceScore >= 60
-                                        ? "text-yellow-600"
-                                        : "text-red-600"
-                                    }`}
-                                  >
-                                    {attempt.performanceScore}/100
-                                  </span>
-                                </div>
-                              )}
                             </div>
-                            {attempt.timeTakenSeconds && (
-                              <div className="text-xs text-slate-500 mb-2">
-                                Time:{" "}
-                                {Math.floor(attempt.timeTakenSeconds / 60)}m{" "}
-                                {attempt.timeTakenSeconds % 60}s
-                              </div>
-                            )}
-                            {attempt.feedback && (
-                              <p className="text-xs text-slate-600 line-clamp-2">
-                                {attempt.feedback}
-                              </p>
-                            )}
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>
                 </div>
               </div>
 
-              {/* Right: Code Editor */}
-              <div className="w-1/2 flex flex-col bg-white">
+              {/* Right: Code Editor or Solution View */}
+              <div className="w-1/2 flex flex-col bg-white overflow-hidden">
                 {/* Editor Header */}
-                <div className="flex items-center justify-between p-4 border-b border-slate-200">
+                <div className="flex items-center justify-between p-4 border-b border-slate-200 flex-shrink-0">
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setActiveView("problem")}
@@ -2937,53 +5509,440 @@ function TechnicalPrepTab({
                   </div>
                 </div>
 
-                {/* Code Editor */}
-                <div className="flex-1 flex flex-col">
-                  <div className="flex-1 p-4">
-                    <textarea
-                      value={solution}
-                      onChange={(e) => setSolution(e.target.value)}
-                      placeholder={`// Write your solution here...\n// Use proper syntax and formatting\n\nfunction solve() {\n  // Your code here\n  return null;\n}`}
-                      className="w-full h-full p-4 border border-slate-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm bg-slate-900 text-slate-100 leading-relaxed"
-                      style={{
-                        fontFamily:
-                          "'Fira Code', 'Consolas', 'Monaco', monospace",
-                        tabSize: 2,
-                      }}
-                      spellCheck={false}
-                    />
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="p-4 border-t border-slate-200 bg-slate-50">
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={handleSubmitSolution}
-                        disabled={!solution.trim() || isSubmitting}
-                        className="flex items-center gap-2 px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-                      >
-                        <Icon icon="mingcute:check-line" width={18} />
-                        {isSubmitting ? "Analyzing..." : "Submit Solution"}
-                      </button>
-                      <button
-                        onClick={() => setSolution("")}
-                        disabled={!solution.trim()}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <Icon icon="mingcute:refresh-line" width={18} />
-                        Clear
-                      </button>
-                      <div className="flex-1" />
-                      <div className="text-sm text-slate-600">
-                        {solution.length} characters
+                {/* Code Editor or Solution View */}
+                {activeView === "problem" ? (
+                  <div className="flex-1 flex flex-col bg-slate-900 overflow-hidden min-h-0">
+                    {/* Editor Toolbar */}
+                    <div className="flex items-center justify-between px-4 py-2 border-b border-slate-700 bg-slate-800 flex-shrink-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-400">
+                          Language:
+                        </span>
+                        <select
+                          value={editorLanguage}
+                          onChange={(e) => {
+                            const newLang = e.target.value as any;
+                            setEditorLanguage(newLang);
+                            // Update solution template when language changes
+                            if (selectedChallenge) {
+                              const defaultSolution = getDefaultSolution(
+                                newLang,
+                                selectedChallenge.questionText || ""
+                              );
+                              if (
+                                !solution ||
+                                solution.trim() ===
+                                  getDefaultSolution(
+                                    editorLanguage,
+                                    selectedChallenge.questionText || ""
+                                  ).trim()
+                              ) {
+                                setSolution(defaultSolution);
+                              }
+                            }
+                          }}
+                          className="px-3 py-1 bg-slate-700 text-slate-100 border border-slate-600 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="python">Python</option>
+                          <option value="javascript">JavaScript</option>
+                          <option value="java">Java</option>
+                          <option value="cpp">C++</option>
+                        </select>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-slate-400">
+                        <Icon icon="mingcute:code-line" width={16} />
+                        <span>Monaco Editor</span>
                       </div>
                     </div>
-                  </div>
-                </div>
 
-                {/* Feedback Section */}
-                {feedback && (
-                  <div className="border-t border-slate-200 p-4 bg-slate-50 max-h-64 overflow-y-auto">
+                    {/* Monaco Editor */}
+                    <div className="flex-1 min-h-0 overflow-hidden">
+                      <Editor
+                        height="100%"
+                        language={editorLanguage}
+                        value={solution}
+                        onChange={(value) => setSolution(value || "")}
+                        theme="vs-dark"
+                        options={{
+                          minimap: { enabled: false },
+                          fontSize: 14,
+                          lineNumbers: "on",
+                          roundedSelection: false,
+                          scrollBeyondLastLine: false,
+                          automaticLayout: true,
+                          tabSize: 2,
+                          wordWrap: "on",
+                          formatOnPaste: true,
+                          formatOnType: true,
+                          suggestOnTriggerCharacters: true,
+                          acceptSuggestionOnEnter: "on",
+                          tabCompletion: "on",
+                          quickSuggestions: true,
+                        }}
+                        loading={
+                          <div className="flex items-center justify-center h-full bg-slate-900">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                          </div>
+                        }
+                      />
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="p-4 border-t border-slate-700 bg-slate-800 flex-shrink-0">
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={handleRunCode}
+                          disabled={!solution.trim() || isRunning}
+                          className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                        >
+                          <Icon icon="mingcute:play-line" width={18} />
+                          {isRunning ? "Running..." : "Run Code"}
+                        </button>
+                        <button
+                          onClick={handleRunTests}
+                          disabled={!solution.trim() || isRunningTests}
+                          className="flex items-center gap-2 px-6 py-2.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                        >
+                          <Icon icon="mingcute:test-tube-line" width={18} />
+                          {isRunningTests ? "Testing..." : "Run Tests"}
+                        </button>
+                        <button
+                          onClick={handleSubmitSolution}
+                          disabled={!solution.trim() || isSubmitting}
+                          className="flex items-center gap-2 px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                        >
+                          <Icon icon="mingcute:check-line" width={18} />
+                          {isSubmitting ? "Analyzing..." : "Submit Solution"}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSolution("");
+                            setTestResults(null);
+                            setConsoleOutput([]);
+                            setCodeOutput(null);
+                          }}
+                          disabled={!solution.trim()}
+                          className="flex items-center gap-2 px-4 py-2.5 bg-slate-700 text-slate-200 rounded-lg hover:bg-slate-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Icon icon="mingcute:refresh-line" width={18} />
+                          Clear
+                        </button>
+                        <div className="flex-1" />
+                        <div className="text-sm text-slate-400">
+                          {solution.length} characters
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Code Output Section - Inside Modal */}
+                    {codeOutput && (
+                      <div
+                        className="border-t border-slate-700 bg-slate-900 p-4 flex-shrink-0 overflow-y-auto"
+                        style={{ maxHeight: "200px" }}
+                      >
+                        <div className="flex items-center gap-2 mb-3">
+                          <Icon
+                            icon="mingcute:terminal-line"
+                            width={16}
+                            className="text-slate-400"
+                          />
+                          <h4 className="font-semibold text-slate-300 text-sm">
+                            Output
+                          </h4>
+                        </div>
+                        {codeOutput.input && (
+                          <div className="mb-2">
+                            <div className="text-xs text-slate-400 mb-1">
+                              Input:
+                            </div>
+                            <div className="bg-slate-950 rounded p-2 font-mono text-xs text-slate-400 break-all">
+                              {codeOutput.input}
+                            </div>
+                          </div>
+                        )}
+                        <div
+                          className={`bg-slate-950 rounded p-3 font-mono text-sm ${
+                            codeOutput.type === "error"
+                              ? "text-red-400"
+                              : "text-green-300"
+                          } whitespace-pre-wrap break-all`}
+                        >
+                          {codeOutput.value === null ||
+                          codeOutput.value === undefined
+                            ? "(null)"
+                            : codeOutput.value === ""
+                            ? "(empty output)"
+                            : typeof codeOutput.value === "object"
+                            ? JSON.stringify(codeOutput.value, null, 2)
+                            : String(codeOutput.value)}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Console Output Section - Inside Modal */}
+                    {consoleOutput.length > 0 && (
+                      <div className="border-t border-slate-700 bg-slate-900 p-4 flex-shrink-0 max-h-32 overflow-y-auto">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Icon
+                            icon="mingcute:terminal-line"
+                            width={16}
+                            className="text-slate-400"
+                          />
+                          <h4 className="font-semibold text-slate-300 text-sm">
+                            Console Output
+                          </h4>
+                        </div>
+                        <div className="bg-slate-950 rounded p-2 font-mono text-xs text-slate-300 space-y-1">
+                          {consoleOutput.map((log, idx) => (
+                            <div
+                              key={idx}
+                              className="whitespace-pre-wrap break-all"
+                            >
+                              {log}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex-1 flex flex-col bg-slate-900 overflow-y-auto">
+                    <div className="p-6 space-y-6">
+                      {/* Solution Code */}
+                      {selectedChallenge.solutionCode && (
+                        <div>
+                          <h3 className="text-lg font-semibold text-slate-100 mb-3 flex items-center gap-2">
+                            <Icon icon="mingcute:code-line" width={20} />
+                            Solution Code
+                          </h3>
+                          <div className="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
+                            <Editor
+                              height="400px"
+                              language="python"
+                              value={selectedChallenge.solutionCode}
+                              theme="vs-dark"
+                              options={{
+                                readOnly: true,
+                                minimap: { enabled: false },
+                                scrollBeyondLastLine: false,
+                                fontSize: 14,
+                                lineNumbers: "on",
+                                wordWrap: "on",
+                                automaticLayout: true,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Solution Framework */}
+                      {selectedChallenge.solutionFramework && (
+                        <div>
+                          <h3 className="text-lg font-semibold text-slate-100 mb-3">
+                            Solution Framework
+                          </h3>
+                          <div className="bg-slate-800 border-l-4 border-blue-500 rounded-lg p-4">
+                            <p className="text-slate-200 text-sm whitespace-pre-wrap leading-relaxed">
+                              {selectedChallenge.solutionFramework}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Best Practices */}
+                      {selectedChallenge.bestPractices && (
+                        <div>
+                          <h3 className="text-lg font-semibold text-slate-100 mb-3">
+                            Best Practices
+                          </h3>
+                          <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
+                            <p className="text-slate-200 text-sm whitespace-pre-wrap leading-relaxed">
+                              {selectedChallenge.bestPractices}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Real World Scenario */}
+                      {selectedChallenge.realWorldScenario && (
+                        <div>
+                          <h3 className="text-lg font-semibold text-slate-100 mb-3">
+                            Real-World Context
+                          </h3>
+                          <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
+                            <p className="text-slate-200 text-sm whitespace-pre-wrap leading-relaxed">
+                              {selectedChallenge.realWorldScenario}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {!selectedChallenge.solutionCode &&
+                        !selectedChallenge.solutionFramework &&
+                        !selectedChallenge.bestPractices &&
+                        !selectedChallenge.realWorldScenario && (
+                          <div className="text-center py-12">
+                            <p className="text-slate-400">
+                              No solution details available for this challenge.
+                            </p>
+                          </div>
+                        )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Test Results Section - Only show in problem view */}
+                {activeView === "problem" && testResults && (
+                  <div className="border-t border-slate-700 bg-slate-800 p-4 max-h-96 overflow-y-auto">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-semibold text-slate-100">
+                        Test Results
+                      </h4>
+                      <div
+                        className={`px-3 py-1 rounded text-sm font-medium ${
+                          testResults.success &&
+                          testResults.testResults?.every((r: any) => r.passed)
+                            ? "bg-green-600 text-white"
+                            : testResults.testResults?.some(
+                                (r: any) => r.passed
+                              )
+                            ? "bg-yellow-600 text-white"
+                            : "bg-red-600 text-white"
+                        }`}
+                      >
+                        {testResults.testResults?.filter((r: any) => r.passed)
+                          .length || 0}{" "}
+                        / {testResults.testResults?.length || 0} Passed
+                      </div>
+                    </div>
+                    {testResults.message && (
+                      <div
+                        className={`mb-3 p-2 rounded text-sm ${
+                          testResults.success
+                            ? "bg-green-900/30 text-green-300"
+                            : "bg-red-900/30 text-red-300"
+                        }`}
+                      >
+                        {testResults.message}
+                      </div>
+                    )}
+                    {testResults.testResults &&
+                    testResults.testResults.length > 0 ? (
+                      <div className="space-y-3">
+                        {testResults.testResults.map(
+                          (result: any, idx: number) => {
+                            // Parse JSON strings back to readable format
+                            const parseValue = (val: string) => {
+                              try {
+                                const parsed = JSON.parse(val);
+                                return typeof parsed === "object"
+                                  ? JSON.stringify(parsed, null, 2)
+                                  : String(parsed);
+                              } catch {
+                                return val;
+                              }
+                            };
+
+                            return (
+                              <div
+                                key={idx}
+                                className={`p-4 rounded-lg border-2 ${
+                                  result.passed
+                                    ? "bg-green-900/20 border-green-600"
+                                    : "bg-red-900/20 border-red-600"
+                                }`}
+                              >
+                                <div className="flex items-center gap-2 mb-3">
+                                  <Icon
+                                    icon={
+                                      result.passed
+                                        ? "mingcute:check-circle-line"
+                                        : "mingcute:close-circle-line"
+                                    }
+                                    width={20}
+                                    className={
+                                      result.passed
+                                        ? "text-green-400"
+                                        : "text-red-400"
+                                    }
+                                  />
+                                  <span className="font-semibold text-slate-100">
+                                    Test Case {result.testCase}
+                                  </span>
+                                  {result.executionTime && (
+                                    <span className="text-xs text-slate-400 ml-auto bg-slate-700 px-2 py-1 rounded">
+                                      {result.executionTime.toFixed(2)}ms
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="space-y-2 text-sm">
+                                  <div className="bg-slate-900/50 rounded p-2">
+                                    <div className="text-slate-400 text-xs mb-1 font-medium">
+                                      Input:
+                                    </div>
+                                    <code className="text-slate-200 text-xs font-mono block whitespace-pre-wrap break-all">
+                                      {parseValue(result.input)}
+                                    </code>
+                                  </div>
+                                  <div className="bg-slate-900/50 rounded p-2">
+                                    <div className="text-slate-400 text-xs mb-1 font-medium">
+                                      Expected Output:
+                                    </div>
+                                    <code className="text-green-300 text-xs font-mono block whitespace-pre-wrap break-all">
+                                      {parseValue(result.expectedOutput)}
+                                    </code>
+                                  </div>
+                                  <div
+                                    className={`rounded p-2 ${
+                                      result.passed
+                                        ? "bg-green-900/30"
+                                        : "bg-red-900/30"
+                                    }`}
+                                  >
+                                    <div className="text-slate-400 text-xs mb-1 font-medium">
+                                      Your Output:
+                                    </div>
+                                    <code
+                                      className={`text-xs font-mono block whitespace-pre-wrap break-all ${
+                                        result.passed
+                                          ? "text-green-300"
+                                          : "text-red-300"
+                                      }`}
+                                    >
+                                      {result.actualOutput === "Error" ||
+                                      result.actualOutput === "Execution Error"
+                                        ? result.error || result.actualOutput
+                                        : parseValue(result.actualOutput)}
+                                    </code>
+                                  </div>
+                                  {result.error &&
+                                    result.actualOutput !== "Error" && (
+                                      <div className="bg-red-900/50 rounded p-2 border border-red-700">
+                                        <div className="text-red-300 text-xs font-medium">
+                                          Error:
+                                        </div>
+                                        <div className="text-red-400 text-xs mt-1">
+                                          {result.error}
+                                        </div>
+                                      </div>
+                                    )}
+                                </div>
+                              </div>
+                            );
+                          }
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-slate-400 text-sm">
+                        No test cases available for this problem.
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Feedback Section - Only show in problem view */}
+                {activeView === "problem" && feedback && (
+                  <div className="border-t border-slate-200 p-4 bg-slate-50 max-h-96 overflow-y-auto">
                     <div className="flex items-center justify-between mb-3">
                       <h4 className="font-semibold text-slate-900">Feedback</h4>
                       <div className="flex items-center gap-2">
@@ -3006,9 +5965,11 @@ function TechnicalPrepTab({
                       />
                     </div>
                     <div className="bg-white rounded-lg p-4 border border-slate-200">
-                      <p className="text-slate-700 whitespace-pre-wrap text-sm leading-relaxed">
-                        {feedback.feedback}
-                      </p>
+                      <div className="prose prose-sm max-w-none prose-slate prose-headings:text-slate-900 prose-headings:text-base prose-headings:font-semibold prose-headings:mt-4 prose-headings:mb-2 prose-h1:text-lg prose-h2:text-base prose-h3:text-sm prose-p:text-slate-700 prose-p:text-sm prose-p:leading-relaxed prose-p:my-2 prose-strong:text-slate-900 prose-strong:font-semibold prose-code:text-xs prose-code:bg-slate-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:text-xs prose-pre:bg-slate-900 prose-pre:text-slate-100 prose-ul:text-sm prose-ul:my-2 prose-ul:space-y-1 prose-ol:text-sm prose-ol:my-2 prose-ol:space-y-1 prose-li:text-slate-700 prose-li:my-1 prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-blockquote:border-l-4 prose-blockquote:border-slate-300 prose-blockquote:pl-4 prose-blockquote:italic prose-hr:border-slate-200 prose-hr:my-4">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {feedback.feedback || ""}
+                        </ReactMarkdown>
+                      </div>
                     </div>
                   </div>
                 )}

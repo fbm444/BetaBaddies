@@ -162,6 +162,12 @@ class InterviewAnalyticsService {
    */
   async getImprovementTrend(userId, months = 12) {
     try {
+      // Validate months parameter to prevent SQL injection
+      const monthsNum = parseInt(months);
+      if (isNaN(monthsNum) || monthsNum < 1 || monthsNum > 120) {
+        throw new Error("Months parameter must be between 1 and 120");
+      }
+
       const query = `
         SELECT 
           DATE_TRUNC('month', i.scheduled_at) as period,
@@ -171,7 +177,7 @@ class InterviewAnalyticsService {
         FROM interviews i
         LEFT JOIN interview_feedback if ON i.id = if.interview_id
         WHERE i.user_id = $1
-          AND i.scheduled_at >= NOW() - INTERVAL '${months} months'
+          AND i.scheduled_at >= NOW() - INTERVAL '${monthsNum} months'
           AND i.status = 'completed'
         GROUP BY DATE_TRUNC('month', i.scheduled_at)
         ORDER BY period ASC

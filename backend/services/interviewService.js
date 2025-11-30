@@ -373,6 +373,7 @@ class InterviewService {
 
       const fieldMapping = {
         interviewType: "type",
+        format: "format",
         scheduledAt: "scheduled_at",
         duration: "duration",
         location: "location",

@@ -44,6 +44,8 @@ import {
   NetworkROI,
   SalaryProgression,
   DateRange,
+  Goal,
+  GoalAnalytics,
 } from "../types";
 
 // In development, use proxy (relative path). In production, use env variable or full URL
@@ -1164,6 +1166,47 @@ class ApiService {
     return this.request<ApiResponse<{ progression: SalaryProgression }>>(
       `/analytics/salary-progression${queryString ? `?${queryString}` : ""}`
     );
+  }
+
+  // Goals endpoints (UC-101)
+  async getGoals(filters?: { status?: string; category?: string; goalType?: string }) {
+    const params = new URLSearchParams();
+    if (filters?.status) params.append("status", filters.status);
+    if (filters?.category) params.append("category", filters.category);
+    if (filters?.goalType) params.append("goalType", filters.goalType);
+
+    const queryString = params.toString();
+    return this.request<ApiResponse<{ goals: Goal[] }>>(
+      `/goals${queryString ? `?${queryString}` : ""}`
+    );
+  }
+
+  async getGoalById(id: string) {
+    return this.request<ApiResponse<{ goal: Goal }>>(`/goals/${id}`);
+  }
+
+  async createGoal(goalData: Partial<Goal>) {
+    return this.request<ApiResponse<{ goal: Goal; message: string }>>("/goals", {
+      method: "POST",
+      body: JSON.stringify(goalData),
+    });
+  }
+
+  async updateGoal(id: string, goalData: Partial<Goal>) {
+    return this.request<ApiResponse<{ goal: Goal; message: string }>>(`/goals/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(goalData),
+    });
+  }
+
+  async deleteGoal(id: string) {
+    return this.request<ApiResponse<{ message: string }>>(`/goals/${id}`, {
+      method: "DELETE",
+    });
+  }
+
+  async getGoalAnalytics() {
+    return this.request<ApiResponse<{ analytics: GoalAnalytics }>>("/goals/analytics");
   }
 }
 

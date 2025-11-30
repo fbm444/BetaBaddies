@@ -16,6 +16,36 @@ class AnalyticsService {
       timeToInterview: 14, // Average days from application to interview
       timeToOffer: 45, // Average days from application to offer
     };
+    
+    // Cache column existence checks
+    this.columnCache = {};
+  }
+
+  // Helper to check if column exists
+  async columnExists(tableName, columnName) {
+    const cacheKey = `${tableName}.${columnName}`;
+    if (this.columnCache[cacheKey] !== undefined) {
+      return this.columnCache[cacheKey];
+    }
+
+    try {
+      const query = `
+        SELECT EXISTS (
+          SELECT 1 
+          FROM information_schema.columns 
+          WHERE table_schema = 'public' 
+          AND table_name = $1 
+          AND column_name = $2
+        ) as exists;
+      `;
+      const result = await database.query(query, [tableName, columnName]);
+      const exists = result.rows[0]?.exists || false;
+      this.columnCache[cacheKey] = exists;
+      return exists;
+    } catch (error) {
+      console.warn(`Error checking column ${tableName}.${columnName}:`, error);
+      return false;
+    }
   }
 
   // ============================================
@@ -51,7 +81,7 @@ class AnalyticsService {
           COUNT(CASE WHEN status = 'Rejected' THEN 1 END) as rejections,
           COUNT(CASE WHEN status = 'Interested' THEN 1 END) as interested
         FROM job_opportunities
-        WHERE user_id = $1 AND archived = false ${dateFilter}
+        WHERE user_id = $1 AND (archived = false OR archived IS NULL) ${dateFilter}
       `;
 
       const metricsResult = await database.query(metricsQuery, queryParams);
@@ -75,41 +105,72 @@ class AnalyticsService {
           ? Math.round((offersReceived / applicationsSent) * 100 * 10) / 10
           : 0;
 
-      // Time-to-response metrics
-      const timeToResponseQuery = `
-        SELECT 
-          AVG(EXTRACT(EPOCH FROM (first_response_at - application_submitted_at)) / 86400) as avg_days_to_response,
-          COUNT(CASE WHEN first_response_at IS NOT NULL THEN 1 END) as responses_received
-        FROM job_opportunities
-        WHERE user_id = $1 
-          AND archived = false 
-          AND application_submitted_at IS NOT NULL
-          ${dateFilter}
-      `;
+      // Time-to-response metrics - check if columns exist first
+      let avgDaysToResponse = null;
+      let responsesReceived = 0;
+      const hasTimeColumns = await Promise.all([
+        this.columnExists("job_opportunities", "first_response_at"),
+        this.columnExists("job_opportunities", "application_submitted_at"),
+      ]);
 
-      const timeToResponseResult = await database.query(
-        timeToResponseQuery,
-        queryParams
-      );
-      const timeToResponse = timeToResponseResult.rows[0];
+      if (hasTimeColumns[0] && hasTimeColumns[1]) {
+        try {
+          const timeToResponseQuery = `
+            SELECT 
+              AVG(EXTRACT(EPOCH FROM (first_response_at - application_submitted_at)) / 86400) as avg_days_to_response,
+              COUNT(CASE WHEN first_response_at IS NOT NULL THEN 1 END) as responses_received
+            FROM job_opportunities
+            WHERE user_id = $1 
+              AND (archived = false OR archived IS NULL)
+              AND application_submitted_at IS NOT NULL
+              ${dateFilter}
+          `;
+
+          const timeToResponseResult = await database.query(
+            timeToResponseQuery,
+            queryParams
+          );
+          const timeToResponse = timeToResponseResult.rows[0];
+          if (timeToResponse?.avg_days_to_response) {
+            avgDaysToResponse = Math.round(timeToResponse.avg_days_to_response * 10) / 10;
+          }
+          responsesReceived = parseInt(timeToResponse?.responses_received || 0);
+        } catch (error) {
+          console.warn("Error calculating time to response:", error.message);
+        }
+      }
 
       // Time-to-interview metrics
-      const timeToInterviewQuery = `
-        SELECT 
-          AVG(EXTRACT(EPOCH FROM (interview_scheduled_at - application_submitted_at)) / 86400) as avg_days_to_interview,
-          COUNT(CASE WHEN interview_scheduled_at IS NOT NULL THEN 1 END) as interviews_scheduled_count
-        FROM job_opportunities
-        WHERE user_id = $1 
-          AND archived = false 
-          AND application_submitted_at IS NOT NULL
-          ${dateFilter}
-      `;
+      let avgDaysToInterview = null;
+      let interviewsScheduledCount = 0;
+      const hasInterviewColumn = await this.columnExists("job_opportunities", "interview_scheduled_at");
+      
+      if (hasInterviewColumn && hasTimeColumns[1]) {
+        try {
+          const timeToInterviewQuery = `
+            SELECT 
+              AVG(EXTRACT(EPOCH FROM (interview_scheduled_at - application_submitted_at)) / 86400) as avg_days_to_interview,
+              COUNT(CASE WHEN interview_scheduled_at IS NOT NULL THEN 1 END) as interviews_scheduled_count
+            FROM job_opportunities
+            WHERE user_id = $1 
+              AND (archived = false OR archived IS NULL)
+              AND application_submitted_at IS NOT NULL
+              ${dateFilter}
+          `;
 
-      const timeToInterviewResult = await database.query(
-        timeToInterviewQuery,
-        queryParams
-      );
-      const timeToInterview = timeToInterviewResult.rows[0];
+          const timeToInterviewResult = await database.query(
+            timeToInterviewQuery,
+            queryParams
+          );
+          const timeToInterview = timeToInterviewResult.rows[0];
+          if (timeToInterview?.avg_days_to_interview) {
+            avgDaysToInterview = Math.round(timeToInterview.avg_days_to_interview * 10) / 10;
+          }
+          interviewsScheduledCount = parseInt(timeToInterview?.interviews_scheduled_count || 0);
+        } catch (error) {
+          console.warn("Error calculating time to interview:", error.message);
+        }
+      }
 
       // Monthly volume trends
       const monthlyVolume = await this.getMonthlyVolume(userId, startDate, endDate);
@@ -129,17 +190,10 @@ class AnalyticsService {
           overallSuccess: overallSuccessRate,
         },
         timeMetrics: {
-          avgDaysToResponse:
-            timeToResponse.avg_days_to_response
-              ? Math.round(timeToResponse.avg_days_to_response * 10) / 10
-              : null,
-          responsesReceived: parseInt(timeToResponse.responses_received) || 0,
-          avgDaysToInterview:
-            timeToInterview.avg_days_to_interview
-              ? Math.round(timeToInterview.avg_days_to_interview * 10) / 10
-              : null,
-          interviewsScheduledCount:
-            parseInt(timeToInterview.interviews_scheduled_count) || 0,
+          avgDaysToResponse,
+          responsesReceived,
+          avgDaysToInterview,
+          interviewsScheduledCount,
         },
         monthlyVolume,
         benchmarks: this.industryBenchmarks,
@@ -172,7 +226,7 @@ class AnalyticsService {
           TO_CHAR(created_at, 'YYYY-MM') as month,
           COUNT(*) as count
         FROM job_opportunities
-        WHERE user_id = $1 AND archived = false ${dateFilter}
+        WHERE user_id = $1 AND (archived = false OR archived IS NULL) ${dateFilter}
         GROUP BY TO_CHAR(created_at, 'YYYY-MM')
         ORDER BY month ASC
       `;
@@ -220,7 +274,7 @@ class AnalyticsService {
           COUNT(CASE WHEN status = 'Offer' THEN 1 END) as offers,
           COUNT(CASE WHEN status = 'Rejected' THEN 1 END) as rejected
         FROM job_opportunities
-        WHERE user_id = $1 AND archived = false AND industry IS NOT NULL ${dateFilter}
+        WHERE user_id = $1 AND (archived = false OR archived IS NULL) AND industry IS NOT NULL ${dateFilter}
         GROUP BY industry
         ORDER BY total DESC
       `;
@@ -244,69 +298,87 @@ class AnalyticsService {
         };
       });
 
-      // Success rate by application source
-      const bySourceQuery = `
-        SELECT 
-          application_source,
-          COUNT(*) as total,
-          COUNT(CASE WHEN status = 'Applied' THEN 1 END) as applied,
-          COUNT(CASE WHEN status IN ('Phone Screen', 'Interview') THEN 1 END) as interviews,
-          COUNT(CASE WHEN status = 'Offer' THEN 1 END) as offers
-        FROM job_opportunities
-        WHERE user_id = $1 AND archived = false AND application_source IS NOT NULL ${dateFilter}
-        GROUP BY application_source
-        ORDER BY total DESC
-      `;
+      // Success rate by application source - check if column exists
+      let bySource = [];
+      const hasApplicationSource = await this.columnExists("job_opportunities", "application_source");
+      
+      if (hasApplicationSource) {
+        try {
+          const bySourceQuery = `
+            SELECT 
+              application_source,
+              COUNT(*) as total,
+              COUNT(CASE WHEN status = 'Applied' THEN 1 END) as applied,
+              COUNT(CASE WHEN status IN ('Phone Screen', 'Interview') THEN 1 END) as interviews,
+              COUNT(CASE WHEN status = 'Offer' THEN 1 END) as offers
+            FROM job_opportunities
+            WHERE user_id = $1 AND (archived = false OR archived IS NULL) AND application_source IS NOT NULL ${dateFilter}
+            GROUP BY application_source
+            ORDER BY total DESC
+          `;
 
-      const sourceResult = await database.query(bySourceQuery, queryParams);
-      const bySource = sourceResult.rows.map((row) => {
-        const total = parseInt(row.total) || 0;
-        const applied = parseInt(row.applied) || 0;
-        const interviews = parseInt(row.interviews) || 0;
-        const offers = parseInt(row.offers) || 0;
+          const sourceResult = await database.query(bySourceQuery, queryParams);
+          bySource = sourceResult.rows.map((row) => {
+            const total = parseInt(row.total) || 0;
+            const applied = parseInt(row.applied) || 0;
+            const interviews = parseInt(row.interviews) || 0;
+            const offers = parseInt(row.offers) || 0;
 
-        return {
-          source: row.application_source,
-          total,
-          applied,
-          interviews,
-          offers,
-          interviewRate: applied > 0 ? Math.round((interviews / applied) * 1000) / 10 : 0,
-          offerRate: applied > 0 ? Math.round((offers / applied) * 1000) / 10 : 0,
-        };
-      });
+            return {
+              source: row.application_source,
+              total,
+              applied,
+              interviews,
+              offers,
+              interviewRate: applied > 0 ? Math.round((interviews / applied) * 1000) / 10 : 0,
+              offerRate: applied > 0 ? Math.round((offers / applied) * 1000) / 10 : 0,
+            };
+          });
+        } catch (error) {
+          console.warn("Error getting success by source:", error.message);
+        }
+      }
 
-      // Success rate by application method
-      const byMethodQuery = `
-        SELECT 
-          application_method,
-          COUNT(*) as total,
-          COUNT(CASE WHEN status = 'Applied' THEN 1 END) as applied,
-          COUNT(CASE WHEN status IN ('Phone Screen', 'Interview') THEN 1 END) as interviews,
-          COUNT(CASE WHEN status = 'Offer' THEN 1 END) as offers
-        FROM job_opportunities
-        WHERE user_id = $1 AND archived = false AND application_method IS NOT NULL ${dateFilter}
-        GROUP BY application_method
-        ORDER BY total DESC
-      `;
+      // Success rate by application method - check if column exists
+      let byMethod = [];
+      const hasApplicationMethod = await this.columnExists("job_opportunities", "application_method");
+      
+      if (hasApplicationMethod) {
+        try {
+          const byMethodQuery = `
+            SELECT 
+              application_method,
+              COUNT(*) as total,
+              COUNT(CASE WHEN status = 'Applied' THEN 1 END) as applied,
+              COUNT(CASE WHEN status IN ('Phone Screen', 'Interview') THEN 1 END) as interviews,
+              COUNT(CASE WHEN status = 'Offer' THEN 1 END) as offers
+            FROM job_opportunities
+            WHERE user_id = $1 AND (archived = false OR archived IS NULL) AND application_method IS NOT NULL ${dateFilter}
+            GROUP BY application_method
+            ORDER BY total DESC
+          `;
 
-      const methodResult = await database.query(byMethodQuery, queryParams);
-      const byMethod = methodResult.rows.map((row) => {
-        const total = parseInt(row.total) || 0;
-        const applied = parseInt(row.applied) || 0;
-        const interviews = parseInt(row.interviews) || 0;
-        const offers = parseInt(row.offers) || 0;
+          const methodResult = await database.query(byMethodQuery, queryParams);
+          byMethod = methodResult.rows.map((row) => {
+            const total = parseInt(row.total) || 0;
+            const applied = parseInt(row.applied) || 0;
+            const interviews = parseInt(row.interviews) || 0;
+            const offers = parseInt(row.offers) || 0;
 
-        return {
-          method: row.application_method,
-          total,
-          applied,
-          interviews,
-          offers,
-          interviewRate: applied > 0 ? Math.round((interviews / applied) * 1000) / 10 : 0,
-          offerRate: applied > 0 ? Math.round((offers / applied) * 1000) / 10 : 0,
-        };
-      });
+            return {
+              method: row.application_method,
+              total,
+              applied,
+              interviews,
+              offers,
+              interviewRate: applied > 0 ? Math.round((interviews / applied) * 1000) / 10 : 0,
+              offerRate: applied > 0 ? Math.round((offers / applied) * 1000) / 10 : 0,
+            };
+          });
+        } catch (error) {
+          console.warn("Error getting success by method:", error.message);
+        }
+      }
 
       // Generate recommendations
       const recommendations = this.generateSuccessRecommendations({
@@ -386,17 +458,42 @@ class AnalyticsService {
         params.push(endDate + " 23:59:59");
       }
 
+      // Check if interviews table exists and has required columns
+      const hasInterviewsTable = await this.columnExists("interviews", "id");
+      
+      if (!hasInterviewsTable) {
+        // Return empty data if interviews table doesn't exist
+        return {
+          overall: {
+            totalInterviews: 0,
+            offers: 0,
+            passed: 0,
+            failed: 0,
+            offerRate: 0,
+            avgConfidence: null,
+            avgDifficulty: null,
+          },
+          byType: [],
+          trends: [],
+        };
+      }
+
+      // Check if outcome column exists
+      const hasOutcome = await this.columnExists("interviews", "outcome");
+      const outcomeCheck = hasOutcome ? "outcome = 'offer_extended'" : "false";
+      const statusCheck = await this.columnExists("interviews", "status") 
+        ? "status = 'completed'" 
+        : "true";
+
       // Overall interview metrics
       const overallQuery = `
         SELECT 
           COUNT(*) as total_interviews,
-          COUNT(CASE WHEN outcome = 'offer_extended' THEN 1 END) as offers,
-          COUNT(CASE WHEN outcome = 'passed' THEN 1 END) as passed,
-          COUNT(CASE WHEN outcome = 'failed' THEN 1 END) as failed,
-          AVG(confidence_rating) as avg_confidence,
-          AVG(difficulty_rating) as avg_difficulty
+          COUNT(CASE WHEN ${outcomeCheck} THEN 1 END) as offers,
+          COUNT(CASE WHEN ${hasOutcome ? "outcome = 'passed'" : "false"} THEN 1 END) as passed,
+          COUNT(CASE WHEN ${hasOutcome ? "outcome = 'failed'" : "false"} THEN 1 END) as failed
         FROM interviews i
-        WHERE i.user_id = $1 AND status = 'completed' ${dateFilter}
+        WHERE i.user_id = $1 AND ${statusCheck} ${dateFilter}
       `;
 
       const overallResult = await database.query(overallQuery, params);
@@ -405,61 +502,101 @@ class AnalyticsService {
       const totalInterviews = parseInt(overall.total_interviews) || 0;
       const offers = parseInt(overall.offers) || 0;
 
+      // Check for confidence and difficulty columns
+      const hasConfidence = await this.columnExists("interviews", "confidence_rating");
+      const hasDifficulty = await this.columnExists("interviews", "difficulty_rating");
+      
+      let avgConfidence = null;
+      let avgDifficulty = null;
+
+      if (hasConfidence || hasDifficulty) {
+        const ratingQuery = `
+          SELECT 
+            ${hasConfidence ? "AVG(confidence_rating) as avg_confidence" : "NULL as avg_confidence"},
+            ${hasDifficulty ? "AVG(difficulty_rating) as avg_difficulty" : "NULL as avg_difficulty"}
+          FROM interviews
+          WHERE user_id = $1 AND ${statusCheck} ${dateFilter}
+        `;
+        const ratingResult = await database.query(ratingQuery, params);
+        const ratings = ratingResult.rows[0];
+        if (ratings?.avg_confidence) {
+          avgConfidence = Math.round(ratings.avg_confidence * 10) / 10;
+        }
+        if (ratings?.avg_difficulty) {
+          avgDifficulty = Math.round(ratings.avg_difficulty * 10) / 10;
+        }
+      }
+
       // Performance by interview type
-      const byTypeQuery = `
-        SELECT 
-          interview_type,
-          COUNT(*) as count,
-          COUNT(CASE WHEN outcome = 'offer_extended' THEN 1 END) as offers,
-          AVG(confidence_rating) as avg_confidence,
-          AVG(difficulty_rating) as avg_difficulty
-        FROM interviews
-        WHERE user_id = $1 AND status = 'completed' ${dateFilter}
-        GROUP BY interview_type
-        ORDER BY count DESC
-      `;
+      let byType = [];
+      const hasInterviewType = await this.columnExists("interviews", "interview_type") || 
+                               await this.columnExists("interviews", "type");
+      
+      if (hasInterviewType) {
+        const typeColumn = await this.columnExists("interviews", "interview_type") 
+          ? "interview_type" 
+          : "type";
+        
+        try {
+          const byTypeQuery = `
+            SELECT 
+              ${typeColumn} as interview_type,
+              COUNT(*) as count,
+              COUNT(CASE WHEN ${outcomeCheck} THEN 1 END) as offers,
+              ${hasConfidence ? "AVG(confidence_rating) as avg_confidence" : "NULL as avg_confidence"},
+              ${hasDifficulty ? "AVG(difficulty_rating) as avg_difficulty" : "NULL as avg_difficulty"}
+            FROM interviews
+            WHERE user_id = $1 AND ${statusCheck} ${dateFilter}
+            GROUP BY ${typeColumn}
+            ORDER BY count DESC
+          `;
 
-      const byTypeResult = await database.query(byTypeQuery, params);
-      const byType = byTypeResult.rows.map((row) => {
-        const count = parseInt(row.count) || 0;
-        const typeOffers = parseInt(row.offers) || 0;
+          const byTypeResult = await database.query(byTypeQuery, params);
+          byType = byTypeResult.rows.map((row) => {
+            const count = parseInt(row.count) || 0;
+            const typeOffers = parseInt(row.offers) || 0;
 
-        return {
-          type: row.interview_type,
-          count,
-          offers: typeOffers,
-          offerRate: count > 0 ? Math.round((typeOffers / count) * 1000) / 10 : 0,
-          avgConfidence: row.avg_confidence
-            ? Math.round(row.avg_confidence * 10) / 10
-            : null,
-          avgDifficulty: row.avg_difficulty
-            ? Math.round(row.avg_difficulty * 10) / 10
-            : null,
-        };
-      });
+            return {
+              type: row.interview_type,
+              count,
+              offers: typeOffers,
+              offerRate: count > 0 ? Math.round((typeOffers / count) * 1000) / 10 : 0,
+              avgConfidence: row.avg_confidence ? Math.round(row.avg_confidence * 10) / 10 : null,
+              avgDifficulty: row.avg_difficulty ? Math.round(row.avg_difficulty * 10) / 10 : null,
+            };
+          });
+        } catch (error) {
+          console.warn("Error getting performance by type:", error.message);
+        }
+      }
 
       // Improvement trends (over time)
       const trendsQuery = `
         SELECT 
           TO_CHAR(created_at, 'YYYY-MM') as month,
           COUNT(*) as count,
-          COUNT(CASE WHEN outcome = 'offer_extended' THEN 1 END) as offers,
-          AVG(confidence_rating) as avg_confidence
+          COUNT(CASE WHEN ${outcomeCheck} THEN 1 END) as offers,
+          ${hasConfidence ? "AVG(confidence_rating) as avg_confidence" : "NULL as avg_confidence"}
         FROM interviews
-        WHERE user_id = $1 AND status = 'completed' ${dateFilter}
+        WHERE user_id = $1 AND ${statusCheck} ${dateFilter}
         GROUP BY TO_CHAR(created_at, 'YYYY-MM')
         ORDER BY month ASC
       `;
 
-      const trendsResult = await database.query(trendsQuery, params);
-      const trends = trendsResult.rows.map((row) => ({
-        month: row.month,
-        count: parseInt(row.count) || 0,
-        offers: parseInt(row.offers) || 0,
-        avgConfidence: row.avg_confidence
-          ? Math.round(row.avg_confidence * 10) / 10
-          : null,
-      }));
+      let trends = [];
+      try {
+        const trendsResult = await database.query(trendsQuery, params);
+        trends = trendsResult.rows.map((row) => ({
+          month: row.month,
+          count: parseInt(row.count) || 0,
+          offers: parseInt(row.offers) || 0,
+          avgConfidence: row.avg_confidence
+            ? Math.round(row.avg_confidence * 10) / 10
+            : null,
+        }));
+      } catch (error) {
+        console.warn("Error getting interview trends:", error.message);
+      }
 
       return {
         overall: {
@@ -471,12 +608,8 @@ class AnalyticsService {
             totalInterviews > 0
               ? Math.round((offers / totalInterviews) * 1000) / 10
               : 0,
-          avgConfidence: overall.avg_confidence
-            ? Math.round(overall.avg_confidence * 10) / 10
-            : null,
-          avgDifficulty: overall.avg_difficulty
-            ? Math.round(overall.avg_difficulty * 10) / 10
-            : null,
+          avgConfidence,
+          avgDifficulty,
         },
         byType,
         trends,
@@ -509,14 +642,35 @@ class AnalyticsService {
         params.push(endDate + " 23:59:59");
       }
 
+      // Check if networking_activities table exists, if not use professional_contacts
+      const hasNetworkingActivities = await this.columnExists("networking_activities", "id");
+      const hasProfessionalContacts = await this.columnExists("professional_contacts", "id");
+      
+      if (!hasNetworkingActivities && !hasProfessionalContacts) {
+        return {
+          overall: {
+            totalActivities: 0,
+            referrals: 0,
+            opportunitiesFromNetwork: 0,
+            uniqueContacts: 0,
+          },
+          byType: [],
+        };
+      }
+
+      // Use networking_activities if it exists, otherwise use professional_contacts
+      const tableName = hasNetworkingActivities ? "networking_activities" : "professional_contacts";
+      const hasReferralProvided = await this.columnExists(tableName, "referral_provided");
+      const hasJobOpportunityId = await this.columnExists(tableName, "job_opportunity_id");
+
       // Overall networking metrics
       const overallQuery = `
         SELECT 
           COUNT(*) as total_activities,
-          COUNT(CASE WHEN referral_provided = true THEN 1 END) as referrals,
-          COUNT(CASE WHEN job_opportunity_id IS NOT NULL THEN 1 END) as opportunities_from_network,
-          COUNT(DISTINCT contact_name) as unique_contacts
-        FROM networking_activities
+          ${hasReferralProvided ? "COUNT(CASE WHEN referral_provided = true THEN 1 END) as referrals" : "0 as referrals"},
+          ${hasJobOpportunityId ? "COUNT(CASE WHEN job_opportunity_id IS NOT NULL THEN 1 END) as opportunities_from_network" : "0 as opportunities_from_network"},
+          COUNT(DISTINCT ${hasNetworkingActivities ? "contact_name" : "first_name || ' ' || COALESCE(last_name, '')"}) as unique_contacts
+        FROM ${tableName}
         WHERE user_id = $1 ${dateFilter}
       `;
 
@@ -524,25 +678,36 @@ class AnalyticsService {
       const overall = overallResult.rows[0];
 
       // Activities by type
-      const byTypeQuery = `
-        SELECT 
-          activity_type,
-          COUNT(*) as count,
-          COUNT(CASE WHEN referral_provided = true THEN 1 END) as referrals,
-          COUNT(CASE WHEN job_opportunity_id IS NOT NULL THEN 1 END) as opportunities
-        FROM networking_activities
-        WHERE user_id = $1 ${dateFilter}
-        GROUP BY activity_type
-        ORDER BY count DESC
-      `;
+      let byType = [];
+      const hasActivityType = await this.columnExists(tableName, "activity_type");
+      const hasRelationshipType = await this.columnExists(tableName, "relationship_type");
+      const typeColumn = hasActivityType ? "activity_type" : (hasRelationshipType ? "relationship_type" : null);
 
-      const byTypeResult = await database.query(byTypeQuery, params);
-      const byType = byTypeResult.rows.map((row) => ({
-        type: row.activity_type,
-        count: parseInt(row.count) || 0,
-        referrals: parseInt(row.referrals) || 0,
-        opportunities: parseInt(row.opportunities) || 0,
-      }));
+      if (typeColumn) {
+        try {
+          const byTypeQuery = `
+            SELECT 
+              ${typeColumn} as activity_type,
+              COUNT(*) as count,
+              ${hasReferralProvided ? "COUNT(CASE WHEN referral_provided = true THEN 1 END) as referrals" : "0 as referrals"},
+              ${hasJobOpportunityId ? "COUNT(CASE WHEN job_opportunity_id IS NOT NULL THEN 1 END) as opportunities" : "0 as opportunities"}
+            FROM ${tableName}
+            WHERE user_id = $1 ${dateFilter}
+            GROUP BY ${typeColumn}
+            ORDER BY count DESC
+          `;
+
+          const byTypeResult = await database.query(byTypeQuery, params);
+          byType = byTypeResult.rows.map((row) => ({
+            type: row.activity_type,
+            count: parseInt(row.count) || 0,
+            referrals: parseInt(row.referrals) || 0,
+            opportunities: parseInt(row.opportunities) || 0,
+          }));
+        } catch (error) {
+          console.warn("Error getting activities by type:", error.message);
+        }
+      }
 
       return {
         overall: {
@@ -560,7 +725,7 @@ class AnalyticsService {
   }
 
   // ============================================
-  // UC-100: Salary Progression Analytics
+  // UC-100: Salary Progression and Market Positioning
   // ============================================
 
   /**
@@ -591,7 +756,9 @@ class AnalyticsService {
         FROM job_opportunities
         WHERE user_id = $1 
           AND status = 'Offer' 
-          AND salary_min IS NOT NULL ${dateFilter}
+          AND (salary_min IS NOT NULL OR salary_max IS NOT NULL)
+          AND (archived = false OR archived IS NULL)
+          ${dateFilter}
         GROUP BY TO_CHAR(created_at, 'YYYY-MM')
         ORDER BY month ASC
       `;
@@ -615,9 +782,11 @@ class AnalyticsService {
         WHERE user_id = $1 
           AND status = 'Offer' 
           AND industry IS NOT NULL
-          AND salary_min IS NOT NULL ${dateFilter}
+          AND (salary_min IS NOT NULL OR salary_max IS NOT NULL)
+          AND (archived = false OR archived IS NULL)
+          ${dateFilter}
         GROUP BY industry
-        ORDER BY avg_max DESC
+        ORDER BY avg_max DESC NULLS LAST
       `;
 
       const industryResult = await database.query(byIndustryQuery, params);
@@ -654,4 +823,3 @@ class AnalyticsService {
 }
 
 export default new AnalyticsService();
-

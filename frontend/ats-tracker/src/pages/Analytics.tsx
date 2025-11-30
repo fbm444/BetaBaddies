@@ -5,8 +5,9 @@ import { ApplicationSuccessAnalysis } from "../components/analytics/ApplicationS
 import { InterviewPerformance } from "../components/analytics/InterviewPerformance";
 import { NetworkROI } from "../components/analytics/NetworkROI";
 import { SalaryProgression } from "../components/analytics/SalaryProgression";
+import { GoalTracking } from "../components/analytics/GoalTracking";
 
-type TabId = "performance" | "success" | "interview" | "network" | "salary";
+type TabId = "performance" | "success" | "interview" | "network" | "salary" | "goals";
 
 interface Tab {
   id: TabId;
@@ -49,6 +50,12 @@ export function Analytics() {
       label: "Salary Progression",
       icon: "mingcute:money-line",
       component: <SalaryProgression dateRange={dateRange} />,
+    },
+    {
+      id: "goals",
+      label: "Goal Setting",
+      icon: "mingcute:target-2-line",
+      component: <GoalTracking dateRange={dateRange} />,
     },
   ];
 

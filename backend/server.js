@@ -23,6 +23,7 @@ import companyResearchRoutes from "./routes/companyResearchRoutes.js";
 import interviewRoutes from "./routes/interviewRoutes.js";
 import googleCalendarRoutes from "./routes/googleCalendarRoutes.js";
 import analyticsRoutes from "./routes/analyticsRoutes.js";
+import goalRoutes from "./routes/goalRoutes.js";
 
 // Import middleware
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
@@ -130,6 +131,7 @@ app.use("/api/v1/company-research", companyResearchRoutes);
 app.use("/api/v1/interviews", interviewRoutes);
 app.use("/api/v1/calendar", googleCalendarRoutes);
 app.use("/api/v1/analytics", analyticsRoutes);
+app.use("/api/v1/goals", goalRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

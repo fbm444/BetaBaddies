@@ -38,6 +38,7 @@ import {
   InterviewData,
   InterviewInput,
   InterviewConflict,
+  InterviewAnalytics,
 } from "../types";
 
 // In development, use proxy (relative path). In production, use env variable or full URL
@@ -1021,6 +1022,32 @@ class ApiService {
       method: "POST",
       body: JSON.stringify({ scheduledAt, duration }),
     });
+  }
+
+  // Interview Analytics endpoints
+  async getInterviewAnalytics() {
+    return this.request<ApiResponse<InterviewAnalytics>>(
+      "/interviews/analytics"
+    );
+  }
+
+  async getInterviewConversionRate() {
+    return this.request<
+      ApiResponse<{ conversionRate: InterviewAnalytics["conversionRate"] }>
+    >("/interviews/analytics/conversion-rate");
+  }
+
+  async getInterviewTrends(months?: number) {
+    const query = months ? `?months=${months}` : "";
+    return this.request<
+      ApiResponse<{ trends: InterviewAnalytics["improvementTrend"] }>
+    >(`/interviews/analytics/trends${query}`);
+  }
+
+  async getInterviewRecommendations() {
+    return this.request<
+      ApiResponse<{ recommendations: string[] }>
+    >("/interviews/analytics/recommendations");
   }
 
   async updatePreparationTask(

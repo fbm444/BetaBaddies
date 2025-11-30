@@ -57,18 +57,6 @@ export function Interviews() {
   }>>(new Map());
   const [loadingPreparation, setLoadingPreparation] = useState(false);
 
-  // Preparation/Interview Insights state
-  const [companyInsights, setCompanyInsights] = useState<Map<string, {
-    company: string;
-    jobId: string;
-    jobTitle: string;
-    insights: InterviewInsights | null;
-    metadata: InterviewInsightsMetadata | null;
-    loading: boolean;
-    error: string | null;
-  }>>(new Map());
-  const [loadingPreparation, setLoadingPreparation] = useState(false);
-
   useEffect(() => {
     fetchInterviews();
     fetchJobOpportunities();

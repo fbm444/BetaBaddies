@@ -1,4 +1,8 @@
 import database from "./database.js";
+import confidenceAnxietyService from "./confidenceAnxietyService.js";
+import feedbackAnalysisService from "./feedbackAnalysisService.js";
+import patternMatchingService from "./patternMatchingService.js";
+import interviewBenchmarks from "../config/interviewBenchmarks.js";
 
 class InterviewAnalyticsService {
   constructor() {
@@ -41,7 +45,7 @@ class InterviewAnalyticsService {
           COUNT(*) FILTER (WHERE outcome = 'offer_extended') as offers,
           COUNT(*) FILTER (WHERE status = 'completed' AND outcome IS NOT NULL AND outcome != 'pending') as completed_interviews
         FROM interviews
-        WHERE user_id = $1
+        WHERE user_id = $1 AND (is_practice IS NULL OR is_practice = false)
       `;
 
       const result = await database.query(query, [userId]);
@@ -76,7 +80,7 @@ class InterviewAnalyticsService {
           COUNT(*) FILTER (WHERE outcome IN ('passed', 'offer_extended')) as successful,
           COUNT(*) FILTER (WHERE status = 'completed' AND outcome IS NOT NULL AND outcome != 'pending') as total
         FROM interviews
-        WHERE user_id = $1
+        WHERE user_id = $1 AND (is_practice IS NULL OR is_practice = false)
         GROUP BY format
         ORDER BY successful DESC, total DESC
       `;
@@ -177,6 +181,7 @@ class InterviewAnalyticsService {
         FROM interviews i
         LEFT JOIN interview_feedback if ON i.id = if.interview_id
         WHERE i.user_id = $1
+          AND (i.is_practice IS NULL OR i.is_practice = false)
           AND i.scheduled_at >= NOW() - INTERVAL '${monthsNum} months'
           AND i.status = 'completed'
         GROUP BY DATE_TRUNC('month', i.scheduled_at)
@@ -303,7 +308,125 @@ class InterviewAnalyticsService {
   }
 
   /**
-   * Get all analytics data in one call
+   * Get practice vs real interview comparison
+   */
+  async getPracticeVsRealComparison(userId) {
+    try {
+      // Get practice interview stats
+      const practiceQuery = `
+        SELECT 
+          COUNT(*) FILTER (WHERE outcome = 'offer_extended') as offers,
+          COUNT(*) FILTER (WHERE status = 'completed' AND outcome IS NOT NULL) as completed,
+          AVG(score)::numeric(5,2) as avg_score
+        FROM interviews i
+        LEFT JOIN interview_feedback if ON i.id = if.interview_id
+        WHERE i.user_id = $1 AND i.is_practice = true
+      `;
+
+      // Get real interview stats
+      const realQuery = `
+        SELECT 
+          COUNT(*) FILTER (WHERE outcome = 'offer_extended') as offers,
+          COUNT(*) FILTER (WHERE status = 'completed' AND outcome IS NOT NULL) as completed,
+          AVG(score)::numeric(5,2) as avg_score
+        FROM interviews i
+        LEFT JOIN interview_feedback if ON i.id = if.interview_id
+        WHERE i.user_id = $1 AND (i.is_practice IS NULL OR i.is_practice = false)
+      `;
+
+      const [practiceResult, realResult] = await Promise.all([
+        database.query(practiceQuery, [userId]),
+        database.query(realQuery, [userId]),
+      ]);
+
+      const practice = practiceResult.rows[0];
+      const real = realResult.rows[0];
+
+      const practiceOffers = parseInt(practice.offers) || 0;
+      const practiceCompleted = parseInt(practice.completed) || 0;
+      const practiceRate = practiceCompleted > 0 ? (practiceOffers / practiceCompleted) * 100 : 0;
+
+      const realOffers = parseInt(real.offers) || 0;
+      const realCompleted = parseInt(real.completed) || 0;
+      const realRate = realCompleted > 0 ? (realOffers / realCompleted) * 100 : 0;
+
+      return {
+        practice: {
+          conversionRate: practiceRate,
+          offers: practiceOffers,
+          completed: practiceCompleted,
+          avgScore: practice.avg_score ? parseFloat(practice.avg_score) : null,
+        },
+        real: {
+          conversionRate: realRate,
+          offers: realOffers,
+          completed: realCompleted,
+          avgScore: real.avg_score ? parseFloat(real.avg_score) : null,
+        },
+        improvement: realRate - practiceRate, // Difference between real and practice
+      };
+    } catch (error) {
+      console.error("Error getting practice vs real comparison:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get mock-to-real improvement trend
+   */
+  async getMockToRealImprovementTrend(userId, months = 12) {
+    try {
+      const monthsNum = parseInt(months);
+      const query = `
+        SELECT 
+          DATE_TRUNC('month', i.scheduled_at) as period,
+          i.is_practice,
+          AVG(if.score)::numeric(5,2) as avg_score,
+          COUNT(*) FILTER (WHERE i.outcome IN ('passed', 'offer_extended')) as successful,
+          COUNT(*) as total
+        FROM interviews i
+        LEFT JOIN interview_feedback if ON i.id = if.interview_id
+        WHERE i.user_id = $1
+          AND i.scheduled_at >= NOW() - INTERVAL '${monthsNum} months'
+          AND i.status = 'completed'
+        GROUP BY DATE_TRUNC('month', i.scheduled_at), i.is_practice
+        ORDER BY period ASC, i.is_practice ASC
+      `;
+
+      const result = await database.query(query, [userId]);
+
+      // Separate practice and real trends
+      const practiceTrends = [];
+      const realTrends = [];
+
+      result.rows.forEach((row) => {
+        const period = row.period ? new Date(row.period).toISOString().substring(0, 7) : null;
+        const data = {
+          period,
+          avgScore: row.avg_score ? parseFloat(row.avg_score) : null,
+          successful: parseInt(row.successful) || 0,
+          total: parseInt(row.total) || 0,
+        };
+
+        if (row.is_practice === true) {
+          practiceTrends.push(data);
+        } else {
+          realTrends.push(data);
+        }
+      });
+
+      return {
+        practice: practiceTrends,
+        real: realTrends,
+      };
+    } catch (error) {
+      console.error("Error getting mock-to-real improvement trend:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all analytics data in one call (enhanced version)
    */
   async getAllAnalytics(userId) {
     try {
@@ -314,6 +437,12 @@ class InterviewAnalyticsService {
         skillAreaPerformance,
         improvementTrend,
         recommendations,
+        practiceVsReal,
+        confidenceTrends,
+        anxietyProgress,
+        benchmarkComparison,
+        feedbackThemes,
+        patternRecommendations,
       ] = await Promise.all([
         this.getConversionRate(userId),
         this.getPerformanceByFormat(userId),
@@ -321,9 +450,21 @@ class InterviewAnalyticsService {
         this.getSkillAreaPerformance(userId),
         this.getImprovementTrend(userId),
         this.generateRecommendations(userId),
+        this.getPracticeVsRealComparison(userId).catch(() => null),
+        confidenceAnxietyService.getConfidenceTrends(userId).catch(() => []),
+        confidenceAnxietyService.getAnxietyProgress(userId).catch(() => []),
+        patternMatchingService.getBenchmarkComparison(userId).catch(() => null),
+        feedbackAnalysisService.getCommonThemes(userId).catch(() => []),
+        patternMatchingService.getRecommendationsFromPatterns(userId).catch(() => []),
       ]);
 
       const optimalStrategyInsights = this.getOptimalStrategyInsights();
+
+      // Combine recommendations
+      const allRecommendations = [
+        ...recommendations,
+        ...patternRecommendations.map((r) => r.message),
+      ].slice(0, 10); // Top 10 recommendations
 
       return {
         conversionRate,
@@ -331,11 +472,59 @@ class InterviewAnalyticsService {
         performanceByCompanyType,
         skillAreaPerformance,
         improvementTrend,
-        recommendations,
+        recommendations: allRecommendations,
         optimalStrategyInsights,
+        // New enhanced features
+        practiceVsRealComparison: practiceVsReal,
+        confidenceTrends,
+        anxietyProgress,
+        benchmarkComparison,
+        feedbackThemes,
+        patternRecommendations,
       };
     } catch (error) {
       console.error("Error getting all analytics:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get enhanced analytics with all new features
+   */
+  async getEnhancedAnalytics(userId) {
+    try {
+      const [
+        allAnalytics,
+        mockToRealTrend,
+        confidenceChange,
+        confidencePerformanceCorrelation,
+        preparationImpact,
+        commonImprovementAreas,
+        personalBenchmarks,
+        successfulPatterns,
+      ] = await Promise.all([
+        this.getAllAnalytics(userId),
+        this.getMockToRealImprovementTrend(userId),
+        confidenceAnxietyService.getConfidenceChange(userId).catch(() => []),
+        confidenceAnxietyService.getConfidencePerformanceCorrelation(userId).catch(() => []),
+        confidenceAnxietyService.getPreparationImpact(userId).catch(() => []),
+        feedbackAnalysisService.getCommonImprovementAreas(userId).catch(() => []),
+        patternMatchingService.getPersonalBenchmarks(userId).catch(() => null),
+        patternMatchingService.identifySuccessfulPatterns(userId).catch(() => []),
+      ]);
+
+      return {
+        ...allAnalytics,
+        mockToRealImprovementTrend: mockToRealTrend,
+        confidenceChange,
+        confidencePerformanceCorrelation,
+        preparationImpact,
+        commonImprovementAreas,
+        personalBenchmarks,
+        successfulPatterns,
+      };
+    } catch (error) {
+      console.error("Error getting enhanced analytics:", error);
       throw error;
     }
   }

@@ -19,6 +19,23 @@ router.get(
   "/analytics/recommendations",
   interviewAnalyticsController.getRecommendations
 );
+router.get(
+  "/analytics/practice-vs-real",
+  interviewAnalyticsController.getPracticeVsReal
+);
+router.get(
+  "/analytics/confidence-trends",
+  interviewAnalyticsController.getConfidenceTrends
+);
+router.get(
+  "/analytics/anxiety-progress",
+  interviewAnalyticsController.getAnxietyProgress
+);
+router.get("/analytics/benchmarks", interviewAnalyticsController.getBenchmarks);
+router.get(
+  "/analytics/feedback-themes",
+  interviewAnalyticsController.getFeedbackThemes
+);
 
 // Create a new interview
 router.post("/", interviewController.createInterview);
@@ -28,6 +45,12 @@ router.get("/", interviewController.getInterviews);
 
 // Check for conflicts (must be before :id)
 router.get("/check-conflicts", interviewController.checkConflicts);
+
+// Pre/post interview assessments (must be before :id routes to avoid conflicts)
+router.post("/:id/pre-assessment", interviewController.createPreAssessment);
+router.post("/:id/post-reflection", interviewController.createPostReflection);
+router.get("/:id/pre-assessment", interviewController.getPreAssessment);
+router.get("/:id/post-reflection", interviewController.getPostReflection);
 
 // Get interview by ID
 router.get("/:id", interviewController.getInterviewById);

@@ -115,9 +115,9 @@ class InterviewService {
           id, user_id, job_opportunity_id, title, company,
           type, date, scheduled_at, duration, location, video_link, phone_number,
           interviewer_name, interviewer_email, interviewer_title,
-          notes, preparation_notes, status, conflict_detected
+          notes, preparation_notes, status, conflict_detected, is_practice
         ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18
+          $1, $2, $3, $4, $5, $6, $7, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19
         )
         RETURNING *
       `;
@@ -142,6 +142,7 @@ class InterviewService {
         interviewData.preparationNotes || null,
         "scheduled",
         conflictDetected,
+        interviewData.isPractice || false,
       ]);
 
       const interview = result.rows[0];
@@ -387,6 +388,7 @@ class InterviewService {
         status: "status",
         outcome: "outcome",
         outcomeNotes: "outcome_notes",
+        isPractice: "is_practice",
       };
 
       for (const [key, value] of Object.entries(updateData)) {

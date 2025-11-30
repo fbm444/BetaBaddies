@@ -1,4 +1,5 @@
 import interviewService from "../services/interviewService.js";
+import confidenceAnxietyService from "../services/confidenceAnxietyService.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 
 class InterviewController {
@@ -216,6 +217,128 @@ class InterviewController {
       data: {
         conflicts,
         hasConflicts: conflicts.length > 0,
+      },
+    });
+  });
+
+  // Create pre-interview assessment
+  createPreAssessment = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { id: interviewId } = req.params;
+    const { confidenceLevel, anxietyLevel, preparationHours, notes } = req.body;
+
+    if (!confidenceLevel || anxietyLevel === undefined) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          message: "confidenceLevel and anxietyLevel are required",
+        },
+      });
+    }
+
+    const assessment = await confidenceAnxietyService.createPreAssessment(
+      userId,
+      interviewId,
+      {
+        confidenceLevel,
+        anxietyLevel,
+        preparationHours,
+        notes,
+      }
+    );
+
+    res.status(201).json({
+      ok: true,
+      data: {
+        assessment,
+        message: "Pre-interview assessment saved successfully",
+      },
+    });
+  });
+
+  // Create post-interview reflection
+  createPostReflection = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { id: interviewId } = req.params;
+    const {
+      postConfidenceLevel,
+      postAnxietyLevel,
+      whatWentWell,
+      whatToImprove,
+      overallFeeling,
+    } = req.body;
+
+    const reflection = await confidenceAnxietyService.createPostReflection(
+      userId,
+      interviewId,
+      {
+        postConfidenceLevel,
+        postAnxietyLevel,
+        whatWentWell,
+        whatToImprove,
+        overallFeeling,
+      }
+    );
+
+    res.status(201).json({
+      ok: true,
+      data: {
+        reflection,
+        message: "Post-interview reflection saved successfully",
+      },
+    });
+  });
+
+  // Get pre-assessment for interview
+  getPreAssessment = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { id: interviewId } = req.params;
+
+    const assessment = await confidenceAnxietyService.getPreAssessment(
+      userId,
+      interviewId
+    );
+
+    if (!assessment) {
+      return res.status(404).json({
+        ok: false,
+        error: {
+          message: "Pre-assessment not found",
+        },
+      });
+    }
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        assessment,
+      },
+    });
+  });
+
+  // Get post-reflection for interview
+  getPostReflection = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { id: interviewId } = req.params;
+
+    const reflection = await confidenceAnxietyService.getPostReflection(
+      userId,
+      interviewId
+    );
+
+    if (!reflection) {
+      return res.status(404).json({
+        ok: false,
+        error: {
+          message: "Post-reflection not found",
+        },
+      });
+    }
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        reflection,
       },
     });
   });

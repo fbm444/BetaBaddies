@@ -14,3 +14,4 @@ export * from './resume.types';
 export * from './skillGap.types';
 export * from './coverLetter.types';
 export * from './interview.types';
+export * from './analytics.types';

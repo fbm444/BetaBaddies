@@ -1,90 +1,14 @@
 -- Migration: Add Analytics and Performance Tracking Features
 -- Purpose: Support comprehensive job search analytics (UC-096 through UC-101)
+-- This migration aligns with sprint3_tables_migration.sql schema
 -- Created: 2024
 
--- ============================================
--- 1. Goals Table (UC-101: Goal Setting and Achievement Tracking)
--- ============================================
-CREATE TABLE IF NOT EXISTS public.goals (
-    id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id uuid NOT NULL REFERENCES public.users(u_id) ON DELETE CASCADE,
-    title character varying(255) NOT NULL,
-    description text,
-    category character varying(50) NOT NULL, -- 'career', 'job_search', 'skills', 'networking', 'salary'
-    goal_type character varying(50) NOT NULL, -- 'short_term', 'long_term'
-    target_value numeric,
-    current_value numeric DEFAULT 0,
-    unit character varying(50), -- 'applications', 'interviews', 'offers', 'dollars', 'percent', 'count'
-    target_date date,
-    start_date date DEFAULT CURRENT_DATE,
-    status character varying(50) DEFAULT 'active', -- 'active', 'completed', 'paused', 'cancelled'
-    priority character varying(20) DEFAULT 'medium', -- 'low', 'medium', 'high'
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    completed_at timestamp with time zone
-);
-
-CREATE INDEX IF NOT EXISTS idx_goals_user_id ON public.goals(user_id);
-CREATE INDEX IF NOT EXISTS idx_goals_status ON public.goals(status);
-CREATE INDEX IF NOT EXISTS idx_goals_category ON public.goals(category);
-CREATE INDEX IF NOT EXISTS idx_goals_target_date ON public.goals(target_date);
-
-COMMENT ON TABLE public.goals IS 'SMART career goals with tracking and achievement metrics';
-COMMENT ON COLUMN public.goals.category IS 'Goal category: career, job_search, skills, networking, salary';
-COMMENT ON COLUMN public.goals.goal_type IS 'Goal type: short_term (less than 1 year), long_term (1+ years)';
+BEGIN;
 
 -- ============================================
--- 2. Goal Progress History Table
+-- 1. Add Application Source Tracking to Job Opportunities
 -- ============================================
-CREATE TABLE IF NOT EXISTS public.goal_progress (
-    id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    goal_id uuid NOT NULL REFERENCES public.goals(id) ON DELETE CASCADE,
-    user_id uuid NOT NULL REFERENCES public.users(u_id) ON DELETE CASCADE,
-    value numeric NOT NULL,
-    notes text,
-    recorded_at timestamp with time zone DEFAULT now() NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_goal_progress_goal_id ON public.goal_progress(goal_id);
-CREATE INDEX IF NOT EXISTS idx_goal_progress_user_id ON public.goal_progress(user_id);
-CREATE INDEX IF NOT EXISTS idx_goal_progress_recorded_at ON public.goal_progress(recorded_at);
-
--- ============================================
--- 3. Networking Activities Table (UC-099: Network ROI Analytics)
--- ============================================
-CREATE TABLE IF NOT EXISTS public.networking_activities (
-    id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id uuid NOT NULL REFERENCES public.users(u_id) ON DELETE CASCADE,
-    contact_name character varying(255),
-    contact_email character varying(255),
-    contact_linkedin character varying(500),
-    contact_company character varying(255),
-    contact_title character varying(255),
-    activity_type character varying(50) NOT NULL, -- 'event', 'coffee_chat', 'email', 'linkedin', 'referral_request', 'follow_up'
-    event_name character varying(255),
-    event_date date,
-    location character varying(255),
-    notes text,
-    relationship_strength character varying(20) DEFAULT 'weak', -- 'weak', 'medium', 'strong'
-    referral_provided boolean DEFAULT false,
-    job_opportunity_id uuid REFERENCES public.job_opportunities(id) ON DELETE SET NULL,
-    outcome character varying(50), -- 'referral', 'information', 'no_response', 'ongoing'
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_networking_user_id ON public.networking_activities(user_id);
-CREATE INDEX IF NOT EXISTS idx_networking_activity_type ON public.networking_activities(activity_type);
-CREATE INDEX IF NOT EXISTS idx_networking_event_date ON public.networking_activities(event_date);
-CREATE INDEX IF NOT EXISTS idx_networking_job_opportunity ON public.networking_activities(job_opportunity_id);
-
-COMMENT ON TABLE public.networking_activities IS 'Track networking activities and relationship building';
-COMMENT ON COLUMN public.networking_activities.activity_type IS 'Type: event, coffee_chat, email, linkedin, referral_request, follow_up';
-
--- ============================================
--- 4. Add Application Source Tracking to Job Opportunities
--- ============================================
+-- These columns support UC-097: Application Success Rate Analysis
 ALTER TABLE public.job_opportunities
 ADD COLUMN IF NOT EXISTS application_source character varying(100), -- 'job_board', 'company_website', 'referral', 'recruiter', 'networking', 'social_media', 'other'
 ADD COLUMN IF NOT EXISTS application_method character varying(100), -- 'online_form', 'email', 'linkedin_easy_apply', 'recruiter_submission', 'direct_application'
@@ -105,67 +29,105 @@ COMMENT ON COLUMN public.job_opportunities.first_response_at IS 'When first resp
 COMMENT ON COLUMN public.job_opportunities.interview_scheduled_at IS 'When first interview was scheduled';
 
 -- ============================================
--- 5. Interview Performance Tracking Enhancements
--- (Uses existing interviews table, but adding analytics columns)
+-- 2. Enhance Interviews Table for Performance Tracking
 -- ============================================
--- Check if interviews table exists, if not create it
-CREATE TABLE IF NOT EXISTS public.interviews (
-    id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    job_opportunity_id uuid REFERENCES public.job_opportunities(id) ON DELETE CASCADE,
-    user_id uuid NOT NULL REFERENCES public.users(u_id) ON DELETE CASCADE,
-    interview_type character varying(50), -- 'phone', 'video', 'in_person', 'technical', 'behavioral', 'panel', 'final'
-    interview_round integer DEFAULT 1,
-    scheduled_at timestamp with time zone,
-    duration_minutes integer,
-    interviewer_name character varying(255),
-    interviewer_title character varying(255),
-    status character varying(50) DEFAULT 'scheduled', -- 'scheduled', 'completed', 'cancelled', 'rescheduled'
-    outcome character varying(50), -- 'pending', 'passed', 'failed', 'offer_extended', 'rejected'
-    feedback_notes text,
-    confidence_rating integer CHECK (confidence_rating >= 1 AND confidence_rating <= 5),
-    difficulty_rating integer CHECK (difficulty_rating >= 1 AND difficulty_rating <= 5),
-    preparation_hours numeric,
-    questions_asked text[], -- Array of questions asked
-    improvement_areas text[], -- Array of areas to improve
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
-);
+-- Add columns for UC-098: Interview Performance Tracking
+-- Note: interviews table already exists and has been extended by add_interview_scheduling_features.sql
+-- We're adding analytics-specific columns that may be missing
 
-CREATE INDEX IF NOT EXISTS idx_interviews_job_opportunity ON public.interviews(job_opportunity_id);
-CREATE INDEX IF NOT EXISTS idx_interviews_user_id ON public.interviews(user_id);
-CREATE INDEX IF NOT EXISTS idx_interviews_scheduled_at ON public.interviews(scheduled_at);
-CREATE INDEX IF NOT EXISTS idx_interviews_outcome ON public.interviews(outcome);
+ALTER TABLE public.interviews
+ADD COLUMN IF NOT EXISTS interview_round integer DEFAULT 1,
+ADD COLUMN IF NOT EXISTS confidence_rating integer CHECK (confidence_rating IS NULL OR (confidence_rating >= 1 AND confidence_rating <= 5)),
+ADD COLUMN IF NOT EXISTS difficulty_rating integer CHECK (difficulty_rating IS NULL OR (difficulty_rating >= 1 AND difficulty_rating <= 5)),
+ADD COLUMN IF NOT EXISTS preparation_hours numeric,
+ADD COLUMN IF NOT EXISTS questions_asked text[], -- Array of questions asked
+ADD COLUMN IF NOT EXISTS improvement_areas text[], -- Array of areas to improve
+ADD COLUMN IF NOT EXISTS feedback_notes text; -- Rename/combine with existing outcome_notes if needed
 
-COMMENT ON TABLE public.interviews IS 'Detailed interview tracking for performance analytics';
+-- Note: interview_type may already exist as 'type', check and add if missing
+DO $$
+BEGIN
+    -- Check if 'interview_type' column exists, if not and 'type' exists, we can use 'type'
+    -- Add interview_type if it doesn't exist and type column doesn't provide what we need
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'interviews' 
+        AND column_name = 'interview_type'
+    ) THEN
+        -- interview_type might be redundant if 'type' already exists, but adding for clarity
+        ALTER TABLE public.interviews 
+        ADD COLUMN interview_type character varying(50);
+    END IF;
+END $$;
+
+-- Create index for interview performance analytics
+-- Only create index if outcome column exists
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'interviews' 
+        AND column_name = 'outcome'
+    ) THEN
+        CREATE INDEX IF NOT EXISTS idx_interviews_outcome ON public.interviews(outcome);
+    END IF;
+END $$;
+
+COMMENT ON COLUMN public.interviews.interview_round IS 'Interview round number (1, 2, 3, etc.)';
+COMMENT ON COLUMN public.interviews.confidence_rating IS 'Self-rated confidence level (1-5)';
+COMMENT ON COLUMN public.interviews.difficulty_rating IS 'Self-rated difficulty level (1-5)';
+COMMENT ON COLUMN public.interviews.preparation_hours IS 'Hours spent preparing for this interview';
+COMMENT ON COLUMN public.interviews.questions_asked IS 'Array of questions asked during the interview';
+COMMENT ON COLUMN public.interviews.improvement_areas IS 'Array of areas identified for improvement';
+COMMENT ON COLUMN public.interviews.feedback_notes IS 'Detailed feedback and notes from the interview';
 
 -- ============================================
--- 6. Add Triggers for Updated Timestamps
+-- 3. Note: Analytics Tables Already Exist
 -- ============================================
-CREATE TRIGGER update_goals_updated_at
-    BEFORE UPDATE ON public.goals
-    FOR EACH ROW
-    EXECUTE FUNCTION public.addupdatetime();
-
-CREATE TRIGGER update_networking_activities_updated_at
-    BEFORE UPDATE ON public.networking_activities
-    FOR EACH ROW
-    EXECUTE FUNCTION public.addupdatetime();
-
-CREATE TRIGGER update_interviews_updated_at
-    BEFORE UPDATE ON public.interviews
-    FOR EACH ROW
-    EXECUTE FUNCTION public.addupdatetime();
+-- The sprint3_tables_migration.sql already created these analytics tables:
+-- - job_search_metrics (UC-096)
+-- - application_success_analysis (UC-097)
+-- - interview_performance_tracking (UC-098)
+-- - network_roi_analytics (UC-099)
+-- - salary_progression_tracking (UC-100)
+-- - career_goals (UC-101)
+-- - goal_milestones (UC-101)
+--
+-- Networking is handled by:
+-- - professional_contacts (UC-099)
+-- - networking_events (UC-099)
+--
+-- No need to create duplicate tables!
 
 -- ============================================
--- 7. Grant Permissions
+-- 4. Grant Permissions for Enhanced Columns
 -- ============================================
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.goals TO ats_user;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.goal_progress TO ats_user;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.networking_activities TO ats_user;
+-- Permissions on job_opportunities and interviews tables should already exist
+-- But we ensure they're granted
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.job_opportunities TO ats_user;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.interviews TO ats_user;
 
-GRANT USAGE, SELECT ON SEQUENCE public.goals_id_seq TO ats_user;
-GRANT USAGE, SELECT ON SEQUENCE public.goal_progress_id_seq TO ats_user;
-GRANT USAGE, SELECT ON SEQUENCE public.networking_activities_id_seq TO ats_user;
-GRANT USAGE, SELECT ON SEQUENCE public.interviews_id_seq TO ats_user;
+COMMIT;
 
+-- ============================================================================
+-- MIGRATION NOTES
+-- ============================================================================
+-- This migration only adds missing columns to support analytics features.
+-- 
+-- Analytics aggregation tables already exist from sprint3_tables_migration.sql:
+--   - Use those tables for storing calculated analytics
+--   - This migration adds source data columns to job_opportunities and interviews
+--
+-- Goals tracking:
+--   - Use existing 'career_goals' table (not 'goals')
+--   - Use existing 'goal_milestones' table (not 'goal_progress')
+--
+-- Networking:
+--   - Use existing 'professional_contacts' table
+--   - Use existing 'networking_events' table
+--
+-- This migration is idempotent and can be run multiple times safely.
+-- ============================================================================

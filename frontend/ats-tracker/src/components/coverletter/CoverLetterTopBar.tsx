@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
 import { ROUTES } from "../../config/routes";
 import { CoverLetter } from "../../types";
+import { ShareDocumentModal } from "../team/ShareDocumentModal";
 
 interface CoverLetterTopBarProps {
   coverLetter: CoverLetter | null;
@@ -19,6 +20,7 @@ interface CoverLetterTopBarProps {
   onToggleExportMenu: () => void;
   onToggleCustomization: () => void;
   onNameChange?: (newName: string) => void;
+  onShare?: () => void;
 }
 
 export function CoverLetterTopBar({
@@ -36,10 +38,12 @@ export function CoverLetterTopBar({
   onToggleExportMenu,
   onToggleCustomization,
   onNameChange,
+  onShare,
 }: CoverLetterTopBarProps) {
   const navigate = useNavigate();
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(coverLetter?.name || "New Cover Letter");
+  const [showShareModal, setShowShareModal] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   // Update edited name when cover letter changes
@@ -166,6 +170,17 @@ export function CoverLetterTopBar({
               />
               Customize
             </button>
+            {/* Share */}
+            {coverLetterId && coverLetterId !== "new" && (
+              <button
+                onClick={() => setShowShareModal(true)}
+                className="px-3 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium flex items-center gap-2"
+                title="Share with team"
+              >
+                <Icon icon="lucide:share-2" className="w-4 h-4" />
+                <span className="text-sm">Share</span>
+              </button>
+            )}
             <div className="relative">
               <button
                 onClick={onToggleExportMenu}
@@ -255,6 +270,22 @@ export function CoverLetterTopBar({
           </div>
         </div>
       </div>
+
+      {/* Share Modal */}
+      {showShareModal && coverLetter && coverLetterId && coverLetterId !== "new" && (
+        <ShareDocumentModal
+          documentType="cover_letter"
+          documentId={coverLetterId}
+          documentName={coverLetter.name || coverLetter.versionName || coverLetter.title || "Untitled Cover Letter"}
+          onClose={() => setShowShareModal(false)}
+          onShared={() => {
+            setShowShareModal(false);
+            if (onShare) {
+              onShare();
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

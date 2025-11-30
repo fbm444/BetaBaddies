@@ -29,6 +29,12 @@ import { ProtectedRoute } from './components/ProtectedRoute'
 import { ROUTES } from './config/routes'
 import { ForgotPassword } from './pages/ForgotPassword'
 import { ResetPassword } from './pages/ResetPassword'
+import { Teams } from './pages/Teams'
+import { MentorDashboard } from './pages/MentorDashboard'
+import { DocumentReviews } from './pages/DocumentReviews'
+import { ProgressSharing } from './pages/ProgressSharing'
+import { SupportGroups } from './pages/SupportGroups'
+import { TeamInviteAccept } from './pages/TeamInviteAccept'
 import './App.css'
 
 function App() {
@@ -124,6 +130,15 @@ function App() {
 		  <Route path={ROUTES.COVER_LETTERS} element={<CoverLetters />} />
 		  <Route path={ROUTES.COVER_LETTER_BUILDER} element={<CoverLetterBuilder />} />
 		  <Route path={ROUTES.COVER_LETTER_TEMPLATES} element={<CoverLetterTemplates />} />
+		  {/* Collaboration */}
+		  <Route path={ROUTES.TEAM_INVITE_ACCEPT} element={<TeamInviteAccept />} />
+		  <Route path={ROUTES.TEAMS} element={<Teams />} />
+		  <Route path={ROUTES.TEAM_DETAIL} element={<Teams />} />
+		  <Route path={ROUTES.MENTOR_DASHBOARD} element={<MentorDashboard />} />
+		  <Route path={ROUTES.MENTEE_PROGRESS} element={<MentorDashboard />} />
+		  <Route path={ROUTES.DOCUMENT_REVIEWS} element={<DocumentReviews />} />
+		  <Route path={ROUTES.PROGRESS_SHARING} element={<ProgressSharing />} />
+		  <Route path={ROUTES.SUPPORT_GROUPS} element={<SupportGroups />} />
 		</Route>
 	      </Routes>
 	    </div>

@@ -1,18 +1,63 @@
-import { useState, FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, FormEvent, useEffect } from 'react'
+import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import { Icon } from '@iconify/react'
 import { api } from '@/services/api'
 import { ROUTES } from '@/config/routes'
 import loginSvg from '@/assets/login.svg'
 
 export function Register() {
-  const [email, setEmail] = useState('')
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const inviteToken = searchParams.get('invite') || sessionStorage.getItem('pendingInvitationToken')
+  const emailFromInvite = searchParams.get('email')
+  
+  const [email, setEmail] = useState(emailFromInvite || '')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [invitationInfo, setInvitationInfo] = useState<any>(null)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null)
+
+  useEffect(() => {
+    // Check if user is logged in
+    const checkAuth = async () => {
+      try {
+        const response = await api.getUserAuth()
+        if (response.ok && response.data?.user) {
+          setIsLoggedIn(true)
+          setCurrentUserEmail(response.data.user.email)
+        }
+      } catch (err) {
+        // User is not logged in
+        setIsLoggedIn(false)
+      }
+    }
+    checkAuth()
+
+    // If there's an invitation token, fetch invitation details
+    if (inviteToken) {
+      fetchInvitationInfo()
+    }
+  }, [inviteToken])
+
+  const fetchInvitationInfo = async () => {
+    try {
+      const response = await api.getInvitationByToken(inviteToken!)
+      if (response.ok && response.data) {
+        setInvitationInfo(response.data.invitation)
+        // Pre-fill email if not already set
+        if (!email && response.data.invitation.email) {
+          setEmail(response.data.invitation.email)
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch invitation info:', err)
+    }
+  }
 
   // Password strength indicator
   const getPasswordStrength = (pwd: string) => {
@@ -57,6 +102,20 @@ export function Register() {
       
       // Automatically log them in after registration
       await api.login(email, password)
+      
+      // If there's a pending invitation, accept it
+      if (inviteToken) {
+        try {
+          await api.acceptTeamInvitation(inviteToken)
+          sessionStorage.removeItem('pendingInvitationToken')
+          // Redirect to teams page to see their new team
+          window.location.href = ROUTES.TEAMS
+          return
+        } catch (inviteErr: any) {
+          console.error('Failed to accept invitation:', inviteErr)
+          // Continue to dashboard even if invitation acceptance fails
+        }
+      }
       
       // Redirect to dashboard on success
       console.log('Registration successful, redirecting to:', ROUTES.DASHBOARD)
@@ -114,6 +173,60 @@ export function Register() {
           >
             Sign Up
           </h2>
+
+          {/* Invitation Banner */}
+          {invitationInfo && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <div className="flex items-start gap-3">
+                <Icon icon="mingcute:user-group-line" width={24} className="text-blue-600 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-blue-900 mb-1">
+                    You've been invited to join {invitationInfo.teamName}
+                  </p>
+                  {invitationInfo.inviterName && (
+                    <p className="text-xs text-blue-700">
+                      Invited by {invitationInfo.inviterName}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Logged in warning */}
+          {isLoggedIn && currentUserEmail && inviteToken && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+              <div className="flex items-start gap-3">
+                <Icon icon="mingcute:alert-line" width={24} className="text-amber-600 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-amber-900 mb-1">
+                    You're currently logged in as {currentUserEmail}
+                  </p>
+                  <p className="text-xs text-amber-700 mb-3">
+                    {invitationInfo && currentUserEmail.toLowerCase() !== invitationInfo.email?.toLowerCase()
+                      ? `This invitation is for ${invitationInfo.email}. Please log out to create a new account.`
+                      : 'Please log out to create a new account for this invitation.'}
+                  </p>
+                  <button
+                    onClick={async () => {
+                      try {
+                        await api.logout()
+                        setIsLoggedIn(false)
+                        setCurrentUserEmail(null)
+                        // Reload to clear any cached state
+                        window.location.reload()
+                      } catch (err: any) {
+                        setError(err.message || 'Failed to log out. Please try again.')
+                      }
+                    }}
+                    className="text-xs bg-amber-500 text-white px-3 py-1.5 rounded hover:bg-amber-600 transition"
+                  >
+                    Log Out
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Error Message */}
           {error && (

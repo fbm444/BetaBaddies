@@ -27,6 +27,15 @@ export const ROUTES = {
   COVER_LETTERS: "/coverletter",
   COVER_LETTER_BUILDER: "/coverletter/builder",
   COVER_LETTER_TEMPLATES: "/coverletter/templates",
+  // Collaboration
+  TEAMS: "/collaboration/teams",
+  TEAM_DETAIL: "/collaboration/teams/:teamId",
+  MENTOR_DASHBOARD: "/collaboration/mentor",
+  MENTEE_PROGRESS: "/collaboration/mentor/mentees/:menteeId",
+  DOCUMENT_REVIEWS: "/collaboration/reviews",
+  PROGRESS_SHARING: "/collaboration/progress",
+  SUPPORT_GROUPS: "/collaboration/groups",
+  TEAM_INVITE_ACCEPT: "/collaboration/teams/accept-invite",
 } as const;
 
 // Navigation item type
@@ -167,7 +176,43 @@ export const navigationGroups: NavigationGroup[] = [
       },
     ],
   },
-
+  {
+    id: "collaboration",
+    label: "Collaboration",
+    icon: "mingcute:user-group-line",
+    items: [
+      {
+        id: "teams",
+        label: "Teams",
+        icon: "mingcute:user-group-line",
+        path: ROUTES.TEAMS,
+      },
+      {
+        id: "mentor-dashboard",
+        label: "Mentor Dashboard",
+        icon: "mingcute:user-star-line",
+        path: ROUTES.MENTOR_DASHBOARD,
+      },
+      {
+        id: "document-reviews",
+        label: "Document Reviews",
+        icon: "mingcute:file-edit-line",
+        path: ROUTES.DOCUMENT_REVIEWS,
+      },
+      {
+        id: "progress-sharing",
+        label: "Progress Sharing",
+        icon: "mingcute:chart-line",
+        path: ROUTES.PROGRESS_SHARING,
+      },
+      {
+        id: "support-groups",
+        label: "Support Groups",
+        icon: "mingcute:community-line",
+        path: ROUTES.SUPPORT_GROUPS,
+      },
+    ],
+  },
 ] as const;
 
 // Flattened navigation items for backward compatibility

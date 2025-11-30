@@ -6,6 +6,7 @@ import { Resume } from "../types";
 import { resumeService } from "../services/resumeService";
 import { Toast } from "../components/resume/Toast";
 import { AIAssistantChat } from "../components/resume/AIAssistantChat";
+import { ShareDocumentModal } from "../components/team/ShareDocumentModal";
 
 export function ResumePreview() {
   const navigate = useNavigate();
@@ -19,6 +20,7 @@ export function ResumePreview() {
   const [exporting, setExporting] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showAIPanel, setShowAIPanel] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
 
   // Helper function to validate UUID format
@@ -280,6 +282,13 @@ export function ResumePreview() {
               >
                 <Icon icon="mingcute:edit-line" className="w-4 h-4 inline mr-2" />
                 Edit
+              </button>
+              <button
+                onClick={() => setShowShareModal(true)}
+                className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium flex items-center gap-2"
+              >
+                <Icon icon="lucide:share-2" className="w-4 h-4" />
+                Share
               </button>
               <div className="relative">
                 <button
@@ -909,6 +918,23 @@ export function ResumePreview() {
         <div
           className="fixed inset-0 z-0"
           onClick={() => setShowExportMenu(false)}
+        />
+      )}
+
+      {/* Share Modal */}
+      {showShareModal && resume && resumeId && (
+        <ShareDocumentModal
+          documentType="resume"
+          documentId={resumeId}
+          documentName={resume.name || resume.versionName || "Untitled Resume"}
+          onClose={() => setShowShareModal(false)}
+          onShared={() => {
+            setShowShareModal(false);
+            setToast({
+              message: "Resume shared successfully with team!",
+              type: "success",
+            });
+          }}
         />
       )}
     </div>

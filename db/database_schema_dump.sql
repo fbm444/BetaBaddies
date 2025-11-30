@@ -186,6 +186,28 @@ CREATE TABLE public.accountability_relationships (
 
 
 --
+-- Name: activity_logs; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.activity_logs (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    team_id uuid,
+    user_id uuid,
+    actor_role character varying(50),
+    activity_type character varying(50) NOT NULL,
+    activity_data jsonb DEFAULT '{}'::jsonb,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+--
+-- Name: TABLE activity_logs; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.activity_logs IS 'Tracks all team activities for activity feed and analytics';
+
+
+--
 -- Name: advisor_performance_evaluation; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -385,6 +407,103 @@ CREATE TABLE public.certifications (
     date_earned date NOT NULL,
     expiration_date date
 );
+
+
+--
+-- Name: chat_conversations; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.chat_conversations (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    conversation_type character varying(50) NOT NULL,
+    team_id uuid,
+    related_entity_type character varying(50),
+    related_entity_id uuid,
+    title character varying(255),
+    created_by uuid,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    last_message_at timestamp with time zone
+);
+
+
+--
+-- Name: TABLE chat_conversations; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.chat_conversations IS 'Chat conversations for team collaboration, mentor-mentee communication, document reviews, etc.';
+
+
+--
+-- Name: chat_messages; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.chat_messages (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    conversation_id uuid NOT NULL,
+    sender_id uuid NOT NULL,
+    message_text text NOT NULL,
+    message_type character varying(50) DEFAULT 'text'::character varying,
+    attachment_url character varying(500),
+    attachment_type character varying(50),
+    parent_message_id uuid,
+    is_edited boolean DEFAULT false,
+    edited_at timestamp with time zone,
+    is_deleted boolean DEFAULT false,
+    deleted_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+--
+-- Name: TABLE chat_messages; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.chat_messages IS 'Individual messages in chat conversations';
+
+
+--
+-- Name: chat_notifications; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.chat_notifications (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    conversation_id uuid NOT NULL,
+    message_id uuid,
+    notification_type character varying(50) DEFAULT 'new_message'::character varying,
+    is_read boolean DEFAULT false,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+--
+-- Name: TABLE chat_notifications; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.chat_notifications IS 'Notifications for unread messages and mentions';
+
+
+--
+-- Name: chat_participants; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.chat_participants (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    conversation_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    role character varying(50),
+    joined_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    last_read_at timestamp with time zone,
+    is_active boolean DEFAULT true
+);
+
+
+--
+-- Name: TABLE chat_participants; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.chat_participants IS 'Users participating in chat conversations';
 
 
 --
@@ -705,6 +824,30 @@ CREATE TABLE public.document_review_requests (
     CONSTRAINT document_review_requests_check_status CHECK (((request_status)::text = ANY ((ARRAY['pending'::character varying, 'in_progress'::character varying, 'completed'::character varying, 'cancelled'::character varying])::text[]))),
     CONSTRAINT document_review_requests_check_type CHECK (((document_type)::text = ANY ((ARRAY['resume'::character varying, 'coverletter'::character varying])::text[])))
 );
+
+
+--
+-- Name: document_versions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.document_versions (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    document_type character varying(50) NOT NULL,
+    document_id uuid NOT NULL,
+    version_number integer NOT NULL,
+    version_data jsonb,
+    created_by uuid,
+    change_summary text,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT document_versions_document_type_check CHECK (((document_type)::text = ANY ((ARRAY['resume'::character varying, 'cover_letter'::character varying])::text[])))
+);
+
+
+--
+-- Name: TABLE document_versions; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.document_versions IS 'Version history for resumes and cover letters';
 
 
 --
@@ -1063,7 +1206,11 @@ CREATE TABLE public.interview_preparation_tasks (
     completed boolean DEFAULT false,
     due_date timestamp with time zone,
     created_at timestamp with time zone DEFAULT now(),
-    updated_at timestamp with time zone DEFAULT now()
+    updated_at timestamp with time zone DEFAULT now(),
+    assigned_by uuid,
+    assigned_to uuid,
+    team_id uuid,
+    task_type character varying(50) DEFAULT 'interview_prep'::character varying
 );
 
 
@@ -1176,6 +1323,30 @@ CREATE TABLE public.interviews (
     CONSTRAINT interviews_status_check CHECK (((status)::text = ANY ((ARRAY['scheduled'::character varying, 'completed'::character varying, 'cancelled'::character varying, 'rescheduled'::character varying])::text[]))),
     CONSTRAINT interviews_type_check CHECK (((type)::text = ANY (ARRAY[('phone'::character varying)::text, ('video'::character varying)::text, ('in-person'::character varying)::text])))
 );
+
+
+--
+-- Name: job_comments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.job_comments (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    job_id uuid,
+    team_id uuid,
+    user_id uuid,
+    parent_comment_id uuid,
+    comment_text text NOT NULL,
+    is_suggestion boolean DEFAULT false,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+--
+-- Name: TABLE job_comments; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.job_comments IS 'Collaborative comments on shared job postings';
 
 
 --
@@ -1581,8 +1752,54 @@ CREATE TABLE public.mentor_shared_data (
     relationship_id uuid NOT NULL,
     data_type character varying(50),
     data_id uuid,
-    shared_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+    shared_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    team_id uuid
 );
+
+
+--
+-- Name: message_reactions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.message_reactions (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    message_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    reaction_type character varying(20) NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+--
+-- Name: TABLE message_reactions; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.message_reactions IS 'Reactions to messages (likes, thumbs up, etc.)';
+
+
+--
+-- Name: milestones; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.milestones (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid,
+    team_id uuid,
+    milestone_type character varying(50) NOT NULL,
+    milestone_title character varying(255) NOT NULL,
+    milestone_description text,
+    milestone_data jsonb DEFAULT '{}'::jsonb,
+    achieved_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    shared_with_team boolean DEFAULT false,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+--
+-- Name: TABLE milestones; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.milestones IS 'Achievement milestones for celebration and motivation';
 
 
 --
@@ -1812,6 +2029,37 @@ CREATE TABLE public.performance_trends (
 
 
 --
+-- Name: preparation_tasks; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.preparation_tasks (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    team_id uuid,
+    assigned_by uuid,
+    assigned_by_role character varying(50),
+    assigned_to uuid,
+    assigned_to_role character varying(50),
+    task_type character varying(50) NOT NULL,
+    task_title character varying(255) NOT NULL,
+    task_description text,
+    task_data jsonb DEFAULT '{}'::jsonb,
+    due_date date,
+    status character varying(50) DEFAULT 'pending'::character varying,
+    completed_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT preparation_tasks_status_check CHECK (((status)::text = ANY ((ARRAY['pending'::character varying, 'in_progress'::character varying, 'completed'::character varying, 'cancelled'::character varying])::text[])))
+);
+
+
+--
+-- Name: TABLE preparation_tasks; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.preparation_tasks IS 'Tasks assigned by mentors/admins to candidates for interview prep and job search activities';
+
+
+--
 -- Name: productivity_analysis; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1937,6 +2185,32 @@ CREATE TABLE public.progress_reports (
     milestone_achievements jsonb,
     generated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
 );
+
+
+--
+-- Name: progress_shares; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.progress_shares (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid,
+    shared_with_user_id uuid,
+    shared_with_team_id uuid,
+    share_type character varying(50) NOT NULL,
+    privacy_level character varying(50) DEFAULT 'team'::character varying,
+    is_active boolean DEFAULT true,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT progress_shares_check CHECK ((((shared_with_user_id IS NOT NULL) AND (shared_with_team_id IS NULL)) OR ((shared_with_user_id IS NULL) AND (shared_with_team_id IS NOT NULL)))),
+    CONSTRAINT progress_shares_privacy_level_check CHECK (((privacy_level)::text = ANY ((ARRAY['private'::character varying, 'team'::character varying, 'mentors_only'::character varying])::text[])))
+);
+
+
+--
+-- Name: TABLE progress_shares; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.progress_shares IS 'Progress sharing configuration for accountability and mentor visibility';
 
 
 --
@@ -2291,6 +2565,34 @@ CREATE TABLE public.resume_template (
 
 
 --
+-- Name: review_comments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.review_comments (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    review_request_id uuid,
+    reviewer_id uuid,
+    parent_comment_id uuid,
+    comment_text text NOT NULL,
+    suggestion_text text,
+    comment_type character varying(50) DEFAULT 'comment'::character varying,
+    document_section character varying(100),
+    is_resolved boolean DEFAULT false,
+    resolved_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT review_comments_comment_type_check CHECK (((comment_type)::text = ANY ((ARRAY['comment'::character varying, 'suggestion'::character varying, 'approval'::character varying, 'rejection'::character varying])::text[])))
+);
+
+
+--
+-- Name: TABLE review_comments; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.review_comments IS 'Comments and suggestions on document reviews';
+
+
+--
 -- Name: salary_negotiation_prep; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -2337,6 +2639,27 @@ CREATE TABLE public.salary_progression_tracking (
     negotiation_outcome character varying(255),
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
 );
+
+
+--
+-- Name: shared_jobs; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.shared_jobs (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    job_id uuid,
+    shared_by uuid,
+    shared_by_role character varying(50),
+    team_id uuid,
+    shared_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+--
+-- Name: TABLE shared_jobs; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.shared_jobs IS 'Job postings shared with team members for collaborative review';
 
 
 --
@@ -2432,6 +2755,33 @@ CREATE TABLE public.team_dashboards (
     dashboard_data jsonb,
     last_updated timestamp with time zone DEFAULT CURRENT_TIMESTAMP
 );
+
+
+--
+-- Name: team_invitations; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.team_invitations (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    team_id uuid,
+    invited_by uuid,
+    email character varying(255) NOT NULL,
+    role character varying(50) DEFAULT 'candidate'::character varying,
+    permissions jsonb DEFAULT '{}'::jsonb,
+    invitation_token character varying(255) NOT NULL,
+    status character varying(50) DEFAULT 'pending'::character varying,
+    expires_at timestamp with time zone NOT NULL,
+    accepted_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT team_invitations_status_check CHECK (((status)::text = ANY ((ARRAY['pending'::character varying, 'accepted'::character varying, 'declined'::character varying, 'expired'::character varying, 'cancelled'::character varying])::text[])))
+);
+
+
+--
+-- Name: TABLE team_invitations; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.team_invitations IS 'Invitation system for adding members to teams';
 
 
 --
@@ -2634,6 +2984,14 @@ ALTER TABLE ONLY public.accountability_relationships
 
 
 --
+-- Name: activity_logs activity_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.activity_logs
+    ADD CONSTRAINT activity_logs_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: advisor_performance_evaluation advisor_performance_evaluation_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2727,6 +3085,46 @@ ALTER TABLE ONLY public.career_goals
 
 ALTER TABLE ONLY public.certifications
     ADD CONSTRAINT certifications_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: chat_conversations chat_conversations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.chat_conversations
+    ADD CONSTRAINT chat_conversations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: chat_messages chat_messages_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.chat_messages
+    ADD CONSTRAINT chat_messages_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: chat_notifications chat_notifications_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.chat_notifications
+    ADD CONSTRAINT chat_notifications_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: chat_participants chat_participants_conversation_id_user_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.chat_participants
+    ADD CONSTRAINT chat_participants_conversation_id_user_id_key UNIQUE (conversation_id, user_id);
+
+
+--
+-- Name: chat_participants chat_participants_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.chat_participants
+    ADD CONSTRAINT chat_participants_pkey PRIMARY KEY (id);
 
 
 --
@@ -2879,6 +3277,22 @@ ALTER TABLE ONLY public.document_approvals
 
 ALTER TABLE ONLY public.document_review_requests
     ADD CONSTRAINT document_review_requests_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: document_versions document_versions_document_type_document_id_version_number_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.document_versions
+    ADD CONSTRAINT document_versions_document_type_document_id_version_number_key UNIQUE (document_type, document_id, version_number);
+
+
+--
+-- Name: document_versions document_versions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.document_versions
+    ADD CONSTRAINT document_versions_pkey PRIMARY KEY (id);
 
 
 --
@@ -3082,6 +3496,14 @@ ALTER TABLE ONLY public.interviews
 
 
 --
+-- Name: job_comments job_comments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.job_comments
+    ADD CONSTRAINT job_comments_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: job_opportunities job_opportunities_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3175,6 +3597,30 @@ ALTER TABLE ONLY public.mentor_relationships
 
 ALTER TABLE ONLY public.mentor_shared_data
     ADD CONSTRAINT mentor_shared_data_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: message_reactions message_reactions_message_id_user_id_reaction_type_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.message_reactions
+    ADD CONSTRAINT message_reactions_message_id_user_id_reaction_type_key UNIQUE (message_id, user_id, reaction_type);
+
+
+--
+-- Name: message_reactions message_reactions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.message_reactions
+    ADD CONSTRAINT message_reactions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: milestones milestones_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.milestones
+    ADD CONSTRAINT milestones_pkey PRIMARY KEY (id);
 
 
 --
@@ -3274,6 +3720,14 @@ ALTER TABLE ONLY public.performance_trends
 
 
 --
+-- Name: preparation_tasks preparation_tasks_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.preparation_tasks
+    ADD CONSTRAINT preparation_tasks_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: productivity_analysis productivity_analysis_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3319,6 +3773,14 @@ ALTER TABLE ONLY public.program_effectiveness_analytics
 
 ALTER TABLE ONLY public.progress_reports
     ADD CONSTRAINT progress_reports_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: progress_shares progress_shares_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.progress_shares
+    ADD CONSTRAINT progress_shares_pkey PRIMARY KEY (id);
 
 
 --
@@ -3458,6 +3920,14 @@ ALTER TABLE ONLY public.resume_template
 
 
 --
+-- Name: review_comments review_comments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.review_comments
+    ADD CONSTRAINT review_comments_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: salary_negotiation_prep salary_negotiation_prep_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3471,6 +3941,22 @@ ALTER TABLE ONLY public.salary_negotiation_prep
 
 ALTER TABLE ONLY public.salary_progression_tracking
     ADD CONSTRAINT salary_progression_tracking_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: shared_jobs shared_jobs_job_id_team_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.shared_jobs
+    ADD CONSTRAINT shared_jobs_job_id_team_id_key UNIQUE (job_id, team_id);
+
+
+--
+-- Name: shared_jobs shared_jobs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.shared_jobs
+    ADD CONSTRAINT shared_jobs_pkey PRIMARY KEY (id);
 
 
 --
@@ -3527,6 +4013,22 @@ ALTER TABLE ONLY public.team_billing
 
 ALTER TABLE ONLY public.team_dashboards
     ADD CONSTRAINT team_dashboards_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: team_invitations team_invitations_invitation_token_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.team_invitations
+    ADD CONSTRAINT team_invitations_invitation_token_key UNIQUE (invitation_token);
+
+
+--
+-- Name: team_invitations team_invitations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.team_invitations
+    ADD CONSTRAINT team_invitations_pkey PRIMARY KEY (id);
 
 
 --
@@ -3626,6 +4128,34 @@ ALTER TABLE ONLY public.writing_practice_sessions
 
 
 --
+-- Name: idx_activity_logs_role; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_activity_logs_role ON public.activity_logs USING btree (team_id, actor_role, created_at DESC);
+
+
+--
+-- Name: idx_activity_logs_team; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_activity_logs_team ON public.activity_logs USING btree (team_id, created_at DESC);
+
+
+--
+-- Name: idx_activity_logs_type; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_activity_logs_type ON public.activity_logs USING btree (activity_type, created_at DESC);
+
+
+--
+-- Name: idx_activity_logs_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_activity_logs_user ON public.activity_logs USING btree (user_id, created_at DESC);
+
+
+--
 -- Name: idx_application_success_analysis_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3644,6 +4174,76 @@ CREATE INDEX idx_calendar_sync_settings_user_id ON public.calendar_sync_settings
 --
 
 CREATE INDEX idx_career_goals_user_id ON public.career_goals USING btree (user_id);
+
+
+--
+-- Name: idx_chat_conversations_related; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_chat_conversations_related ON public.chat_conversations USING btree (related_entity_type, related_entity_id);
+
+
+--
+-- Name: idx_chat_conversations_team; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_chat_conversations_team ON public.chat_conversations USING btree (team_id, updated_at DESC);
+
+
+--
+-- Name: idx_chat_conversations_type; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_chat_conversations_type ON public.chat_conversations USING btree (conversation_type, updated_at DESC);
+
+
+--
+-- Name: idx_chat_messages_conversation; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_chat_messages_conversation ON public.chat_messages USING btree (conversation_id, created_at DESC);
+
+
+--
+-- Name: idx_chat_messages_parent; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_chat_messages_parent ON public.chat_messages USING btree (parent_message_id);
+
+
+--
+-- Name: idx_chat_messages_sender; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_chat_messages_sender ON public.chat_messages USING btree (sender_id, created_at DESC);
+
+
+--
+-- Name: idx_chat_notifications_conversation; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_chat_notifications_conversation ON public.chat_notifications USING btree (conversation_id);
+
+
+--
+-- Name: idx_chat_notifications_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_chat_notifications_user ON public.chat_notifications USING btree (user_id, is_read, created_at DESC);
+
+
+--
+-- Name: idx_chat_participants_conversation; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_chat_participants_conversation ON public.chat_participants USING btree (conversation_id, is_active);
+
+
+--
+-- Name: idx_chat_participants_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_chat_participants_user ON public.chat_participants USING btree (user_id, is_active);
 
 
 --
@@ -3784,6 +4384,20 @@ CREATE INDEX idx_document_review_requests_requestor_id ON public.document_review
 --
 
 CREATE INDEX idx_document_review_requests_reviewer_id ON public.document_review_requests USING btree (reviewer_id);
+
+
+--
+-- Name: idx_document_versions_created_by; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_document_versions_created_by ON public.document_versions USING btree (created_by);
+
+
+--
+-- Name: idx_document_versions_document; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_document_versions_document ON public.document_versions USING btree (document_type, document_id, version_number DESC);
 
 
 --
@@ -3948,6 +4562,27 @@ CREATE INDEX idx_interviews_user_id ON public.interviews USING btree (user_id);
 
 
 --
+-- Name: idx_job_comments_job; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_job_comments_job ON public.job_comments USING btree (job_id, created_at DESC);
+
+
+--
+-- Name: idx_job_comments_parent; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_job_comments_parent ON public.job_comments USING btree (parent_comment_id);
+
+
+--
+-- Name: idx_job_comments_team; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_job_comments_team ON public.job_comments USING btree (team_id, created_at DESC);
+
+
+--
 -- Name: idx_job_opportunities_application_history; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4046,6 +4681,34 @@ CREATE INDEX idx_mentor_relationships_mentor_id ON public.mentor_relationships U
 
 
 --
+-- Name: idx_message_reactions_message; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_message_reactions_message ON public.message_reactions USING btree (message_id);
+
+
+--
+-- Name: idx_milestones_team; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_milestones_team ON public.milestones USING btree (team_id, achieved_at DESC);
+
+
+--
+-- Name: idx_milestones_type; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_milestones_type ON public.milestones USING btree (milestone_type, achieved_at DESC);
+
+
+--
+-- Name: idx_milestones_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_milestones_user ON public.milestones USING btree (user_id, achieved_at DESC);
+
+
+--
 -- Name: idx_mock_interview_messages_created_at; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4137,6 +4800,20 @@ CREATE INDEX idx_performance_trends_user_id ON public.performance_trends USING b
 
 
 --
+-- Name: idx_preparation_tasks_assigned_by; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_preparation_tasks_assigned_by ON public.preparation_tasks USING btree (assigned_by);
+
+
+--
+-- Name: idx_preparation_tasks_assigned_to; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_preparation_tasks_assigned_to ON public.preparation_tasks USING btree (assigned_to, status);
+
+
+--
 -- Name: idx_preparation_tasks_completed; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4158,6 +4835,13 @@ CREATE INDEX idx_preparation_tasks_interview_id ON public.interview_preparation_
 
 
 --
+-- Name: idx_preparation_tasks_team; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_preparation_tasks_team ON public.preparation_tasks USING btree (team_id, status);
+
+
+--
 -- Name: idx_productivity_analysis_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4176,6 +4860,27 @@ CREATE INDEX idx_professional_contacts_user_id ON public.professional_contacts U
 --
 
 CREATE INDEX idx_professional_references_user_id ON public.professional_references USING btree (user_id);
+
+
+--
+-- Name: idx_progress_shares_shared_with_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_progress_shares_shared_with_user ON public.progress_shares USING btree (shared_with_user_id);
+
+
+--
+-- Name: idx_progress_shares_team; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_progress_shares_team ON public.progress_shares USING btree (shared_with_team_id);
+
+
+--
+-- Name: idx_progress_shares_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_progress_shares_user ON public.progress_shares USING btree (user_id, is_active);
 
 
 --
@@ -4256,6 +4961,34 @@ CREATE INDEX idx_resume_user_id_created ON public.resume USING btree (user_id, c
 
 
 --
+-- Name: idx_review_comments_parent; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_review_comments_parent ON public.review_comments USING btree (parent_comment_id);
+
+
+--
+-- Name: idx_review_comments_resolved; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_review_comments_resolved ON public.review_comments USING btree (is_resolved, created_at DESC);
+
+
+--
+-- Name: idx_review_comments_review; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_review_comments_review ON public.review_comments USING btree (review_request_id, created_at DESC);
+
+
+--
+-- Name: idx_review_comments_reviewer; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_review_comments_reviewer ON public.review_comments USING btree (reviewer_id);
+
+
+--
 -- Name: idx_salary_negotiation_prep_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4270,10 +5003,52 @@ CREATE INDEX idx_salary_progression_tracking_user_id ON public.salary_progressio
 
 
 --
+-- Name: idx_shared_jobs_job; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_shared_jobs_job ON public.shared_jobs USING btree (job_id);
+
+
+--
+-- Name: idx_shared_jobs_shared_by; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_shared_jobs_shared_by ON public.shared_jobs USING btree (shared_by);
+
+
+--
+-- Name: idx_shared_jobs_team; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_shared_jobs_team ON public.shared_jobs USING btree (team_id, shared_at DESC);
+
+
+--
 -- Name: idx_success_patterns_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_success_patterns_user_id ON public.success_patterns USING btree (user_id);
+
+
+--
+-- Name: idx_team_invitations_email; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_team_invitations_email ON public.team_invitations USING btree (email, status);
+
+
+--
+-- Name: idx_team_invitations_team; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_team_invitations_team ON public.team_invitations USING btree (team_id, status);
+
+
+--
+-- Name: idx_team_invitations_token; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_team_invitations_token ON public.team_invitations USING btree (invitation_token);
 
 
 --
@@ -4594,6 +5369,22 @@ ALTER TABLE ONLY public.accountability_relationships
 
 
 --
+-- Name: activity_logs activity_logs_team_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.activity_logs
+    ADD CONSTRAINT activity_logs_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(id) ON DELETE CASCADE;
+
+
+--
+-- Name: activity_logs activity_logs_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.activity_logs
+    ADD CONSTRAINT activity_logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
 -- Name: advisor_performance_evaluation advisor_performance_evaluation_advisor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4695,6 +5486,86 @@ ALTER TABLE ONLY public.career_goals
 
 ALTER TABLE ONLY public.certifications
     ADD CONSTRAINT certifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: chat_conversations chat_conversations_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.chat_conversations
+    ADD CONSTRAINT chat_conversations_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(u_id) ON DELETE SET NULL;
+
+
+--
+-- Name: chat_conversations chat_conversations_team_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.chat_conversations
+    ADD CONSTRAINT chat_conversations_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(id) ON DELETE CASCADE;
+
+
+--
+-- Name: chat_messages chat_messages_conversation_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.chat_messages
+    ADD CONSTRAINT chat_messages_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.chat_conversations(id) ON DELETE CASCADE;
+
+
+--
+-- Name: chat_messages chat_messages_parent_message_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.chat_messages
+    ADD CONSTRAINT chat_messages_parent_message_id_fkey FOREIGN KEY (parent_message_id) REFERENCES public.chat_messages(id) ON DELETE SET NULL;
+
+
+--
+-- Name: chat_messages chat_messages_sender_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.chat_messages
+    ADD CONSTRAINT chat_messages_sender_id_fkey FOREIGN KEY (sender_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: chat_notifications chat_notifications_conversation_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.chat_notifications
+    ADD CONSTRAINT chat_notifications_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.chat_conversations(id) ON DELETE CASCADE;
+
+
+--
+-- Name: chat_notifications chat_notifications_message_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.chat_notifications
+    ADD CONSTRAINT chat_notifications_message_id_fkey FOREIGN KEY (message_id) REFERENCES public.chat_messages(id) ON DELETE CASCADE;
+
+
+--
+-- Name: chat_notifications chat_notifications_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.chat_notifications
+    ADD CONSTRAINT chat_notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: chat_participants chat_participants_conversation_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.chat_participants
+    ADD CONSTRAINT chat_participants_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.chat_conversations(id) ON DELETE CASCADE;
+
+
+--
+-- Name: chat_participants chat_participants_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.chat_participants
+    ADD CONSTRAINT chat_participants_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
 
 
 --
@@ -4887,6 +5758,14 @@ ALTER TABLE ONLY public.document_review_requests
 
 ALTER TABLE ONLY public.document_review_requests
     ADD CONSTRAINT document_review_requests_reviewer_id_fkey FOREIGN KEY (reviewer_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: document_versions document_versions_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.document_versions
+    ADD CONSTRAINT document_versions_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(u_id) ON DELETE SET NULL;
 
 
 --
@@ -5210,6 +6089,30 @@ ALTER TABLE ONLY public.interview_preparation_checklists
 
 
 --
+-- Name: interview_preparation_tasks interview_preparation_tasks_assigned_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.interview_preparation_tasks
+    ADD CONSTRAINT interview_preparation_tasks_assigned_by_fkey FOREIGN KEY (assigned_by) REFERENCES public.users(u_id) ON DELETE SET NULL;
+
+
+--
+-- Name: interview_preparation_tasks interview_preparation_tasks_assigned_to_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.interview_preparation_tasks
+    ADD CONSTRAINT interview_preparation_tasks_assigned_to_fkey FOREIGN KEY (assigned_to) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: interview_preparation_tasks interview_preparation_tasks_team_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.interview_preparation_tasks
+    ADD CONSTRAINT interview_preparation_tasks_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(id) ON DELETE CASCADE;
+
+
+--
 -- Name: interview_question_banks interview_question_banks_job_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5255,6 +6158,38 @@ ALTER TABLE ONLY public.interview_success_probability
 
 ALTER TABLE ONLY public.interview_success_probability
     ADD CONSTRAINT interview_success_probability_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: job_comments job_comments_job_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.job_comments
+    ADD CONSTRAINT job_comments_job_id_fkey FOREIGN KEY (job_id) REFERENCES public.job_opportunities(id) ON DELETE CASCADE;
+
+
+--
+-- Name: job_comments job_comments_parent_comment_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.job_comments
+    ADD CONSTRAINT job_comments_parent_comment_id_fkey FOREIGN KEY (parent_comment_id) REFERENCES public.job_comments(id) ON DELETE CASCADE;
+
+
+--
+-- Name: job_comments job_comments_team_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.job_comments
+    ADD CONSTRAINT job_comments_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(id) ON DELETE CASCADE;
+
+
+--
+-- Name: job_comments job_comments_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.job_comments
+    ADD CONSTRAINT job_comments_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
 
 
 --
@@ -5359,6 +6294,46 @@ ALTER TABLE ONLY public.mentor_relationships
 
 ALTER TABLE ONLY public.mentor_shared_data
     ADD CONSTRAINT mentor_shared_data_relationship_id_fkey FOREIGN KEY (relationship_id) REFERENCES public.mentor_relationships(id) ON DELETE CASCADE;
+
+
+--
+-- Name: mentor_shared_data mentor_shared_data_team_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.mentor_shared_data
+    ADD CONSTRAINT mentor_shared_data_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(id) ON DELETE CASCADE;
+
+
+--
+-- Name: message_reactions message_reactions_message_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.message_reactions
+    ADD CONSTRAINT message_reactions_message_id_fkey FOREIGN KEY (message_id) REFERENCES public.chat_messages(id) ON DELETE CASCADE;
+
+
+--
+-- Name: message_reactions message_reactions_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.message_reactions
+    ADD CONSTRAINT message_reactions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: milestones milestones_team_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.milestones
+    ADD CONSTRAINT milestones_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(id) ON DELETE CASCADE;
+
+
+--
+-- Name: milestones milestones_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.milestones
+    ADD CONSTRAINT milestones_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
 
 
 --
@@ -5498,6 +6473,30 @@ ALTER TABLE ONLY public.performance_trends
 
 
 --
+-- Name: preparation_tasks preparation_tasks_assigned_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.preparation_tasks
+    ADD CONSTRAINT preparation_tasks_assigned_by_fkey FOREIGN KEY (assigned_by) REFERENCES public.users(u_id) ON DELETE SET NULL;
+
+
+--
+-- Name: preparation_tasks preparation_tasks_assigned_to_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.preparation_tasks
+    ADD CONSTRAINT preparation_tasks_assigned_to_fkey FOREIGN KEY (assigned_to) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: preparation_tasks preparation_tasks_team_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.preparation_tasks
+    ADD CONSTRAINT preparation_tasks_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(id) ON DELETE CASCADE;
+
+
+--
 -- Name: productivity_analysis productivity_analysis_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5559,6 +6558,30 @@ ALTER TABLE ONLY public.program_effectiveness_analytics
 
 ALTER TABLE ONLY public.progress_reports
     ADD CONSTRAINT progress_reports_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: progress_shares progress_shares_shared_with_team_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.progress_shares
+    ADD CONSTRAINT progress_shares_shared_with_team_id_fkey FOREIGN KEY (shared_with_team_id) REFERENCES public.teams(id) ON DELETE CASCADE;
+
+
+--
+-- Name: progress_shares progress_shares_shared_with_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.progress_shares
+    ADD CONSTRAINT progress_shares_shared_with_user_id_fkey FOREIGN KEY (shared_with_user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: progress_shares progress_shares_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.progress_shares
+    ADD CONSTRAINT progress_shares_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
 
 
 --
@@ -5754,6 +6777,30 @@ ALTER TABLE ONLY public.resume
 
 
 --
+-- Name: review_comments review_comments_parent_comment_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.review_comments
+    ADD CONSTRAINT review_comments_parent_comment_id_fkey FOREIGN KEY (parent_comment_id) REFERENCES public.review_comments(id) ON DELETE CASCADE;
+
+
+--
+-- Name: review_comments review_comments_review_request_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.review_comments
+    ADD CONSTRAINT review_comments_review_request_id_fkey FOREIGN KEY (review_request_id) REFERENCES public.document_review_requests(id) ON DELETE CASCADE;
+
+
+--
+-- Name: review_comments review_comments_reviewer_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.review_comments
+    ADD CONSTRAINT review_comments_reviewer_id_fkey FOREIGN KEY (reviewer_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
 -- Name: salary_negotiation_prep salary_negotiation_prep_job_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5783,6 +6830,30 @@ ALTER TABLE ONLY public.salary_progression_tracking
 
 ALTER TABLE ONLY public.salary_progression_tracking
     ADD CONSTRAINT salary_progression_tracking_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: shared_jobs shared_jobs_job_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.shared_jobs
+    ADD CONSTRAINT shared_jobs_job_id_fkey FOREIGN KEY (job_id) REFERENCES public.job_opportunities(id) ON DELETE CASCADE;
+
+
+--
+-- Name: shared_jobs shared_jobs_shared_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.shared_jobs
+    ADD CONSTRAINT shared_jobs_shared_by_fkey FOREIGN KEY (shared_by) REFERENCES public.users(u_id) ON DELETE SET NULL;
+
+
+--
+-- Name: shared_jobs shared_jobs_team_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.shared_jobs
+    ADD CONSTRAINT shared_jobs_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(id) ON DELETE CASCADE;
 
 
 --
@@ -5831,6 +6902,22 @@ ALTER TABLE ONLY public.team_billing
 
 ALTER TABLE ONLY public.team_dashboards
     ADD CONSTRAINT team_dashboards_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(id) ON DELETE CASCADE;
+
+
+--
+-- Name: team_invitations team_invitations_invited_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.team_invitations
+    ADD CONSTRAINT team_invitations_invited_by_fkey FOREIGN KEY (invited_by) REFERENCES public.users(u_id) ON DELETE SET NULL;
+
+
+--
+-- Name: team_invitations team_invitations_team_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.team_invitations
+    ADD CONSTRAINT team_invitations_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(id) ON DELETE CASCADE;
 
 
 --

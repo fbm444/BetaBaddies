@@ -5,6 +5,7 @@ import { ROUTES } from "../config/routes";
 import { Resume, JobOpportunityData, JobStatus } from "../types";
 import { resumeService } from "../services/resumeService";
 import { api } from "../services/api";
+import { ShareDocumentModal } from "../components/team/ShareDocumentModal";
 import { Toast } from "../components/resume/Toast";
 
 export function Resumes() {
@@ -17,6 +18,7 @@ export function Resumes() {
   const [exportingId, setExportingId] = useState<string | null>(null);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [showExportMenu, setShowExportMenu] = useState<string | null>(null);
+  const [showShareModal, setShowShareModal] = useState<string | null>(null);
   const [jobOpportunities, setJobOpportunities] = useState<
     JobOpportunityData[]
   >([]);
@@ -1379,6 +1381,20 @@ export function Resumes() {
                         className="w-4 h-4 text-[#1B2559]"
                       />
                     </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowShareModal(resume.id);
+                      }}
+                      className="px-3 py-2.5 border border-[#DDE2F2] rounded-full hover:bg-white transition-colors"
+                      title="Share with Team"
+                      type="button"
+                    >
+                      <Icon
+                        icon="lucide:share-2"
+                        className="w-4 h-4 text-[#1B2559]"
+                      />
+                    </button>
                     <div className="relative">
                       <button
                         onClick={() =>
@@ -1498,6 +1514,26 @@ export function Resumes() {
           onClick={() => setShowExportMenu(null)}
         />
       )}
+
+      {/* Share Document Modal */}
+      {showShareModal && (() => {
+        const resume = resumes.find((r) => r.id === showShareModal);
+        return resume ? (
+          <ShareDocumentModal
+            documentType="resume"
+            documentId={resume.id}
+            documentName={resume.name || resume.versionName || "Untitled Resume"}
+            onClose={() => setShowShareModal(null)}
+            onShared={() => {
+              setShowShareModal(null);
+              setToast({
+                message: "Resume shared successfully with team!",
+                type: "success",
+              });
+            }}
+          />
+        ) : null;
+      })()}
     </div>
   );
 }

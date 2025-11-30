@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Navigate, useSearchParams } from 'react-router-dom'
 import { api } from '@/services/api'
 import { ROUTES } from '@/config/routes'
 import { Icon } from '@iconify/react'
@@ -12,6 +12,10 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children, requireAuth = true }: ProtectedRouteProps) {
   const [isChecking, setIsChecking] = useState(true)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [searchParams] = useSearchParams()
+  
+  // Check for invitation token in URL or sessionStorage
+  const hasInvitationToken = searchParams.get('invite') || sessionStorage.getItem('pendingInvitationToken')
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -45,8 +49,9 @@ export function ProtectedRoute({ children, requireAuth = true }: ProtectedRouteP
     return <Navigate to={ROUTES.LOGIN} replace />
   }
 
-  // If route requires NO auth (like login page) and user IS authenticated → redirect to dashboard
-  if (!requireAuth && isAuthenticated) {
+  // If route requires NO auth (like login/register page) and user IS authenticated
+  // BUT there's an invitation token, allow access (user needs to log out first)
+  if (!requireAuth && isAuthenticated && !hasInvitationToken) {
     return <Navigate to={ROUTES.DASHBOARD} replace />
   }
 

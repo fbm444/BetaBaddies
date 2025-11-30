@@ -1,5 +1,5 @@
-import { useState, FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, FormEvent, useEffect } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Icon } from "@iconify/react";
 import { api } from "@/services/api";
 import { ROUTES } from "@/config/routes";
@@ -7,10 +7,36 @@ import loginSvg from "@/assets/login.svg";
 
 export function Login() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const inviteToken = searchParams.get("invite") || sessionStorage.getItem("pendingInvitationToken");
+  
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [invitationInfo, setInvitationInfo] = useState<any>(null);
+
+  useEffect(() => {
+    // If there's an invitation token, fetch invitation details
+    if (inviteToken) {
+      fetchInvitationInfo();
+    }
+  }, [inviteToken]);
+
+  const fetchInvitationInfo = async () => {
+    try {
+      const response = await api.getInvitationByToken(inviteToken!);
+      if (response.ok && response.data) {
+        setInvitationInfo(response.data.invitation);
+        // Pre-fill email if not already set
+        if (!email && response.data.invitation.email) {
+          setEmail(response.data.invitation.email);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch invitation info:", err);
+    }
+  };
 
   const handleGoogleLogin = () => {
     // Redirect to backend Google OAuth endpoint
@@ -37,6 +63,21 @@ export function Login() {
 
     try {
       await api.login(email, password);
+      
+      // If there's a pending invitation, accept it
+      if (inviteToken) {
+        try {
+          await api.acceptTeamInvitation(inviteToken);
+          sessionStorage.removeItem("pendingInvitationToken");
+          // Redirect to teams page to see their new team
+          window.location.href = ROUTES.TEAMS;
+          return;
+        } catch (inviteErr: any) {
+          console.error("Failed to accept invitation:", inviteErr);
+          // Continue to dashboard even if invitation acceptance fails
+        }
+      }
+      
       // Redirect to dashboard on success - use window.location for full page reload
       console.log("Login successful, redirecting to:", ROUTES.DASHBOARD);
       window.location.href = ROUTES.DASHBOARD;
@@ -118,6 +159,25 @@ export function Login() {
             <div className="bg-red-50 border-2 border-red-300 text-red-700 px-4 py-3 rounded-lg mb-4 flex items-center gap-2 animate-shake">
               <Icon icon="mingcute:alert-line" width={20} height={20} />
               <span className="text-sm font-medium">{error}</span>
+            </div>
+          )}
+
+          {/* Invitation Banner */}
+          {invitationInfo && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <div className="flex items-start gap-3">
+                <Icon icon="mingcute:user-group-line" width={24} className="text-blue-600 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-blue-900 mb-1">
+                    You've been invited to join {invitationInfo.teamName}
+                  </p>
+                  {invitationInfo.inviterName && (
+                    <p className="text-xs text-blue-700">
+                      Invited by {invitationInfo.inviterName}
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 

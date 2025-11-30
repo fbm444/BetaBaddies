@@ -23,6 +23,9 @@ import companyResearchRoutes from "./routes/companyResearchRoutes.js";
 import interviewRoutes from "./routes/interviewRoutes.js";
 import interviewPrepRoutes from "./routes/interviewPrepRoutes.js";
 import googleCalendarRoutes from "./routes/googleCalendarRoutes.js";
+import teamRoutes from "./routes/teamRoutes.js";
+import collaborationRoutes from "./routes/collaborationRoutes.js";
+import chatRoutes from "./routes/chatRoutes.js";
 
 // Import middleware
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
@@ -130,6 +133,9 @@ app.use("/api/v1/company-research", companyResearchRoutes);
 app.use("/api/v1/interviews", interviewRoutes);
 app.use("/api/v1/interview-prep", interviewPrepRoutes);
 app.use("/api/v1/calendar", googleCalendarRoutes);
+app.use("/api/v1/teams", teamRoutes);
+app.use("/api/v1/collaboration", collaborationRoutes);
+app.use("/api/v1/chat", chatRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

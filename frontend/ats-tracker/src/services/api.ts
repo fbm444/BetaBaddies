@@ -1226,6 +1226,531 @@ class ApiService {
     });
   }
 
+  // ============================================================================
+  // UC-108, UC-109, UC-110, UC-111: Collaboration & Social Features
+  // ============================================================================
+
+  // Teams (UC-108)
+  async createTeam(teamData: {
+    teamName: string;
+    teamType?: string;
+    billingEmail?: string;
+    subscriptionTier?: string;
+    maxMembers?: number;
+  }) {
+    return this.request<ApiResponse<{ team: any }>>(`/teams`, {
+      method: "POST",
+      body: JSON.stringify(teamData),
+    });
+  }
+
+  async getUserTeams() {
+    return this.request<ApiResponse<{ teams: any[] }>>(`/teams`);
+  }
+
+  async getTeamById(teamId: string) {
+    return this.request<ApiResponse<{ team: any }>>(`/teams/${teamId}`);
+  }
+
+  async inviteTeamMember(
+    teamId: string,
+    invitationData: {
+      email: string;
+      role?: string;
+      permissions?: any;
+    }
+  ) {
+    return this.request<ApiResponse<{ invitation: any }>>(
+      `/teams/${teamId}/invitations`,
+      {
+        method: "POST",
+        body: JSON.stringify(invitationData),
+      }
+    );
+  }
+
+  async getInvitationByToken(token: string) {
+    return this.request<ApiResponse<{ invitation: any }>>(
+      `/teams/invitations/${token}`
+    );
+  }
+
+  async acceptTeamInvitation(token: string) {
+    return this.request<ApiResponse<{ team: any }>>(
+      `/teams/invitations/${token}/accept`,
+      {
+        method: "POST",
+      }
+    );
+  }
+
+  async getTeamInvitations(teamId: string) {
+    return this.request<ApiResponse<{ invitations: any[] }>>(
+      `/teams/${teamId}/invitations`
+    );
+  }
+
+  async cancelTeamInvitation(teamId: string, invitationId: string) {
+    return this.request<ApiResponse<{ message: string }>>(
+      `/teams/${teamId}/invitations/${invitationId}`,
+      {
+        method: "DELETE",
+      }
+    );
+  }
+
+  // ============================================================================
+  // Chat/Messaging API
+  // ============================================================================
+
+  async createOrGetConversation(conversationData: {
+    conversationType: string;
+    teamId?: string;
+    relatedEntityType?: string;
+    relatedEntityId?: string;
+    participantIds?: string[];
+    title?: string;
+  }) {
+    return this.request<ApiResponse<{ conversation: any }>>(
+      `/chat/conversations`,
+      {
+        method: "POST",
+        body: JSON.stringify(conversationData),
+      }
+    );
+  }
+
+  async getUserConversations(type?: string, teamId?: string) {
+    const params = new URLSearchParams();
+    if (type) params.append("type", type);
+    if (teamId) params.append("teamId", teamId);
+    const url = `/chat/conversations${
+      params.toString() ? `?${params.toString()}` : ""
+    }`;
+    return this.request<ApiResponse<{ conversations: any[] }>>(url);
+  }
+
+  async getConversation(conversationId: string) {
+    return this.request<ApiResponse<{ conversation: any }>>(
+      `/chat/conversations/${conversationId}`
+    );
+  }
+
+  async addParticipant(
+    conversationId: string,
+    participantId: string,
+    role?: string
+  ) {
+    return this.request<ApiResponse<{ message: string }>>(
+      `/chat/conversations/${conversationId}/participants`,
+      {
+        method: "POST",
+        body: JSON.stringify({ participantId, role }),
+      }
+    );
+  }
+
+  async sendMessage(
+    conversationId: string,
+    messageData: {
+      messageText: string;
+      messageType?: string;
+      attachmentUrl?: string;
+      attachmentType?: string;
+      parentMessageId?: string;
+    }
+  ) {
+    return this.request<ApiResponse<{ message: any }>>(
+      `/chat/conversations/${conversationId}/messages`,
+      {
+        method: "POST",
+        body: JSON.stringify(messageData),
+      }
+    );
+  }
+
+  async getMessages(conversationId: string, limit?: number, before?: string) {
+    const params = new URLSearchParams();
+    if (limit) params.append("limit", limit.toString());
+    if (before) params.append("before", before);
+    const url = `/chat/conversations/${conversationId}/messages${
+      params.toString() ? `?${params.toString()}` : ""
+    }`;
+    return this.request<ApiResponse<{ messages: any[] }>>(url);
+  }
+
+  async markConversationAsRead(conversationId: string) {
+    return this.request<ApiResponse<{ message: string }>>(
+      `/chat/conversations/${conversationId}/read`,
+      {
+        method: "PUT",
+      }
+    );
+  }
+
+  async editMessage(messageId: string, messageText: string) {
+    return this.request<ApiResponse<{ message: any }>>(
+      `/chat/messages/${messageId}`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ messageText }),
+      }
+    );
+  }
+
+  async deleteMessage(messageId: string) {
+    return this.request<ApiResponse<{ message: string }>>(
+      `/chat/messages/${messageId}`,
+      {
+        method: "DELETE",
+      }
+    );
+  }
+
+  async getUnreadNotifications() {
+    return this.request<ApiResponse<{ notifications: any[] }>>(
+      `/chat/notifications`
+    );
+  }
+
+  async updateTeamMemberRole(
+    teamId: string,
+    memberUserId: string,
+    roleData: {
+      role: string;
+      permissions?: any;
+    }
+  ) {
+    return this.request<ApiResponse<{ team: any }>>(
+      `/teams/${teamId}/members/${memberUserId}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(roleData),
+      }
+    );
+  }
+
+  async removeTeamMember(teamId: string, memberUserId: string) {
+    return this.request<ApiResponse<{ message: string }>>(
+      `/teams/${teamId}/members/${memberUserId}`,
+      {
+        method: "DELETE",
+      }
+    );
+  }
+
+  // Mentor Dashboard (UC-109)
+  async getMentees() {
+    return this.request<ApiResponse<{ mentees: any[] }>>(
+      `/collaboration/mentor/mentees`
+    );
+  }
+
+  async getMenteeProgress(menteeId: string) {
+    return this.request<ApiResponse<{ progress: any }>>(
+      `/collaboration/mentor/mentees/${menteeId}/progress`
+    );
+  }
+
+  async getMenteeMaterials(menteeId: string, type?: string) {
+    const params = type ? `?type=${type}` : "";
+    return this.request<ApiResponse<{ materials: any }>>(
+      `/collaboration/mentor/mentees/${menteeId}/materials${params}`
+    );
+  }
+
+  async getCoachingInsights(menteeId: string) {
+    return this.request<ApiResponse<{ insights: any }>>(
+      `/collaboration/mentor/mentees/${menteeId}/insights`
+    );
+  }
+
+  async provideFeedback(feedbackData: {
+    menteeId: string;
+    feedbackType: string;
+    feedbackContent: string;
+    recommendations?: string;
+    relatedItemType?: string;
+    relatedItemId?: string;
+  }) {
+    return this.request<ApiResponse<{ feedback: any }>>(
+      `/collaboration/mentor/feedback`,
+      {
+        method: "POST",
+        body: JSON.stringify(feedbackData),
+      }
+    );
+  }
+
+  // Team Dashboard (UC-108)
+  async getTeamDashboard(teamId: string) {
+    return this.request<ApiResponse<{ dashboard: any }>>(
+      `/collaboration/teams/${teamId}/dashboard`
+    );
+  }
+
+  async getTeamPerformance(teamId: string) {
+    return this.request<ApiResponse<{ performance: any }>>(
+      `/collaboration/teams/${teamId}/performance`
+    );
+  }
+
+  async getPredefinedMilestones() {
+    return this.request<ApiResponse<{ milestones: any[] }>>(
+      `/collaboration/milestones/predefined`
+    );
+  }
+
+  // Document Review (UC-110)
+  async requestDocumentReview(reviewData: {
+    documentType: string;
+    documentId: string;
+    reviewerIds: string[];
+    deadline?: string;
+    teamId?: string;
+  }) {
+    return this.request<ApiResponse<{ requests: any[] }>>(
+      `/collaboration/reviews`,
+      {
+        method: "POST",
+        body: JSON.stringify(reviewData),
+      }
+    );
+  }
+
+  async getUserReviews(role?: string) {
+    const params = role ? `?role=${role}` : "";
+    return this.request<ApiResponse<{ reviews: any[] }>>(
+      `/collaboration/reviews${params}`
+    );
+  }
+
+  async getReview(reviewId: string) {
+    return this.request<ApiResponse<{ review: any }>>(
+      `/collaboration/reviews/${reviewId}`
+    );
+  }
+
+  async addReviewComment(
+    reviewId: string,
+    commentData: {
+      commentText: string;
+      suggestionText?: string;
+      commentType?: string;
+      parentCommentId?: string;
+      documentSection?: string;
+    }
+  ) {
+    return this.request<ApiResponse<{ comment: any }>>(
+      `/collaboration/reviews/${reviewId}/comments`,
+      {
+        method: "POST",
+        body: JSON.stringify(commentData),
+      }
+    );
+  }
+
+  async completeReview(reviewId: string) {
+    return this.request<ApiResponse<{ message: string }>>(
+      `/collaboration/reviews/${reviewId}/complete`,
+      {
+        method: "POST",
+      }
+    );
+  }
+
+  // Progress Sharing (UC-111)
+  async configureProgressSharing(shareConfig: {
+    sharedWithUserId?: string;
+    sharedWithTeamId?: string;
+    shareType: string;
+    privacyLevel?: string;
+  }) {
+    return this.request<ApiResponse<{ share: any }>>(
+      `/collaboration/progress/share`,
+      {
+        method: "POST",
+        body: JSON.stringify(shareConfig),
+      }
+    );
+  }
+
+  async generateProgressReport(period?: string) {
+    const params = period ? `?period=${period}` : "";
+    return this.request<ApiResponse<{ report: any }>>(
+      `/collaboration/progress/report${params}`
+    );
+  }
+
+  async getSharedProgress(userId: string) {
+    return this.request<ApiResponse<{ progress: any }>>(
+      `/collaboration/progress/shared/${userId}`
+    );
+  }
+
+  async createMilestone(milestoneData: {
+    milestoneType: string;
+    milestoneTitle: string;
+    milestoneDescription?: string;
+    milestoneData?: any;
+    sharedWithTeam?: boolean;
+    teamId?: string;
+  }) {
+    return this.request<ApiResponse<{ milestone: any }>>(
+      `/collaboration/milestones`,
+      {
+        method: "POST",
+        body: JSON.stringify(milestoneData),
+      }
+    );
+  }
+
+  // Job Sharing
+  async shareJobWithTeam(jobId: string, teamId: string) {
+    return this.request<ApiResponse<{ share: any }>>(
+      `/collaboration/jobs/${jobId}/share`,
+      {
+        method: "POST",
+        body: JSON.stringify({ teamId }),
+      }
+    );
+  }
+
+  async getSharedJobs(teamId: string) {
+    return this.request<ApiResponse<{ jobs: any[] }>>(
+      `/collaboration/teams/${teamId}/jobs`
+    );
+  }
+
+  async addJobComment(
+    jobId: string,
+    teamId: string,
+    commentData: {
+      commentText: string;
+      parentCommentId?: string;
+    }
+  ) {
+    return this.request<ApiResponse<{ comment: any }>>(
+      `/collaboration/jobs/${jobId}/comments`,
+      {
+        method: "POST",
+        body: JSON.stringify({ teamId, ...commentData }),
+      }
+    );
+  }
+
+  async getJobComments(jobId: string, teamId: string) {
+    return this.request<ApiResponse<{ comments: any[] }>>(
+      `/collaboration/jobs/${jobId}/comments?teamId=${teamId}`
+    );
+  }
+
+  // Document Sharing
+  async shareDocumentWithTeam(data: {
+    documentType: "resume" | "cover_letter";
+    documentId: string;
+    teamId: string;
+    sharedWithUserId?: string; // Optional: share with specific team member, or null/undefined for team-wide
+    versionNumber?: number;
+  }) {
+    return this.request<ApiResponse<{ share: any }>>(
+      `/collaboration/documents/share`,
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      }
+    );
+  }
+
+  async getSharedDocuments(teamId: string) {
+    return this.request<ApiResponse<{ documents: any[] }>>(
+      `/collaboration/teams/${teamId}/documents`
+    );
+  }
+
+  async addDocumentComment(data: {
+    documentType: "resume" | "cover_letter";
+    documentId: string;
+    teamId: string;
+    commentText: string;
+    parentCommentId?: string;
+    documentSection?: string;
+  }) {
+    return this.request<ApiResponse<{ comment: any }>>(
+      `/collaboration/documents/comments`,
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      }
+    );
+  }
+
+  async getDocumentComments(
+    documentType: "resume" | "cover_letter",
+    documentId: string,
+    teamId: string
+  ) {
+    return this.request<ApiResponse<{ comments: any[] }>>(
+      `/collaboration/documents/${documentType}/${documentId}/comments?teamId=${teamId}`
+    );
+  }
+
+  async getDocumentDetails(
+    documentType: "resume" | "cover_letter",
+    documentId: string
+  ) {
+    return this.request<ApiResponse<{ document: any }>>(
+      `/collaboration/documents/${documentType}/${documentId}`
+    );
+  }
+
+  // Task Management
+  async assignTask(taskData: {
+    assignedTo: string;
+    teamId: string;
+    taskType: string;
+    taskTitle: string;
+    taskDescription?: string;
+    taskData?: any;
+    dueDate?: string;
+  }) {
+    return this.request<ApiResponse<{ task: any }>>(`/collaboration/tasks`, {
+      method: "POST",
+      body: JSON.stringify(taskData),
+    });
+  }
+
+  async getUserTasks(teamId?: string, status?: string) {
+    const params = new URLSearchParams();
+    if (teamId) params.append("teamId", teamId);
+    if (status) params.append("status", status);
+    const query = params.toString() ? `?${params.toString()}` : "";
+    return this.request<ApiResponse<{ tasks: any[] }>>(
+      `/collaboration/tasks${query}`
+    );
+  }
+
+  async updateTaskStatus(taskId: string, status: string) {
+    return this.request<ApiResponse<{ message: string }>>(
+      `/collaboration/tasks/${taskId}/status`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ status }),
+      }
+    );
+  }
+
+  // Activity Feed
+  async getTeamActivityFeed(teamId: string, limit?: number, offset?: number) {
+    const params = new URLSearchParams();
+    if (limit) params.append("limit", limit.toString());
+    if (offset) params.append("offset", offset.toString());
+    const query = params.toString() ? `?${params.toString()}` : "";
+    return this.request<ApiResponse<{ activities: any[] }>>(
+      `/collaboration/teams/${teamId}/activity${query}`
+    );
+  }
+
   async getResponseFeedback(responseId: string) {
     return this.request<ApiResponse<{ feedback: any }>>(
       `/interview-prep/responses/${responseId}`

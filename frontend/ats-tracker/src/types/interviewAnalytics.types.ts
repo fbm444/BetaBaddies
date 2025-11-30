@@ -8,6 +8,10 @@ export interface InterviewAnalytics {
   improvementTrend: ImprovementTrendPoint[];
   recommendations: string[];
   optimalStrategyInsights: StrategyInsight[];
+  // New enhanced features
+  confidenceTrends?: ConfidenceTrendPoint[];
+  anxietyProgress?: AnxietyTrendPoint[];
+  practiceVsRealComparison?: PracticeVsRealComparison;
 }
 
 export interface ConversionRateData {
@@ -49,5 +53,33 @@ export interface StrategyInsight {
   number: number;
   title: string;
   description: string;
+}
+
+export interface ConfidenceTrendPoint {
+  period: string | null; // YYYY-MM format
+  avgPreConfidence: number | null;
+  assessmentCount: number;
+}
+
+export interface AnxietyTrendPoint {
+  period: string | null; // YYYY-MM format
+  avgPreAnxiety: number | null;
+  assessmentCount: number;
+}
+
+export interface PracticeVsRealComparison {
+  practice: {
+    conversionRate: number;
+    offers: number;
+    completed: number;
+    avgScore: number | null;
+  };
+  real: {
+    conversionRate: number;
+    offers: number;
+    completed: number;
+    avgScore: number | null;
+  };
+  improvement: number;
 }
 

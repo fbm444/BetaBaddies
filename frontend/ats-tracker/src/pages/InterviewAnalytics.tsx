@@ -106,6 +106,26 @@ export function InterviewAnalytics() {
       score: item.averageScore || 0,
     }));
 
+  // Confidence trend data
+  const confidenceChartData = analytics.confidenceTrends
+    ? analytics.confidenceTrends
+        .filter((item) => item.period && item.avgPreConfidence !== null)
+        .map((item) => ({
+          period: item.period,
+          confidence: item.avgPreConfidence || 0,
+        }))
+    : [];
+
+  // Anxiety trend data
+  const anxietyChartData = analytics.anxietyProgress
+    ? analytics.anxietyProgress
+        .filter((item) => item.period && item.avgPreAnxiety !== null)
+        .map((item) => ({
+          period: item.period,
+          anxiety: item.avgPreAnxiety || 0,
+        }))
+    : [];
+
   return (
     <div className="p-6">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -236,6 +256,141 @@ export function InterviewAnalytics() {
             </ResponsiveContainer>
           </div>
         </div>
+
+        {/* Charts Row 3: Confidence and Anxiety Trends */}
+        {(analytics.confidenceTrends || analytics.anxietyProgress) && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Confidence Trends */}
+            {analytics.confidenceTrends && confidenceChartData.length > 0 && (
+              <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  Confidence Levels Over Time
+                </h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart data={confidenceChartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="period" />
+                    <YAxis domain={[0, 100]} />
+                    <Tooltip />
+                    <Area
+                      type="monotone"
+                      dataKey="confidence"
+                      stroke="#10B981"
+                      fill="#10B981"
+                      fillOpacity={0.3}
+                      name="Confidence Level"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+                <p className="text-sm text-gray-500 mt-2">
+                  Track your confidence levels before interviews (0-100 scale)
+                </p>
+              </div>
+            )}
+
+            {/* Anxiety Progress */}
+            {analytics.anxietyProgress && anxietyChartData.length > 0 && (
+              <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  Anxiety Management Progress
+                </h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart data={anxietyChartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="period" />
+                    <YAxis domain={[0, 100]} />
+                    <Tooltip />
+                    <Area
+                      type="monotone"
+                      dataKey="anxiety"
+                      stroke="#EF4444"
+                      fill="#EF4444"
+                      fillOpacity={0.3}
+                      name="Anxiety Level"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+                <p className="text-sm text-gray-500 mt-2">
+                  Monitor anxiety levels before interviews (0-100 scale, lower is better)
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Practice vs Real Comparison */}
+        {analytics.practiceVsRealComparison && (
+          <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Practice vs Real Interview Comparison
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Practice Interviews */}
+              <div className="border border-gray-200 rounded-lg p-4">
+                <h4 className="font-semibold text-gray-700 mb-2">Practice Interviews</h4>
+                <div className="space-y-2">
+                  <div>
+                    <span className="text-sm text-gray-600">Conversion Rate: </span>
+                    <span className="font-bold text-gray-900">
+                      {analytics.practiceVsRealComparison.practice.conversionRate.toFixed(1)}%
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-sm text-gray-600">Completed: </span>
+                    <span className="font-medium text-gray-900">
+                      {analytics.practiceVsRealComparison.practice.completed}
+                    </span>
+                  </div>
+                  {analytics.practiceVsRealComparison.practice.avgScore && (
+                    <div>
+                      <span className="text-sm text-gray-600">Avg Score: </span>
+                      <span className="font-medium text-gray-900">
+                        {analytics.practiceVsRealComparison.practice.avgScore.toFixed(1)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Real Interviews */}
+              <div className="border border-gray-200 rounded-lg p-4">
+                <h4 className="font-semibold text-gray-700 mb-2">Real Interviews</h4>
+                <div className="space-y-2">
+                  <div>
+                    <span className="text-sm text-gray-600">Conversion Rate: </span>
+                    <span className="font-bold text-blue-600">
+                      {analytics.practiceVsRealComparison.real.conversionRate.toFixed(1)}%
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-sm text-gray-600">Completed: </span>
+                    <span className="font-medium text-gray-900">
+                      {analytics.practiceVsRealComparison.real.completed}
+                    </span>
+                  </div>
+                  {analytics.practiceVsRealComparison.real.avgScore && (
+                    <div>
+                      <span className="text-sm text-gray-600">Avg Score: </span>
+                      <span className="font-medium text-gray-900">
+                        {analytics.practiceVsRealComparison.real.avgScore.toFixed(1)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            {analytics.practiceVsRealComparison.improvement !== 0 && (
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  {analytics.practiceVsRealComparison.improvement > 0 ? "✅" : "📉"}{" "}
+                  {analytics.practiceVsRealComparison.improvement > 0
+                    ? `You're performing ${Math.abs(analytics.practiceVsRealComparison.improvement).toFixed(1)}% better in real interviews than practice!`
+                    : `Your real interview conversion rate is ${Math.abs(analytics.practiceVsRealComparison.improvement).toFixed(1)}% lower than practice.`}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Bottom Row: Recommendations and Strategy Insights */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -527,8 +527,7 @@ export function CompanyResearch() {
                 </div>
               )}
 
-              {/* Interview Insights */}
-              <div className="border-t border-slate-200 pt-6">
+              {/* Interview Insights moved to Interviews page */}
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <Icon icon="mingcute:microphone-line" width={20} height={20} className="text-[#3351FD]" />

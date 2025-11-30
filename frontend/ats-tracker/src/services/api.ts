@@ -1130,6 +1130,75 @@ class ApiService {
       method: "POST",
     });
   }
+
+  // Reminder endpoints
+  async getRemindersForInterview(interviewId: string) {
+    return this.request<
+      ApiResponse<{ reminders: any[] }>
+    >(`/interviews/${interviewId}/reminders`);
+  }
+
+  // Thank-you note endpoints
+  async getThankYouNotes(interviewId: string) {
+    return this.request<
+      ApiResponse<{ notes: any[] }>
+    >(`/interviews/${interviewId}/thank-you-notes`);
+  }
+
+  async generateThankYouNote(interviewId: string) {
+    return this.request<
+      ApiResponse<{ note: any }>
+    >(`/interviews/${interviewId}/thank-you-notes/generate`, {
+      method: "POST",
+    });
+  }
+
+  async updateThankYouNote(interviewId: string, noteId: string, data: { subject?: string; body?: string }) {
+    return this.request<
+      ApiResponse<{ note: any }>
+    >(`/interviews/${interviewId}/thank-you-notes/${noteId}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async sendThankYouNote(interviewId: string, noteId: string) {
+    return this.request<
+      ApiResponse<{ message: string }>
+    >(`/interviews/${interviewId}/thank-you-notes/${noteId}/send`, {
+      method: "POST",
+    });
+  }
+
+  // Follow-up endpoints
+  async getFollowUpActions(interviewId: string) {
+    return this.request<
+      ApiResponse<{ followUps: any[] }>
+    >(`/interviews/${interviewId}/follow-ups`);
+  }
+
+  async getPendingFollowUps() {
+    return this.request<
+      ApiResponse<{ followUps: any[] }>
+    >("/follow-ups/pending");
+  }
+
+  async completeFollowUpAction(interviewId: string, actionId: string) {
+    return this.request<
+      ApiResponse<{ message: string }>
+    >(`/interviews/${interviewId}/follow-ups/${actionId}/complete`, {
+      method: "POST",
+    });
+  }
+
+  async createFollowUpAction(interviewId: string, data: { actionType: string; dueDate?: string; notes?: string }) {
+    return this.request<
+      ApiResponse<{ followUp: any }>
+    >(`/interviews/${interviewId}/follow-ups`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
 }
 
 export const api = new ApiService();

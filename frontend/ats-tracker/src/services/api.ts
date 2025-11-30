@@ -38,6 +38,12 @@ import {
   InterviewData,
   InterviewInput,
   InterviewConflict,
+  JobSearchPerformance,
+  ApplicationSuccessAnalysis,
+  InterviewPerformance,
+  NetworkROI,
+  SalaryProgression,
+  DateRange,
 } from "../types";
 
 // In development, use proxy (relative path). In production, use env variable or full URL
@@ -1102,6 +1108,62 @@ class ApiService {
     >("/calendar/sync/all", {
       method: "POST",
     });
+  }
+
+  // Analytics endpoints (UC-096 through UC-100)
+  async getJobSearchPerformance(dateRange?: DateRange) {
+    const params = new URLSearchParams();
+    if (dateRange?.startDate) params.append("startDate", dateRange.startDate);
+    if (dateRange?.endDate) params.append("endDate", dateRange.endDate);
+
+    const queryString = params.toString();
+    return this.request<ApiResponse<{ performance: JobSearchPerformance }>>(
+      `/analytics/job-search-performance${queryString ? `?${queryString}` : ""}`
+    );
+  }
+
+  async getApplicationSuccessAnalysis(dateRange?: DateRange) {
+    const params = new URLSearchParams();
+    if (dateRange?.startDate) params.append("startDate", dateRange.startDate);
+    if (dateRange?.endDate) params.append("endDate", dateRange.endDate);
+
+    const queryString = params.toString();
+    return this.request<ApiResponse<{ analysis: ApplicationSuccessAnalysis }>>(
+      `/analytics/application-success${queryString ? `?${queryString}` : ""}`
+    );
+  }
+
+  async getInterviewPerformance(dateRange?: DateRange) {
+    const params = new URLSearchParams();
+    if (dateRange?.startDate) params.append("startDate", dateRange.startDate);
+    if (dateRange?.endDate) params.append("endDate", dateRange.endDate);
+
+    const queryString = params.toString();
+    return this.request<ApiResponse<{ performance: InterviewPerformance }>>(
+      `/analytics/interview-performance${queryString ? `?${queryString}` : ""}`
+    );
+  }
+
+  async getNetworkROI(dateRange?: DateRange) {
+    const params = new URLSearchParams();
+    if (dateRange?.startDate) params.append("startDate", dateRange.startDate);
+    if (dateRange?.endDate) params.append("endDate", dateRange.endDate);
+
+    const queryString = params.toString();
+    return this.request<ApiResponse<{ roi: NetworkROI }>>(
+      `/analytics/network-roi${queryString ? `?${queryString}` : ""}`
+    );
+  }
+
+  async getSalaryProgression(dateRange?: DateRange) {
+    const params = new URLSearchParams();
+    if (dateRange?.startDate) params.append("startDate", dateRange.startDate);
+    if (dateRange?.endDate) params.append("endDate", dateRange.endDate);
+
+    const queryString = params.toString();
+    return this.request<ApiResponse<{ progression: SalaryProgression }>>(
+      `/analytics/salary-progression${queryString ? `?${queryString}` : ""}`
+    );
   }
 }
 

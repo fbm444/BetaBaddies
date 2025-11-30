@@ -22,6 +22,7 @@ import coverLetterRoutes from "./routes/coverletters/index.js";
 import companyResearchRoutes from "./routes/companyResearchRoutes.js";
 import interviewRoutes from "./routes/interviewRoutes.js";
 import googleCalendarRoutes from "./routes/googleCalendarRoutes.js";
+import followUpRoutes from "./routes/followUpRoutes.js";
 
 // Import middleware
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
@@ -128,6 +129,7 @@ app.use("/api/v1/coverletter", coverLetterRoutes);
 app.use("/api/v1/company-research", companyResearchRoutes);
 app.use("/api/v1/interviews", interviewRoutes);
 app.use("/api/v1/calendar", googleCalendarRoutes);
+app.use("/api/v1", followUpRoutes); // For /api/v1/follow-ups/pending
 
 // 404 handler
 app.use(notFoundHandler);

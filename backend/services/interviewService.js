@@ -1,6 +1,8 @@
 import { v4 as uuidv4 } from "uuid";
 import database from "./database.js";
 import googleCalendarService from "./googleCalendarService.js";
+import reminderService from "./reminderService.js";
+import followUpService from "./followUpService.js";
 
 class InterviewService {
   constructor() {
@@ -183,6 +185,20 @@ class InterviewService {
         // Don't fail the interview creation if calendar sync fails
       }
 
+      // Schedule reminders (24h and 2h before)
+      try {
+        if (interviewData.scheduledAt) {
+          await reminderService.scheduleReminders(
+            userId,
+            interview.id,
+            interviewData.scheduledAt
+          );
+        }
+      } catch (error) {
+        console.error("Error scheduling reminders:", error);
+        // Don't fail the interview creation if reminder scheduling fails
+      }
+
       return fullInterview;
     } catch (error) {
       console.error("Error creating interview:", error);
@@ -348,14 +364,17 @@ class InterviewService {
         this.validateOutcome(updateData.outcome);
       }
 
+      // Get current interview to check status and for conflict checking
+      const currentInterview = await this.getInterviewById(userId, interviewId);
+      if (!currentInterview) {
+        throw new Error("Interview not found");
+      }
+
+      const wasCompleted = currentInterview.status === "completed";
+
       // Check for conflicts if scheduled_at or duration is being updated
       let conflictDetected = false;
       if (updateData.scheduledAt || updateData.duration) {
-        const currentInterview = await this.getInterviewById(userId, interviewId);
-        if (!currentInterview) {
-          throw new Error("Interview not found");
-        }
-
         const scheduledAt = updateData.scheduledAt || currentInterview.scheduledAt;
         const duration = updateData.duration || currentInterview.duration;
 
@@ -435,6 +454,26 @@ class InterviewService {
         // Don't fail the interview update if calendar sync fails
       }
 
+      // Reschedule reminders if interview time changed
+      try {
+        if (updateData.scheduledAt) {
+          await reminderService.rescheduleReminders(interviewId, updateData.scheduledAt);
+        }
+      } catch (error) {
+        console.error("Error rescheduling reminders:", error);
+        // Don't fail the interview update if reminder rescheduling fails
+      }
+
+      // Generate follow-up actions if interview was just marked as completed
+      try {
+        if (updateData.status === "completed" && !wasCompleted) {
+          await followUpService.generateFollowUpActions(interviewId, userId);
+        }
+      } catch (error) {
+        console.error("Error generating follow-up actions:", error);
+        // Don't fail the interview update if follow-up generation fails
+      }
+
       return updatedInterview;
     } catch (error) {
       console.error("Error updating interview:", error);
@@ -482,6 +521,14 @@ class InterviewService {
       } catch (error) {
         console.error("Error deleting cancelled interview from Google Calendar:", error);
         // Don't fail the interview cancellation if calendar sync fails
+      }
+
+      // Cancel all pending reminders
+      try {
+        await reminderService.cancelReminders(interviewId);
+      } catch (error) {
+        console.error("Error cancelling reminders:", error);
+        // Don't fail the interview cancellation if reminder cancellation fails
       }
 
       return await this.getInterviewById(userId, interviewId);
@@ -573,6 +620,17 @@ class InterviewService {
       } catch (error) {
         console.error("Error syncing rescheduled interview to Google Calendar:", error);
         // Don't fail the interview reschedule if calendar sync fails
+      }
+
+      // Cancel old reminders and schedule new ones
+      try {
+        await reminderService.cancelReminders(interviewId);
+        if (newScheduledAt) {
+          await reminderService.scheduleReminders(userId, newInterviewId, newScheduledAt);
+        }
+      } catch (error) {
+        console.error("Error rescheduling reminders:", error);
+        // Don't fail the interview rescheduling if reminder scheduling fails
       }
 
       return newInterview;

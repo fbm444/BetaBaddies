@@ -1,6 +1,9 @@
 import express from "express";
 import interviewController from "../controllers/interviewController.js";
 import interviewAnalyticsController from "../controllers/interviewAnalyticsController.js";
+import reminderController from "../controllers/reminderController.js";
+import thankYouNoteController from "../controllers/thankYouNoteController.js";
+import followUpController from "../controllers/followUpController.js";
 import { isAuthenticated } from "../middleware/auth.js";
 
 const router = express.Router();
@@ -51,6 +54,20 @@ router.post("/:id/pre-assessment", interviewController.createPreAssessment);
 router.post("/:id/post-reflection", interviewController.createPostReflection);
 router.get("/:id/pre-assessment", interviewController.getPreAssessment);
 router.get("/:id/post-reflection", interviewController.getPostReflection);
+
+// Reminders (must be before :id routes)
+router.get("/:id/reminders", reminderController.getRemindersForInterview);
+
+// Thank-you notes (must be before :id routes)
+router.post("/:id/thank-you-notes/generate", thankYouNoteController.generateThankYouNote);
+router.get("/:id/thank-you-notes", thankYouNoteController.getThankYouNotes);
+router.put("/:id/thank-you-notes/:noteId", thankYouNoteController.updateThankYouNote);
+router.post("/:id/thank-you-notes/:noteId/send", thankYouNoteController.sendThankYouNote);
+
+// Follow-up actions (must be before :id routes)
+router.get("/:id/follow-ups", followUpController.getFollowUpActions);
+router.post("/:id/follow-ups", followUpController.createFollowUpAction);
+router.post("/:id/follow-ups/:actionId/complete", followUpController.completeFollowUpAction);
 
 // Get interview by ID
 router.get("/:id", interviewController.getInterviewById);

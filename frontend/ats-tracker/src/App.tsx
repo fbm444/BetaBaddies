@@ -24,6 +24,7 @@ import { CoverLetterBuilder } from './pages/CoverLetterBuilder'
 import { CompanyResearch } from './pages/CompanyResearch'
 import { InterviewScheduling } from './pages/InterviewScheduling'
 import { Analytics } from './pages/Analytics'
+import { MarketIntelligence } from './pages/MarketIntelligence'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { ROUTES } from './config/routes'
@@ -110,6 +111,7 @@ function App() {
 		  <Route path={ROUTES.COMPANY_RESEARCH} element={<CompanyResearch />} />
 		  <Route path={ROUTES.INTERVIEW_SCHEDULING} element={<InterviewScheduling />} />
 		  <Route path={ROUTES.ANALYTICS} element={<Analytics />} />
+		  <Route path={ROUTES.MARKET_INTELLIGENCE} element={<MarketIntelligence />} />
 		  <Route path={ROUTES.SKILLS} element={<Skills />} />
 		  <Route path={ROUTES.EDUCATION} element={<Education />} />
 		  <Route path={ROUTES.PROJECTS} element={<Projects />} />

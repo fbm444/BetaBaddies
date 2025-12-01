@@ -16,7 +16,8 @@ import type {
   JobOpportunityData,
 } from "../types";
 
-type TabType = "overview" | "active" | "market-research" | "progression";
+type TabType = "overview" | "market-research" | "progression";
+type StatusFilter = "all" | "active" | "completed" | "draft" | "archived";
 
 export function SalaryNegotiation() {
   const navigate = useNavigate();
@@ -33,6 +34,7 @@ export function SalaryNegotiation() {
   const [jobOpportunities, setJobOpportunities] = useState<JobOpportunityData[]>([]);
   const [loadingJobOpportunities, setLoadingJobOpportunities] = useState(false);
   const [creatingNegotiation, setCreatingNegotiation] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
   // Form state for creating negotiation
   const [formData, setFormData] = useState({
@@ -247,7 +249,6 @@ export function SalaryNegotiation() {
           <nav className="flex space-x-8">
             {[
               { id: "overview", label: "Overview" },
-              { id: "active", label: "Active Negotiations" },
               { id: "market-research", label: "Market Research" },
               { id: "progression", label: "Progression" },
             ].map((tab) => (
@@ -302,33 +303,76 @@ export function SalaryNegotiation() {
 
             {/* Negotiations List */}
             <div className="bg-white rounded-xl border border-slate-200">
-              <div className="p-6 border-b border-slate-200 flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-slate-900">All Negotiations</h2>
-                <button
-                  onClick={() => setShowCreateModal(true)}
-                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm font-medium"
-                >
-                  Start New Negotiation
-                </button>
-              </div>
-
-              {negotiations.length === 0 ? (
-                <div className="p-12 text-center">
-                  <Icon icon="mingcute:briefcase-line" width={48} className="text-slate-400 mx-auto mb-4" />
-                  <p className="text-slate-600 mb-4">No salary negotiations yet</p>
-                  <p className="text-sm text-slate-500 mb-6">
-                    Start a negotiation from a job opportunity with an offer
-                  </p>
+              <div className="p-6 border-b border-slate-200">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold text-slate-900">Negotiations</h2>
                   <button
                     onClick={() => setShowCreateModal(true)}
-                    className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium"
+                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm font-medium"
                   >
                     Start New Negotiation
                   </button>
                 </div>
-              ) : (
-                <div className="divide-y divide-slate-200">
-                  {negotiations.map((negotiation) => (
+                
+                {/* Status Filter */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm text-slate-600 font-medium">Filter:</span>
+                  {[
+                    { value: "all", label: "All" },
+                    { value: "active", label: "Active" },
+                    { value: "completed", label: "Completed" },
+                    { value: "draft", label: "Draft" },
+                    { value: "archived", label: "Archived" },
+                  ].map((filter) => (
+                    <button
+                      key={filter.value}
+                      onClick={() => setStatusFilter(filter.value as StatusFilter)}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        statusFilter === filter.value
+                          ? "bg-blue-500 text-white"
+                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                      }`}
+                    >
+                      {filter.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {(() => {
+                const filteredNegotiations = statusFilter === "all" 
+                  ? negotiations 
+                  : negotiations.filter((n) => n.status === statusFilter);
+                
+                if (filteredNegotiations.length === 0) {
+                  return (
+                    <div className="p-12 text-center">
+                      <Icon icon="mingcute:briefcase-line" width={48} className="text-slate-400 mx-auto mb-4" />
+                      <p className="text-slate-600 mb-4">
+                        {statusFilter === "all" 
+                          ? "No salary negotiations yet"
+                          : `No ${statusFilter} negotiations`}
+                      </p>
+                      {statusFilter === "all" && (
+                        <>
+                          <p className="text-sm text-slate-500 mb-6">
+                            Start a negotiation from a job opportunity with an offer
+                          </p>
+                          <button
+                            onClick={() => setShowCreateModal(true)}
+                            className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium"
+                          >
+                            Start New Negotiation
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  );
+                }
+                
+                return (
+                  <div className="divide-y divide-slate-200">
+                    {filteredNegotiations.map((negotiation) => (
                     <div
                       key={negotiation.id}
                       className="p-6 hover:bg-slate-50 cursor-pointer transition-colors"
@@ -376,50 +420,207 @@ export function SalaryNegotiation() {
                     </div>
                   ))}
                 </div>
-              )}
+              );
+              })()}
             </div>
           </div>
         )}
 
-        {activeTab === "active" && (
-          <div>
-            <h2 className="text-2xl font-bold text-slate-900 mb-6">Active Negotiations</h2>
-            {activeNegotiations.length === 0 ? (
-              <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
-                <Icon icon="mingcute:briefcase-line" width={48} className="text-slate-400 mx-auto mb-4" />
-                <p className="text-slate-600">No active negotiations</p>
+        {activeTab === "market-research" && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold text-slate-900 mb-2">Market Research</h2>
+              <p className="text-slate-600">
+                View market salary data for all your negotiations
+              </p>
+            </div>
+
+            {negotiations.length === 0 ? (
+              <div className="bg-slate-50 rounded-xl p-12 text-center border border-slate-200">
+                <Icon icon="mingcute:chart-line" width={48} className="text-slate-400 mx-auto mb-4" />
+                <p className="text-slate-600 mb-2">No negotiations yet</p>
+                <p className="text-sm text-slate-500">
+                  Create a negotiation to see market research data here
+                </p>
               </div>
             ) : (
-              <div className="space-y-4">
-                {activeNegotiations.map((negotiation) => (
-                  <div
-                    key={negotiation.id}
-                    className="bg-white rounded-xl border border-slate-200 p-6 cursor-pointer hover:shadow-md transition-shadow"
-                    onClick={() => {
-                      setSelectedNegotiation(negotiation);
-                      setShowDetailModal(true);
-                    }}
-                  >
-                    <h3 className="font-semibold text-slate-900 mb-2">
-                      {negotiation.jobTitle} @ {negotiation.company}
-                    </h3>
-                    <p className="text-sm text-slate-600">
-                      Initial: ${negotiation.initialOffer?.totalCompensation?.toLocaleString()} | 
-                      Target: ${negotiation.targetCompensation?.totalCompensation?.toLocaleString()}
+              <div className="space-y-6">
+                {negotiations
+                  .filter((neg) => neg.marketSalaryData)
+                  .map((negotiation) => {
+                    const marketData = negotiation.marketSalaryData!;
+                    const offerTotal = negotiation.initialOffer?.totalCompensation || 0;
+
+                    return (
+                      <div
+                        key={negotiation.id}
+                        className="bg-white rounded-xl p-6 border border-slate-200 hover:border-blue-300 transition-colors"
+                      >
+                        {/* Header */}
+                        <div className="flex items-start justify-between mb-4">
+                          <div>
+                            <h3 className="text-lg font-semibold text-slate-900 mb-1">
+                              {negotiation.jobTitle || "Unknown Role"}
+                            </h3>
+                            <div className="flex items-center gap-4 text-sm text-slate-600">
+                              <span className="flex items-center gap-1">
+                                <Icon icon="mingcute:building-line" width={16} />
+                                {negotiation.company || "Unknown Company"}
+                              </span>
+                              {negotiation.location && (
+                                <span className="flex items-center gap-1">
+                                  <Icon icon="mingcute:map-pin-line" width={16} />
+                                  {negotiation.location}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => {
+                              setSelectedNegotiation(negotiation);
+                              setShowDetailModal(true);
+                            }}
+                            className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                          >
+                            View Details
+                            <Icon icon="mingcute:arrow-right-line" width={16} />
+                          </button>
+                        </div>
+
+                        {/* Market Data Percentiles */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                          <div className="text-center p-4 bg-slate-50 rounded-lg border border-slate-200">
+                            <p className="text-xs text-slate-600 mb-1 font-medium">25th Percentile</p>
+                            <p className="text-xl font-bold text-slate-900">
+                              ${(marketData.percentile25 || 0).toLocaleString()}
+                            </p>
+                            <p className="text-xs text-slate-500 mt-1">Lower range</p>
+                          </div>
+                          <div className="text-center p-4 bg-blue-50 rounded-lg border-2 border-blue-300">
+                            <p className="text-xs text-blue-700 mb-1 font-semibold">50th Percentile (Median)</p>
+                            <p className="text-2xl font-bold text-blue-900">
+                              ${(marketData.percentile50 || 0).toLocaleString()}
+                            </p>
+                            <p className="text-xs text-blue-600 mt-1 font-medium">Market average</p>
+                          </div>
+                          <div className="text-center p-4 bg-slate-50 rounded-lg border border-slate-200">
+                            <p className="text-xs text-slate-600 mb-1 font-medium">75th Percentile</p>
+                            <p className="text-xl font-bold text-slate-900">
+                              ${(marketData.percentile75 || 0).toLocaleString()}
+                            </p>
+                            <p className="text-xs text-slate-500 mt-1">Upper range</p>
+                          </div>
+                          <div className="text-center p-4 bg-purple-50 rounded-lg border border-purple-200">
+                            <p className="text-xs text-purple-700 mb-1 font-medium">90th Percentile</p>
+                            <p className="text-xl font-bold text-purple-900">
+                              ${(marketData.percentile90 || 0).toLocaleString()}
+                            </p>
+                            <p className="text-xs text-purple-600 mt-1">Top performers</p>
+                          </div>
+                        </div>
+
+                        {/* Your Offer Comparison */}
+                        {offerTotal > 0 && (
+                          <div className="bg-gradient-to-r from-blue-50 to-green-50 rounded-lg p-5 border border-blue-200 mb-4">
+                            <div className="flex items-center justify-between mb-3">
+                              <div>
+                                <p className="text-sm font-semibold text-slate-900 mb-1">Your Initial Offer</p>
+                                <p className="text-2xl font-bold text-blue-900">
+                                  ${offerTotal.toLocaleString()}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-xs text-slate-600 mb-1">Market Position</p>
+                                <p className="text-sm font-semibold text-slate-900">
+                                  {offerTotal < (marketData.percentile25 || 0)
+                                    ? "Below 25th percentile"
+                                    : offerTotal < (marketData.percentile50 || 0)
+                                    ? "25th-50th percentile"
+                                    : offerTotal < (marketData.percentile75 || 0)
+                                    ? "50th-75th percentile"
+                                    : offerTotal < (marketData.percentile90 || 0)
+                                    ? "75th-90th percentile"
+                                    : "Above 90th percentile"}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="relative">
+                              <div className="h-3 bg-slate-200 rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-gradient-to-r from-blue-500 to-green-500"
+                                  style={{
+                                    width: `${Math.min(
+                                      100,
+                                      marketData.percentile90 > marketData.percentile25
+                                        ? ((offerTotal - (marketData.percentile25 || 0)) /
+                                            ((marketData.percentile90 || 1) - (marketData.percentile25 || 0))) *
+                                            100
+                                        : 50
+                                    )}%`,
+                                  }}
+                                />
+                              </div>
+                              <div className="flex justify-between mt-2 text-xs text-slate-600">
+                                <span>${(marketData.percentile25 || 0).toLocaleString()}</span>
+                                <span>${(marketData.percentile90 || 0).toLocaleString()}</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Market Insights */}
+                        {marketData.notes && (
+                          <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Icon icon="mingcute:lightbulb-line" width={18} className="text-yellow-500" />
+                              <h5 className="text-sm font-semibold text-slate-900">Market Insights</h5>
+                            </div>
+                            <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">
+                              {marketData.notes}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Footer Info */}
+                        <div className="mt-4 pt-4 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
+                          <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-1">
+                              <Icon icon="mingcute:information-line" width={14} />
+                              <span>Source: {marketData.source || "AI Generated"}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Icon icon="mingcute:calendar-line" width={14} />
+                              <span>Updated: {new Date(marketData.date).toLocaleDateString()}</span>
+                            </div>
+                          </div>
+                          <span className="px-2 py-1 bg-green-100 text-green-700 rounded font-medium">
+                            Cached
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                {negotiations.filter((neg) => neg.marketSalaryData).length === 0 && (
+                  <div className="bg-slate-50 rounded-xl p-12 text-center border border-slate-200">
+                    <Icon icon="mingcute:chart-line" width={48} className="text-slate-400 mx-auto mb-4" />
+                    <p className="text-slate-600 mb-2">No market research data available</p>
+                    <p className="text-sm text-slate-500 mb-6">
+                      Market research data will appear here once you generate it for your negotiations
                     </p>
+                    <button
+                      onClick={() => {
+                        setActiveTab("overview");
+                        setStatusFilter("active");
+                      }}
+                      className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium"
+                    >
+                      View Active Negotiations
+                    </button>
                   </div>
-                ))}
+                )}
               </div>
             )}
-          </div>
-        )}
-
-        {activeTab === "market-research" && (
-          <div>
-            <h2 className="text-2xl font-bold text-slate-900 mb-6">Market Research</h2>
-            <p className="text-slate-600 mb-6">
-              Market research data is available when viewing individual negotiations
-            </p>
           </div>
         )}
 

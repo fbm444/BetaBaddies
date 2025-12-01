@@ -4,6 +4,7 @@ import { Icon } from "@iconify/react";
 import { api } from "../services/api";
 import { ROUTES } from "../config/routes";
 import { NegotiationDetailModal } from "../components/salary-negotiation/NegotiationDetailModal";
+import { AddProgressionEntryModal } from "../components/salary-negotiation/AddProgressionEntryModal";
 import type {
   SalaryNegotiation,
   SalaryNegotiationInput,
@@ -15,6 +16,7 @@ import type {
   SalaryProgressionEntry,
   JobOpportunityData,
 } from "../types";
+import { SalaryProgressionChart } from "../components/salary-negotiation/SalaryProgressionChart";
 
 type TabType = "overview" | "market-research" | "progression";
 type StatusFilter = "all" | "active" | "completed" | "draft" | "archived";
@@ -35,6 +37,9 @@ export function SalaryNegotiation() {
   const [loadingJobOpportunities, setLoadingJobOpportunities] = useState(false);
   const [creatingNegotiation, setCreatingNegotiation] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [progressionEntries, setProgressionEntries] = useState<SalaryProgressionEntry[]>([]);
+  const [loadingProgression, setLoadingProgression] = useState(false);
+  const [showAddProgressionModal, setShowAddProgressionModal] = useState(false);
 
   // Form state for creating negotiation
   const [formData, setFormData] = useState({
@@ -88,6 +93,20 @@ export function SalaryNegotiation() {
       setError(err.message || "Failed to load salary negotiations");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchProgression = async () => {
+    try {
+      setLoadingProgression(true);
+      const response = await api.getSalaryProgression();
+      if (response.ok && response.data?.progression) {
+        setProgressionEntries(response.data.progression);
+      }
+    } catch (err: any) {
+      console.error("Failed to fetch salary progression:", err);
+    } finally {
+      setLoadingProgression(false);
     }
   };
 
@@ -321,8 +340,6 @@ export function SalaryNegotiation() {
                     { value: "all", label: "All" },
                     { value: "active", label: "Active" },
                     { value: "completed", label: "Completed" },
-                    { value: "draft", label: "Draft" },
-                    { value: "archived", label: "Archived" },
                   ].map((filter) => (
                     <button
                       key={filter.value}
@@ -625,11 +642,222 @@ export function SalaryNegotiation() {
         )}
 
         {activeTab === "progression" && (
-          <div>
-            <h2 className="text-2xl font-bold text-slate-900 mb-6">Salary Progression</h2>
-            <p className="text-slate-600 mb-6">
-              Track your salary progression over time
-            </p>
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900 mb-2">Salary Progression</h2>
+                <p className="text-slate-600">
+                  Track your compensation growth over time
+                </p>
+              </div>
+              <button
+                onClick={() => setShowAddProgressionModal(true)}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm font-medium flex items-center gap-2"
+              >
+                <Icon icon="mingcute:add-line" width={16} />
+                Add Entry
+              </button>
+            </div>
+
+            {loadingProgression ? (
+              <div className="bg-white rounded-xl p-12 text-center border border-slate-200">
+                <Icon
+                  icon="mingcute:loading-line"
+                  className="w-12 h-12 animate-spin mx-auto text-blue-500 mb-4"
+                />
+                <p className="text-slate-600">Loading progression data...</p>
+              </div>
+            ) : progressionEntries.length === 0 ? (
+              <div className="bg-white rounded-xl p-12 text-center border border-slate-200">
+                <Icon icon="mingcute:chart-line" width={48} className="text-slate-400 mx-auto mb-4" />
+                <p className="text-slate-600 mb-2">No salary progression data yet</p>
+                <p className="text-sm text-slate-500 mb-6">
+                  Add entries to track your compensation growth over time
+                </p>
+                <button
+                  onClick={() => setShowAddProgressionModal(true)}
+                  className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium"
+                >
+                  Add First Entry
+                </button>
+              </div>
+            ) : (
+              <>
+                {/* Statistics */}
+                {(() => {
+                  const sortedEntries = [...progressionEntries].sort(
+                    (a, b) => new Date(a.effectiveDate).getTime() - new Date(b.effectiveDate).getTime()
+                  );
+                  const firstEntry = sortedEntries[0];
+                  const lastEntry = sortedEntries[sortedEntries.length - 1];
+                  const totalIncrease = lastEntry.totalCompensation - firstEntry.totalCompensation;
+                  const percentIncrease = firstEntry.totalCompensation > 0
+                    ? (totalIncrease / firstEntry.totalCompensation) * 100
+                    : 0;
+                  const avgIncrease = sortedEntries.length > 1
+                    ? totalIncrease / (sortedEntries.length - 1)
+                    : 0;
+
+                  return (
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                      <div className="bg-white rounded-xl p-6 border border-slate-200">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-sm text-slate-600">Current Total</p>
+                          <Icon icon="mingcute:dollar-line" width={24} className="text-green-500" />
+                        </div>
+                        <p className="text-3xl font-bold text-slate-900">
+                          ${lastEntry.totalCompensation.toLocaleString()}
+                        </p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          {lastEntry.roleTitle || "Current Role"}
+                        </p>
+                      </div>
+
+                      <div className="bg-white rounded-xl p-6 border border-slate-200">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-sm text-slate-600">Total Increase</p>
+                          <Icon icon="mingcute:trending-up-line" width={24} className="text-blue-500" />
+                        </div>
+                        <p className="text-3xl font-bold text-slate-900">
+                          ${totalIncrease.toLocaleString()}
+                        </p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          {percentIncrease > 0 ? `+${percentIncrease.toFixed(1)}%` : `${percentIncrease.toFixed(1)}%`}
+                        </p>
+                      </div>
+
+                      <div className="bg-white rounded-xl p-6 border border-slate-200">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-sm text-slate-600">Avg. Per Move</p>
+                          <Icon icon="mingcute:arrow-up-line" width={24} className="text-purple-500" />
+                        </div>
+                        <p className="text-3xl font-bold text-slate-900">
+                          ${avgIncrease > 0 ? `+${avgIncrease.toLocaleString()}` : avgIncrease.toLocaleString()}
+                        </p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          {sortedEntries.length - 1} transitions
+                        </p>
+                      </div>
+
+                      <div className="bg-white rounded-xl p-6 border border-slate-200">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-sm text-slate-600">Total Entries</p>
+                          <Icon icon="mingcute:file-list-line" width={24} className="text-orange-500" />
+                        </div>
+                        <p className="text-3xl font-bold text-slate-900">
+                          {progressionEntries.length}
+                        </p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          Over time
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Chart */}
+                <SalaryProgressionChart entries={progressionEntries} />
+
+                {/* Progression Timeline */}
+                <div className="bg-white rounded-xl border border-slate-200">
+                  <div className="p-6 border-b border-slate-200">
+                    <h3 className="text-xl font-semibold text-slate-900">Progression Timeline</h3>
+                  </div>
+                  <div className="divide-y divide-slate-200">
+                    {[...progressionEntries]
+                      .sort((a, b) => new Date(b.effectiveDate).getTime() - new Date(a.effectiveDate).getTime())
+                      .map((entry, index, array) => {
+                        const previousEntry = array[index + 1];
+                        const increase = previousEntry
+                          ? entry.totalCompensation - previousEntry.totalCompensation
+                          : 0;
+                        const percentIncrease = previousEntry && previousEntry.totalCompensation > 0
+                          ? (increase / previousEntry.totalCompensation) * 100
+                          : 0;
+
+                        return (
+                          <div key={entry.id} className="p-6 hover:bg-slate-50 transition-colors">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <div className="w-3 h-3 rounded-full bg-blue-500 flex-shrink-0" />
+                                  <div>
+                                    <h4 className="font-semibold text-slate-900">
+                                      {entry.roleTitle || "Role"} @ {entry.company || "Company"}
+                                    </h4>
+                                    <p className="text-sm text-slate-600">
+                                      {new Date(entry.effectiveDate).toLocaleDateString("en-US", {
+                                        year: "numeric",
+                                        month: "long",
+                                        day: "numeric",
+                                      })}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="ml-6 space-y-1">
+                                  <div className="flex items-center gap-4 text-sm">
+                                    <span className="text-slate-600">
+                                      Base: <span className="font-medium text-slate-900">${entry.baseSalary.toLocaleString()}</span>
+                                    </span>
+                                    {entry.bonus && (
+                                      <span className="text-slate-600">
+                                        Bonus: <span className="font-medium text-slate-900">${entry.bonus.toLocaleString()}</span>
+                                      </span>
+                                    )}
+                                    {entry.equity && (
+                                      <span className="text-slate-600">
+                                        Equity: <span className="font-medium text-slate-900">${entry.equity.toLocaleString()}</span>
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-lg font-bold text-blue-600">
+                                      Total: ${entry.totalCompensation.toLocaleString()}
+                                    </span>
+                                    {increase !== 0 && (
+                                      <span
+                                        className={`text-sm font-medium ${
+                                          increase > 0 ? "text-green-600" : "text-red-600"
+                                        }`}
+                                      >
+                                        {increase > 0 ? "+" : ""}${increase.toLocaleString()} (
+                                        {percentIncrease > 0 ? "+" : ""}
+                                        {percentIncrease.toFixed(1)}%)
+                                      </span>
+                                    )}
+                                  </div>
+                                  {entry.location && (
+                                    <p className="text-xs text-slate-500 flex items-center gap-1">
+                                      <Icon icon="mingcute:map-pin-line" width={14} />
+                                      {entry.location}
+                                    </p>
+                                  )}
+                                  {entry.notes && (
+                                    <p className="text-sm text-slate-600 mt-2 italic">{entry.notes}</p>
+                                  )}
+                                </div>
+                              </div>
+                              {entry.negotiationType && (
+                                <span
+                                  className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                    entry.negotiationType === "accepted"
+                                      ? "bg-green-100 text-green-700"
+                                      : entry.negotiationType === "final_offer"
+                                      ? "bg-blue-100 text-blue-700"
+                                      : "bg-slate-100 text-slate-700"
+                                  }`}
+                                >
+                                  {entry.negotiationType.replace("_", " ")}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -992,6 +1220,17 @@ export function SalaryNegotiation() {
           }}
           onUpdate={() => {
             fetchNegotiations();
+          }}
+        />
+      )}
+
+      {/* Add Progression Entry Modal */}
+      {showAddProgressionModal && (
+        <AddProgressionEntryModal
+          onClose={() => setShowAddProgressionModal(false)}
+          onSuccess={() => {
+            fetchProgression();
+            showMessage("Progression entry added successfully!", "success");
           }}
         />
       )}

@@ -103,21 +103,38 @@ export function SalaryNegotiation() {
       setLoadingProgression(true);
       // Fetch both salary progression entries and employment data
       const [progressionRes, jobsRes] = await Promise.all([
-        api.getSalaryProgression().catch(() => ({ ok: false, data: { progression: [] } })),
-        api.getJobs().catch(() => ({ ok: false, data: { jobs: [] } })),
+        api.getSalaryProgression().catch((err) => {
+          console.error("Error fetching progression:", err);
+          return { ok: false, data: { progression: [] } };
+        }),
+        api.getJobs().catch((err) => {
+          console.error("Error fetching jobs:", err);
+          return { ok: false, data: { jobs: [] } };
+        }),
       ]);
 
+      console.log("Progression response:", progressionRes);
+      console.log("Jobs response:", jobsRes);
+
       if (progressionRes.ok && progressionRes.data?.progression) {
+        console.log("Setting progression entries:", progressionRes.data.progression);
         setProgressionEntries(progressionRes.data.progression);
+      } else {
+        setProgressionEntries([]);
       }
 
       if (jobsRes.ok && jobsRes.data?.jobs) {
         // Filter jobs that have salary data
         const jobsWithSalary = jobsRes.data.jobs.filter((job: JobData) => job.salary && job.salary > 0);
+        console.log("Jobs with salary:", jobsWithSalary);
         setEmploymentJobs(jobsWithSalary);
+      } else {
+        setEmploymentJobs([]);
       }
     } catch (err: any) {
       console.error("Failed to fetch salary progression:", err);
+      setProgressionEntries([]);
+      setEmploymentJobs([]);
     } finally {
       setLoadingProgression(false);
     }
@@ -692,33 +709,44 @@ export function SalaryNegotiation() {
                 source: "progression" | "employment";
               }> = [];
 
+              console.log("Progression entries:", progressionEntries);
+              console.log("Employment jobs:", employmentJobs);
+
               // Add progression entries
-              progressionEntries.forEach((entry) => {
-                combinedData.push({
-                  id: entry.id,
-                  date: entry.effectiveDate,
-                  salary: entry.totalCompensation,
-                  roleTitle: entry.roleTitle || "Unknown Role",
-                  company: entry.company || "Unknown Company",
-                  location: entry.location,
-                  source: "progression",
+              if (progressionEntries && progressionEntries.length > 0) {
+                progressionEntries.forEach((entry) => {
+                  if (entry && entry.effectiveDate && entry.totalCompensation) {
+                    combinedData.push({
+                      id: entry.id,
+                      date: entry.effectiveDate,
+                      salary: entry.totalCompensation,
+                      roleTitle: entry.roleTitle || "Unknown Role",
+                      company: entry.company || "Unknown Company",
+                      location: entry.location,
+                      source: "progression",
+                    });
+                  }
                 });
-              });
+              }
 
               // Add employment jobs with salary
-              employmentJobs.forEach((job) => {
-                if (job.salary && job.startDate) {
-                  combinedData.push({
-                    id: `employment-${job.id}`,
-                    date: job.startDate,
-                    salary: job.salary,
-                    roleTitle: job.title,
-                    company: job.company,
-                    location: job.location,
-                    source: "employment",
-                  });
-                }
-              });
+              if (employmentJobs && employmentJobs.length > 0) {
+                employmentJobs.forEach((job) => {
+                  if (job && job.salary && job.salary > 0 && job.startDate) {
+                    combinedData.push({
+                      id: `employment-${job.id}`,
+                      date: job.startDate,
+                      salary: job.salary,
+                      roleTitle: job.title,
+                      company: job.company,
+                      location: job.location,
+                      source: "employment",
+                    });
+                  }
+                });
+              }
+
+              console.log("Combined data:", combinedData);
 
               // Sort by date
               combinedData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());

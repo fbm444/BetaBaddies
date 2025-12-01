@@ -118,16 +118,29 @@ export function SalaryProgressionChart({ entries }: SalaryProgressionChartProps)
     });
   }, [entries]);
 
+  if (entries.length === 0) {
+    return (
+      <div className="bg-white rounded-lg p-4 border border-slate-200">
+        <h4 className="text-sm font-semibold text-slate-900 mb-3">Total Compensation Over Time</h4>
+        <div className="h-[300px] flex items-center justify-center text-slate-500">
+          <p>No data available for chart</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white rounded-lg p-4 border border-slate-200">
       <h4 className="text-sm font-semibold text-slate-900 mb-3">Total Compensation Over Time</h4>
-      <canvas
-        ref={canvasRef}
-        width={800}
-        height={300}
-        className="w-full"
-        style={{ maxWidth: "100%" }}
-      />
+      <div className="relative">
+        <canvas
+          ref={canvasRef}
+          width={800}
+          height={300}
+          className="w-full"
+          style={{ maxWidth: "100%", height: "auto" }}
+        />
+      </div>
     </div>
   );
 }

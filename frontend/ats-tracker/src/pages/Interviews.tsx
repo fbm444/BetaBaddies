@@ -1035,15 +1035,39 @@ export function Interviews() {
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
+                          {/* Interview Context - Position, Company, Date */}
+                          {(followUp.interview?.jobTitle || followUp.interview?.company || followUp.interview?.scheduledAt) && (
+                            <div className="mb-4 pb-4 border-b border-slate-200">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Icon icon="mingcute:briefcase-line" width={18} className="text-slate-500" />
+                                <span className="font-semibold text-slate-900">
+                                  {followUp.interview?.jobTitle || followUp.interview?.title || "Position"}
+                                </span>
+                                {followUp.interview?.company && (
+                                  <>
+                                    <span className="text-slate-400">•</span>
+                                    <span className="text-slate-700">{followUp.interview.company}</span>
+                                  </>
+                                )}
+                              </div>
+                              {followUp.interview?.scheduledAt && (
+                                <p className="text-sm text-slate-600 ml-6">
+                                  Interview: {formatDate(followUp.interview.scheduledAt)}
+                                </p>
+                              )}
+                            </div>
+                          )}
+                          
+                          {/* Action Type */}
                           <div className="flex items-center gap-3 mb-2">
                             <Icon icon="mingcute:task-line" width={20} className="text-blue-500" />
                             <h3 className="font-semibold text-slate-900 capitalize">
-                              {followUp.action_type?.replace(/_/g, " ")}
+                              {followUp.action_type?.replace(/_/g, " ") || followUp.actionType?.replace(/_/g, " ")}
                             </h3>
                           </div>
-                          {followUp.due_date && (
+                          {(followUp.due_date || followUp.dueDate) && (
                             <p className="text-slate-600 mb-2">
-                              <strong>Due:</strong> {formatDate(followUp.due_date)}
+                              <strong>Due:</strong> {formatDate(followUp.due_date || followUp.dueDate)}
                             </p>
                           )}
                           {followUp.notes && (
@@ -1055,7 +1079,7 @@ export function Interviews() {
                         onClick={async () => {
                           try {
                             setDraftLoadingId(followUp.id);
-                            const interviewId = followUp.interview_id;
+                            const interviewId = followUp.interviewId || followUp.interview_id;
                             const response = await api.getFollowUpEmailDraft(
                               interviewId,
                               followUp.id
@@ -1087,7 +1111,7 @@ export function Interviews() {
                       <button
                         onClick={async () => {
                           try {
-                            const interviewId = followUp.interview_id;
+                            const interviewId = followUp.interviewId || followUp.interview_id;
                             await api.completeFollowUpAction(interviewId, followUp.id);
                             showMessage("Follow-up action completed!", "success");
                             fetchPendingFollowUps();

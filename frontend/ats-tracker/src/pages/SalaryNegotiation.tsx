@@ -115,6 +115,8 @@ export function SalaryNegotiation() {
 
       console.log("Progression response:", progressionRes);
       console.log("Jobs response:", jobsRes);
+      console.log("Jobs response data:", jobsRes.data);
+      console.log("Jobs response data.jobs:", jobsRes.data?.jobs);
 
       if (progressionRes.ok && progressionRes.data?.progression) {
         console.log("Setting progression entries:", progressionRes.data.progression);
@@ -123,12 +125,23 @@ export function SalaryNegotiation() {
         setProgressionEntries([]);
       }
 
-      if (jobsRes.ok && jobsRes.data?.jobs) {
-        // Filter jobs that have salary data
-        const jobsWithSalary = jobsRes.data.jobs.filter((job: JobData) => job.salary && job.salary > 0);
-        console.log("Jobs with salary:", jobsWithSalary);
+      // Extract jobs from response - same structure as Employment.tsx uses
+      if (jobsRes.ok && jobsRes.data) {
+        const jobsList = jobsRes.data.jobs || [];
+        console.log("All jobs from API:", jobsList);
+        
+        // Filter jobs that have salary data and startDate
+        const jobsWithSalary = jobsList.filter((job: JobData) => {
+          const hasSalary = job && job.salary && typeof job.salary === 'number' && job.salary > 0;
+          const hasStartDate = job && job.startDate;
+          console.log(`Job ${job?.title} @ ${job?.company}: salary=${job?.salary}, startDate=${job?.startDate}, hasSalary=${hasSalary}, hasStartDate=${hasStartDate}`);
+          return hasSalary && hasStartDate;
+        });
+        
+        console.log("Jobs with salary after filtering:", jobsWithSalary);
         setEmploymentJobs(jobsWithSalary);
       } else {
+        console.log("Jobs response not ok or no data. Response:", jobsRes);
         setEmploymentJobs([]);
       }
     } catch (err: any) {

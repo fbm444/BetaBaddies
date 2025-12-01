@@ -26,6 +26,7 @@ import { Interviews } from './pages/Interviews'
 import { InterviewScheduling } from './pages/InterviewScheduling'
 import { InterviewAnalytics } from './pages/InterviewAnalytics'
 import { SalaryNegotiation } from './pages/SalaryNegotiation'
+import { WritingPractice } from './pages/WritingPractice'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { ROUTES } from './config/routes'
@@ -114,6 +115,7 @@ function App() {
 		  <Route path={ROUTES.INTERVIEW_SCHEDULING} element={<InterviewScheduling />} />
 		  <Route path={ROUTES.INTERVIEW_ANALYTICS} element={<InterviewAnalytics />} />
 		  <Route path={ROUTES.SALARY_NEGOTIATION} element={<SalaryNegotiation />} />
+		  <Route path={ROUTES.WRITING_PRACTICE} element={<WritingPractice />} />
 		  <Route path={ROUTES.SKILLS} element={<Skills />} />
 		  <Route path={ROUTES.EDUCATION} element={<Education />} />
 		  <Route path={ROUTES.PROJECTS} element={<Projects />} />

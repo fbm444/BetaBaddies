@@ -808,6 +808,568 @@ class AnalyticsService {
   }
 
   // ============================================
+  // UC-103: Time Investment and Productivity Analysis
+  // ============================================
+
+  /**
+   * Check if user has manual time logs
+   */
+  async hasTimeLogs(userId, dateRange = {}) {
+    try {
+      const { startDate, endDate } = this.parseDateRange(dateRange);
+      
+      let dateFilter = "";
+      const params = [userId];
+      if (startDate) {
+        dateFilter += " AND activity_date >= $" + (params.length + 1);
+        params.push(startDate);
+      }
+      if (endDate) {
+        dateFilter += " AND activity_date <= $" + (params.length + 1);
+        params.push(endDate);
+      }
+
+      const query = `
+        SELECT COUNT(*) as count
+        FROM time_logs
+        WHERE user_id = $1 ${dateFilter}
+      `;
+
+      const result = await database.query(query, params);
+      return parseInt(result.rows[0]?.count || 0) > 0;
+    } catch (error) {
+      console.warn("Error checking for time logs:", error.message);
+      return false;
+    }
+  }
+
+  /**
+   * Get comprehensive productivity and time investment analytics
+   * Automatically uses manual time logs if available, otherwise uses estimates
+   */
+  async getProductivityAnalytics(userId, dateRange = {}, useManual = null) {
+    try {
+      // If useManual is explicitly set, use that mode
+      if (useManual === true) {
+        return await this.getManualProductivityAnalytics(userId, dateRange);
+      } else if (useManual === false) {
+        return await this.getEstimatedProductivityAnalytics(userId, dateRange);
+      }
+      
+      // Otherwise, auto-detect based on whether user has manual time logs
+      const hasManualLogs = await this.hasTimeLogs(userId, dateRange);
+      
+      if (hasManualLogs) {
+        return await this.getManualProductivityAnalytics(userId, dateRange);
+      } else {
+        return await this.getEstimatedProductivityAnalytics(userId, dateRange);
+      }
+    } catch (error) {
+      console.error("❌ Error getting productivity analytics:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get productivity analytics from manual time logs
+   */
+  async getManualProductivityAnalytics(userId, dateRange = {}) {
+    try {
+      const { startDate, endDate} = this.parseDateRange(dateRange);
+
+      let dateFilter = "";
+      const params = [userId];
+      if (startDate) {
+        dateFilter += " AND activity_date >= $" + (params.length + 1);
+        params.push(startDate);
+      }
+      if (endDate) {
+        dateFilter += " AND activity_date <= $" + (params.length + 1);
+        params.push(endDate);
+      }
+
+      // Get total time investment from manual logs
+      const timeInvestmentQuery = `
+        SELECT 
+          SUM(hours_spent) as total_hours,
+          MIN(activity_date) as start_date,
+          MAX(activity_date) as end_date
+        FROM time_logs
+        WHERE user_id = $1 ${dateFilter}
+      `;
+
+      const timeResult = await database.query(timeInvestmentQuery, params);
+      const timeData = timeResult.rows[0];
+      
+      const totalHours = parseFloat(timeData.total_hours) || 0;
+      
+      // Calculate weeks based on actual span of logged activities
+      let weeksBetween = 1;
+      if (timeData.start_date && timeData.end_date) {
+        const start = new Date(timeData.start_date);
+        const end = new Date(timeData.end_date);
+        const daysBetween = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1);
+        weeksBetween = Math.max(1, daysBetween / 7);
+      }
+
+      const avgHoursPerWeek = totalHours / weeksBetween;
+      const avgHoursPerDay = avgHoursPerWeek / 7;
+
+      // Activity breakdown from manual time logs
+      const activityQuery = `
+        SELECT 
+          activity_type,
+          SUM(hours_spent) as hours_spent,
+          COUNT(*) as task_count
+        FROM time_logs
+        WHERE user_id = $1 ${dateFilter}
+        GROUP BY activity_type
+        ORDER BY hours_spent DESC
+      `;
+
+      const activityResult = await database.query(activityQuery, params);
+      
+      const activityBreakdown = activityResult.rows.map(row => {
+        const hoursSpent = parseFloat(row.hours_spent) || 0;
+        const taskCount = parseInt(row.task_count) || 0;
+        
+        // Map activity types to display names
+        const activityNames = {
+          'research': 'Research & Planning',
+          'application': 'Application Submission',
+          'interview_prep': 'Interview Preparation',
+          'interview': 'Interviewing',
+          'networking': 'Networking',
+          'follow_up': 'Follow-up',
+          'offer_negotiation': 'Offer Negotiation',
+          'other': 'Other'
+        };
+        
+        return {
+          activityType: activityNames[row.activity_type] || row.activity_type,
+          hoursSpent,
+          percentage: totalHours > 0 ? Math.round((hoursSpent / totalHours) * 100) : 0,
+          tasksCompleted: taskCount,
+          avgTimePerTask: taskCount > 0 ? Math.round((hoursSpent / taskCount) * 10) / 10 : 0
+        };
+      });
+
+      // Productivity patterns by day of week (from manual logs)
+      const dayOfWeekQuery = `
+        SELECT 
+          TO_CHAR(activity_date, 'Day') as day,
+          EXTRACT(DOW FROM activity_date) as day_num,
+          SUM(hours_spent) as hours,
+          COUNT(DISTINCT activity_date) as days_active,
+          COUNT(*) as tasks
+        FROM time_logs
+        WHERE user_id = $1 ${dateFilter}
+        GROUP BY day, day_num
+        ORDER BY day_num
+      `;
+
+      const dayResult = await database.query(dayOfWeekQuery, params);
+      const byDayOfWeek = dayResult.rows.map(row => {
+        const hours = parseFloat(row.hours) || 0;
+        const tasks = parseInt(row.tasks) || 0;
+        
+        return {
+          day: row.day.trim(),
+          hours: Math.round(hours * 10) / 10,
+          tasksCompleted: tasks,
+          efficiency: 100 // Manual logs don't have success tracking
+        };
+      });
+
+      // Find most productive day
+      let mostProductiveDay = null;
+      if (byDayOfWeek.length > 0) {
+        mostProductiveDay = byDayOfWeek.reduce((best, current) => 
+          current.hours > best.hours ? current : best
+        ).day;
+      }
+
+      // Task completion metrics (from job opportunities)
+      const taskMetricsQuery = `
+        SELECT 
+          COUNT(*) as total_tasks,
+          COUNT(CASE WHEN status NOT IN ('Interested', 'Rejected') THEN 1 END) as active_tasks,
+          COUNT(CASE WHEN status IN ('Offer', 'Applied', 'Interview') THEN 1 END) as completed_tasks
+        FROM job_opportunities
+        WHERE user_id = $1 AND (archived = false OR archived IS NULL)
+      `;
+
+      const taskResult = await database.query(taskMetricsQuery, [userId]);
+      const taskData = taskResult.rows[0];
+      const totalTasks = parseInt(taskData.total_tasks) || 0;
+      const completedTasks = parseInt(taskData.completed_tasks) || 0;
+
+      // Get performance metrics for efficiency calculations
+      const performanceData = await this.getJobSearchPerformance(userId, dateRange);
+      const applications = performanceData.keyMetrics.applicationsSent || 0;
+      const interviews = performanceData.keyMetrics.interviewsScheduled || 0;
+      const offers = performanceData.keyMetrics.offersReceived || 0;
+
+      // Calculate efficiency metrics
+      const applicationEfficiency = totalHours > 0 ? Math.round((applications / totalHours) * 10) / 10 : 0;
+      const interviewEfficiency = totalHours > 0 ? Math.round((interviews / totalHours) * 100) / 100 : 0;
+      const offerEfficiency = totalHours > 0 ? Math.round((offers / totalHours) * 100) / 100 : 0;
+      const timeToOutcomeRatio = offers > 0 ? Math.round((totalHours / offers) * 10) / 10 : 0;
+
+      // Generate recommendations
+      const recommendations = this.generateProductivityRecommendations({
+        totalHours,
+        avgHoursPerWeek,
+        activityBreakdown,
+        efficiency: {
+          applicationEfficiency,
+          interviewEfficiency,
+          offerEfficiency
+        },
+        performanceData
+      });
+
+      // Wellness indicators
+      const burnoutRisk = avgHoursPerWeek > 20 ? 'high' : avgHoursPerWeek > 10 ? 'medium' : 'low';
+      const workLifeBalance = Math.max(0, Math.min(100, 100 - (avgHoursPerWeek * 2)));
+      
+      const overworkWarnings = [];
+      if (avgHoursPerWeek > 20) {
+        overworkWarnings.push('You\'re spending over 20 hours per week on job searching. Consider taking breaks to avoid burnout.');
+      }
+      if (applicationEfficiency < 0.5 && applications > 5) {
+        overworkWarnings.push('Your application efficiency is lower than optimal. Focus on quality over quantity.');
+      }
+
+      return {
+        dataSource: 'manual', // Indicates manual time log data
+        timeInvestment: {
+          totalHoursInvested: Math.round(totalHours * 10) / 10,
+          avgHoursPerDay: Math.round(avgHoursPerDay * 10) / 10,
+          avgHoursPerWeek: Math.round(avgHoursPerWeek * 10) / 10,
+          mostProductiveDay,
+          mostProductiveTime: '9:00 AM - 11:00 AM' // Placeholder - could be calculated from timestamps
+        },
+        activityBreakdown,
+        productivityPatterns: {
+          byDayOfWeek,
+          byTimeOfDay: [] // Placeholder for future time-of-day tracking
+        },
+        taskMetrics: {
+          totalTasks,
+          completedTasks,
+          completionRate: totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0,
+          avgCompletionTime: null // Could be calculated with time tracking
+        },
+        efficiency: {
+          timeToOutcomeRatio,
+          applicationEfficiency,
+          interviewEfficiency,
+          offerEfficiency
+        },
+        recommendations,
+        wellnessIndicators: {
+          burnoutRisk,
+          workLifeBalance: Math.round(workLifeBalance),
+          energyLevels: [], // Placeholder for user-tracked energy levels
+          overworkWarnings
+        }
+      };
+    } catch (error) {
+      console.error("❌ Error getting manual productivity analytics:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get productivity analytics from estimated time (fallback when no manual logs)
+   */
+  async getEstimatedProductivityAnalytics(userId, dateRange = {}) {
+    try {
+      const { startDate, endDate } = this.parseDateRange(dateRange);
+
+      let dateFilter = "";
+      const params = [userId];
+      if (startDate) {
+        dateFilter += " AND created_at >= $" + (params.length + 1);
+        params.push(startDate);
+      }
+      if (endDate) {
+        dateFilter += " AND created_at <= $" + (params.length + 1);
+        params.push(endDate + " 23:59:59");
+      }
+
+      // Get estimated time from job search activities (using same logic as manual method)
+      const timeInvestmentQuery = `
+        SELECT 
+          COUNT(CASE WHEN status IN ('Applied', 'Interested') THEN 1 END) * 1.0 as application_hours,
+          COUNT(CASE WHEN status IN ('Phone Screen', 'Interview') THEN 1 END) * 3.0 as interview_hours,
+          MIN(created_at)::date as start_date,
+          MAX(created_at)::date as end_date
+        FROM job_opportunities
+        WHERE user_id = $1 AND (archived = false OR archived IS NULL) ${dateFilter}
+      `;
+
+      const timeResult = await database.query(timeInvestmentQuery, params);
+      const timeData = timeResult.rows[0];
+      
+      const applicationHours = parseFloat(timeData.application_hours) || 0;
+      const interviewHours = parseFloat(timeData.interview_hours) || 0;
+      const totalHours = applicationHours + interviewHours;
+      
+      // Calculate weeks based on actual span of job opportunities
+      let weeksBetween = 1;
+      if (timeData.start_date && timeData.end_date) {
+        const start = new Date(timeData.start_date);
+        const end = new Date(timeData.end_date);
+        const daysBetween = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)));
+        weeksBetween = Math.max(1, daysBetween / 7);
+      }
+
+      const avgHoursPerWeek = totalHours / weeksBetween;
+      const avgHoursPerDay = avgHoursPerWeek / 7;
+
+      // Activity breakdown by job search stage
+      const activityQuery = `
+        SELECT 
+          CASE 
+            WHEN status = 'Interested' THEN 'Research & Planning'
+            WHEN status = 'Applied' THEN 'Application Submission'
+            WHEN status = 'Phone Screen' THEN 'Phone Screening'
+            WHEN status = 'Interview' THEN 'Interviewing'
+            WHEN status = 'Offer' THEN 'Offer Negotiation'
+            ELSE 'Other'
+          END as activity_type,
+          COUNT(*) as task_count
+        FROM job_opportunities
+        WHERE user_id = $1 AND (archived = false OR archived IS NULL) ${dateFilter}
+        GROUP BY activity_type
+        ORDER BY task_count DESC
+      `;
+
+      const activityResult = await database.query(activityQuery, params);
+      
+      const activityBreakdown = activityResult.rows.map(row => {
+        let hoursPerTask;
+        switch(row.activity_type) {
+          case 'Research & Planning': hoursPerTask = 0.5; break;
+          case 'Application Submission': hoursPerTask = 1.0; break;
+          case 'Phone Screening': hoursPerTask = 1.5; break;
+          case 'Interviewing': hoursPerTask = 3.0; break;
+          case 'Offer Negotiation': hoursPerTask = 2.0; break;
+          default: hoursPerTask = 1.0;
+        }
+        
+        const taskCount = parseInt(row.task_count) || 0;
+        const hoursSpent = taskCount * hoursPerTask;
+        
+        return {
+          activityType: row.activity_type,
+          hoursSpent,
+          percentage: totalHours > 0 ? Math.round((hoursSpent / totalHours) * 100) : 0,
+          tasksCompleted: taskCount,
+          avgTimePerTask: hoursPerTask
+        };
+      });
+
+      // Productivity patterns by day of week
+      const dayOfWeekQuery = `
+        SELECT 
+          TO_CHAR(created_at, 'Day') as day,
+          EXTRACT(DOW FROM created_at) as day_num,
+          COUNT(*) as tasks,
+          COUNT(CASE WHEN status IN ('Interview', 'Offer') THEN 1 END) as successful_tasks
+        FROM job_opportunities
+        WHERE user_id = $1 AND (archived = false OR archived IS NULL) ${dateFilter}
+        GROUP BY day, day_num
+        ORDER BY day_num
+      `;
+
+      const dayResult = await database.query(dayOfWeekQuery, params);
+      const byDayOfWeek = dayResult.rows.map(row => {
+        const tasks = parseInt(row.tasks) || 0;
+        const successful = parseInt(row.successful_tasks) || 0;
+        const estimatedHours = tasks * 1.5;
+        
+        return {
+          day: row.day.trim(),
+          hours: Math.round(estimatedHours * 10) / 10,
+          tasksCompleted: tasks,
+          efficiency: tasks > 0 ? Math.round((successful / tasks) * 100) : 0
+        };
+      });
+
+      let mostProductiveDay = null;
+      if (byDayOfWeek.length > 0) {
+        mostProductiveDay = byDayOfWeek.reduce((best, current) => 
+          current.tasksCompleted > best.tasksCompleted ? current : best
+        ).day;
+      }
+
+      const taskMetricsQuery = `
+        SELECT 
+          COUNT(*) as total_tasks,
+          COUNT(CASE WHEN status NOT IN ('Interested', 'Rejected') THEN 1 END) as active_tasks,
+          COUNT(CASE WHEN status IN ('Offer', 'Applied', 'Interview') THEN 1 END) as completed_tasks
+        FROM job_opportunities
+        WHERE user_id = $1 AND (archived = false OR archived IS NULL) ${dateFilter}
+      `;
+
+      const taskResult = await database.query(taskMetricsQuery, params);
+      const taskData = taskResult.rows[0];
+      const totalTasks = parseInt(taskData.total_tasks) || 0;
+      const completedTasks = parseInt(taskData.completed_tasks) || 0;
+
+      const performanceData = await this.getJobSearchPerformance(userId, dateRange);
+      const applications = performanceData.keyMetrics.applicationsSent || 0;
+      const interviews = performanceData.keyMetrics.interviewsScheduled || 0;
+      const offers = performanceData.keyMetrics.offersReceived || 0;
+
+      const applicationEfficiency = totalHours > 0 ? Math.round((applications / totalHours) * 10) / 10 : 0;
+      const interviewEfficiency = totalHours > 0 ? Math.round((interviews / totalHours) * 100) / 100 : 0;
+      const offerEfficiency = totalHours > 0 ? Math.round((offers / totalHours) * 100) / 100 : 0;
+      const timeToOutcomeRatio = offers > 0 ? Math.round((totalHours / offers) * 10) / 10 : 0;
+
+      const recommendations = this.generateProductivityRecommendations({
+        totalHours,
+        avgHoursPerWeek,
+        activityBreakdown,
+        efficiency: {
+          applicationEfficiency,
+          interviewEfficiency,
+          offerEfficiency
+        },
+        performanceData
+      });
+
+      const burnoutRisk = avgHoursPerWeek > 20 ? 'high' : avgHoursPerWeek > 10 ? 'medium' : 'low';
+      const workLifeBalance = Math.max(0, Math.min(100, 100 - (avgHoursPerWeek * 2)));
+      
+      const overworkWarnings = [];
+      if (avgHoursPerWeek > 20) {
+        overworkWarnings.push('You\'re spending over 20 hours per week on job searching. Consider taking breaks to avoid burnout.');
+      }
+      if (applicationEfficiency < 0.5 && applications > 5) {
+        overworkWarnings.push('Your application efficiency is lower than optimal. Focus on quality over quantity.');
+      }
+
+      return {
+        dataSource: 'estimated', // Indicates estimated data
+        timeInvestment: {
+          totalHoursInvested: Math.round(totalHours * 10) / 10,
+          avgHoursPerDay: Math.round(avgHoursPerDay * 10) / 10,
+          avgHoursPerWeek: Math.round(avgHoursPerWeek * 10) / 10,
+          mostProductiveDay,
+          mostProductiveTime: '9:00 AM - 11:00 AM'
+        },
+        activityBreakdown,
+        productivityPatterns: {
+          byDayOfWeek,
+          byTimeOfDay: []
+        },
+        taskMetrics: {
+          totalTasks,
+          completedTasks,
+          completionRate: totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0,
+          avgCompletionTime: null
+        },
+        efficiency: {
+          timeToOutcomeRatio,
+          applicationEfficiency,
+          interviewEfficiency,
+          offerEfficiency
+        },
+        recommendations,
+        wellnessIndicators: {
+          burnoutRisk,
+          workLifeBalance: Math.round(workLifeBalance),
+          energyLevels: [],
+          overworkWarnings
+        }
+      };
+    } catch (error) {
+      console.error("❌ Error getting estimated productivity analytics:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Generate productivity recommendations
+   */
+  generateProductivityRecommendations(data) {
+    const recommendations = [];
+
+    // Time investment recommendations
+    if (data.avgHoursPerWeek < 5) {
+      recommendations.push({
+        type: 'time_investment',
+        priority: 'high',
+        message: 'You\'re investing less than 5 hours per week in job searching.',
+        actionable: 'Consider increasing your weekly time investment to 10-15 hours for better results.'
+      });
+    } else if (data.avgHoursPerWeek > 25) {
+      recommendations.push({
+        type: 'time_investment',
+        priority: 'high',
+        message: 'You\'re investing over 25 hours per week - this may lead to burnout.',
+        actionable: 'Take breaks and focus on strategic, high-quality applications rather than volume.'
+      });
+    }
+
+    // Efficiency recommendations
+    if (data.efficiency.applicationEfficiency < 0.5) {
+      recommendations.push({
+        type: 'efficiency',
+        priority: 'medium',
+        message: 'Your application rate is below optimal (< 0.5 apps/hour).',
+        actionable: 'Streamline your application process with templates and saved materials.'
+      });
+    }
+
+    if (data.efficiency.offerEfficiency > 0) {
+      const hoursPerOffer = 1 / data.efficiency.offerEfficiency;
+      if (hoursPerOffer < 50) {
+        recommendations.push({
+          type: 'success',
+          priority: 'high',
+          message: `Excellent! You're getting offers with ${Math.round(hoursPerOffer)} hours of investment.`,
+          actionable: 'Keep up your current strategy - it\'s working well!'
+        });
+      }
+    }
+
+    // Activity balance recommendations
+    if (data.activityBreakdown.length > 0) {
+      const researchActivity = data.activityBreakdown.find(a => a.activityType === 'Research & Planning');
+      const applicationActivity = data.activityBreakdown.find(a => a.activityType === 'Application Submission');
+      
+      if (researchActivity && applicationActivity) {
+        const researchPct = researchActivity.percentage;
+        const applicationPct = applicationActivity.percentage;
+        
+        if (researchPct > 40) {
+          recommendations.push({
+            type: 'activity_balance',
+            priority: 'medium',
+            message: 'You\'re spending a lot of time on research.',
+            actionable: 'Balance research with more applications. Aim for 20-30% research, 40-50% applications.'
+          });
+        }
+      }
+    }
+
+    // Optimal scheduling recommendation
+    recommendations.push({
+      type: 'scheduling',
+      priority: 'low',
+      message: 'Most job seekers have best results applying Monday-Wednesday mornings.',
+      actionable: 'Try scheduling your application time for 9-11 AM on Mondays through Wednesdays.'
+    });
+
+    return recommendations;
+  }
+
+  // ============================================
   // Helper Methods
   // ============================================
 

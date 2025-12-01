@@ -199,3 +199,99 @@ export interface DateRange {
   endDate?: string;
 }
 
+// ============================================
+// UC-103: Time Investment and Productivity Analysis
+// ============================================
+export interface TimeLog {
+  id: string;
+  userId: string;
+  jobOpportunityId?: string;
+  activityType: 'research' | 'application' | 'interview_prep' | 'interview' | 'networking' | 'follow_up' | 'offer_negotiation' | 'other';
+  hoursSpent: number;
+  activityDate: string;
+  notes?: string;
+  jobTitle?: string;
+  company?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TimeLogInput {
+  jobOpportunityId?: string;
+  activityType: string;
+  hoursSpent: number;
+  activityDate?: string;
+  notes?: string;
+}
+
+export interface TimeSummary {
+  byActivity: Array<{
+    activityType: string;
+    totalHours: number;
+    entryCount: number;
+    avgHoursPerEntry: number;
+    firstDate: string;
+    lastDate: string;
+  }>;
+  totalHours: number;
+}
+
+export interface ProductivityAnalytics {
+  dataSource: 'manual' | 'estimated'; // Indicates whether data is from manual logs or estimates
+  timeInvestment: {
+    totalHoursInvested: number;
+    avgHoursPerDay: number;
+    avgHoursPerWeek: number;
+    mostProductiveDay: string | null;
+    mostProductiveTime: string | null;
+  };
+  activityBreakdown: Array<{
+    activityType: string;
+    hoursSpent: number;
+    percentage: number;
+    tasksCompleted: number;
+    avgTimePerTask: number;
+  }>;
+  productivityPatterns: {
+    byDayOfWeek: Array<{
+      day: string;
+      hours: number;
+      tasksCompleted: number;
+      efficiency: number;
+    }>;
+    byTimeOfDay: Array<{
+      hour: string;
+      tasks: number;
+      successRate: number;
+    }>;
+  };
+  taskMetrics: {
+    totalTasks: number;
+    completedTasks: number;
+    completionRate: number;
+    avgCompletionTime: number | null;
+  };
+  efficiency: {
+    timeToOutcomeRatio: number;
+    applicationEfficiency: number; // apps per hour
+    interviewEfficiency: number; // interviews per hour invested
+    offerEfficiency: number; // offers per hour invested
+  };
+  recommendations: Array<{
+    type: string;
+    priority: "high" | "medium" | "low";
+    message: string;
+    actionable: string;
+  }>;
+  wellnessIndicators: {
+    burnoutRisk: "low" | "medium" | "high";
+    workLifeBalance: number; // 0-100 score
+    energyLevels: Array<{
+      date: string;
+      level: number; // 1-5 scale
+      productivity: number;
+    }>;
+    overworkWarnings: string[];
+  };
+}
+

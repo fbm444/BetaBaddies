@@ -25,6 +25,7 @@ import googleCalendarRoutes from "./routes/googleCalendarRoutes.js";
 import analyticsRoutes from "./routes/analyticsRoutes.js";
 import goalRoutes from "./routes/goalRoutes.js";
 import marketIntelligenceRoutes from "./routes/marketIntelligenceRoutes.js";
+import timeLogRoutes from "./routes/timeLogRoutes.js";
 
 // Import middleware
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
@@ -134,6 +135,7 @@ app.use("/api/v1/calendar", googleCalendarRoutes);
 app.use("/api/v1/analytics", analyticsRoutes);
 app.use("/api/v1/goals", goalRoutes);
 app.use("/api/v1/market-intelligence", marketIntelligenceRoutes);
+app.use("/api/v1/time-logs", timeLogRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

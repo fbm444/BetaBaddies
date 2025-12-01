@@ -42,6 +42,10 @@ import {
   ApplicationSuccessAnalysis,
   InterviewPerformance,
   NetworkROI,
+  ProductivityAnalytics,
+  TimeLog,
+  TimeLogInput,
+  TimeSummary,
   SalaryProgression,
   DateRange,
   Goal,
@@ -1165,6 +1169,71 @@ class ApiService {
     const queryString = params.toString();
     return this.request<ApiResponse<{ progression: SalaryProgression }>>(
       `/analytics/salary-progression${queryString ? `?${queryString}` : ""}`
+    );
+  }
+
+  async getProductivityAnalytics(dateRange?: DateRange, useManual?: boolean) {
+    const params = new URLSearchParams();
+    if (dateRange?.startDate) params.append("startDate", dateRange.startDate);
+    if (dateRange?.endDate) params.append("endDate", dateRange.endDate);
+    if (useManual !== undefined) params.append("useManual", String(useManual));
+
+    const queryString = params.toString();
+    return this.request<ApiResponse<{ analytics: ProductivityAnalytics }>>(
+      `/analytics/productivity${queryString ? `?${queryString}` : ""}`
+    );
+  }
+
+  // Time Log endpoints (UC-103 Manual Tracking)
+  async createTimeLog(timeLog: TimeLogInput) {
+    return this.request<ApiResponse<{ timeLog: TimeLog }>>("/time-logs", {
+      method: "POST",
+      body: JSON.stringify(timeLog),
+    });
+  }
+
+  async getTimeLogs(filters?: {
+    startDate?: string;
+    endDate?: string;
+    activityType?: string;
+    jobOpportunityId?: string;
+  }) {
+    const params = new URLSearchParams();
+    if (filters?.startDate) params.append("startDate", filters.startDate);
+    if (filters?.endDate) params.append("endDate", filters.endDate);
+    if (filters?.activityType) params.append("activityType", filters.activityType);
+    if (filters?.jobOpportunityId) params.append("jobOpportunityId", filters.jobOpportunityId);
+
+    const queryString = params.toString();
+    return this.request<ApiResponse<{ timeLogs: TimeLog[] }>>(
+      `/time-logs${queryString ? `?${queryString}` : ""}`
+    );
+  }
+
+  async getTimeSummary(dateRange?: DateRange) {
+    const params = new URLSearchParams();
+    if (dateRange?.startDate) params.append("startDate", dateRange.startDate);
+    if (dateRange?.endDate) params.append("endDate", dateRange.endDate);
+
+    const queryString = params.toString();
+    return this.request<ApiResponse<{ summary: TimeSummary }>>(
+      `/time-logs/summary${queryString ? `?${queryString}` : ""}`
+    );
+  }
+
+  async updateTimeLog(id: string, updates: Partial<TimeLogInput>) {
+    return this.request<ApiResponse<{ timeLog: TimeLog }>>(`/time-logs/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(updates),
+    });
+  }
+
+  async deleteTimeLog(id: string) {
+    return this.request<ApiResponse<{ id: string; deleted: boolean }>>(
+      `/time-logs/${id}`,
+      {
+        method: "DELETE",
+      }
     );
   }
 

@@ -13,6 +13,7 @@ router.get("/application-success", analyticsController.getApplicationSuccessAnal
 router.get("/interview-performance", analyticsController.getInterviewPerformance);
 router.get("/network-roi", analyticsController.getNetworkROI);
 router.get("/salary-progression", analyticsController.getSalaryProgression);
+router.get("/productivity", analyticsController.getProductivityAnalytics);
 
 export default router;
 

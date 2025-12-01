@@ -103,6 +103,28 @@ class AnalyticsController {
       data: { progression },
     });
   });
+
+  // UC-103: Time Investment and Productivity Analysis
+  getProductivityAnalytics = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { startDate, endDate, useManual } = req.query;
+
+    const dateRange = {
+      startDate: startDate || null,
+      endDate: endDate || null,
+    };
+
+    const analytics = await analyticsService.getProductivityAnalytics(
+      userId,
+      dateRange,
+      useManual === 'true'
+    );
+
+    res.status(200).json({
+      ok: true,
+      data: { analytics },
+    });
+  });
 }
 
 export default new AnalyticsController();

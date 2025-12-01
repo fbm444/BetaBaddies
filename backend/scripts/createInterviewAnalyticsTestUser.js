@@ -802,21 +802,40 @@ async function createTestUser() {
     // Combine practice, past, and scheduled interviews
     const allInterviewsData = [...practiceInterviewsData, ...interviewsData, ...scheduledInterviewsData];
 
+    // Create a map of job opportunity IDs to company names for quick lookup
+    const jobOppCompanyMap = new Map();
+    for (let i = 0; i < jobOppIds.length; i++) {
+      jobOppCompanyMap.set(jobOppIds[i], jobOpportunities[i].company);
+    }
+
     const interviewIds = [];
     for (const interviewData of allInterviewsData) {
+      // Get company name from job opportunity
+      const company = interviewData.jobOpportunityId 
+        ? jobOppCompanyMap.get(interviewData.jobOpportunityId) || null
+        : null;
+      
+      // Generate title based on job opportunity
+      const jobOppIndex = jobOppIds.indexOf(interviewData.jobOpportunityId);
+      const title = jobOppIndex >= 0 
+        ? `${jobOpportunities[jobOppIndex].title} Interview`
+        : "Interview";
+      
       // Insert interview - handle both date and scheduled_at columns
       const scheduledAtISO = interviewData.scheduledAt.toISOString();
       const result = await database.query(
         `INSERT INTO interviews (
-          id, user_id, job_opportunity_id, type, format, scheduled_at, date, duration, 
+          id, user_id, job_opportunity_id, title, company, type, format, scheduled_at, date, duration, 
           status, outcome, is_practice, interviewer_name, interviewer_email, 
           interviewer_title, video_link, phone_number, notes
         )
-         VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+         VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
          RETURNING id`,
         [
           userId,
-          interviewData.jobOpportunityId,
+          interviewData.jobOpportunityId || null,
+          title,
+          company,
           interviewData.interviewType,
           interviewData.format,
           scheduledAtISO,

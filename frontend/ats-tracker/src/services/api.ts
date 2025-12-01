@@ -1153,14 +1153,19 @@ class ApiService {
     >(`/interviews/${interviewId}/thank-you-notes`);
   }
 
-  async generateThankYouNote(interviewId: string, templateStyle?: string) {
+  async generateThankYouNote(
+    interviewId: string,
+    templateStyle?: string,
+    options?: { regenerate?: boolean }
+  ) {
     return this.request<
       ApiResponse<{ note: any }>
     >(`/interviews/${interviewId}/thank-you-notes/generate`, {
       method: "POST",
-      body: JSON.stringify(
-        templateStyle ? { templateStyle } : {}
-      ),
+      body: JSON.stringify({
+        ...(templateStyle ? { templateStyle } : {}),
+        ...(options?.regenerate ? { regenerate: true } : {}),
+      }),
     });
   }
 
@@ -1192,6 +1197,12 @@ class ApiService {
     return this.request<
       ApiResponse<{ followUps: any[] }>
     >("/follow-ups/pending");
+  }
+
+  async getAllFollowUps() {
+    return this.request<
+      ApiResponse<{ followUps: any[] }>
+    >("/follow-ups/all");
   }
 
   async getFollowUpEmailDraft(interviewId: string, actionId: string) {

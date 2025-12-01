@@ -33,6 +33,50 @@ class ThankYouNoteService {
       }
 
       const interview = interviewResult.rows[0];
+
+      // If we already have a draft for this interview, return the latest one
+      // instead of regenerating and burning more AI credits, unless explicitly
+      // asked to regenerate.
+      if (!options.forceRegenerate) {
+        const existingQuery = `
+          SELECT 
+            id,
+            interview_id,
+            recipient_email,
+            recipient_name,
+            subject,
+            body,
+            status,
+            created_at,
+            updated_at
+          FROM interview_thank_you_notes
+          WHERE interview_id = $1
+            AND interview_id IN (SELECT id FROM interviews WHERE user_id = $2)
+          ORDER BY created_at DESC
+          LIMIT 1
+        `;
+
+        const existingResult = await database.query(existingQuery, [
+          interviewId,
+          userId,
+        ]);
+
+        if (existingResult.rows.length > 0) {
+          const note = existingResult.rows[0];
+
+          return {
+            id: note.id,
+            interviewId: note.interview_id,
+            recipientEmail: note.recipient_email,
+            recipientName: note.recipient_name,
+            subject: note.subject,
+            body: note.body,
+            status: note.status,
+            createdAt: note.created_at,
+            updatedAt: note.updated_at,
+          };
+        }
+      }
       const interviewerName = interview.interviewer_name || "Interviewer";
       // For draft generation we don't require a real email; use a placeholder if missing
       const interviewerEmail =

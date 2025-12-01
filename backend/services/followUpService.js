@@ -221,6 +221,59 @@ class FollowUpService {
   }
 
   /**
+   * Get all follow-up actions for a user (both pending and completed)
+   */
+  async getAllFollowUpActions(userId) {
+    try {
+      const query = `
+        SELECT 
+          fu.id,
+          fu.interview_id,
+          fu.action_type,
+          fu.due_date,
+          fu.notes,
+          fu.completed,
+          fu.completed_at,
+          fu.created_at,
+          i.title as interview_title,
+          i.company,
+          i.scheduled_at as interview_date,
+          jo.title as job_title
+        FROM interview_follow_ups fu
+        JOIN interviews i ON fu.interview_id = i.id
+        LEFT JOIN job_opportunities jo ON i.job_opportunity_id = jo.id
+        WHERE i.user_id = $1
+        ORDER BY 
+          fu.completed ASC,
+          CASE WHEN fu.completed = false THEN fu.due_date END ASC,
+          CASE WHEN fu.completed = true THEN fu.completed_at END DESC
+      `;
+
+      const result = await database.query(query, [userId]);
+
+      return result.rows.map((row) => ({
+        id: row.id,
+        interviewId: row.interview_id,
+        actionType: row.action_type,
+        dueDate: row.due_date,
+        notes: row.notes,
+        completed: row.completed,
+        completedAt: row.completed_at,
+        createdAt: row.created_at,
+        interview: {
+          title: row.interview_title,
+          company: row.company,
+          scheduledAt: row.interview_date,
+          jobTitle: row.job_title,
+        },
+      }));
+    } catch (error) {
+      console.error("❌ Error getting all follow-up actions:", error);
+      throw error;
+    }
+  }
+
+  /**
    * Generate an email draft for a specific follow-up action (no DB write)
    */
   async generateFollowUpEmailDraft(actionId, userId) {

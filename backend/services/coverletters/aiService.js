@@ -34,6 +34,7 @@ class CoverLetterAIService {
         length = "standard",
         includeCompanyResearch = true,
         highlightExperiences = true,
+        forceRegenerate = false,
       } = options;
 
       // Get cover letter
@@ -43,6 +44,26 @@ class CoverLetterAIService {
       );
       if (!coverLetter) {
         throw new Error("Cover letter not found");
+      }
+      // If this cover letter already has generated content and the caller
+      // didn't explicitly ask to regenerate, return the existing content
+      // instead of calling OpenAI again.
+      if (coverLetter.content && !forceRegenerate) {
+        const existingTone =
+          coverLetter.toneSettings?.tone || tone || "formal";
+        const existingLength =
+          coverLetter.toneSettings?.length || length || "standard";
+
+        return {
+          content: {
+            ...coverLetter.content,
+            generatedBy: coverLetter.content.generatedBy || "cached",
+          },
+          variations: [],
+          companyResearch: coverLetter.companyResearch || null,
+          tone: existingTone,
+          length: existingLength,
+        };
       }
 
       let profileSummary = null;

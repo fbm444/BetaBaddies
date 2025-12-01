@@ -39,6 +39,7 @@ export function Interviews() {
 
   // Follow-ups state
   const [pendingFollowUps, setPendingFollowUps] = useState<any[]>([]);
+  const [completedFollowUps, setCompletedFollowUps] = useState<any[]>([]);
   const [loadingFollowUps, setLoadingFollowUps] = useState(false);
   const [activeFollowUpDraft, setActiveFollowUpDraft] = useState<{
     id: string;
@@ -156,9 +157,14 @@ export function Interviews() {
   const fetchPendingFollowUps = async () => {
     setLoadingFollowUps(true);
     try {
-      const response = await api.getPendingFollowUps();
+      const response = await api.getAllFollowUps();
       if (response.ok && response.data) {
-        setPendingFollowUps(response.data.followUps || []);
+        const allFollowUps = response.data.followUps || [];
+        // Separate pending and completed
+        const pending = allFollowUps.filter((fu: any) => !fu.completed);
+        const completed = allFollowUps.filter((fu: any) => fu.completed);
+        setPendingFollowUps(pending);
+        setCompletedFollowUps(completed);
       }
     } catch (err: any) {
       console.error("Failed to fetch follow-ups:", err);
@@ -486,9 +492,14 @@ export function Interviews() {
                 <>
                   {thankYouNotes.length > 0 && (
                     <div className="mb-4">
-                      <label className="block text-xs font-medium text-slate-500 mb-1">
-                        Latest Draft
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs font-medium text-slate-500">
+                          Latest Draft (cached)
+                        </label>
+                        <span className="text-[10px] uppercase tracking-wide text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">
+                          Using saved draft – no extra AI credits
+                        </span>
+                      </div>
                       <input
                         type="text"
                         readOnly
@@ -520,7 +531,8 @@ export function Interviews() {
                           try {
                             const response = await api.generateThankYouNote(
                               activeThankYouInterview.id,
-                              "standard"
+                              "standard",
+                              thankYouNotes.length > 0 ? { regenerate: true } : undefined
                             );
                             if (response.ok && response.data?.note) {
                               const notesResponse = await api.getThankYouNotes(
@@ -553,7 +565,8 @@ export function Interviews() {
                           try {
                             const response = await api.generateThankYouNote(
                               activeThankYouInterview.id,
-                              "enthusiastic"
+                              "enthusiastic",
+                              thankYouNotes.length > 0 ? { regenerate: true } : undefined
                             );
                             if (response.ok && response.data?.note) {
                               const notesResponse = await api.getThankYouNotes(
@@ -586,7 +599,8 @@ export function Interviews() {
                           try {
                             const response = await api.generateThankYouNote(
                               activeThankYouInterview.id,
-                              "concise"
+                              "concise",
+                              thankYouNotes.length > 0 ? { regenerate: true } : undefined
                             );
                             if (response.ok && response.data?.note) {
                               const notesResponse = await api.getThankYouNotes(
@@ -1018,116 +1032,187 @@ export function Interviews() {
                   <Icon icon="mingcute:loading-line" className="animate-spin text-blue-500 mx-auto mb-4" width={32} />
                   <p className="text-slate-600">Loading follow-ups...</p>
                 </div>
-              ) : pendingFollowUps.length === 0 ? (
-                <div className="text-center py-12 bg-slate-50 rounded-xl">
-                  <Icon icon="mingcute:task-line" width={48} className="text-slate-400 mx-auto mb-4" />
-                  <p className="text-slate-600">No pending follow-up actions</p>
-                  <p className="text-slate-500 text-sm mt-2">
-                    Follow-up actions are automatically created after interviews are completed
-                  </p>
-                </div>
               ) : (
-                <div className="space-y-4">
-                  {pendingFollowUps.map((followUp) => (
-                    <div
-                      key={followUp.id}
-                      className="bg-white border border-slate-200 rounded-xl p-6 hover:shadow-md transition-shadow"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          {/* Interview Context - Position, Company, Date */}
-                          {(followUp.interview?.jobTitle || followUp.interview?.company || followUp.interview?.scheduledAt) && (
-                            <div className="mb-4 pb-4 border-b border-slate-200">
-                              <div className="flex items-center gap-2 mb-1">
-                                <Icon icon="mingcute:briefcase-line" width={18} className="text-slate-500" />
-                                <span className="font-semibold text-slate-900">
-                                  {followUp.interview?.jobTitle || followUp.interview?.title || "Position"}
-                                </span>
-                                {followUp.interview?.company && (
-                                  <>
-                                    <span className="text-slate-400">•</span>
-                                    <span className="text-slate-700">{followUp.interview.company}</span>
-                                  </>
-                                )}
+                <>
+                  {/* Pending Follow-ups Section */}
+                  {pendingFollowUps.length === 0 && completedFollowUps.length === 0 ? (
+                    <div className="text-center py-12 bg-slate-50 rounded-xl">
+                      <Icon icon="mingcute:task-line" width={48} className="text-slate-400 mx-auto mb-4" />
+                      <p className="text-slate-600">No follow-up actions</p>
+                      <p className="text-slate-500 text-sm mt-2">
+                        Follow-up actions are automatically created after interviews are completed
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Pending Section */}
+                      {pendingFollowUps.length > 0 && (
+                        <div className="mb-8">
+                          <h3 className="text-lg font-semibold text-slate-900 mb-4">Pending Actions</h3>
+                          <div className="space-y-4">
+                            {pendingFollowUps.map((followUp) => (
+                              <div
+                                key={followUp.id}
+                                className="bg-white border border-slate-200 rounded-xl p-6 hover:shadow-md transition-shadow"
+                              >
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1">
+                                    {/* Interview Context - Position, Company, Date */}
+                                    {(followUp.interview?.jobTitle || followUp.interview?.company || followUp.interview?.scheduledAt) && (
+                                      <div className="mb-4 pb-4 border-b border-slate-200">
+                                        <div className="flex items-center gap-2 mb-1">
+                                          <Icon icon="mingcute:briefcase-line" width={18} className="text-slate-500" />
+                                          <span className="font-semibold text-slate-900">
+                                            {followUp.interview?.jobTitle || followUp.interview?.title || "Position"}
+                                          </span>
+                                          {followUp.interview?.company && (
+                                            <>
+                                              <span className="text-slate-400">•</span>
+                                              <span className="text-slate-700">{followUp.interview.company}</span>
+                                            </>
+                                          )}
+                                        </div>
+                                        {followUp.interview?.scheduledAt && (
+                                          <p className="text-sm text-slate-600 ml-6">
+                                            Interview: {formatDate(followUp.interview.scheduledAt)}
+                                          </p>
+                                        )}
+                                      </div>
+                                    )}
+                                    
+                                    {/* Action Type */}
+                                    <div className="flex items-center gap-3 mb-2">
+                                      <Icon icon="mingcute:task-line" width={20} className="text-blue-500" />
+                                      <h3 className="font-semibold text-slate-900 capitalize">
+                                        {followUp.action_type?.replace(/_/g, " ") || followUp.actionType?.replace(/_/g, " ")}
+                                      </h3>
+                                    </div>
+                                    {(followUp.due_date || followUp.dueDate) && (
+                                      <p className="text-slate-600 mb-2">
+                                        <strong>Due:</strong> {formatDate(followUp.due_date || followUp.dueDate)}
+                                      </p>
+                                    )}
+                                    {followUp.notes && (
+                                      <p className="text-slate-600">{followUp.notes}</p>
+                                    )}
+                                  </div>
+                                  <div className="flex flex-col items-end gap-2">
+                                    <button
+                                      onClick={async () => {
+                                        try {
+                                          setDraftLoadingId(followUp.id);
+                                          const interviewId = followUp.interviewId || followUp.interview_id;
+                                          const response = await api.getFollowUpEmailDraft(
+                                            interviewId,
+                                            followUp.id
+                                          );
+                                          if (response.ok && response.data?.draft) {
+                                            setActiveFollowUpDraft({
+                                              id: followUp.id,
+                                              interviewId,
+                                              subject: response.data.draft.subject,
+                                              body: response.data.draft.body,
+                                              generatedBy: response.data.draft.generatedBy,
+                                            });
+                                          }
+                                        } catch (err: any) {
+                                          showMessage(
+                                            err.message || "Failed to generate email draft",
+                                            "error"
+                                          );
+                                        } finally {
+                                          setDraftLoadingId(null);
+                                        }
+                                      }}
+                                      className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 text-sm font-medium"
+                                    >
+                                      {draftLoadingId === followUp.id
+                                        ? "Generating..."
+                                        : "Generate email draft"}
+                                    </button>
+                                    <button
+                                      onClick={async () => {
+                                        try {
+                                          const interviewId = followUp.interviewId || followUp.interview_id;
+                                          await api.completeFollowUpAction(interviewId, followUp.id);
+                                          showMessage("Follow-up action completed!", "success");
+                                          fetchPendingFollowUps();
+                                        } catch (err: any) {
+                                          showMessage(err.message || "Failed to complete action", "error");
+                                        }
+                                      }}
+                                      className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm font-medium"
+                                    >
+                                      Mark Complete
+                                    </button>
+                                  </div>
+                                </div>
                               </div>
-                              {followUp.interview?.scheduledAt && (
-                                <p className="text-sm text-slate-600 ml-6">
-                                  Interview: {formatDate(followUp.interview.scheduledAt)}
-                                </p>
-                              )}
-                            </div>
-                          )}
-                          
-                          {/* Action Type */}
-                          <div className="flex items-center gap-3 mb-2">
-                            <Icon icon="mingcute:task-line" width={20} className="text-blue-500" />
-                            <h3 className="font-semibold text-slate-900 capitalize">
-                              {followUp.action_type?.replace(/_/g, " ") || followUp.actionType?.replace(/_/g, " ")}
-                            </h3>
+                            ))}
                           </div>
-                          {(followUp.due_date || followUp.dueDate) && (
-                            <p className="text-slate-600 mb-2">
-                              <strong>Due:</strong> {formatDate(followUp.due_date || followUp.dueDate)}
-                            </p>
-                          )}
-                          {followUp.notes && (
-                            <p className="text-slate-600">{followUp.notes}</p>
-                          )}
                         </div>
-                    <div className="flex flex-col items-end gap-2">
-                      <button
-                        onClick={async () => {
-                          try {
-                            setDraftLoadingId(followUp.id);
-                            const interviewId = followUp.interviewId || followUp.interview_id;
-                            const response = await api.getFollowUpEmailDraft(
-                              interviewId,
-                              followUp.id
-                            );
-                            if (response.ok && response.data?.draft) {
-                              setActiveFollowUpDraft({
-                                id: followUp.id,
-                                interviewId,
-                                subject: response.data.draft.subject,
-                                body: response.data.draft.body,
-                                generatedBy: response.data.draft.generatedBy,
-                              });
-                            }
-                          } catch (err: any) {
-                            showMessage(
-                              err.message || "Failed to generate email draft",
-                              "error"
-                            );
-                          } finally {
-                            setDraftLoadingId(null);
-                          }
-                        }}
-                        className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 text-sm font-medium"
-                      >
-                        {draftLoadingId === followUp.id
-                          ? "Generating..."
-                          : "Generate email draft"}
-                      </button>
-                      <button
-                        onClick={async () => {
-                          try {
-                            const interviewId = followUp.interviewId || followUp.interview_id;
-                            await api.completeFollowUpAction(interviewId, followUp.id);
-                            showMessage("Follow-up action completed!", "success");
-                            fetchPendingFollowUps();
-                          } catch (err: any) {
-                            showMessage(err.message || "Failed to complete action", "error");
-                          }
-                        }}
-                        className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm font-medium"
-                      >
-                        Mark Complete
-                      </button>
-                    </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                      )}
+
+                      {/* Completed Follow-ups Section */}
+                      {completedFollowUps.length > 0 && (
+                        <div className="mt-8 pt-8 border-t border-slate-200">
+                          <h3 className="text-lg font-semibold text-slate-500 mb-4">Completed Actions</h3>
+                          <div className="space-y-3">
+                            {completedFollowUps.map((followUp) => (
+                              <div
+                                key={followUp.id}
+                                className="bg-slate-50 border border-slate-200 rounded-xl p-6 opacity-75"
+                              >
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1">
+                                    {/* Interview Context - Position, Company, Date */}
+                                    {(followUp.interview?.jobTitle || followUp.interview?.company || followUp.interview?.scheduledAt) && (
+                                      <div className="mb-3 pb-3 border-b border-slate-200">
+                                        <div className="flex items-center gap-2 mb-1">
+                                          <Icon icon="mingcute:briefcase-line" width={18} className="text-slate-400" />
+                                          <span className="font-semibold text-slate-500 line-through">
+                                            {followUp.interview?.jobTitle || followUp.interview?.title || "Position"}
+                                          </span>
+                                          {followUp.interview?.company && (
+                                            <>
+                                              <span className="text-slate-300">•</span>
+                                              <span className="text-slate-500">{followUp.interview.company}</span>
+                                            </>
+                                          )}
+                                        </div>
+                                        {followUp.interview?.scheduledAt && (
+                                          <p className="text-sm text-slate-500 ml-6">
+                                            Interview: {formatDate(followUp.interview.scheduledAt)}
+                                          </p>
+                                        )}
+                                      </div>
+                                    )}
+                                    
+                                    {/* Action Type */}
+                                    <div className="flex items-center gap-3 mb-2">
+                                      <Icon icon="mingcute:check-circle-line" width={20} className="text-green-500" />
+                                      <h3 className="font-semibold text-slate-500 capitalize line-through">
+                                        {followUp.action_type?.replace(/_/g, " ") || followUp.actionType?.replace(/_/g, " ")}
+                                      </h3>
+                                    </div>
+                                    {followUp.completedAt && (
+                                      <p className="text-slate-500 text-sm mb-2">
+                                        <strong>Completed:</strong> {formatDate(followUp.completedAt)}
+                                      </p>
+                                    )}
+                                    {followUp.notes && (
+                                      <p className="text-slate-500 text-sm">{followUp.notes}</p>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </>
               )}
 
         {/* Follow-up email draft modal */}

@@ -52,6 +52,30 @@ class FollowUpController {
     });
   });
 
+  // Get all follow-up actions for user (both pending and completed)
+  getAllFollowUps = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+
+    if (!userId) {
+      return res.status(401).json({
+        ok: false,
+        error: {
+          message: "Unauthorized",
+        },
+      });
+    }
+
+    const actions = await followUpService.getAllFollowUpActions(userId);
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        actions,
+        followUps: actions,
+      },
+    });
+  });
+
   // Mark follow-up action as completed
   completeFollowUpAction = asyncHandler(async (req, res) => {
     const userId = req.session.userId;

@@ -6,7 +6,7 @@ class ThankYouNoteController {
   generateThankYouNote = asyncHandler(async (req, res) => {
     const userId = req.session.userId;
     const { id: interviewId } = req.params;
-    const { templateStyle } = req.body || {};
+    const { templateStyle, regenerate } = req.body || {};
 
     if (!userId) {
       return res.status(401).json({
@@ -17,9 +17,16 @@ class ThankYouNoteController {
       });
     }
 
-    const note = await thankYouNoteService.generateThankYouNote(interviewId, userId, {
-      templateStyle: templateStyle || "standard",
-    });
+    const note = await thankYouNoteService.generateThankYouNote(
+      interviewId,
+      userId,
+      {
+        templateStyle: templateStyle || "standard",
+        // If regenerate is true, force a fresh AI call. Otherwise we reuse
+        // any existing draft for this interview to save OpenAI credits.
+        forceRegenerate: Boolean(regenerate),
+      }
+    );
 
     res.status(201).json({
       ok: true,

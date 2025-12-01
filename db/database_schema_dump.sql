@@ -4116,7 +4116,7 @@ COMMENT ON COLUMN public.writing_practice_prompts.tags IS 'JSON array of tags fo
 CREATE TABLE public.writing_practice_sessions (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
-    question_id uuid NOT NULL,
+    question_id uuid,
     response_text text,
     time_limit_seconds integer,
     time_taken_seconds integer,

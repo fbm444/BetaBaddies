@@ -12,6 +12,7 @@ import type {
   InterviewInput,
   InterviewStatus,
   JobOpportunityData,
+  InterviewAnalytics,
 } from "../types";
 import {
   INTERVIEW_STATUSES,
@@ -19,7 +20,7 @@ import {
   INTERVIEW_STATUS_COLORS,
 } from "../types/interview.types";
 
-type TabType = "schedule" | "preparation" | "reminders" | "thank-you" | "follow-ups" | "calendar";
+type TabType = "schedule" | "preparation" | "reminders" | "thank-you" | "follow-ups" | "calendar" | "analytics";
 
 export function Interviews() {
   const navigate = useNavigate();
@@ -74,6 +75,10 @@ export function Interviews() {
   const [calendarConnected, setCalendarConnected] = useState(false);
   const [calendarLoading, setCalendarLoading] = useState(false);
 
+  // Analytics state
+  const [analytics, setAnalytics] = useState<InterviewAnalytics | null>(null);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
+
   // Preparation/Interview Insights state
   const [companyInsights, setCompanyInsights] = useState<Map<string, {
     company: string;
@@ -101,6 +106,9 @@ export function Interviews() {
     }
     if (activeTab === "preparation") {
       fetchCompanyInsights();
+    }
+    if (activeTab === "analytics") {
+      fetchAnalytics();
     }
   }, [activeTab, interviews, jobOpportunities]);
 
@@ -280,6 +288,21 @@ export function Interviews() {
     }
   };
 
+  const fetchAnalytics = async () => {
+    try {
+      setLoadingAnalytics(true);
+      const response = await api.getInterviewAnalytics();
+      if (response.ok && response.data) {
+        setAnalytics(response.data);
+      }
+    } catch (err: any) {
+      console.error("Failed to fetch analytics:", err);
+      showMessage(err.message || "Failed to load analytics", "error");
+    } finally {
+      setLoadingAnalytics(false);
+    }
+  };
+
   const fetchInsightsForCompany = async (jobId: string, company: string, companyKey: string) => {
     setCompanyInsights((prev) => {
       const updated = new Map(prev);
@@ -440,6 +463,7 @@ export function Interviews() {
     { id: "thank-you", label: "Thank You Notes", icon: "mingcute:mail-line" },
     { id: "follow-ups", label: "Follow-ups", icon: "mingcute:task-line" },
     { id: "calendar", label: "Calendar", icon: "mingcute:calendar-check-line" },
+    { id: "analytics", label: "Analytics", icon: "mingcute:chart-line" },
   ];
 
   return (
@@ -1914,6 +1938,151 @@ export function Interviews() {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {activeTab === "analytics" && (
+            <div>
+              <h2 className="text-2xl font-bold text-slate-900 mb-6">Interview Analytics</h2>
+              {loadingAnalytics ? (
+                <div className="text-center py-12">
+                  <Icon icon="mingcute:loading-line" className="animate-spin text-blue-500 mx-auto mb-4" width={32} />
+                  <p className="text-slate-600">Loading analytics...</p>
+                </div>
+              ) : analytics ? (
+                <div className="space-y-6">
+                  {/* Summary Stats */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="bg-white border border-slate-200 rounded-xl p-6">
+                      <p className="text-sm text-slate-600 mb-1">Completed Interviews</p>
+                      <p className="text-3xl font-bold text-slate-900">{analytics.conversionRate.completedInterviews}</p>
+                    </div>
+                    <div className="bg-white border border-slate-200 rounded-xl p-6">
+                      <p className="text-sm text-slate-600 mb-1">Success Rate</p>
+                      <p className="text-3xl font-bold text-green-600">
+                        {analytics.conversionRate.userRate.toFixed(1)}%
+                      </p>
+                    </div>
+                    <div className="bg-white border border-slate-200 rounded-xl p-6">
+                      <p className="text-sm text-slate-600 mb-1">Industry Average</p>
+                      <p className="text-3xl font-bold text-blue-600">
+                        {analytics.conversionRate.industryAverage.toFixed(1)}%
+                      </p>
+                    </div>
+                    <div className="bg-white border border-slate-200 rounded-xl p-6">
+                      <p className="text-sm text-slate-600 mb-1">Offers Received</p>
+                      <p className="text-3xl font-bold text-emerald-600">{analytics.conversionRate.offers}</p>
+                    </div>
+                  </div>
+
+                  {/* Performance by Format */}
+                  {analytics.performanceByFormat && analytics.performanceByFormat.length > 0 && (
+                    <div className="bg-white border border-slate-200 rounded-xl p-6">
+                      <h3 className="text-lg font-semibold text-slate-900 mb-4">Performance by Format</h3>
+                      <div className="space-y-3">
+                        {analytics.performanceByFormat.map((item, idx) => (
+                          <div key={idx} className="flex items-center justify-between">
+                            <span className="text-slate-700">{item.formatLabel}</span>
+                            <div className="flex items-center gap-4">
+                              <span className="text-sm text-slate-600">
+                                {item.successful}/{item.total} successful
+                              </span>
+                              <span className="text-sm font-medium text-slate-900">
+                                {item.total > 0 ? ((item.successful / item.total) * 100).toFixed(0) : 0}%
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Performance by Company Type */}
+                  {analytics.performanceByCompanyType && analytics.performanceByCompanyType.length > 0 && (
+                    <div className="bg-white border border-slate-200 rounded-xl p-6">
+                      <h3 className="text-lg font-semibold text-slate-900 mb-4">Performance by Company Type</h3>
+                      <div className="space-y-3">
+                        {analytics.performanceByCompanyType.map((item, idx) => (
+                          <div key={idx} className="flex items-center justify-between">
+                            <span className="text-slate-700">{item.companyType}</span>
+                            <div className="flex items-center gap-4">
+                              <span className="text-sm text-slate-600">
+                                {item.successful}/{item.total} successful
+                              </span>
+                              <span className="text-sm font-medium text-slate-900">
+                                {item.total > 0 ? ((item.successful / item.total) * 100).toFixed(0) : 0}%
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Skill Area Performance */}
+                  {analytics.skillAreaPerformance && analytics.skillAreaPerformance.length > 0 && (
+                    <div className="bg-white border border-slate-200 rounded-xl p-6">
+                      <h3 className="text-lg font-semibold text-slate-900 mb-4">Skill Area Performance</h3>
+                      <div className="space-y-4">
+                        {analytics.skillAreaPerformance.map((item, idx) => (
+                          <div key={idx}>
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-slate-700">{item.skillAreaLabel}</span>
+                              <span className="text-sm font-medium text-slate-900">
+                                {item.averageScore.toFixed(1)}%
+                              </span>
+                            </div>
+                            <div className="w-full bg-slate-200 rounded-full h-2">
+                              <div
+                                className="bg-blue-500 h-2 rounded-full"
+                                style={{ width: `${item.averageScore}%` }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Improvement Trend */}
+                  {analytics.improvementTrend && analytics.improvementTrend.length > 0 && (
+                    <div className="bg-white border border-slate-200 rounded-xl p-6">
+                      <h3 className="text-lg font-semibold text-slate-900 mb-4">Improvement Trend</h3>
+                      <div className="space-y-2">
+                        {analytics.improvementTrend
+                          .filter((item) => item.period && item.averageScore !== null)
+                          .map((item, idx) => (
+                            <div key={idx} className="flex items-center justify-between">
+                              <span className="text-slate-700">{item.period}</span>
+                              <span className="text-sm font-medium text-slate-900">
+                                {item.averageScore?.toFixed(1) || "N/A"}%
+                              </span>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Link to full analytics page */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 text-center">
+                    <p className="text-slate-700 mb-4">View detailed charts and insights</p>
+                    <button
+                      onClick={() => navigate(ROUTES.INTERVIEW_ANALYTICS)}
+                      className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium"
+                    >
+                      View Full Analytics Dashboard
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white border border-slate-200 rounded-xl p-12 text-center">
+                  <Icon icon="mingcute:chart-line" width={48} className="text-slate-400 mx-auto mb-4" />
+                  <p className="text-slate-600 mb-4">No analytics data available</p>
+                  <p className="text-sm text-slate-500">
+                    Complete some interviews to see your analytics
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>

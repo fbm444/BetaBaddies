@@ -129,16 +129,24 @@ export function SalaryNegotiation() {
       if (jobsRes.ok && jobsRes.data) {
         const jobsList = jobsRes.data.jobs || [];
         console.log("All jobs from API:", jobsList);
+        console.log("Jobs response structure:", jobsRes);
         
         // Filter jobs that have salary data and startDate
         const jobsWithSalary = jobsList.filter((job: JobData) => {
-          const hasSalary = job && job.salary && typeof job.salary === 'number' && job.salary > 0;
-          const hasStartDate = job && job.startDate;
-          console.log(`Job ${job?.title} @ ${job?.company}: salary=${job?.salary}, startDate=${job?.startDate}, hasSalary=${hasSalary}, hasStartDate=${hasStartDate}`);
+          if (!job) return false;
+          
+          // Check for salary - can be number or string
+          const salaryValue = typeof job.salary === 'string' ? parseFloat(job.salary) : job.salary;
+          const hasSalary = salaryValue && !isNaN(salaryValue) && salaryValue > 0;
+          const hasStartDate = job.startDate && job.startDate.trim() !== '';
+          
+          console.log(`Job ${job.title || 'Unknown'} @ ${job.company || 'Unknown'}: salary=${job.salary} (parsed: ${salaryValue}), startDate=${job.startDate}, hasSalary=${hasSalary}, hasStartDate=${hasStartDate}`);
+          
           return hasSalary && hasStartDate;
         });
         
         console.log("Jobs with salary after filtering:", jobsWithSalary);
+        console.log("Setting employment jobs:", jobsWithSalary);
         setEmploymentJobs(jobsWithSalary);
       } else {
         console.log("Jobs response not ok or no data. Response:", jobsRes);
@@ -685,30 +693,34 @@ export function SalaryNegotiation() {
         )}
 
         {activeTab === "progression" && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold text-slate-900 mb-2">Salary Progression</h2>
-                <p className="text-slate-600">
-                  Track your compensation growth over time
-                </p>
+          <div className="space-y-8">
+            {/* Header Section */}
+            <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl p-8 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-3xl font-bold mb-2">Salary Progression</h2>
+                  <p className="text-blue-100 text-lg">
+                    Track your compensation growth and career trajectory
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowAddProgressionModal(true)}
+                  className="px-6 py-3 bg-white text-blue-600 rounded-lg hover:bg-blue-50 text-sm font-semibold flex items-center gap-2 shadow-lg transition-all"
+                >
+                  <Icon icon="mingcute:add-line" width={18} />
+                  Add Entry
+                </button>
               </div>
-              <button
-                onClick={() => setShowAddProgressionModal(true)}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm font-medium flex items-center gap-2"
-              >
-                <Icon icon="mingcute:add-line" width={16} />
-                Add Entry
-              </button>
             </div>
 
             {loadingProgression ? (
-              <div className="bg-white rounded-xl p-12 text-center border border-slate-200">
+              <div className="bg-white rounded-xl p-16 text-center border border-slate-200 shadow-sm">
                 <Icon
                   icon="mingcute:loading-line"
-                  className="w-12 h-12 animate-spin mx-auto text-blue-500 mb-4"
+                  className="w-16 h-16 animate-spin mx-auto text-blue-500 mb-6"
                 />
-                <p className="text-slate-600">Loading progression data...</p>
+                <p className="text-slate-600 text-lg font-medium">Loading progression data...</p>
+                <p className="text-slate-500 text-sm mt-2">Fetching your salary history</p>
               </div>
             ) : (() => {
               // Combine progression entries and employment jobs
@@ -744,19 +756,26 @@ export function SalaryNegotiation() {
 
               // Add employment jobs with salary
               if (employmentJobs && employmentJobs.length > 0) {
+                console.log("Adding employment jobs to combined data:", employmentJobs);
                 employmentJobs.forEach((job) => {
-                  if (job && job.salary && job.salary > 0 && job.startDate) {
-                    combinedData.push({
-                      id: `employment-${job.id}`,
-                      date: job.startDate,
-                      salary: job.salary,
-                      roleTitle: job.title,
-                      company: job.company,
-                      location: job.location,
-                      source: "employment",
-                    });
+                  if (job && job.startDate) {
+                    // Handle salary as number or string
+                    const salaryValue = typeof job.salary === 'string' ? parseFloat(job.salary) : (job.salary || 0);
+                    if (salaryValue > 0) {
+                      combinedData.push({
+                        id: `employment-${job.id}`,
+                        date: job.startDate,
+                        salary: salaryValue,
+                        roleTitle: job.title || "Unknown Role",
+                        company: job.company || "Unknown Company",
+                        location: job.location,
+                        source: "employment",
+                      });
+                    }
                   }
                 });
+              } else {
+                console.log("No employment jobs to add. employmentJobs:", employmentJobs);
               }
 
               console.log("Combined data:", combinedData);
@@ -766,18 +785,37 @@ export function SalaryNegotiation() {
 
               if (combinedData.length === 0) {
                 return (
-                  <div className="bg-white rounded-xl p-12 text-center border border-slate-200">
-                    <Icon icon="mingcute:chart-line" width={48} className="text-slate-400 mx-auto mb-4" />
-                    <p className="text-slate-600 mb-2">No salary progression data yet</p>
-                    <p className="text-sm text-slate-500 mb-6">
-                      Add salary information to your employment history or add progression entries
-                    </p>
-                    <button
-                      onClick={() => setShowAddProgressionModal(true)}
-                      className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium"
-                    >
-                      Add First Entry
-                    </button>
+                  <div className="bg-white rounded-xl p-16 text-center border border-slate-200 shadow-sm">
+                    <div className="max-w-md mx-auto">
+                      <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <Icon icon="mingcute:chart-line" width={48} className="text-blue-500" />
+                      </div>
+                      <h3 className="text-2xl font-bold text-slate-900 mb-3">No Salary Data Yet</h3>
+                      <p className="text-slate-600 mb-6 leading-relaxed">
+                        Start tracking your salary progression by adding salary information to your employment history or creating manual entries.
+                      </p>
+                      <div className="space-y-3 mb-8 text-left max-w-sm mx-auto">
+                        <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
+                          <Icon icon="mingcute:check-circle-line" width={20} className="text-green-500 mt-0.5 flex-shrink-0" />
+                          <p className="text-sm text-slate-700">
+                            Add salary to your employment entries in the <strong>Employment</strong> page
+                          </p>
+                        </div>
+                        <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
+                          <Icon icon="mingcute:check-circle-line" width={20} className="text-green-500 mt-0.5 flex-shrink-0" />
+                          <p className="text-sm text-slate-700">
+                            Or manually add progression entries using the button above
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setShowAddProgressionModal(true)}
+                        className="px-8 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-semibold shadow-md hover:shadow-lg transition-all"
+                      >
+                        <Icon icon="mingcute:add-line" width={18} className="inline mr-2" />
+                        Add First Entry
+                      </button>
+                    </div>
                   </div>
                 );
               }
@@ -807,67 +845,94 @@ export function SalaryNegotiation() {
 
               return (
                 <>
-                  {/* Statistics */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                    <div className="bg-white rounded-xl p-6 border border-slate-200">
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="text-sm text-slate-600">Current Salary</p>
-                        <Icon icon="mingcute:dollar-line" width={24} className="text-green-500" />
+                  {/* Statistics Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-6 border border-green-200 shadow-sm hover:shadow-md transition-shadow">
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="text-sm font-medium text-green-700">Current Salary</p>
+                        <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
+                          <Icon icon="mingcute:dollar-line" width={24} className="text-white" />
+                        </div>
                       </div>
-                      <p className="text-3xl font-bold text-slate-900">
+                      <p className="text-4xl font-bold text-green-900 mb-1">
                         ${lastEntry.salary.toLocaleString()}
                       </p>
-                      <p className="text-xs text-slate-500 mt-1">
+                      <p className="text-xs text-green-700 font-medium">
                         {lastEntry.roleTitle} @ {lastEntry.company}
                       </p>
                     </div>
 
-                    <div className="bg-white rounded-xl p-6 border border-slate-200">
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="text-sm text-slate-600">Total Increase</p>
-                        <Icon icon="mingcute:trending-up-line" width={24} className="text-blue-500" />
+                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6 border border-blue-200 shadow-sm hover:shadow-md transition-shadow">
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="text-sm font-medium text-blue-700">Total Increase</p>
+                        <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                          <Icon icon="mingcute:trending-up-line" width={24} className="text-white" />
+                        </div>
                       </div>
-                      <p className="text-3xl font-bold text-slate-900">
+                      <p className="text-4xl font-bold text-blue-900 mb-1">
                         ${totalIncrease.toLocaleString()}
                       </p>
-                      <p className="text-xs text-slate-500 mt-1">
-                        {percentIncrease > 0 ? `+${percentIncrease.toFixed(1)}%` : `${percentIncrease.toFixed(1)}%`}
+                      <p className="text-xs text-blue-700 font-medium">
+                        {percentIncrease > 0 ? `+${percentIncrease.toFixed(1)}%` : `${percentIncrease.toFixed(1)}%`} growth
                       </p>
                     </div>
 
-                    <div className="bg-white rounded-xl p-6 border border-slate-200">
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="text-sm text-slate-600">Avg. Per Move</p>
-                        <Icon icon="mingcute:arrow-up-line" width={24} className="text-purple-500" />
+                    <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-6 border border-purple-200 shadow-sm hover:shadow-md transition-shadow">
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="text-sm font-medium text-purple-700">Avg. Per Move</p>
+                        <div className="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center">
+                          <Icon icon="mingcute:arrow-up-line" width={24} className="text-white" />
+                        </div>
                       </div>
-                      <p className="text-3xl font-bold text-slate-900">
-                        ${avgIncrease > 0 ? `+${avgIncrease.toLocaleString()}` : avgIncrease.toLocaleString()}
+                      <p className="text-4xl font-bold text-purple-900 mb-1">
+                        ${avgIncrease > 0 ? `+${Math.round(avgIncrease).toLocaleString()}` : Math.round(avgIncrease).toLocaleString()}
                       </p>
-                      <p className="text-xs text-slate-500 mt-1">
-                        {combinedData.length - 1} transitions
+                      <p className="text-xs text-purple-700 font-medium">
+                        {combinedData.length - 1} career moves
                       </p>
                     </div>
 
-                    <div className="bg-white rounded-xl p-6 border border-slate-200">
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="text-sm text-slate-600">Data Sources</p>
-                        <Icon icon="mingcute:file-list-line" width={24} className="text-orange-500" />
+                    <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-6 border border-orange-200 shadow-sm hover:shadow-md transition-shadow">
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="text-sm font-medium text-orange-700">Data Points</p>
+                        <div className="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center">
+                          <Icon icon="mingcute:file-list-line" width={24} className="text-white" />
+                        </div>
                       </div>
-                      <p className="text-3xl font-bold text-slate-900">
+                      <p className="text-4xl font-bold text-orange-900 mb-1">
                         {combinedData.length}
                       </p>
-                      <p className="text-xs text-slate-500 mt-1">
-                        {progressionEntries.length} progression, {employmentJobs.length} employment
+                      <p className="text-xs text-orange-700 font-medium">
+                        {progressionEntries.length} negotiation{progressionEntries.length !== 1 ? 's' : ''}, {employmentJobs.length} job{employmentJobs.length !== 1 ? 's' : ''}
                       </p>
                     </div>
                   </div>
 
-                  {/* Chart */}
-                  <SalaryProgressionChart entries={chartEntries} />
+                  {/* Chart Section */}
+                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+                    <div className="flex items-center justify-between mb-6">
+                      <div>
+                        <h3 className="text-2xl font-bold text-slate-900">Compensation Over Time</h3>
+                        <p className="text-slate-600 text-sm mt-1">Visual representation of your salary growth</p>
+                      </div>
+                    </div>
+                    {chartEntries.length > 0 ? (
+                      <SalaryProgressionChart entries={chartEntries} />
+                    ) : (
+                      <div className="h-[400px] flex items-center justify-center bg-slate-50 rounded-lg border border-slate-200">
+                        <p className="text-slate-500">No chart data available</p>
+                      </div>
+                    )}
+                  </div>
 
-                  {/* Detailed Timeline Chart */}
-                  <div className="bg-white rounded-xl border border-slate-200 p-6">
-                    <h3 className="text-xl font-semibold text-slate-900 mb-4">Salary Progression Timeline</h3>
+                  {/* Detailed Timeline */}
+                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+                    <div className="flex items-center justify-between mb-6">
+                      <div>
+                        <h3 className="text-2xl font-bold text-slate-900">Career Timeline</h3>
+                        <p className="text-slate-600 text-sm mt-1">Detailed breakdown of each position and compensation</p>
+                      </div>
+                    </div>
                     <div className="space-y-4">
                       {combinedData
                         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
@@ -877,58 +942,102 @@ export function SalaryNegotiation() {
                           const percentIncrease = previousItem && previousItem.salary > 0
                             ? (increase / previousItem.salary) * 100
                             : 0;
+                          const isLatest = index === 0;
 
                           return (
-                            <div key={item.id} className="flex items-start gap-4 p-4 bg-slate-50 rounded-lg border border-slate-200 hover:bg-slate-100 transition-colors">
-                              <div className="flex-shrink-0 w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">
+                            <div 
+                              key={item.id} 
+                              className={`relative flex items-start gap-4 p-5 rounded-xl border-2 transition-all ${
+                                isLatest 
+                                  ? "bg-gradient-to-r from-blue-50 to-blue-100 border-blue-300 shadow-md" 
+                                  : "bg-slate-50 border-slate-200 hover:bg-slate-100 hover:shadow-sm"
+                              }`}
+                            >
+                              {/* Timeline connector */}
+                              {index < combinedData.length - 1 && (
+                                <div className="absolute left-6 top-14 w-0.5 h-full bg-slate-300 -z-10" />
+                              )}
+                              
+                              {/* Number badge */}
+                              <div className={`flex-shrink-0 w-14 h-14 rounded-full flex items-center justify-center text-white font-bold shadow-md ${
+                                isLatest ? "bg-blue-500 ring-4 ring-blue-200" : "bg-slate-400"
+                              }`}>
                                 {combinedData.length - index}
                               </div>
-                              <div className="flex-1">
-                                <div className="flex items-center justify-between mb-2">
-                                  <div>
-                                    <h4 className="font-semibold text-slate-900">
+                              
+                              <div className="flex-1 min-w-0">
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+                                  <div className="flex-1">
+                                    <h4 className={`font-bold text-lg mb-1 ${
+                                      isLatest ? "text-blue-900" : "text-slate-900"
+                                    }`}>
                                       {item.roleTitle} @ {item.company}
                                     </h4>
-                                    <p className="text-sm text-slate-600">
-                                      {new Date(item.date).toLocaleDateString("en-US", {
-                                        year: "numeric",
-                                        month: "long",
-                                        day: "numeric",
-                                      })}
-                                    </p>
+                                    <div className="flex items-center gap-3 flex-wrap">
+                                      <p className="text-sm text-slate-600 flex items-center gap-1">
+                                        <Icon icon="mingcute:calendar-line" width={14} />
+                                        {new Date(item.date).toLocaleDateString("en-US", {
+                                          year: "numeric",
+                                          month: "long",
+                                          day: "numeric",
+                                        })}
+                                      </p>
+                                      {item.location && (
+                                        <p className="text-xs text-slate-500 flex items-center gap-1">
+                                          <Icon icon="mingcute:map-pin-line" width={14} />
+                                          {item.location}
+                                        </p>
+                                      )}
+                                    </div>
                                   </div>
-                                  <div className="text-right">
-                                    <p className="text-2xl font-bold text-blue-600">
+                                  <div className="text-left sm:text-right">
+                                    <p className={`text-3xl font-bold mb-1 ${
+                                      isLatest ? "text-blue-600" : "text-slate-900"
+                                    }`}>
                                       ${item.salary.toLocaleString()}
                                     </p>
                                     {increase !== 0 && (
-                                      <p
-                                        className={`text-sm font-medium ${
-                                          increase > 0 ? "text-green-600" : "text-red-600"
-                                        }`}
-                                      >
-                                        {increase > 0 ? "+" : ""}${increase.toLocaleString()} (
-                                        {percentIncrease > 0 ? "+" : ""}
-                                        {percentIncrease.toFixed(1)}%)
-                                      </p>
+                                      <div className="flex items-center gap-2 sm:justify-end">
+                                        <Icon 
+                                          icon={increase > 0 ? "mingcute:arrow-up-line" : "mingcute:arrow-down-line"} 
+                                          width={16} 
+                                          className={increase > 0 ? "text-green-600" : "text-red-600"}
+                                        />
+                                        <p
+                                          className={`text-sm font-semibold ${
+                                            increase > 0 ? "text-green-600" : "text-red-600"
+                                          }`}
+                                        >
+                                          {increase > 0 ? "+" : ""}${increase.toLocaleString()} (
+                                          {percentIncrease > 0 ? "+" : ""}
+                                          {percentIncrease.toFixed(1)}%)
+                                        </p>
+                                      </div>
                                     )}
                                   </div>
                                 </div>
-                                {item.location && (
-                                  <p className="text-xs text-slate-500 flex items-center gap-1">
-                                    <Icon icon="mingcute:map-pin-line" width={14} />
-                                    {item.location}
-                                  </p>
-                                )}
-                                <span
-                                  className={`inline-block mt-2 px-2 py-1 rounded text-xs font-medium ${
-                                    item.source === "progression"
-                                      ? "bg-purple-100 text-purple-700"
-                                      : "bg-green-100 text-green-700"
-                                  }`}
-                                >
-                                  {item.source === "progression" ? "Negotiation" : "Employment"}
-                                </span>
+                                
+                                <div className="flex items-center gap-2">
+                                  <span
+                                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${
+                                      item.source === "progression"
+                                        ? "bg-purple-100 text-purple-700 border border-purple-200"
+                                        : "bg-green-100 text-green-700 border border-green-200"
+                                    }`}
+                                  >
+                                    <Icon 
+                                      icon={item.source === "progression" ? "mingcute:handshake-line" : "mingcute:briefcase-line"} 
+                                      width={14} 
+                                    />
+                                    {item.source === "progression" ? "Negotiation" : "Employment"}
+                                  </span>
+                                  {isLatest && (
+                                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 border border-blue-200">
+                                      <Icon icon="mingcute:star-line" width={14} />
+                                      Current
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           );

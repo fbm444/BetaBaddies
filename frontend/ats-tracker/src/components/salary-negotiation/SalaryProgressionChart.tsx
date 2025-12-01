@@ -9,15 +9,23 @@ export function SalaryProgressionChart({ entries }: SalaryProgressionChartProps)
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    if (!canvasRef.current || entries.length === 0) return;
+    if (!canvasRef.current) return;
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    // Set canvas size based on container
+    const container = canvas.parentElement;
+    if (container) {
+      const containerWidth = container.clientWidth || 800;
+      canvas.width = Math.max(800, containerWidth);
+      canvas.height = 400;
+    }
+
     const width = canvas.width;
     const height = canvas.height;
-    const padding = 50;
+    const padding = 60;
     const chartWidth = width - padding * 2;
     const chartHeight = height - padding * 2;
 
@@ -26,7 +34,7 @@ export function SalaryProgressionChart({ entries }: SalaryProgressionChartProps)
 
     if (entries.length === 0) {
       ctx.fillStyle = "#64748b";
-      ctx.font = "14px sans-serif";
+      ctx.font = "16px sans-serif";
       ctx.textAlign = "center";
       ctx.fillText("No data available", width / 2, height / 2);
       return;
@@ -58,17 +66,18 @@ export function SalaryProgressionChart({ entries }: SalaryProgressionChartProps)
 
     // Draw Y-axis labels
     ctx.fillStyle = "#64748b";
-    ctx.font = "11px sans-serif";
+    ctx.font = "12px sans-serif";
     ctx.textAlign = "right";
     for (let i = 0; i <= 5; i++) {
       const value = maxValue - ((maxValue - minValue) / 5) * i;
       const y = padding + (chartHeight / 5) * i;
-      ctx.fillText(`$${(value / 1000).toFixed(0)}k`, padding - 10, y + 4);
+      const label = value >= 1000 ? `$${(value / 1000).toFixed(0)}k` : `$${Math.round(value)}`;
+      ctx.fillText(label, padding - 15, y + 4);
     }
 
     // Draw line for total compensation
     ctx.strokeStyle = "#3b82f6";
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 4;
     ctx.beginPath();
     sortedEntries.forEach((entry, index) => {
       const x = padding + (chartWidth / (sortedEntries.length - 1 || 1)) * index;
@@ -84,6 +93,26 @@ export function SalaryProgressionChart({ entries }: SalaryProgressionChartProps)
     });
     ctx.stroke();
 
+    // Draw gradient fill under the line
+    ctx.fillStyle = "rgba(59, 130, 246, 0.1)";
+    ctx.beginPath();
+    sortedEntries.forEach((entry, index) => {
+      const x = padding + (chartWidth / (sortedEntries.length - 1 || 1)) * index;
+      const y =
+        padding +
+        chartHeight -
+        ((entry.totalCompensation - minValue) / (maxValue - minValue)) * chartHeight;
+      if (index === 0) {
+        ctx.moveTo(x, height - padding);
+        ctx.lineTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    });
+    ctx.lineTo(padding + chartWidth, height - padding);
+    ctx.closePath();
+    ctx.fill();
+
     // Draw points
     ctx.fillStyle = "#3b82f6";
     sortedEntries.forEach((entry, index) => {
@@ -92,30 +121,41 @@ export function SalaryProgressionChart({ entries }: SalaryProgressionChartProps)
         padding +
         chartHeight -
         ((entry.totalCompensation - minValue) / (maxValue - minValue)) * chartHeight;
+      
+      // Outer ring
+      ctx.beginPath();
+      ctx.arc(x, y, 8, 0, 2 * Math.PI);
+      ctx.fillStyle = "rgba(59, 130, 246, 0.2)";
+      ctx.fill();
+      
+      // Inner point
       ctx.beginPath();
       ctx.arc(x, y, 6, 0, 2 * Math.PI);
+      ctx.fillStyle = "#3b82f6";
       ctx.fill();
+      
+      // White border
       ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      ctx.strokeStyle = "#3b82f6";
       ctx.lineWidth = 3;
+      ctx.stroke();
     });
 
     // Draw X-axis labels (dates)
     ctx.fillStyle = "#64748b";
-    ctx.font = "10px sans-serif";
+    ctx.font = "11px sans-serif";
     ctx.textAlign = "center";
     sortedEntries.forEach((entry, index) => {
       const x = padding + (chartWidth / (sortedEntries.length - 1 || 1)) * index;
       const date = new Date(entry.effectiveDate);
-      const label = `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear().toString().slice(-2)}`;
-      ctx.save();
-      ctx.translate(x, height - padding + 15);
-      ctx.rotate(-Math.PI / 4);
-      ctx.fillText(label, 0, 0);
-      ctx.restore();
+      const label = `${date.getMonth() + 1}/${date.getFullYear()}`;
+      ctx.fillText(label, x, height - padding + 20);
     });
+
+    // Add title
+    ctx.fillStyle = "#1e293b";
+    ctx.font = "bold 16px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("Salary Progression", width / 2, 25);
   }, [entries]);
 
   if (entries.length === 0) {
@@ -130,15 +170,14 @@ export function SalaryProgressionChart({ entries }: SalaryProgressionChartProps)
   }
 
   return (
-    <div className="bg-white rounded-lg p-4 border border-slate-200">
-      <h4 className="text-sm font-semibold text-slate-900 mb-3">Total Compensation Over Time</h4>
-      <div className="relative">
+    <div className="w-full">
+      <div className="relative bg-slate-50 rounded-lg p-6 border border-slate-200">
         <canvas
           ref={canvasRef}
           width={800}
-          height={300}
-          className="w-full"
-          style={{ maxWidth: "100%", height: "auto" }}
+          height={400}
+          className="w-full h-auto"
+          style={{ maxWidth: "100%" }}
         />
       </div>
     </div>

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Icon } from "@iconify/react";
 import { api } from "../services/api";
 import { ROUTES } from "../config/routes";
+import { NegotiationDetailModal } from "../components/salary-negotiation/NegotiationDetailModal";
 import type {
   SalaryNegotiation,
   SalaryNegotiationInput,
@@ -12,6 +13,7 @@ import type {
   NegotiationScript,
   TimingStrategy,
   SalaryProgressionEntry,
+  JobOpportunityData,
 } from "../types";
 
 type TabType = "overview" | "active" | "market-research" | "progression";
@@ -27,10 +29,49 @@ export function SalaryNegotiation() {
   // Selected negotiation for detail view
   const [selectedNegotiation, setSelectedNegotiation] = useState<SalaryNegotiation | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [jobOpportunities, setJobOpportunities] = useState<JobOpportunityData[]>([]);
+  const [loadingJobOpportunities, setLoadingJobOpportunities] = useState(false);
+  const [creatingNegotiation, setCreatingNegotiation] = useState(false);
+
+  // Form state for creating negotiation
+  const [formData, setFormData] = useState({
+    jobOpportunityId: "",
+    initialOffer: {
+      baseSalary: "",
+      bonus: "",
+      equity: "",
+      benefitsValue: "",
+      currency: "USD",
+      date: new Date().toISOString().split("T")[0],
+    },
+    targetCompensation: {
+      baseSalary: "",
+      bonus: "",
+      equity: "",
+      benefitsValue: "",
+    },
+  });
 
   useEffect(() => {
     fetchNegotiations();
+    fetchJobOpportunities();
   }, []);
+
+  const fetchJobOpportunities = async () => {
+    try {
+      setLoadingJobOpportunities(true);
+      const response = await api.getJobOpportunities({ status: "Offer" as any });
+      if (response.ok && response.data) {
+        const opportunities = response.data.jobOpportunities || [];
+        setJobOpportunities(opportunities);
+      }
+    } catch (err: any) {
+      console.error("Failed to fetch job opportunities:", err);
+    } finally {
+      setLoadingJobOpportunities(false);
+    }
+  };
 
   const fetchNegotiations = async () => {
     try {
@@ -63,6 +104,76 @@ export function SalaryNegotiation() {
         setError(null);
       }
     }, 5000);
+  };
+
+  const handleCreateNegotiation = async () => {
+    if (!formData.jobOpportunityId) {
+      showMessage("Please select a job opportunity", "error");
+      return;
+    }
+
+    if (!formData.initialOffer.baseSalary) {
+      showMessage("Please enter the initial base salary", "error");
+      return;
+    }
+
+    try {
+      setCreatingNegotiation(true);
+      const negotiationData: SalaryNegotiationInput = {
+        jobOpportunityId: formData.jobOpportunityId,
+        offerData: {
+          initialOffer: {
+            baseSalary: parseFloat(formData.initialOffer.baseSalary) || 0,
+            bonus: parseFloat(formData.initialOffer.bonus) || 0,
+            equity: parseFloat(formData.initialOffer.equity) || 0,
+            benefitsValue: parseFloat(formData.initialOffer.benefitsValue) || 0,
+            currency: formData.initialOffer.currency,
+          },
+          targetCompensation: formData.targetCompensation.baseSalary
+            ? {
+                baseSalary: parseFloat(formData.targetCompensation.baseSalary) || 0,
+                bonus: parseFloat(formData.targetCompensation.bonus) || 0,
+                equity: parseFloat(formData.targetCompensation.equity) || 0,
+                benefitsValue: parseFloat(formData.targetCompensation.benefitsValue) || 0,
+              }
+            : undefined,
+          initialOfferDate: formData.initialOffer.date,
+        },
+      };
+
+      const response = await api.createSalaryNegotiation(negotiationData);
+      if (response.ok && response.data?.negotiation) {
+        showMessage("Salary negotiation created successfully!", "success");
+        setShowCreateModal(false);
+        // Reset form
+        setFormData({
+          jobOpportunityId: "",
+          initialOffer: {
+            baseSalary: "",
+            bonus: "",
+            equity: "",
+            benefitsValue: "",
+            currency: "USD",
+            date: new Date().toISOString().split("T")[0],
+          },
+          targetCompensation: {
+            baseSalary: "",
+            bonus: "",
+            equity: "",
+            benefitsValue: "",
+          },
+        });
+        // Refresh negotiations list
+        await fetchNegotiations();
+      } else {
+        showMessage(response.error || "Failed to create negotiation", "error");
+      }
+    } catch (err: any) {
+      console.error("Failed to create negotiation:", err);
+      showMessage(err.message || "Failed to create negotiation", "error");
+    } finally {
+      setCreatingNegotiation(false);
+    }
   };
 
   const activeNegotiations = negotiations.filter((n) => n.status === "active");
@@ -194,7 +305,7 @@ export function SalaryNegotiation() {
               <div className="p-6 border-b border-slate-200 flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-slate-900">All Negotiations</h2>
                 <button
-                  onClick={() => navigate(ROUTES.JOB_OPPORTUNITIES)}
+                  onClick={() => setShowCreateModal(true)}
                   className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm font-medium"
                 >
                   Start New Negotiation
@@ -209,10 +320,10 @@ export function SalaryNegotiation() {
                     Start a negotiation from a job opportunity with an offer
                   </p>
                   <button
-                    onClick={() => navigate(ROUTES.JOB_OPPORTUNITIES)}
+                    onClick={() => setShowCreateModal(true)}
                     className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium"
                   >
-                    View Job Opportunities
+                    Start New Negotiation
                   </button>
                 </div>
               ) : (
@@ -221,7 +332,10 @@ export function SalaryNegotiation() {
                     <div
                       key={negotiation.id}
                       className="p-6 hover:bg-slate-50 cursor-pointer transition-colors"
-                      onClick={() => setSelectedNegotiation(negotiation)}
+                      onClick={() => {
+                        setSelectedNegotiation(negotiation);
+                        setShowDetailModal(true);
+                      }}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
@@ -281,7 +395,10 @@ export function SalaryNegotiation() {
                   <div
                     key={negotiation.id}
                     className="bg-white rounded-xl border border-slate-200 p-6 cursor-pointer hover:shadow-md transition-shadow"
-                    onClick={() => setSelectedNegotiation(negotiation)}
+                    onClick={() => {
+                      setSelectedNegotiation(negotiation);
+                      setShowDetailModal(true);
+                    }}
                   >
                     <h3 className="font-semibold text-slate-900 mb-2">
                       {negotiation.jobTitle} @ {negotiation.company}
@@ -315,6 +432,368 @@ export function SalaryNegotiation() {
           </div>
         )}
       </div>
+
+      {/* Create Negotiation Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-8 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-slate-900">Start New Salary Negotiation</h2>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <Icon icon="mingcute:close-line" width={24} />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleCreateNegotiation();
+              }}
+              className="space-y-6"
+            >
+              {/* Job Opportunity Selection */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Job Opportunity <span className="text-red-500">*</span>
+                </label>
+                {loadingJobOpportunities ? (
+                  <div className="text-sm text-slate-500">Loading job opportunities...</div>
+                ) : jobOpportunities.length === 0 ? (
+                  <div className="space-y-2">
+                    <p className="text-sm text-slate-600">
+                      No job opportunities with "Offer" status found.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowCreateModal(false);
+                        navigate(ROUTES.JOB_OPPORTUNITIES);
+                      }}
+                      className="text-sm text-blue-600 hover:text-blue-700 underline"
+                    >
+                      Go to Job Opportunities to create one
+                    </button>
+                  </div>
+                ) : (
+                  <select
+                    value={formData.jobOpportunityId}
+                    onChange={(e) =>
+                      setFormData({ ...formData, jobOpportunityId: e.target.value })
+                    }
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  >
+                    <option value="">Select a job opportunity...</option>
+                    {jobOpportunities.map((job) => (
+                      <option key={job.id} value={job.id}>
+                        {job.title} @ {job.company} - {job.location}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              {/* Initial Offer Section */}
+              <div className="border-t border-slate-200 pt-6">
+                <h3 className="text-lg font-semibold text-slate-900 mb-4">Initial Offer</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Base Salary <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">$</span>
+                      <input
+                        type="number"
+                        value={formData.initialOffer.baseSalary}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            initialOffer: { ...formData.initialOffer, baseSalary: e.target.value },
+                          })
+                        }
+                        className="w-full pl-8 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="200000"
+                        required
+                        min="0"
+                        step="1000"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Bonus</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">$</span>
+                      <input
+                        type="number"
+                        value={formData.initialOffer.bonus}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            initialOffer: { ...formData.initialOffer, bonus: e.target.value },
+                          })
+                        }
+                        className="w-full pl-8 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="30000"
+                        min="0"
+                        step="1000"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Equity</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">$</span>
+                      <input
+                        type="number"
+                        value={formData.initialOffer.equity}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            initialOffer: { ...formData.initialOffer, equity: e.target.value },
+                          })
+                        }
+                        className="w-full pl-8 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="50000"
+                        min="0"
+                        step="1000"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Benefits Value</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">$</span>
+                      <input
+                        type="number"
+                        value={formData.initialOffer.benefitsValue}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            initialOffer: { ...formData.initialOffer, benefitsValue: e.target.value },
+                          })
+                        }
+                        className="w-full pl-8 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="15000"
+                        min="0"
+                        step="1000"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Currency</label>
+                    <select
+                      value={formData.initialOffer.currency}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          initialOffer: { ...formData.initialOffer, currency: e.target.value },
+                        })
+                      }
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="USD">USD ($)</option>
+                      <option value="EUR">EUR (€)</option>
+                      <option value="GBP">GBP (£)</option>
+                      <option value="CAD">CAD (C$)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Offer Date</label>
+                    <input
+                      type="date"
+                      value={formData.initialOffer.date}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          initialOffer: { ...formData.initialOffer, date: e.target.value },
+                        })
+                      }
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Calculated Total */}
+                {formData.initialOffer.baseSalary && (
+                  <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm text-slate-600 mb-1">Total Initial Compensation:</p>
+                    <p className="text-2xl font-bold text-blue-600">
+                      ${(
+                        (parseFloat(formData.initialOffer.baseSalary) || 0) +
+                        (parseFloat(formData.initialOffer.bonus) || 0) +
+                        (parseFloat(formData.initialOffer.equity) || 0) +
+                        (parseFloat(formData.initialOffer.benefitsValue) || 0)
+                      ).toLocaleString()}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Target Compensation Section */}
+              <div className="border-t border-slate-200 pt-6">
+                <h3 className="text-lg font-semibold text-slate-900 mb-4">Target Compensation (Optional)</h3>
+                <p className="text-sm text-slate-600 mb-4">
+                  Set your target compensation. You can update this later.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Target Base Salary</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">$</span>
+                      <input
+                        type="number"
+                        value={formData.targetCompensation.baseSalary}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            targetCompensation: {
+                              ...formData.targetCompensation,
+                              baseSalary: e.target.value,
+                            },
+                          })
+                        }
+                        className="w-full pl-8 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="230000"
+                        min="0"
+                        step="1000"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Target Bonus</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">$</span>
+                      <input
+                        type="number"
+                        value={formData.targetCompensation.bonus}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            targetCompensation: {
+                              ...formData.targetCompensation,
+                              bonus: e.target.value,
+                            },
+                          })
+                        }
+                        className="w-full pl-8 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="40000"
+                        min="0"
+                        step="1000"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Target Equity</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">$</span>
+                      <input
+                        type="number"
+                        value={formData.targetCompensation.equity}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            targetCompensation: {
+                              ...formData.targetCompensation,
+                              equity: e.target.value,
+                            },
+                          })
+                        }
+                        className="w-full pl-8 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="70000"
+                        min="0"
+                        step="1000"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Target Benefits Value</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">$</span>
+                      <input
+                        type="number"
+                        value={formData.targetCompensation.benefitsValue}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            targetCompensation: {
+                              ...formData.targetCompensation,
+                              benefitsValue: e.target.value,
+                            },
+                          })
+                        }
+                        className="w-full pl-8 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="15000"
+                        min="0"
+                        step="1000"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Calculated Target Total */}
+                {formData.targetCompensation.baseSalary && (
+                  <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <p className="text-sm text-slate-600 mb-1">Total Target Compensation:</p>
+                    <p className="text-2xl font-bold text-green-600">
+                      ${(
+                        (parseFloat(formData.targetCompensation.baseSalary) || 0) +
+                        (parseFloat(formData.targetCompensation.bonus) || 0) +
+                        (parseFloat(formData.targetCompensation.equity) || 0) +
+                        (parseFloat(formData.targetCompensation.benefitsValue) || 0)
+                      ).toLocaleString()}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Form Actions */}
+              <div className="flex items-center justify-end gap-4 pt-6 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className="px-6 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingNegotiation || !formData.jobOpportunityId || !formData.initialOffer.baseSalary}
+                  className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {creatingNegotiation ? "Creating..." : "Create Negotiation"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Negotiation Detail Modal */}
+      {showDetailModal && selectedNegotiation && (
+        <NegotiationDetailModal
+          negotiation={selectedNegotiation}
+          onClose={() => {
+            setShowDetailModal(false);
+            setSelectedNegotiation(null);
+          }}
+          onUpdate={() => {
+            fetchNegotiations();
+          }}
+        />
+      )}
     </div>
   );
 }

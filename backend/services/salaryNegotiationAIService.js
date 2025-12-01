@@ -470,8 +470,40 @@ Thank you for your consideration, and I look forward to continuing the conversat
   }
 
   // Generate timing strategy
-  async generateTimingStrategy(negotiationId, userId) {
+  async generateTimingStrategy(negotiationId, userId, options = {}) {
     try {
+      const { forceRegenerate = false } = options;
+
+      // Check for cached timing strategy
+      if (!forceRegenerate) {
+        const negotiation = await salaryNegotiationService.getNegotiationById(
+          negotiationId,
+          userId
+        );
+        if (!negotiation) {
+          throw new Error("Negotiation not found");
+        }
+
+        // Check if timing strategy is cached in negotiation strategy
+        if (negotiation.negotiationStrategy?.timingStrategy) {
+          const cached = negotiation.negotiationStrategy.timingStrategy;
+          if (typeof cached === 'string') {
+            try {
+              const parsed = JSON.parse(cached);
+              if (parsed.whenToNegotiate || parsed.whenToRespond) {
+                console.log(`✅ Returning cached timing strategy for negotiation ${negotiationId}`);
+                return parsed;
+              }
+            } catch (e) {
+              // Not valid JSON, continue to generate
+            }
+          } else if (cached.whenToNegotiate || cached.whenToRespond) {
+            console.log(`✅ Returning cached timing strategy for negotiation ${negotiationId}`);
+            return cached;
+          }
+        }
+      }
+
       const negotiation = await salaryNegotiationService.getNegotiationById(
         negotiationId,
         userId
@@ -525,6 +557,14 @@ Thank you for your consideration, and I look forward to continuing the conversat
         "If they gave a deadline, respond 1-2 days before it",
         "Be respectful of their timeline while advocating for yourself",
       ];
+
+      // Cache the timing strategy in negotiation
+      const existingStrategy = negotiation.negotiationStrategy || {};
+      existingStrategy.timingStrategy = strategy;
+
+      await salaryNegotiationService.updateNegotiation(negotiationId, userId, {
+        negotiationStrategy: JSON.stringify(existingStrategy),
+      });
 
       return strategy;
     } catch (error) {

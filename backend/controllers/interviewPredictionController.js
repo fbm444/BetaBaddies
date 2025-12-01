@@ -138,12 +138,17 @@ class InterviewPredictionController {
   getAccuracyMetrics = asyncHandler(async (req, res) => {
     const userId = req.session.userId;
 
-    const result = await interviewPredictionService.getPrediction(userId);
-    // For now, return basic metrics - can be enhanced
-    const metrics = {
+    // Get accuracy metrics from database
+    const result = await database.query(
+      `SELECT * FROM prediction_accuracy_metrics WHERE user_id = $1`,
+      [userId]
+    );
+
+    const metrics = result.rows[0] || {
       totalPredictions: 0,
       accuratePredictions: 0,
       avgError: 0,
+      byConfidenceLevel: {},
     };
 
     res.status(200).json({

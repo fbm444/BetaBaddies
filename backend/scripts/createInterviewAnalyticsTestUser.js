@@ -47,6 +47,9 @@ async function createTestUser() {
       console.log("   🗑️  Clearing existing data to start fresh...");
       
       // Delete all user data in correct order (respecting foreign keys)
+      await database.query("DELETE FROM negotiation_confidence_exercises WHERE user_id = $1", [userId]);
+      await database.query("DELETE FROM salary_progression_history WHERE user_id = $1", [userId]);
+      await database.query("DELETE FROM salary_negotiations WHERE user_id = $1", [userId]);
       await database.query("DELETE FROM interview_feedback WHERE user_id = $1", [userId]);
       await database.query("DELETE FROM interviews WHERE user_id = $1", [userId]);
       await database.query("DELETE FROM job_opportunities WHERE user_id = $1", [userId]);
@@ -367,7 +370,7 @@ async function createTestUser() {
         company: "Meta",
         location: "Menlo Park, CA",
         industry: "Technology",
-        status: "Interview",
+        status: "Offer", // Changed to Offer for salary negotiation testing
         salary_min: 180000,
         salary_max: 250000,
       },
@@ -376,7 +379,7 @@ async function createTestUser() {
         company: "Amazon",
         location: "Seattle, WA",
         industry: "Technology",
-        status: "Interview",
+        status: "Offer", // Changed to Offer for salary negotiation testing
         salary_min: 175000,
         salary_max: 240000,
       },
@@ -385,7 +388,7 @@ async function createTestUser() {
         company: "Apple",
         location: "Cupertino, CA",
         industry: "Technology",
-        status: "Interview",
+        status: "Offer", // Changed to Offer for salary negotiation testing
         salary_min: 190000,
         salary_max: 260000,
       },
@@ -1052,6 +1055,243 @@ async function createTestUser() {
     
     console.log(`   ✓ Created ${preAssessmentsData.length} pre-assessments and ${postReflectionsData.length} post-reflections`);
 
+    // Step 13: Create salary negotiations for job opportunities with "Offer" status
+    console.log("\n📝 Step 13: Creating salary negotiations...");
+    
+    // Find job opportunities with "Offer" status
+    const offerJobOppIds = [];
+    const offerJobOpps = [];
+    for (let i = 0; i < jobOpportunities.length; i++) {
+      if (jobOpportunities[i].status === "Offer") {
+        offerJobOppIds.push(jobOppIds[i]);
+        offerJobOpps.push({ id: jobOppIds[i], ...jobOpportunities[i] });
+      }
+    }
+
+    const salaryNegotiationsData = [
+      {
+        // Meta offer
+        jobOpportunityId: offerJobOppIds[0],
+        initialOffer: {
+          baseSalary: 200000,
+          bonus: 30000,
+          equity: 50000,
+          benefitsValue: 15000,
+          currency: "USD",
+        },
+        targetCompensation: {
+          baseSalary: 230000,
+          bonus: 40000,
+          equity: 70000,
+          benefitsValue: 15000,
+        },
+        initialOfferDate: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
+        marketData: {
+          role: "Senior Software Engineer",
+          location: "Menlo Park, CA",
+          experienceLevel: 6,
+          industry: "Technology",
+          percentile25: 180000,
+          percentile50: 210000,
+          percentile75: 240000,
+          percentile90: 280000,
+          source: "AI-generated market research",
+          date: new Date().toISOString().split("T")[0],
+          notes: "Market data for Senior Software Engineer in Menlo Park, CA with 6 years of experience",
+        },
+        status: "active",
+      },
+      {
+        // Amazon offer
+        jobOpportunityId: offerJobOppIds[1],
+        initialOffer: {
+          baseSalary: 195000,
+          bonus: 25000,
+          equity: 45000,
+          benefitsValue: 12000,
+          currency: "USD",
+        },
+        targetCompensation: {
+          baseSalary: 220000,
+          bonus: 35000,
+          equity: 60000,
+          benefitsValue: 12000,
+        },
+        initialOfferDate: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
+        marketData: {
+          role: "Software Development Engineer II",
+          location: "Seattle, WA",
+          experienceLevel: 6,
+          industry: "Technology",
+          percentile25: 175000,
+          percentile50: 200000,
+          percentile75: 230000,
+          percentile90: 270000,
+          source: "AI-generated market research",
+          date: new Date().toISOString().split("T")[0],
+          notes: "Market data for SDE II in Seattle, WA with 6 years of experience",
+        },
+        status: "active",
+      },
+      {
+        // Apple offer (completed negotiation)
+        jobOpportunityId: offerJobOppIds[2],
+        initialOffer: {
+          baseSalary: 210000,
+          bonus: 35000,
+          equity: 60000,
+          benefitsValue: 18000,
+          currency: "USD",
+        },
+        targetCompensation: {
+          baseSalary: 240000,
+          bonus: 45000,
+          equity: 80000,
+          benefitsValue: 18000,
+        },
+        finalCompensation: {
+          baseSalary: 235000,
+          bonus: 42000,
+          equity: 75000,
+          benefitsValue: 18000,
+        },
+        initialOfferDate: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
+        outcomeDate: new Date(now.getTime() - 20 * 24 * 60 * 60 * 1000), // 20 days ago
+        marketData: {
+          role: "Senior Software Engineer",
+          location: "Cupertino, CA",
+          experienceLevel: 6,
+          industry: "Technology",
+          percentile25: 190000,
+          percentile50: 220000,
+          percentile75: 250000,
+          percentile90: 290000,
+          source: "AI-generated market research",
+          date: new Date().toISOString().split("T")[0],
+          notes: "Market data for Senior Software Engineer in Cupertino, CA with 6 years of experience",
+        },
+        status: "completed",
+        outcome: "accepted",
+        outcomeNotes: "Successfully negotiated from $305k to $370k total compensation. Accepted the offer.",
+      },
+    ];
+
+    for (const negotiation of salaryNegotiationsData) {
+      const negotiationId = uuidv4();
+      
+      // Calculate totals
+      const initialTotal = (negotiation.initialOffer.baseSalary || 0) +
+        (negotiation.initialOffer.bonus || 0) +
+        (negotiation.initialOffer.equity || 0) +
+        (negotiation.initialOffer.benefitsValue || 0);
+      
+      const targetTotal = (negotiation.targetCompensation.baseSalary || 0) +
+        (negotiation.targetCompensation.bonus || 0) +
+        (negotiation.targetCompensation.equity || 0) +
+        (negotiation.targetCompensation.benefitsValue || 0);
+
+      const finalTotal = negotiation.finalCompensation
+        ? (negotiation.finalCompensation.baseSalary || 0) +
+          (negotiation.finalCompensation.bonus || 0) +
+          (negotiation.finalCompensation.equity || 0) +
+          (negotiation.finalCompensation.benefitsValue || 0)
+        : null;
+
+      await database.query(
+        `INSERT INTO salary_negotiations (
+          id, user_id, job_opportunity_id,
+          initial_offer_base_salary, initial_offer_bonus, initial_offer_equity,
+          initial_offer_benefits_value, initial_offer_total_compensation,
+          initial_offer_currency, initial_offer_date,
+          target_base_salary, target_bonus, target_equity,
+          target_benefits_value, target_total_compensation,
+          market_salary_data, market_research_notes,
+          final_base_salary, final_bonus, final_equity,
+          final_benefits_value, final_total_compensation,
+          negotiation_outcome, outcome_date, outcome_notes,
+          status, created_at, updated_at
+        ) VALUES (
+          $1, $2, $3,
+          $4, $5, $6, $7, $8,
+          $9, $10,
+          $11, $12, $13, $14, $15,
+          $16, $17,
+          $18, $19, $20, $21, $22,
+          $23, $24, $25,
+          $26, NOW(), NOW()
+        )`,
+        [
+          negotiationId,
+          userId,
+          negotiation.jobOpportunityId,
+          negotiation.initialOffer.baseSalary,
+          negotiation.initialOffer.bonus,
+          negotiation.initialOffer.equity,
+          negotiation.initialOffer.benefitsValue,
+          initialTotal,
+          negotiation.initialOffer.currency || "USD",
+          negotiation.initialOfferDate.toISOString().split("T")[0],
+          negotiation.targetCompensation.baseSalary,
+          negotiation.targetCompensation.bonus,
+          negotiation.targetCompensation.equity,
+          negotiation.targetCompensation.benefitsValue,
+          targetTotal,
+          JSON.stringify(negotiation.marketData),
+          negotiation.marketData.notes,
+          negotiation.finalCompensation?.baseSalary || null,
+          negotiation.finalCompensation?.bonus || null,
+          negotiation.finalCompensation?.equity || null,
+          negotiation.finalCompensation?.benefitsValue || null,
+          finalTotal,
+          negotiation.outcome || null,
+          negotiation.outcomeDate ? negotiation.outcomeDate.toISOString().split("T")[0] : null,
+          negotiation.outcomeNotes || null,
+          negotiation.status || "draft",
+        ]
+      );
+
+      // If negotiation was accepted, add to salary progression history
+      if (negotiation.outcome === "accepted" && finalTotal) {
+        const progressionId = uuidv4();
+        await database.query(
+          `INSERT INTO salary_progression_history (
+            id, user_id, negotiation_id, job_opportunity_id,
+            base_salary, bonus, equity, benefits_value, total_compensation,
+            currency, role_title, company, location, effective_date,
+            negotiation_type, notes, created_at
+          ) VALUES (
+            $1, $2, $3, $4,
+            $5, $6, $7, $8, $9,
+            $10, $11, $12, $13, $14,
+            $15, $16, NOW()
+          )`,
+          [
+            progressionId,
+            userId,
+            negotiationId,
+            negotiation.jobOpportunityId,
+            negotiation.finalCompensation.baseSalary,
+            negotiation.finalCompensation.bonus,
+            negotiation.finalCompensation.equity,
+            negotiation.finalCompensation.benefitsValue,
+            finalTotal,
+            "USD",
+            offerJobOpps.find(j => j.id === negotiation.jobOpportunityId)?.title || "Senior Software Engineer",
+            offerJobOpps.find(j => j.id === negotiation.jobOpportunityId)?.company || "Company",
+            offerJobOpps.find(j => j.id === negotiation.jobOpportunityId)?.location || "Location",
+            negotiation.outcomeDate.toISOString().split("T")[0],
+            "accepted",
+            "Accepted offer after successful negotiation",
+          ]
+        );
+      }
+    }
+    
+    console.log(`   ✓ Created ${salaryNegotiationsData.length} salary negotiations:`);
+    console.log(`     - 2 active negotiations (Meta, Amazon)`);
+    console.log(`     - 1 completed negotiation (Apple - accepted)`);
+    console.log(`     - All include market research data`);
+
     // Summary
     console.log("\n" + "=".repeat(60));
     console.log("✅ SUCCESS! Test user created with complete data");
@@ -1067,13 +1307,18 @@ async function createTestUser() {
     console.log(`   ✓ ${projects.length} Projects`);
     console.log(`   ✓ ${certifications.length} Certifications`);
     console.log(`   ✓ ${jobOpportunities.length} Job Opportunities (Meta, Amazon, Apple, Netflix, Google, Microsoft)`);
+    console.log(`     - 3 with "Offer" status for salary negotiation testing`);
     console.log(`   ✓ ${allInterviewsData.length} Interviews:`);
     console.log(`     - ${practiceInterviewsData.length} practice interviews`);
     console.log(`     - ${pastInterviewsData.length} past completed interviews`);
     console.log(`     - ${scheduledInterviewsData.length} scheduled future interviews with real companies`);
     console.log(`   ✓ ${feedbackData.length} Interview Feedback entries`);
-    console.log("\n🎯 This user is ready to test Interview Analytics!");
-    console.log("   Log in and navigate to the Interview Analytics page.\n");
+    console.log(`   ✓ ${salaryNegotiationsData.length} Salary Negotiations:`);
+    console.log(`     - 2 active negotiations (Meta, Amazon)`);
+    console.log(`     - 1 completed negotiation (Apple - accepted)`);
+    console.log("\n🎯 This user is ready to test:");
+    console.log("   - Interview Analytics (navigate to Interview Analytics page)");
+    console.log("   - Salary Negotiation (navigate to Salary Negotiation page)\n");
 
     process.exit(0);
   } catch (error) {

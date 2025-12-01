@@ -457,8 +457,14 @@ class CoverLetterController {
   generateContent = asyncHandler(async (req, res) => {
     const userId = req.session.userId;
     const { id } = req.params;
-    const { jobId, tone, length, includeCompanyResearch, highlightExperiences } =
-      req.body;
+    const {
+      jobId,
+      tone,
+      length,
+      includeCompanyResearch,
+      highlightExperiences,
+      regenerate,
+    } = req.body || {};
 
     if (!coverLetterService.isValidUUID(id)) {
       return res.status(400).json({
@@ -479,6 +485,10 @@ class CoverLetterController {
         length,
         includeCompanyResearch,
         highlightExperiences,
+        // If regenerate is true, force a fresh AI call. Otherwise we reuse
+        // any existing generated content for this cover letter to save
+        // OpenAI credits.
+        forceRegenerate: Boolean(regenerate),
       }
     );
 

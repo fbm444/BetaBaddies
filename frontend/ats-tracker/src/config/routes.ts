@@ -11,7 +11,9 @@ export const ROUTES = {
   JOB_OPPORTUNITIES: "/job-opportunities",
   JOB_STATISTICS: "/job-opportunities/statistics",
   COMPANY_RESEARCH: "/company-research",
+  INTERVIEWS: "/interviews",
   INTERVIEW_SCHEDULING: "/interview-scheduling",
+  INTERVIEW_ANALYTICS: "/interview-analytics",
   SKILLS: "/skills",
   EDUCATION: "/education",
   PROJECTS: "/projects",
@@ -25,6 +27,7 @@ export const ROUTES = {
   COVER_LETTERS: "/coverletter",
   COVER_LETTER_BUILDER: "/coverletter/builder",
   COVER_LETTER_TEMPLATES: "/coverletter/templates",
+  SALARY_NEGOTIATION: "/salary-negotiation",
 } as const;
 
 // Navigation item type
@@ -88,10 +91,16 @@ export const navigationGroups: NavigationGroup[] = [
         path: ROUTES.COMPANY_RESEARCH,
       },
       {
-        id: "interview-scheduling",
-        label: "Interview Scheduling",
+        id: "interviews",
+        label: "Interviews",
         icon: "mingcute:calendar-line",
-        path: ROUTES.INTERVIEW_SCHEDULING,
+        path: ROUTES.INTERVIEWS,
+      },
+      {
+        id: "salary-negotiation",
+        label: "Salary Negotiation",
+        icon: "mingcute:dollar-line",
+        path: ROUTES.SALARY_NEGOTIATION,
       },
     ],
   },

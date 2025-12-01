@@ -38,6 +38,19 @@ import {
   InterviewData,
   InterviewInput,
   InterviewConflict,
+  InterviewAnalytics,
+  SalaryNegotiation,
+  SalaryNegotiationInput,
+  SalaryNegotiationUpdate,
+  CounterofferInput,
+  NegotiationOutcomeInput,
+  MarketResearchInput,
+  TalkingPoint,
+  NegotiationScript,
+  CounterofferEvaluation,
+  TimingStrategy,
+  MarketSalaryData,
+  SalaryProgressionEntry,
 } from "../types";
 
 // In development, use proxy (relative path). In production, use env variable or full URL
@@ -1023,6 +1036,32 @@ class ApiService {
     });
   }
 
+  // Interview Analytics endpoints
+  async getInterviewAnalytics() {
+    return this.request<ApiResponse<InterviewAnalytics>>(
+      "/interviews/analytics"
+    );
+  }
+
+  async getInterviewConversionRate() {
+    return this.request<
+      ApiResponse<{ conversionRate: InterviewAnalytics["conversionRate"] }>
+    >("/interviews/analytics/conversion-rate");
+  }
+
+  async getInterviewTrends(months?: number) {
+    const query = months ? `?months=${months}` : "";
+    return this.request<
+      ApiResponse<{ trends: InterviewAnalytics["improvementTrend"] }>
+    >(`/interviews/analytics/trends${query}`);
+  }
+
+  async getInterviewRecommendations() {
+    return this.request<
+      ApiResponse<{ recommendations: string[] }>
+    >("/interviews/analytics/recommendations");
+  }
+
   async updatePreparationTask(
     interviewId: string,
     taskId: string,
@@ -1033,6 +1072,14 @@ class ApiService {
     >(`/interviews/${interviewId}/tasks/${taskId}`, {
       method: "PUT",
       body: JSON.stringify(updateData),
+    });
+  }
+
+  async generatePreparationTasks(interviewId: string) {
+    return this.request<
+      ApiResponse<{ tasks: any[]; message: string }>
+    >(`/interviews/${interviewId}/preparation/generate`, {
+      method: "POST",
     });
   }
 
@@ -1101,6 +1148,245 @@ class ApiService {
       }>
     >("/calendar/sync/all", {
       method: "POST",
+    });
+  }
+
+  // Reminder endpoints
+  async getRemindersForInterview(interviewId: string) {
+    return this.request<
+      ApiResponse<{ reminders: any[] }>
+    >(`/interviews/${interviewId}/reminders`);
+  }
+
+  // Thank-you note endpoints
+  async getThankYouNotes(interviewId: string) {
+    return this.request<
+      ApiResponse<{ notes: any[] }>
+    >(`/interviews/${interviewId}/thank-you-notes`);
+  }
+
+  async generateThankYouNote(
+    interviewId: string,
+    templateStyle?: string,
+    options?: { regenerate?: boolean }
+  ) {
+    return this.request<
+      ApiResponse<{ note: any }>
+    >(`/interviews/${interviewId}/thank-you-notes/generate`, {
+      method: "POST",
+      body: JSON.stringify({
+        ...(templateStyle ? { templateStyle } : {}),
+        ...(options?.regenerate ? { regenerate: true } : {}),
+      }),
+    });
+  }
+
+  async updateThankYouNote(interviewId: string, noteId: string, data: { subject?: string; body?: string }) {
+    return this.request<
+      ApiResponse<{ note: any }>
+    >(`/interviews/${interviewId}/thank-you-notes/${noteId}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async sendThankYouNote(interviewId: string, noteId: string) {
+    return this.request<
+      ApiResponse<{ message: string }>
+    >(`/interviews/${interviewId}/thank-you-notes/${noteId}/send`, {
+      method: "POST",
+    });
+  }
+
+  // Follow-up endpoints
+  async getFollowUpActions(interviewId: string) {
+    return this.request<
+      ApiResponse<{ followUps: any[] }>
+    >(`/interviews/${interviewId}/follow-ups`);
+  }
+
+  async getPendingFollowUps() {
+    return this.request<
+      ApiResponse<{ followUps: any[] }>
+    >("/follow-ups/pending");
+  }
+
+  async getAllFollowUps() {
+    return this.request<
+      ApiResponse<{ followUps: any[] }>
+    >("/follow-ups/all");
+  }
+
+  async getFollowUpEmailDraft(interviewId: string, actionId: string) {
+    return this.request<
+      ApiResponse<{ draft: { subject: string; body: string; generatedBy?: string } }>
+    >(`/interviews/${interviewId}/follow-ups/${actionId}/draft`);
+  }
+
+  async completeFollowUpAction(interviewId: string, actionId: string) {
+    return this.request<
+      ApiResponse<{ message: string }>
+    >(`/interviews/${interviewId}/follow-ups/${actionId}/complete`, {
+      method: "POST",
+    });
+  }
+
+  async createFollowUpAction(interviewId: string, data: { actionType: string; dueDate?: string; notes?: string }) {
+    return this.request<
+      ApiResponse<{ followUp: any }>
+    >(`/interviews/${interviewId}/follow-ups`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  // ========== Salary Negotiation Methods ==========
+
+  async createSalaryNegotiation(data: SalaryNegotiationInput) {
+    return this.request<
+      ApiResponse<{ negotiation: SalaryNegotiation; message: string }>
+    >("/salary-negotiations", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getSalaryNegotiations(filters?: {
+    status?: string;
+    outcome?: string;
+    limit?: number;
+    offset?: number;
+  }) {
+    const queryParams = new URLSearchParams();
+    if (filters?.status) queryParams.append("status", filters.status);
+    if (filters?.outcome) queryParams.append("outcome", filters.outcome);
+    if (filters?.limit) queryParams.append("limit", filters.limit.toString());
+    if (filters?.offset) queryParams.append("offset", filters.offset.toString());
+
+    const query = queryParams.toString();
+    return this.request<
+      ApiResponse<{ negotiations: SalaryNegotiation[] }>
+    >(`/salary-negotiations${query ? `?${query}` : ""}`);
+  }
+
+  async getSalaryNegotiation(id: string) {
+    return this.request<
+      ApiResponse<{ negotiation: SalaryNegotiation }>
+    >(`/salary-negotiations/${id}`);
+  }
+
+  async getSalaryNegotiationByJob(jobOpportunityId: string) {
+    return this.request<
+      ApiResponse<{ negotiation: SalaryNegotiation | null }>
+    >(`/salary-negotiations/job/${jobOpportunityId}`);
+  }
+
+  async updateSalaryNegotiation(id: string, updates: SalaryNegotiationUpdate) {
+    return this.request<
+      ApiResponse<{ negotiation: SalaryNegotiation; message: string }>
+    >(`/salary-negotiations/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(updates),
+    });
+  }
+
+  async addCounteroffer(id: string, counterofferData: CounterofferInput) {
+    return this.request<
+      ApiResponse<{ negotiation: SalaryNegotiation; message: string }>
+    >(`/salary-negotiations/${id}/counteroffer`, {
+      method: "POST",
+      body: JSON.stringify(counterofferData),
+    });
+  }
+
+  async completeNegotiation(id: string, outcomeData: NegotiationOutcomeInput) {
+    return this.request<
+      ApiResponse<{ negotiation: SalaryNegotiation; message: string }>
+    >(`/salary-negotiations/${id}/complete`, {
+      method: "PUT",
+      body: JSON.stringify(outcomeData),
+    });
+  }
+
+  async getMarketResearch(id: string, params?: { role?: string; location?: string; experienceLevel?: number; industry?: string }) {
+    const queryParams = new URLSearchParams();
+    if (params?.role) queryParams.append("role", params.role);
+    if (params?.location) queryParams.append("location", params.location);
+    if (params?.experienceLevel) queryParams.append("experienceLevel", params.experienceLevel.toString());
+    if (params?.industry) queryParams.append("industry", params.industry);
+
+    const query = queryParams.toString();
+    return this.request<
+      ApiResponse<{ marketData: MarketSalaryData }>
+    >(`/salary-negotiations/${id}/market-research${query ? `?${query}` : ""}`);
+  }
+
+  async triggerMarketResearch(id: string, data: MarketResearchInput) {
+    return this.request<
+      ApiResponse<{ marketData: MarketSalaryData; message: string }>
+    >(`/salary-negotiations/${id}/market-research`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getTalkingPoints(id: string) {
+    return this.request<
+      ApiResponse<{ talkingPoints: TalkingPoint[] }>
+    >(`/salary-negotiations/${id}/talking-points`);
+  }
+
+  async generateTalkingPoints(id: string, regenerate?: boolean) {
+    return this.request<
+      ApiResponse<{ talkingPoints: TalkingPoint[]; message: string }>
+    >(`/salary-negotiations/${id}/talking-points`, {
+      method: "POST",
+      body: JSON.stringify({ regenerate: regenerate || false }),
+    });
+  }
+
+  async getNegotiationScript(id: string, scenario: string) {
+    return this.request<
+      ApiResponse<{ script: NegotiationScript }>
+    >(`/salary-negotiations/${id}/scripts/${scenario}`);
+  }
+
+  async generateNegotiationScript(id: string, scenario: string, regenerate?: boolean) {
+    return this.request<
+      ApiResponse<{ script: NegotiationScript; message: string }>
+    >(`/salary-negotiations/${id}/scripts/${scenario}`, {
+      method: "POST",
+      body: JSON.stringify({ regenerate: regenerate || false }),
+    });
+  }
+
+  async evaluateCounteroffer(id: string, counterofferData: CounterofferInput) {
+    return this.request<
+      ApiResponse<{ evaluation: CounterofferEvaluation }>
+    >(`/salary-negotiations/${id}/evaluate-counteroffer`, {
+      method: "POST",
+      body: JSON.stringify(counterofferData),
+    });
+  }
+
+  async getTimingStrategy(id: string) {
+    return this.request<
+      ApiResponse<{ strategy: TimingStrategy }>
+    >(`/salary-negotiations/${id}/timing-strategy`);
+  }
+
+  async getSalaryProgression() {
+    return this.request<
+      ApiResponse<{ progression: SalaryProgressionEntry[] }>
+    >("/salary-negotiations/progression/history");
+  }
+
+  async addSalaryProgressionEntry(data: Omit<SalaryProgressionEntry, "id" | "createdAt">) {
+    return this.request<
+      ApiResponse<{ entry: SalaryProgressionEntry; message: string }>
+    >("/salary-negotiations/progression/entry", {
+      method: "POST",
+      body: JSON.stringify(data),
     });
   }
 }

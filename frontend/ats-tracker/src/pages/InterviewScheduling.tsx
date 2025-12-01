@@ -20,6 +20,7 @@ import {
   INTERVIEW_OUTCOME_LABELS,
   INTERVIEW_OUTCOME_COLORS,
 } from "../types/interview.types";
+import { BackButton } from "../components/common/BackButton";
 
 export function InterviewScheduling() {
   const [interviews, setInterviews] = useState<InterviewData[]>([]);
@@ -173,9 +174,12 @@ export function InterviewScheduling() {
     <div className="min-h-screen bg-white font-poppins">
       <main className="max-w-[1400px] mx-auto px-6 lg:px-10 py-10">
         <div className="flex flex-wrap items-center justify-between gap-4 mb-10">
-          <h1 className="text-4xl md:text-5xl font-bold text-slate-900">
-            Interview Scheduling
-          </h1>
+          <div className="flex items-center gap-4">
+            <BackButton />
+            <h1 className="text-4xl md:text-5xl font-bold text-slate-900">
+              Interview Scheduling
+            </h1>
+          </div>
         </div>
 
         {/* Success/Error Messages */}

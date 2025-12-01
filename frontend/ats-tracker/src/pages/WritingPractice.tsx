@@ -3,6 +3,8 @@ import { Icon } from "@iconify/react";
 import { api } from "../services/api";
 import { PracticeSessionModal } from "../components/writing-practice/PracticeSessionModal";
 import { SessionDetailModal } from "../components/writing-practice/SessionDetailModal";
+import { SessionComparisonModal } from "../components/writing-practice/SessionComparisonModal";
+import { ProgressChart } from "../components/writing-practice/ProgressChart";
 import { BreathingExercise } from "../components/writing-practice/exercises/BreathingExercise";
 import { VisualizationExercise } from "../components/writing-practice/exercises/VisualizationExercise";
 import { AffirmationExercise } from "../components/writing-practice/exercises/AffirmationExercise";
@@ -28,6 +30,7 @@ export function WritingPractice() {
   const [showSessionModal, setShowSessionModal] = useState(false);
   const [selectedPrompt, setSelectedPrompt] = useState<WritingPrompt | string | null>(null);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [comparisonSessionIds, setComparisonSessionIds] = useState<{ session1: string; session2: string } | null>(null);
   const [activeExercise, setActiveExercise] = useState<"breathing" | "visualization" | "affirmation" | null>(null);
 
   useEffect(() => {
@@ -433,12 +436,38 @@ export function WritingPractice() {
               </div>
             )}
 
-            <div className="bg-white rounded-xl p-6 border border-slate-200">
-              <h3 className="text-lg font-semibold text-slate-900 mb-4">Progress Charts</h3>
-              <p className="text-slate-600">
-                Charts and detailed progress tracking coming soon...
-              </p>
-            </div>
+            {progressInsights && (
+              <div className="bg-white rounded-xl p-6 border border-slate-200">
+                <h3 className="text-lg font-semibold text-slate-900 mb-4">Progress Trends</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <ProgressChart
+                    trends={progressInsights.trends.overall}
+                    title="Overall Score Trend"
+                    color="#3b82f6"
+                  />
+                  <ProgressChart
+                    trends={progressInsights.trends.clarity}
+                    title="Clarity Trend"
+                    color="#3b82f6"
+                  />
+                  <ProgressChart
+                    trends={progressInsights.trends.professionalism}
+                    title="Professionalism Trend"
+                    color="#10b981"
+                  />
+                  <ProgressChart
+                    trends={progressInsights.trends.structure}
+                    title="Structure Trend"
+                    color="#8b5cf6"
+                  />
+                  <ProgressChart
+                    trends={progressInsights.trends.storytelling}
+                    title="Storytelling Trend"
+                    color="#f97316"
+                  />
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -523,6 +552,17 @@ export function WritingPractice() {
             if (activeTab === "history") {
               fetchSessions();
             }
+          }}
+        />
+      )}
+
+      {/* Session Comparison Modal */}
+      {comparisonSessionIds && (
+        <SessionComparisonModal
+          sessionId1={comparisonSessionIds.session1}
+          sessionId2={comparisonSessionIds.session2}
+          onClose={() => {
+            setComparisonSessionIds(null);
           }}
         />
       )}

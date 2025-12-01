@@ -1196,6 +1196,211 @@ export function Interviews() {
                   <p className="text-slate-600">No completed interviews yet</p>
                 </div>
               )}
+
+              {/* Follow-up Communication Templates Section */}
+              <div className="mt-10">
+                <h3 className="text-xl font-semibold text-slate-900 mb-3">
+                  Follow-up Communication Templates
+                </h3>
+                <p className="text-slate-600 text-sm mb-4">
+                  Select a template to generate a personalized draft. All templates include conversation references and are tailored to your interview details. You can edit everything before sending.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {/* Thank-you Note Template */}
+                  <div 
+                    className="bg-white border border-slate-200 rounded-xl p-6 hover:shadow-lg transition-all cursor-pointer"
+                    onClick={() => {
+                      const completedInterview = interviews.find(i => i.status === "completed" || i.outcome);
+                      if (completedInterview) {
+                        openThankYouModal(completedInterview);
+                      } else {
+                        showMessage("Please complete an interview first to generate a thank-you note", "error");
+                      }
+                    }}
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <Icon icon="mingcute:mail-line" width={20} className="text-blue-500" />
+                        <div>
+                          <p className="text-xs font-semibold uppercase text-blue-600 tracking-wide">
+                            Thank-You Note
+                          </p>
+                          <p className="text-sm font-medium text-slate-900">
+                            Post-Interview Appreciation
+                          </p>
+                        </div>
+                      </div>
+                      <span className="px-2 py-1 rounded-full text-[11px] bg-blue-50 text-blue-700">
+                        Send within 24h
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 mb-3">
+                      Personalized thank-you email with specific conversation references and interviewer details. Includes timing suggestions.
+                    </p>
+                    <div className="text-xs font-mono bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2 text-slate-700">
+                      <div>
+                        <span className="font-semibold">Subject:</span>{" "}
+                        Thank You - [Role] at [Company]
+                      </div>
+                      <div className="whitespace-pre-wrap text-[10px]">
+                        Dear [Interviewer],{"\n\n"}
+                        Thank you for taking the time to speak with me about the [Role] position at [Company]. I appreciated our discussion about [specific topic from interview notes]...
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Status Inquiry Template */}
+                  <div 
+                    className="bg-white border border-slate-200 rounded-xl p-6 hover:shadow-lg transition-all cursor-pointer"
+                    onClick={() => {
+                      const completedInterview = interviews.find(i => i.status === "completed" || i.outcome);
+                      if (completedInterview) {
+                        // Find or create a status inquiry follow-up for this interview
+                        const statusFollowUp = pendingFollowUps.find(fu => 
+                          fu.interviewId === completedInterview.id && 
+                          (fu.actionType === "status_inquiry" || fu.action_type === "status_inquiry")
+                        );
+                        if (statusFollowUp) {
+                          // Generate draft for existing follow-up
+                          setDraftLoadingId(statusFollowUp.id);
+                          api.getFollowUpEmailDraft(completedInterview.id, statusFollowUp.id)
+                            .then(response => {
+                              if (response.ok && response.data?.draft) {
+                                const draft = response.data.draft;
+                                setStoredFollowUpDrafts(prev => {
+                                  const updated = new Map(prev);
+                                  const existing = updated.get(statusFollowUp.id) || [];
+                                  updated.set(statusFollowUp.id, [
+                                    { ...draft, createdAt: new Date().toISOString() },
+                                    ...existing,
+                                  ]);
+                                  return updated;
+                                });
+                                setActiveFollowUpDraft({
+                                  id: statusFollowUp.id,
+                                  interviewId: completedInterview.id,
+                                  subject: draft.subject,
+                                  body: draft.body,
+                                  generatedBy: draft.generatedBy,
+                                });
+                              }
+                            })
+                            .finally(() => setDraftLoadingId(null));
+                        } else {
+                          showMessage("Status inquiry follow-up will be created automatically after your interview. Check back later!", "info");
+                        }
+                      } else {
+                        showMessage("Please complete an interview first", "error");
+                      }
+                    }}
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <Icon icon="mingcute:question-line" width={20} className="text-orange-500" />
+                        <div>
+                          <p className="text-xs font-semibold uppercase text-orange-600 tracking-wide">
+                            Status Inquiry
+                          </p>
+                          <p className="text-sm font-medium text-slate-900">
+                            Follow-up on Delayed Response
+                          </p>
+                        </div>
+                      </div>
+                      <span className="px-2 py-1 rounded-full text-[11px] bg-orange-50 text-orange-700">
+                        Send after 1-2 weeks
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 mb-3">
+                      Professional inquiry template for when you haven't heard back. Maintains interest while checking on timeline.
+                    </p>
+                    <div className="text-xs font-mono bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2 text-slate-700">
+                      <div>
+                        <span className="font-semibold">Subject:</span>{" "}
+                        Follow-up: [Role] Application Status
+                      </div>
+                      <div className="whitespace-pre-wrap text-[10px]">
+                        Dear [Interviewer],{"\n\n"}
+                        I hope this email finds you well. I wanted to follow up regarding the [Role] position at [Company] for which we spoke on [date]...
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Feedback Request Template */}
+                  <div 
+                    className="bg-white border border-slate-200 rounded-xl p-6 hover:shadow-lg transition-all cursor-pointer"
+                    onClick={() => {
+                      const rejectedInterview = interviews.find(i => i.outcome === "rejected");
+                      if (rejectedInterview) {
+                        // Find or create a feedback request follow-up
+                        const feedbackFollowUp = pendingFollowUps.find(fu => 
+                          fu.interviewId === rejectedInterview.id && 
+                          (fu.actionType === "feedback_request" || fu.action_type === "feedback_request")
+                        );
+                        if (feedbackFollowUp) {
+                          setDraftLoadingId(feedbackFollowUp.id);
+                          api.getFollowUpEmailDraft(rejectedInterview.id, feedbackFollowUp.id)
+                            .then(response => {
+                              if (response.ok && response.data?.draft) {
+                                const draft = response.data.draft;
+                                setStoredFollowUpDrafts(prev => {
+                                  const updated = new Map(prev);
+                                  const existing = updated.get(feedbackFollowUp.id) || [];
+                                  updated.set(feedbackFollowUp.id, [
+                                    { ...draft, createdAt: new Date().toISOString() },
+                                    ...existing,
+                                  ]);
+                                  return updated;
+                                });
+                                setActiveFollowUpDraft({
+                                  id: feedbackFollowUp.id,
+                                  interviewId: rejectedInterview.id,
+                                  subject: draft.subject,
+                                  body: draft.body,
+                                  generatedBy: draft.generatedBy,
+                                });
+                              }
+                            })
+                            .finally(() => setDraftLoadingId(null));
+                        } else {
+                          showMessage("Feedback request follow-up will be created automatically for rejected interviews. Check back later!", "info");
+                        }
+                      } else {
+                        showMessage("This template is available for interviews with rejected outcomes", "info");
+                      }
+                    }}
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <Icon icon="mingcute:feedback-line" width={20} className="text-purple-500" />
+                        <div>
+                          <p className="text-xs font-semibold uppercase text-purple-600 tracking-wide">
+                            Feedback Request
+                          </p>
+                          <p className="text-sm font-medium text-slate-900">
+                            Professional Growth Inquiry
+                          </p>
+                        </div>
+                      </div>
+                      <span className="px-2 py-1 rounded-full text-[11px] bg-purple-50 text-purple-700">
+                        After rejection
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 mb-3">
+                      Polite request for interview feedback to improve future performance. Shows professionalism and growth mindset.
+                    </p>
+                    <div className="text-xs font-mono bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2 text-slate-700">
+                      <div>
+                        <span className="font-semibold">Subject:</span>{" "}
+                        Request for Interview Feedback
+                      </div>
+                      <div className="whitespace-pre-wrap text-[10px]">
+                        Dear [Interviewer],{"\n\n"}
+                        Thank you again for the opportunity to interview for the [Role] position at [Company]. While I understand the outcome was not favorable, I am committed to continuous improvement...
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 

@@ -10,6 +10,7 @@ import { TeamPerformance } from "../components/team/TeamPerformance";
 import { MilestoneCelebration } from "../components/team/MilestoneCelebration";
 import { JobCollaboration } from "../components/team/JobCollaboration";
 import { DocumentViewer } from "../components/team/DocumentViewer";
+import { JobOpportunityDetailModal } from "../components/JobOpportunityDetailModal";
 
 export function Teams() {
   const navigate = useNavigate();
@@ -31,10 +32,16 @@ export function Teams() {
   const [activeTab, setActiveTab] = useState<"dashboard" | "performance" | "members" | "conversations" | "shared-jobs" | "documents">("dashboard");
   const [sharedJobs, setSharedJobs] = useState<any[]>([]);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [viewingJobDetail, setViewingJobDetail] = useState<any | null>(null);
+  const [dashboardRefreshKey, setDashboardRefreshKey] = useState(0);
   const [sharedDocuments, setSharedDocuments] = useState<any[]>([]);
   const [isLoadingDocuments, setIsLoadingDocuments] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<any>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [isInviting, setIsInviting] = useState(false);
+  const [memberToRemove, setMemberToRemove] = useState<{ userId: string; email: string } | null>(null);
+  const [isRemoving, setIsRemoving] = useState(false);
 
   useEffect(() => {
     fetchTeams();
@@ -82,6 +89,23 @@ export function Teams() {
     }
   }, [activeTab, selectedTeam]);
 
+  // Refresh invitations when switching to members tab
+  useEffect(() => {
+    if (activeTab === "members" && selectedTeam) {
+      const refreshInvitations = async () => {
+        try {
+          const invitationsResponse = await api.getTeamInvitations(selectedTeam.id);
+          if (invitationsResponse.ok && invitationsResponse.data) {
+            setInvitations(invitationsResponse.data.invitations || []);
+          }
+        } catch (error) {
+          console.error("Failed to refresh invitations:", error);
+        }
+      };
+      refreshInvitations();
+    }
+  }, [activeTab, selectedTeam]);
+
   const fetchSharedJobs = async (teamId: string) => {
     try {
       const response = await api.getSharedJobs(teamId);
@@ -90,6 +114,59 @@ export function Teams() {
       }
     } catch (error) {
       console.error("Failed to fetch shared jobs:", error);
+    }
+  };
+
+  const handleViewJobDetail = async (jobId: string) => {
+    try {
+      // First try to get from shared jobs (already loaded)
+      const sharedJob = sharedJobs.find(job => job.id === jobId);
+      if (sharedJob) {
+        // Transform shared job data to match JobOpportunityData format
+        const jobData = {
+          id: sharedJob.id,
+          title: sharedJob.title,
+          company: sharedJob.company,
+          location: sharedJob.location,
+          salaryMin: sharedJob.salaryMin,
+          salaryMax: sharedJob.salaryMax,
+          jobPostingUrl: sharedJob.jobPostingUrl,
+          applicationDeadline: sharedJob.applicationDeadline,
+          description: sharedJob.description,
+          industry: sharedJob.industry,
+          jobType: sharedJob.jobType,
+          status: sharedJob.status,
+          notes: sharedJob.notes,
+          recruiterName: sharedJob.recruiterName,
+          recruiterEmail: sharedJob.recruiterEmail,
+          recruiterPhone: sharedJob.recruiterPhone,
+          hiringManagerName: sharedJob.hiringManagerName,
+          hiringManagerEmail: sharedJob.hiringManagerEmail,
+          hiringManagerPhone: sharedJob.hiringManagerPhone,
+          salaryNegotiationNotes: sharedJob.salaryNegotiationNotes,
+          interviewNotes: sharedJob.interviewNotes,
+          applicationHistory: sharedJob.applicationHistory || [],
+          statusUpdatedAt: sharedJob.statusUpdatedAt,
+          archived: sharedJob.archived,
+          archivedAt: sharedJob.archivedAt,
+          archiveReason: sharedJob.archiveReason,
+          createdAt: sharedJob.createdAt,
+          updatedAt: sharedJob.updatedAt,
+        };
+        setViewingJobDetail(jobData);
+      } else {
+        // Fallback to API call if not found in shared jobs
+        const response = await api.getJobOpportunity(jobId);
+        if (response.ok && response.data?.jobOpportunity) {
+          setViewingJobDetail(response.data.jobOpportunity);
+        } else {
+          console.error("Failed to fetch job details:", response);
+          alert("Failed to load job details. Please try again.");
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching job details:", error);
+      alert("Failed to load job details. Please try again.");
     }
   };
 
@@ -140,20 +217,23 @@ export function Teams() {
 
       if (teamResponse.ok && teamResponse.data) {
         setSelectedTeam(teamResponse.data.team);
-        // Show chat by default when team is selected
-        setShowChat(true);
-        // Also use invitations from team response if available
-        if (teamResponse.data.team.invitations) {
-          setInvitations(teamResponse.data.team.invitations);
-        }
       }
 
       if (dashboardResponse.ok && dashboardResponse.data) {
         setDashboard(dashboardResponse.data.dashboard);
       }
 
+      // Always use invitations from the dedicated invitations endpoint
+      // This ensures we get all invitations including pending ones
       if (invitationsResponse.ok && invitationsResponse.data) {
-        setInvitations(invitationsResponse.data.invitations || []);
+        const allInvitations = invitationsResponse.data.invitations || [];
+        setInvitations(allInvitations);
+      } else if (teamResponse.ok && teamResponse.data?.team?.invitations) {
+        // Fallback to team response invitations if dedicated endpoint fails
+        setInvitations(teamResponse.data.team.invitations);
+      } else {
+        // If no invitations found, set empty array
+        setInvitations([]);
       }
 
       // Fetch all team conversations
@@ -195,23 +275,87 @@ export function Teams() {
     }
   };
 
-  const handleInviteMember = async () => {
-    if (!selectedTeam || !inviteEmail) return;
+  const handleRemoveMember = async () => {
+    if (!selectedTeam || !memberToRemove) return;
 
     try {
+      setIsRemoving(true);
+      console.log(`[Teams] Removing member: userId=${memberToRemove.userId}, teamId=${selectedTeam.id}`);
+      
+      const response = await api.removeTeamMember(selectedTeam.id, memberToRemove.userId);
+      
+      console.log(`[Teams] Remove member response:`, response);
+
+      if (response.ok) {
+        setMemberToRemove(null);
+        // Refresh team details
+        await fetchTeamDetails(selectedTeam.id);
+      } else {
+        alert(response.error?.message || "Failed to remove member. Please try again.");
+      }
+    } catch (error: any) {
+      console.error("Failed to remove member:", error);
+      alert(error.message || "Failed to remove member. Please try again.");
+    } finally {
+      setIsRemoving(false);
+    }
+  };
+
+  const handleInviteMember = async () => {
+    if (!selectedTeam || !inviteEmail) {
+      setInviteError("Please enter an email address");
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(inviteEmail)) {
+      setInviteError("Please enter a valid email address");
+      return;
+    }
+
+    try {
+      setIsInviting(true);
+      setInviteError(null);
+      
+      console.log(`[Teams] Inviting member: email=${inviteEmail}, role=${inviteRole}, teamId=${selectedTeam.id}`);
+      
       const response = await api.inviteTeamMember(selectedTeam.id, {
         email: inviteEmail,
         role: inviteRole,
       });
 
+      console.log(`[Teams] Invite response:`, response);
+
       if (response.ok) {
         setShowInviteModal(false);
         setInviteEmail("");
         setInviteRole("candidate");
+        setInviteError(null);
+        
+        // Wait a moment for the database to commit
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Refresh team details which will fetch invitations
         await fetchTeamDetails(selectedTeam.id);
+        
+        // Also explicitly fetch invitations
+        try {
+          const invitationsResponse = await api.getTeamInvitations(selectedTeam.id);
+          if (invitationsResponse.ok && invitationsResponse.data) {
+            setInvitations(invitationsResponse.data.invitations || []);
+          }
+        } catch (err) {
+          console.error("Failed to refresh invitations:", err);
+        }
+      } else {
+        setInviteError(response.error?.message || "Failed to invite member. Please try again.");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to invite member:", error);
+      setInviteError(error.message || "Failed to invite member. Please try again.");
+    } finally {
+      setIsInviting(false);
     }
   };
 
@@ -278,10 +422,7 @@ export function Teams() {
         setTeamConversations(conversations);
         
         // Auto-select first conversation if none selected
-        if (!selectedConversationId && conversations.length > 0) {
-          console.log(`[Teams] Auto-selecting first conversation: ${conversations[0].id}`);
-          setSelectedConversationId(conversations[0].id);
-        }
+        // Removed auto-selection of first conversation to prevent chat modal from auto-opening
       } else {
         console.error("[Teams] Failed to fetch conversations:", conversationsResponse);
       }
@@ -503,11 +644,14 @@ export function Teams() {
                       </div>
                       <MilestoneCelebration
                         teamId={selectedTeam.id}
-                        onMilestoneCreated={fetchTeamDetails}
+                        onMilestoneCreated={() => {
+                          fetchTeamDetails(selectedTeam.id);
+                          setDashboardRefreshKey(prev => prev + 1); // Force dashboard refresh
+                        }}
                       />
                     </div>
                     <div className="min-w-0">
-                      <TeamDashboard teamId={selectedTeam.id} />
+                      <TeamDashboard teamId={selectedTeam.id} refreshKey={dashboardRefreshKey} />
                     </div>
                   </div>
                 )}
@@ -520,24 +664,49 @@ export function Teams() {
 
                 {activeTab === "members" && (
                   <div className="space-y-4">
-                    {/* Pending Invitations */}
-                    {invitations.filter((inv: any) => inv.status === "pending").length > 0 && (
+                    {/* All Invitations - Show all statuses including past ones */}
+                    {invitations && invitations.length > 0 && (
                       <div>
-                        <h3 className="text-lg font-bold text-slate-900 mb-4">Pending Invitations</h3>
+                        <h3 className="text-lg font-bold text-slate-900 mb-4">
+                          Invitations 
+                          <span className="text-sm font-normal text-slate-600 ml-2">
+                            ({invitations.filter((inv: any) => inv.status === "pending").length} pending, {invitations.length} total)
+                          </span>
+                        </h3>
                         <div className="space-y-3">
                           {invitations
-                            .filter((inv: any) => inv.status === "pending")
+                            .sort((a: any, b: any) => {
+                              // Sort pending first, then by date (newest first)
+                              if (a.status === "pending" && b.status !== "pending") return -1;
+                              if (a.status !== "pending" && b.status === "pending") return 1;
+                              return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+                            })
                             .map((invitation: any) => {
                               const isExpired = new Date(invitation.expiresAt) < new Date();
+                              const isPending = invitation.status === "pending";
                               return (
                                 <div
                                   key={invitation.id}
-                                  className="flex items-center justify-between p-3 bg-amber-50 border border-amber-200 rounded-lg"
+                                  className={`flex items-center justify-between p-3 rounded-lg border ${
+                                    isPending && !isExpired
+                                      ? "bg-amber-50 border-amber-200"
+                                      : isExpired
+                                      ? "bg-slate-50 border-slate-200 opacity-75"
+                                      : "bg-slate-50 border-slate-200"
+                                  }`}
                                 >
                                   <div className="flex-1">
                                     <div className="flex items-center gap-2">
                                       <div className="font-medium text-slate-900">{invitation.email}</div>
-                                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-amber-100 text-amber-800 capitalize">
+                                      <span className={`px-2 py-1 text-xs font-medium rounded-full capitalize ${
+                                        isExpired
+                                          ? "bg-red-100 text-red-800"
+                                          : isPending
+                                          ? "bg-amber-100 text-amber-800"
+                                          : invitation.status === "accepted"
+                                          ? "bg-green-100 text-green-800"
+                                          : "bg-slate-100 text-slate-800"
+                                      }`}>
                                         {isExpired ? "Expired" : invitation.status}
                                       </span>
                                       <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 capitalize">
@@ -547,12 +716,15 @@ export function Teams() {
                                     <div className="text-sm text-slate-600 mt-1">
                                       Invited {new Date(invitation.createdAt).toLocaleDateString()}
                                       {invitation.inviterName && ` by ${invitation.inviterName}`}
-                                      {!isExpired && (
+                                      {!isExpired && isPending && (
                                         <> • Expires {new Date(invitation.expiresAt).toLocaleDateString()}</>
+                                      )}
+                                      {invitation.acceptedAt && (
+                                        <> • Accepted {new Date(invitation.acceptedAt).toLocaleDateString()}</>
                                       )}
                                     </div>
                                   </div>
-                                  {selectedTeam.userRole === "admin" && !isExpired && (
+                                  {selectedTeam.userRole === "admin" && isPending && !isExpired && (
                                     <button
                                       onClick={async () => {
                                         try {
@@ -579,6 +751,13 @@ export function Teams() {
                         </div>
                       </div>
                     )}
+                    
+                    {(!invitations || invitations.length === 0) && (
+                      <div className="text-center py-8 text-slate-500">
+                        <Icon icon="mingcute:mail-line" width={48} className="mx-auto mb-2 text-slate-300" />
+                        <p>No invitations sent yet</p>
+                      </div>
+                    )}
 
                     {/* Team Members */}
                     <div>
@@ -598,8 +777,12 @@ export function Teams() {
                                 Active
                               </span>
                             </div>
-                            {selectedTeam.userRole === "admin" && (
-                              <button className="text-red-600 hover:text-red-700">
+                            {selectedTeam.userRole === "admin" && member.userId !== currentUserId && (
+                              <button 
+                                onClick={() => setMemberToRemove({ userId: member.userId, email: member.email })}
+                                className="text-red-600 hover:text-red-700 p-1 rounded hover:bg-red-50 transition-colors"
+                                title="Remove member"
+                              >
                                 <Icon icon="mingcute:delete-line" width={20} />
                               </button>
                             )}
@@ -793,6 +976,17 @@ export function Teams() {
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleViewJobDetail(job.id);
+                                    }}
+                                    className="px-3 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition flex items-center gap-1"
+                                    title="View full details"
+                                  >
+                                    <Icon icon="mingcute:eye-line" width={16} />
+                                    View Details
+                                  </button>
                                   {job.jobPostingUrl && (
                                     <a
                                       href={job.jobPostingUrl}
@@ -968,6 +1162,20 @@ export function Teams() {
                 title={teamConversations.find(c => c.id === selectedConversationId)?.title || "Team Chat"}
                 onClose={() => setSelectedConversationId(null)}
                 className="flex-1 min-h-0"
+                onConversationUpdate={(updatedConv) => {
+                  // Update the conversation in the list
+                  setTeamConversations(prev => 
+                    prev.map(conv => 
+                      conv.id === updatedConv.id 
+                        ? { ...conv, title: updatedConv.title }
+                        : conv
+                    )
+                  );
+                  // Refresh the conversations list to ensure consistency
+                  if (selectedTeam) {
+                    fetchTeamConversations(selectedTeam.id);
+                  }
+                }}
               />
             </div>
           </div>
@@ -980,14 +1188,23 @@ export function Teams() {
           <div className="bg-white rounded-lg p-6 max-w-md w-full">
             <h3 className="text-xl font-bold text-slate-900 mb-4">Invite Team Member</h3>
             <div className="space-y-4">
+              {inviteError && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <p className="text-sm text-red-800">{inviteError}</p>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Email</label>
                 <input
                   type="email"
                   value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg"
+                  onChange={(e) => {
+                    setInviteEmail(e.target.value);
+                    setInviteError(null); // Clear error when user types
+                  }}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="user@example.com"
+                  disabled={isInviting}
                 />
               </div>
               <div>
@@ -995,7 +1212,8 @@ export function Teams() {
                 <select
                   value={inviteRole}
                   onChange={(e) => setInviteRole(e.target.value)}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg"
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={isInviting}
                 >
                   <option value="candidate">Candidate</option>
                   <option value="mentor">Mentor</option>
@@ -1007,17 +1225,67 @@ export function Teams() {
               <div className="flex gap-3">
                 <button
                   onClick={handleInviteMember}
-                  className="flex-1 bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600"
+                  disabled={isInviting || !inviteEmail}
+                  className="flex-1 bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  Send Invitation
+                  {isInviting ? (
+                    <>
+                      <Icon icon="mingcute:loading-line" width={20} className="animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    "Send Invitation"
+                  )}
                 </button>
                 <button
-                  onClick={() => setShowInviteModal(false)}
-                  className="flex-1 bg-slate-200 text-slate-700 py-2 px-4 rounded-lg hover:bg-slate-300"
+                  onClick={() => {
+                    setShowInviteModal(false);
+                    setInviteError(null);
+                    setInviteEmail("");
+                    setInviteRole("candidate");
+                  }}
+                  disabled={isInviting}
+                  className="flex-1 bg-slate-200 text-slate-700 py-2 px-4 rounded-lg hover:bg-slate-300 disabled:opacity-50"
                 >
                   Cancel
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Remove Member Confirmation Modal */}
+      {memberToRemove && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-xl font-bold text-slate-900 mb-4">Remove Team Member</h3>
+            <p className="text-slate-700 mb-6">
+              Are you sure you want to remove <strong>{memberToRemove.email}</strong> from this team? 
+              This action cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={handleRemoveMember}
+                disabled={isRemoving}
+                className="flex-1 bg-red-500 text-white py-2 px-4 rounded-lg hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isRemoving ? (
+                  <>
+                    <Icon icon="mingcute:loading-line" width={20} className="animate-spin" />
+                    Removing...
+                  </>
+                ) : (
+                  "Remove Member"
+                )}
+              </button>
+              <button
+                onClick={() => setMemberToRemove(null)}
+                disabled={isRemoving}
+                className="flex-1 bg-slate-200 text-slate-700 py-2 px-4 rounded-lg hover:bg-slate-300 disabled:opacity-50"
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>
@@ -1147,6 +1415,23 @@ export function Teams() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Shared Job Detail Modal */}
+      {viewingJobDetail && (
+        <JobOpportunityDetailModal
+          opportunity={viewingJobDetail}
+          onClose={() => setViewingJobDetail(null)}
+          onSave={async () => {
+            // Read-only mode - no save functionality for shared jobs
+            alert("You cannot edit shared jobs. Please contact the job owner to make changes.");
+          }}
+          onDelete={() => {
+            // Read-only mode - no delete functionality for shared jobs
+            alert("You cannot delete shared jobs. Please contact the job owner.");
+          }}
+          readOnly={true}
+        />
       )}
     </div>
   );

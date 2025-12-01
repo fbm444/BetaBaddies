@@ -20,7 +20,7 @@ SET row_security = off;
 -- Name: addupdatetime(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.addupdatetime() RETURNS trigger
+CREATE OR REPLACE FUNCTION public.addupdatetime() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
@@ -34,7 +34,7 @@ $$;
 -- Name: auto_archive_jobs(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.auto_archive_jobs() RETURNS trigger
+CREATE OR REPLACE FUNCTION public.auto_archive_jobs() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
@@ -62,10 +62,62 @@ $$;
 
 
 --
+-- Name: cleanup_expired_market_cache(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION public.cleanup_expired_market_cache() RETURNS integer
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+    deleted_count INTEGER;
+BEGIN
+    DELETE FROM public.market_intelligence_cache
+    WHERE expires_at < NOW();
+    
+    GET DIAGNOSTICS deleted_count = ROW_COUNT;
+    RETURN deleted_count;
+END;
+$$;
+
+
+--
+-- Name: FUNCTION cleanup_expired_market_cache(); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.cleanup_expired_market_cache() IS 'Removes expired cache entries from market_intelligence_cache';
+
+
+--
+-- Name: cleanup_expired_market_insights(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION public.cleanup_expired_market_insights() RETURNS integer
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+    deleted_count INTEGER;
+BEGIN
+    DELETE FROM public.market_insights
+    WHERE expires_at IS NOT NULL AND expires_at < NOW();
+    
+    GET DIAGNOSTICS deleted_count = ROW_COUNT;
+    RETURN deleted_count;
+END;
+$$;
+
+
+--
+-- Name: FUNCTION cleanup_expired_market_insights(); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.cleanup_expired_market_insights() IS 'Removes expired insights from market_insights table';
+
+
+--
 -- Name: log_material_history(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.log_material_history() RETURNS trigger
+CREATE OR REPLACE FUNCTION public.log_material_history() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
@@ -98,7 +150,7 @@ $$;
 -- Name: lower_email(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.lower_email() RETURNS trigger
+CREATE OR REPLACE FUNCTION public.lower_email() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
@@ -112,7 +164,35 @@ $$;
 -- Name: update_coverletter_timestamp(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.update_coverletter_timestamp() RETURNS trigger
+CREATE OR REPLACE FUNCTION public.update_coverletter_timestamp() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    NEW.updated_at := CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: update_follow_ups_updated_at(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION public.update_follow_ups_updated_at() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    NEW.updated_at := CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: update_interview_feedback_updated_at(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION public.update_interview_feedback_updated_at() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
@@ -126,7 +206,7 @@ $$;
 -- Name: update_interviews_updated_at(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.update_interviews_updated_at() RETURNS trigger
+CREATE OR REPLACE FUNCTION public.update_interviews_updated_at() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
@@ -137,10 +217,52 @@ $$;
 
 
 --
+-- Name: update_market_intelligence_timestamp(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION public.update_market_intelligence_timestamp() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: update_pre_assessment_updated_at(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION public.update_pre_assessment_updated_at() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    NEW.updated_at := CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: update_reminders_updated_at(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION public.update_reminders_updated_at() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    NEW.updated_at := CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: update_resume_timestamp(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.update_resume_timestamp() RETURNS trigger
+CREATE OR REPLACE FUNCTION public.update_resume_timestamp() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
@@ -154,13 +276,27 @@ $$;
 -- Name: update_status_change_time(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.update_status_change_time() RETURNS trigger
+CREATE OR REPLACE FUNCTION public.update_status_change_time() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
     IF NEW.stage IS DISTINCT FROM OLD.stage THEN
         NEW.status_change_time := CURRENT_TIMESTAMP;
     END IF;
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: update_thank_you_notes_updated_at(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION public.update_thank_you_notes_updated_at() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    NEW.updated_at := CURRENT_TIMESTAMP;
     RETURN NEW;
 END;
 $$;
@@ -174,6 +310,7 @@ SET default_table_access_method = heap;
 -- Name: accountability_relationships; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.accountability_relationships CASCADE;
 CREATE TABLE public.accountability_relationships (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -189,6 +326,7 @@ CREATE TABLE public.accountability_relationships (
 -- Name: activity_logs; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.activity_logs CASCADE;
 CREATE TABLE public.activity_logs (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     team_id uuid,
@@ -211,6 +349,7 @@ COMMENT ON TABLE public.activity_logs IS 'Tracks all team activities for activit
 -- Name: advisor_performance_evaluation; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.advisor_performance_evaluation CASCADE;
 CREATE TABLE public.advisor_performance_evaluation (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     advisor_id uuid NOT NULL,
@@ -227,6 +366,7 @@ CREATE TABLE public.advisor_performance_evaluation (
 -- Name: advisor_recommendations; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.advisor_recommendations CASCADE;
 CREATE TABLE public.advisor_recommendations (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     advisor_id uuid NOT NULL,
@@ -243,6 +383,7 @@ CREATE TABLE public.advisor_recommendations (
 -- Name: advisor_sessions; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.advisor_sessions CASCADE;
 CREATE TABLE public.advisor_sessions (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     advisor_id uuid NOT NULL,
@@ -259,6 +400,7 @@ CREATE TABLE public.advisor_sessions (
 -- Name: advisor_shared_data; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.advisor_shared_data CASCADE;
 CREATE TABLE public.advisor_shared_data (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     advisor_id uuid NOT NULL,
@@ -272,6 +414,7 @@ CREATE TABLE public.advisor_shared_data (
 -- Name: application_success_analysis; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.application_success_analysis CASCADE;
 CREATE TABLE public.application_success_analysis (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -295,6 +438,7 @@ CREATE TABLE public.application_success_analysis (
 -- Name: archived_prospectivejobs; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.archived_prospectivejobs CASCADE;
 CREATE TABLE public.archived_prospectivejobs (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -323,6 +467,7 @@ CREATE TABLE public.archived_prospectivejobs (
 -- Name: calendar_sync_settings; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.calendar_sync_settings CASCADE;
 CREATE TABLE public.calendar_sync_settings (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -339,6 +484,7 @@ CREATE TABLE public.calendar_sync_settings (
 -- Name: campaign_ab_testing; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.campaign_ab_testing CASCADE;
 CREATE TABLE public.campaign_ab_testing (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     campaign_id uuid NOT NULL,
@@ -356,6 +502,7 @@ CREATE TABLE public.campaign_ab_testing (
 -- Name: campaign_outreach; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.campaign_outreach CASCADE;
 CREATE TABLE public.campaign_outreach (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     campaign_id uuid NOT NULL,
@@ -374,6 +521,7 @@ CREATE TABLE public.campaign_outreach (
 -- Name: career_goals; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.career_goals CASCADE;
 CREATE TABLE public.career_goals (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -398,6 +546,7 @@ CREATE TABLE public.career_goals (
 -- Name: certifications; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.certifications CASCADE;
 CREATE TABLE public.certifications (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -413,6 +562,7 @@ CREATE TABLE public.certifications (
 -- Name: chat_conversations; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.chat_conversations CASCADE;
 CREATE TABLE public.chat_conversations (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     conversation_type character varying(50) NOT NULL,
@@ -438,6 +588,7 @@ COMMENT ON TABLE public.chat_conversations IS 'Chat conversations for team colla
 -- Name: chat_messages; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.chat_messages CASCADE;
 CREATE TABLE public.chat_messages (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     conversation_id uuid NOT NULL,
@@ -466,6 +617,7 @@ COMMENT ON TABLE public.chat_messages IS 'Individual messages in chat conversati
 -- Name: chat_notifications; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.chat_notifications CASCADE;
 CREATE TABLE public.chat_notifications (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -488,6 +640,7 @@ COMMENT ON TABLE public.chat_notifications IS 'Notifications for unread messages
 -- Name: chat_participants; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.chat_participants CASCADE;
 CREATE TABLE public.chat_participants (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     conversation_id uuid NOT NULL,
@@ -510,6 +663,7 @@ COMMENT ON TABLE public.chat_participants IS 'Users participating in chat conver
 -- Name: coaching_sessions; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.coaching_sessions CASCADE;
 CREATE TABLE public.coaching_sessions (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     mentor_id uuid NOT NULL,
@@ -526,6 +680,7 @@ CREATE TABLE public.coaching_sessions (
 -- Name: cohort_memberships; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.cohort_memberships CASCADE;
 CREATE TABLE public.cohort_memberships (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     cohort_id uuid NOT NULL,
@@ -538,6 +693,7 @@ CREATE TABLE public.cohort_memberships (
 -- Name: company_info; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.company_info CASCADE;
 CREATE TABLE public.company_info (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     job_id uuid NOT NULL,
@@ -566,6 +722,7 @@ CREATE TABLE public.company_info (
 -- Name: company_interview_insights; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.company_interview_insights CASCADE;
 CREATE TABLE public.company_interview_insights (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     company_name text NOT NULL,
@@ -587,6 +744,7 @@ CREATE TABLE public.company_interview_insights (
 -- Name: company_media; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.company_media CASCADE;
 CREATE TABLE public.company_media (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     company_id uuid NOT NULL,
@@ -599,6 +757,7 @@ CREATE TABLE public.company_media (
 -- Name: company_news; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.company_news CASCADE;
 CREATE TABLE public.company_news (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     company_id uuid NOT NULL,
@@ -614,6 +773,7 @@ CREATE TABLE public.company_news (
 -- Name: competitive_benchmarks; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.competitive_benchmarks CASCADE;
 CREATE TABLE public.competitive_benchmarks (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -631,6 +791,7 @@ CREATE TABLE public.competitive_benchmarks (
 -- Name: contact_categories; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.contact_categories CASCADE;
 CREATE TABLE public.contact_categories (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     contact_id uuid NOT NULL,
@@ -644,6 +805,7 @@ CREATE TABLE public.contact_categories (
 -- Name: contact_interactions; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.contact_interactions CASCADE;
 CREATE TABLE public.contact_interactions (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     contact_id uuid NOT NULL,
@@ -659,6 +821,7 @@ CREATE TABLE public.contact_interactions (
 -- Name: contact_job_links; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.contact_job_links CASCADE;
 CREATE TABLE public.contact_job_links (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     contact_id uuid NOT NULL,
@@ -672,6 +835,7 @@ CREATE TABLE public.contact_job_links (
 -- Name: cover_letter_performance; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.cover_letter_performance CASCADE;
 CREATE TABLE public.cover_letter_performance (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     coverletter_id uuid NOT NULL,
@@ -688,6 +852,7 @@ CREATE TABLE public.cover_letter_performance (
 -- Name: cover_letter_template_usage; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.cover_letter_template_usage CASCADE;
 CREATE TABLE public.cover_letter_template_usage (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     template_id uuid NOT NULL,
@@ -702,6 +867,7 @@ CREATE TABLE public.cover_letter_template_usage (
 -- Name: coverletter; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.coverletter CASCADE;
 CREATE TABLE public.coverletter (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -728,6 +894,7 @@ CREATE TABLE public.coverletter (
 -- Name: coverletter_template; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.coverletter_template CASCADE;
 CREATE TABLE public.coverletter_template (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     template_name character varying(255),
@@ -747,6 +914,7 @@ CREATE TABLE public.coverletter_template (
 -- Name: custom_reports; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.custom_reports CASCADE;
 CREATE TABLE public.custom_reports (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -772,6 +940,7 @@ CREATE TABLE public.custom_reports (
 -- Name: discovered_contacts; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.discovered_contacts CASCADE;
 CREATE TABLE public.discovered_contacts (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -793,6 +962,7 @@ CREATE TABLE public.discovered_contacts (
 -- Name: document_approvals; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.document_approvals CASCADE;
 CREATE TABLE public.document_approvals (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     review_request_id uuid,
@@ -811,6 +981,7 @@ CREATE TABLE public.document_approvals (
 -- Name: document_review_requests; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.document_review_requests CASCADE;
 CREATE TABLE public.document_review_requests (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     document_type character varying(50) NOT NULL,
@@ -830,6 +1001,7 @@ CREATE TABLE public.document_review_requests (
 -- Name: document_versions; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.document_versions CASCADE;
 CREATE TABLE public.document_versions (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     document_type character varying(50) NOT NULL,
@@ -854,6 +1026,7 @@ COMMENT ON TABLE public.document_versions IS 'Version history for resumes and co
 -- Name: educations; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.educations CASCADE;
 CREATE TABLE public.educations (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -872,6 +1045,7 @@ CREATE TABLE public.educations (
 -- Name: enterprise_accounts; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.enterprise_accounts CASCADE;
 CREATE TABLE public.enterprise_accounts (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     organization_name character varying(255) NOT NULL,
@@ -890,6 +1064,7 @@ CREATE TABLE public.enterprise_accounts (
 -- Name: event_connections; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.event_connections CASCADE;
 CREATE TABLE public.event_connections (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     event_id uuid NOT NULL,
@@ -903,9 +1078,25 @@ CREATE TABLE public.event_connections (
 
 
 --
+-- Name: event_registrations; Type: TABLE; Schema: public; Owner: -
+--
+
+DROP TABLE IF EXISTS public.event_registrations CASCADE;
+CREATE TABLE public.event_registrations (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    event_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    registered_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    status character varying(50) DEFAULT 'registered'::character varying,
+    notes text
+);
+
+
+--
 -- Name: external_advisors; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.external_advisors CASCADE;
 CREATE TABLE public.external_advisors (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -924,6 +1115,7 @@ CREATE TABLE public.external_advisors (
 -- Name: family_progress_summaries; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.family_progress_summaries CASCADE;
 CREATE TABLE public.family_progress_summaries (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -940,6 +1132,7 @@ CREATE TABLE public.family_progress_summaries (
 -- Name: family_support_access; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.family_support_access CASCADE;
 CREATE TABLE public.family_support_access (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -954,9 +1147,25 @@ CREATE TABLE public.family_support_access (
 
 
 --
+-- Name: feedback_themes; Type: TABLE; Schema: public; Owner: -
+--
+
+DROP TABLE IF EXISTS public.feedback_themes CASCADE;
+CREATE TABLE public.feedback_themes (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    theme_name character varying(50) NOT NULL,
+    description text,
+    category character varying(50),
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT feedback_themes_category_check CHECK (((category)::text = ANY ((ARRAY['strength'::character varying, 'weakness'::character varying, 'neutral'::character varying])::text[])))
+);
+
+
+--
 -- Name: files; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.files CASCADE;
 CREATE TABLE public.files (
     file_id uuid DEFAULT gen_random_uuid() NOT NULL,
     file_data character varying(255),
@@ -968,6 +1177,7 @@ CREATE TABLE public.files (
 -- Name: followup_templates; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.followup_templates CASCADE;
 CREATE TABLE public.followup_templates (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     template_type character varying(50),
@@ -983,6 +1193,7 @@ CREATE TABLE public.followup_templates (
 -- Name: goal_milestones; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.goal_milestones CASCADE;
 CREATE TABLE public.goal_milestones (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     goal_id uuid NOT NULL,
@@ -998,6 +1209,7 @@ CREATE TABLE public.goal_milestones (
 -- Name: group_challenges; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.group_challenges CASCADE;
 CREATE TABLE public.group_challenges (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     group_id uuid NOT NULL,
@@ -1014,6 +1226,7 @@ CREATE TABLE public.group_challenges (
 -- Name: group_discussions; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.group_discussions CASCADE;
 CREATE TABLE public.group_discussions (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     group_id uuid NOT NULL,
@@ -1029,6 +1242,7 @@ CREATE TABLE public.group_discussions (
 -- Name: group_memberships; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.group_memberships CASCADE;
 CREATE TABLE public.group_memberships (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     group_id uuid NOT NULL,
@@ -1043,6 +1257,7 @@ CREATE TABLE public.group_memberships (
 -- Name: industry_trends; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.industry_trends CASCADE;
 CREATE TABLE public.industry_trends (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     industry character varying(255),
@@ -1059,6 +1274,7 @@ CREATE TABLE public.industry_trends (
 -- Name: informational_interview_templates; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.informational_interview_templates CASCADE;
 CREATE TABLE public.informational_interview_templates (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     template_name character varying(255),
@@ -1072,6 +1288,7 @@ CREATE TABLE public.informational_interview_templates (
 -- Name: informational_interviews; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.informational_interviews CASCADE;
 CREATE TABLE public.informational_interviews (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -1098,6 +1315,7 @@ CREATE TABLE public.informational_interviews (
 -- Name: interview_analytics; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.interview_analytics CASCADE;
 CREATE TABLE public.interview_analytics (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -1117,6 +1335,7 @@ CREATE TABLE public.interview_analytics (
 -- Name: interview_conflicts; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.interview_conflicts CASCADE;
 CREATE TABLE public.interview_conflicts (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     interview_id uuid NOT NULL,
@@ -1130,9 +1349,85 @@ CREATE TABLE public.interview_conflicts (
 
 
 --
+-- Name: interview_feedback; Type: TABLE; Schema: public; Owner: -
+--
+
+DROP TABLE IF EXISTS public.interview_feedback CASCADE;
+CREATE TABLE public.interview_feedback (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    interview_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    skill_area character varying(50) NOT NULL,
+    score integer NOT NULL,
+    notes text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    confidence_level integer,
+    anxiety_level integer,
+    preparation_hours integer DEFAULT 0,
+    feedback_theme character varying(50),
+    sentiment_score numeric(3,2),
+    keywords text[],
+    CONSTRAINT interview_feedback_anxiety_level_check CHECK (((anxiety_level IS NULL) OR ((anxiety_level >= 0) AND (anxiety_level <= 100)))),
+    CONSTRAINT interview_feedback_confidence_level_check CHECK (((confidence_level IS NULL) OR ((confidence_level >= 0) AND (confidence_level <= 100)))),
+    CONSTRAINT interview_feedback_score_check CHECK (((score >= 0) AND (score <= 100))),
+    CONSTRAINT interview_feedback_sentiment_score_check CHECK (((sentiment_score IS NULL) OR ((sentiment_score >= '-1.0'::numeric) AND (sentiment_score <= 1.0)))),
+    CONSTRAINT interview_feedback_skill_area_check CHECK (((skill_area)::text = ANY ((ARRAY['system_design'::character varying, 'algorithms'::character varying, 'apis'::character varying, 'behavioral'::character varying, 'time_management'::character varying])::text[])))
+);
+
+
+--
+-- Name: TABLE interview_feedback; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.interview_feedback IS 'Stores performance assessments for interviews across different skill areas';
+
+
+--
+-- Name: COLUMN interview_feedback.skill_area; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.interview_feedback.skill_area IS 'Skill area: system_design, algorithms, apis, behavioral, or time_management';
+
+
+--
+-- Name: COLUMN interview_feedback.score; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.interview_feedback.score IS 'Performance score from 0 to 100';
+
+
+--
+-- Name: interview_follow_ups; Type: TABLE; Schema: public; Owner: -
+--
+
+DROP TABLE IF EXISTS public.interview_follow_ups CASCADE;
+CREATE TABLE public.interview_follow_ups (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    interview_id uuid NOT NULL,
+    action_type character varying(50) NOT NULL,
+    due_date timestamp with time zone,
+    completed boolean DEFAULT false,
+    completed_at timestamp with time zone,
+    notes text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT interview_follow_ups_action_type_check CHECK (((action_type)::text = ANY ((ARRAY['thank_you_note'::character varying, 'follow_up_email'::character varying, 'status_inquiry'::character varying, 'references_sent'::character varying, 'portfolio_sent'::character varying, 'other'::character varying])::text[])))
+);
+
+
+--
+-- Name: TABLE interview_follow_ups; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.interview_follow_ups IS 'Tracks follow-up actions recommended after interviews';
+
+
+--
 -- Name: interview_followups; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.interview_followups CASCADE;
 CREATE TABLE public.interview_followups (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     interview_id uuid NOT NULL,
@@ -1154,6 +1449,7 @@ CREATE TABLE public.interview_followups (
 -- Name: interview_performance_tracking; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.interview_performance_tracking CASCADE;
 CREATE TABLE public.interview_performance_tracking (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -1173,9 +1469,79 @@ CREATE TABLE public.interview_performance_tracking (
 
 
 --
+-- Name: interview_post_reflection; Type: TABLE; Schema: public; Owner: -
+--
+
+DROP TABLE IF EXISTS public.interview_post_reflection CASCADE;
+CREATE TABLE public.interview_post_reflection (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    interview_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    post_confidence_level integer,
+    post_anxiety_level integer,
+    what_went_well text,
+    what_to_improve text,
+    overall_feeling character varying(50),
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT interview_post_reflection_post_anxiety_level_check CHECK (((post_anxiety_level IS NULL) OR ((post_anxiety_level >= 0) AND (post_anxiety_level <= 100)))),
+    CONSTRAINT interview_post_reflection_post_confidence_level_check CHECK (((post_confidence_level IS NULL) OR ((post_confidence_level >= 0) AND (post_confidence_level <= 100))))
+);
+
+
+--
+-- Name: TABLE interview_post_reflection; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.interview_post_reflection IS 'Post-interview reflections for tracking emotional state and learnings';
+
+
+--
+-- Name: interview_pre_assessment; Type: TABLE; Schema: public; Owner: -
+--
+
+DROP TABLE IF EXISTS public.interview_pre_assessment CASCADE;
+CREATE TABLE public.interview_pre_assessment (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    interview_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    confidence_level integer NOT NULL,
+    anxiety_level integer NOT NULL,
+    preparation_hours integer DEFAULT 0,
+    notes text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT interview_pre_assessment_anxiety_level_check CHECK (((anxiety_level >= 0) AND (anxiety_level <= 100))),
+    CONSTRAINT interview_pre_assessment_confidence_level_check CHECK (((confidence_level >= 0) AND (confidence_level <= 100))),
+    CONSTRAINT interview_pre_assessment_preparation_hours_check CHECK ((preparation_hours >= 0))
+);
+
+
+--
+-- Name: TABLE interview_pre_assessment; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.interview_pre_assessment IS 'Pre-interview assessments for tracking confidence, anxiety, and preparation';
+
+
+--
+-- Name: COLUMN interview_pre_assessment.confidence_level; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.interview_pre_assessment.confidence_level IS 'Confidence level before interview (0-100)';
+
+
+--
+-- Name: COLUMN interview_pre_assessment.anxiety_level; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.interview_pre_assessment.anxiety_level IS 'Anxiety level before interview (0-100)';
+
+
+--
 -- Name: interview_preparation_checklists; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.interview_preparation_checklists CASCADE;
 CREATE TABLE public.interview_preparation_checklists (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     interview_id uuid NOT NULL,
@@ -1199,6 +1565,7 @@ CREATE TABLE public.interview_preparation_checklists (
 -- Name: interview_preparation_tasks; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.interview_preparation_tasks CASCADE;
 CREATE TABLE public.interview_preparation_tasks (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     interview_id uuid NOT NULL,
@@ -1218,6 +1585,7 @@ CREATE TABLE public.interview_preparation_tasks (
 -- Name: interview_question_banks; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.interview_question_banks CASCADE;
 CREATE TABLE public.interview_question_banks (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     job_id uuid NOT NULL,
@@ -1232,9 +1600,38 @@ CREATE TABLE public.interview_question_banks (
 
 
 --
+-- Name: interview_reminders; Type: TABLE; Schema: public; Owner: -
+--
+
+DROP TABLE IF EXISTS public.interview_reminders CASCADE;
+CREATE TABLE public.interview_reminders (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    interview_id uuid NOT NULL,
+    reminder_type character varying(20) NOT NULL,
+    scheduled_at timestamp with time zone NOT NULL,
+    sent_at timestamp with time zone,
+    status character varying(20) DEFAULT 'pending'::character varying,
+    retry_count integer DEFAULT 0,
+    last_error text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT interview_reminders_reminder_type_check CHECK (((reminder_type)::text = ANY ((ARRAY['24_hours'::character varying, '2_hours'::character varying, 'custom'::character varying])::text[]))),
+    CONSTRAINT interview_reminders_status_check CHECK (((status)::text = ANY ((ARRAY['pending'::character varying, 'sent'::character varying, 'failed'::character varying, 'cancelled'::character varying])::text[])))
+);
+
+
+--
+-- Name: TABLE interview_reminders; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.interview_reminders IS 'Tracks scheduled email reminders for interviews (24h and 2h before)';
+
+
+--
 -- Name: interview_response_coaching; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.interview_response_coaching CASCADE;
 CREATE TABLE public.interview_response_coaching (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -1263,6 +1660,7 @@ CREATE TABLE public.interview_response_coaching (
 -- Name: interview_success_probability; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.interview_success_probability CASCADE;
 CREATE TABLE public.interview_success_probability (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -1284,9 +1682,37 @@ CREATE TABLE public.interview_success_probability (
 
 
 --
+-- Name: interview_thank_you_notes; Type: TABLE; Schema: public; Owner: -
+--
+
+DROP TABLE IF EXISTS public.interview_thank_you_notes CASCADE;
+CREATE TABLE public.interview_thank_you_notes (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    interview_id uuid NOT NULL,
+    recipient_email character varying(255) NOT NULL,
+    recipient_name character varying(255),
+    subject character varying(500) NOT NULL,
+    body text NOT NULL,
+    sent_at timestamp with time zone,
+    status character varying(20) DEFAULT 'draft'::character varying,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT interview_thank_you_notes_status_check CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'sent'::character varying, 'failed'::character varying])::text[])))
+);
+
+
+--
+-- Name: TABLE interview_thank_you_notes; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.interview_thank_you_notes IS 'Tracks thank-you notes sent after interviews';
+
+
+--
 -- Name: interviews; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.interviews CASCADE;
 CREATE TABLE public.interviews (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -1319,6 +1745,19 @@ CREATE TABLE public.interviews (
     updated_at timestamp with time zone DEFAULT now(),
     company character varying(255),
     google_calendar_event_id character varying(255),
+    format character varying(50),
+    is_practice boolean DEFAULT false,
+    interview_round integer DEFAULT 1,
+    confidence_rating integer,
+    difficulty_rating integer,
+    preparation_hours numeric,
+    questions_asked text[],
+    improvement_areas text[],
+    feedback_notes text,
+    interview_type character varying(50),
+    CONSTRAINT interviews_confidence_rating_check CHECK (((confidence_rating IS NULL) OR ((confidence_rating >= 1) AND (confidence_rating <= 5)))),
+    CONSTRAINT interviews_difficulty_rating_check CHECK (((difficulty_rating IS NULL) OR ((difficulty_rating >= 1) AND (difficulty_rating <= 5)))),
+    CONSTRAINT interviews_format_check CHECK (((format IS NULL) OR ((format)::text = ANY ((ARRAY['phone_screen'::character varying, 'hirevue'::character varying, 'technical'::character varying, 'behavioral'::character varying, 'on_site'::character varying, 'system_design'::character varying, 'other'::character varying])::text[])))),
     CONSTRAINT interviews_outcome_check CHECK (((outcome)::text = ANY ((ARRAY['pending'::character varying, 'passed'::character varying, 'failed'::character varying, 'no_decision'::character varying, 'offer_extended'::character varying, 'rejected'::character varying])::text[]))),
     CONSTRAINT interviews_status_check CHECK (((status)::text = ANY ((ARRAY['scheduled'::character varying, 'completed'::character varying, 'cancelled'::character varying, 'rescheduled'::character varying])::text[]))),
     CONSTRAINT interviews_type_check CHECK (((type)::text = ANY (ARRAY[('phone'::character varying)::text, ('video'::character varying)::text, ('in-person'::character varying)::text])))
@@ -1326,9 +1765,73 @@ CREATE TABLE public.interviews (
 
 
 --
+-- Name: COLUMN interviews.format; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.interviews.format IS 'Interview format/category: phone_screen, hirevue, technical, behavioral, on_site, system_design, or other';
+
+
+--
+-- Name: COLUMN interviews.is_practice; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.interviews.is_practice IS 'True if this is a practice/mock interview, false if real interview';
+
+
+--
+-- Name: COLUMN interviews.interview_round; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.interviews.interview_round IS 'Interview round number (1, 2, 3, etc.)';
+
+
+--
+-- Name: COLUMN interviews.confidence_rating; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.interviews.confidence_rating IS 'Self-rated confidence level (1-5)';
+
+
+--
+-- Name: COLUMN interviews.difficulty_rating; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.interviews.difficulty_rating IS 'Self-rated difficulty level (1-5)';
+
+
+--
+-- Name: COLUMN interviews.preparation_hours; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.interviews.preparation_hours IS 'Hours spent preparing for this interview';
+
+
+--
+-- Name: COLUMN interviews.questions_asked; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.interviews.questions_asked IS 'Array of questions asked during the interview';
+
+
+--
+-- Name: COLUMN interviews.improvement_areas; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.interviews.improvement_areas IS 'Array of areas identified for improvement';
+
+
+--
+-- Name: COLUMN interviews.feedback_notes; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.interviews.feedback_notes IS 'Detailed feedback and notes from the interview';
+
+
+--
 -- Name: job_comments; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.job_comments CASCADE;
 CREATE TABLE public.job_comments (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     job_id uuid,
@@ -1353,6 +1856,7 @@ COMMENT ON TABLE public.job_comments IS 'Collaborative comments on shared job po
 -- Name: job_opportunities; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.job_opportunities CASCADE;
 CREATE TABLE public.job_opportunities (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -1383,6 +1887,13 @@ CREATE TABLE public.job_opportunities (
     archived boolean DEFAULT false NOT NULL,
     archived_at timestamp with time zone,
     archive_reason character varying(255),
+    application_source character varying(100),
+    application_method character varying(100),
+    referral_contact_name character varying(255),
+    referral_contact_email character varying(255),
+    application_submitted_at timestamp with time zone,
+    first_response_at timestamp with time zone,
+    interview_scheduled_at timestamp with time zone,
     CONSTRAINT check_job_opportunity_status CHECK (((status)::text = ANY ((ARRAY['Interested'::character varying, 'Applied'::character varying, 'Phone Screen'::character varying, 'Interview'::character varying, 'Offer'::character varying, 'Rejected'::character varying])::text[])))
 );
 
@@ -1570,9 +2081,45 @@ COMMENT ON COLUMN public.job_opportunities.archive_reason IS 'Reason for archivi
 
 
 --
+-- Name: COLUMN job_opportunities.application_source; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.job_opportunities.application_source IS 'How the job opportunity was found';
+
+
+--
+-- Name: COLUMN job_opportunities.application_method; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.job_opportunities.application_method IS 'Method used to submit application';
+
+
+--
+-- Name: COLUMN job_opportunities.application_submitted_at; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.job_opportunities.application_submitted_at IS 'When the application was actually submitted';
+
+
+--
+-- Name: COLUMN job_opportunities.first_response_at; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.job_opportunities.first_response_at IS 'When first response was received from employer';
+
+
+--
+-- Name: COLUMN job_opportunities.interview_scheduled_at; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.job_opportunities.interview_scheduled_at IS 'When first interview was scheduled';
+
+
+--
 -- Name: job_search_metrics; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.job_search_metrics CASCADE;
 CREATE TABLE public.job_search_metrics (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -1596,6 +2143,7 @@ CREATE TABLE public.job_search_metrics (
 -- Name: jobs; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.jobs CASCADE;
 CREATE TABLE public.jobs (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -1614,6 +2162,7 @@ CREATE TABLE public.jobs (
 -- Name: linkedin_networking_templates; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.linkedin_networking_templates CASCADE;
 CREATE TABLE public.linkedin_networking_templates (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -1629,6 +2178,7 @@ CREATE TABLE public.linkedin_networking_templates (
 -- Name: linkedin_profile_optimization; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.linkedin_profile_optimization CASCADE;
 CREATE TABLE public.linkedin_profile_optimization (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -1643,9 +2193,68 @@ CREATE TABLE public.linkedin_profile_optimization (
 
 
 --
+-- Name: market_insights; Type: TABLE; Schema: public; Owner: -
+--
+
+DROP TABLE IF EXISTS public.market_insights CASCADE;
+CREATE TABLE public.market_insights (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    insight_type character varying(50) NOT NULL,
+    title character varying(500) NOT NULL,
+    description text NOT NULL,
+    priority character varying(20) NOT NULL,
+    actionable_items jsonb,
+    supporting_data jsonb,
+    status character varying(20) DEFAULT 'active'::character varying,
+    expires_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT market_insights_priority_check CHECK (((priority)::text = ANY ((ARRAY['high'::character varying, 'medium'::character varying, 'low'::character varying])::text[]))),
+    CONSTRAINT market_insights_status_check CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'dismissed'::character varying, 'completed'::character varying])::text[])))
+);
+
+
+--
+-- Name: TABLE market_insights; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.market_insights IS 'AI-generated personalized career insights and recommendations';
+
+
+--
+-- Name: COLUMN market_insights.insight_type; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.market_insights.insight_type IS 'Type: skill_gap, career_move, salary_positioning, market_opportunity, disruption_alert';
+
+
+--
+-- Name: COLUMN market_insights.actionable_items; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.market_insights.actionable_items IS 'JSONB array of specific steps user can take to act on this insight';
+
+
+--
+-- Name: COLUMN market_insights.supporting_data; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.market_insights.supporting_data IS 'JSONB containing metrics, trends, and data supporting the recommendation';
+
+
+--
+-- Name: COLUMN market_insights.status; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.market_insights.status IS 'User can mark insights as dismissed or completed';
+
+
+--
 -- Name: market_intelligence; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.market_intelligence CASCADE;
 CREATE TABLE public.market_intelligence (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -1662,9 +2271,69 @@ CREATE TABLE public.market_intelligence (
 
 
 --
+-- Name: market_intelligence_cache; Type: TABLE; Schema: public; Owner: -
+--
+
+DROP TABLE IF EXISTS public.market_intelligence_cache CASCADE;
+CREATE TABLE public.market_intelligence_cache (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    cache_key character varying(500) NOT NULL,
+    data_type character varying(50) NOT NULL,
+    data jsonb NOT NULL,
+    metadata jsonb,
+    expires_at timestamp with time zone NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+--
+-- Name: TABLE market_intelligence_cache; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.market_intelligence_cache IS 'Caches aggregated market intelligence data to optimize performance';
+
+
+--
+-- Name: COLUMN market_intelligence_cache.cache_key; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.market_intelligence_cache.cache_key IS 'Unique identifier for cached data (includes filters like industry, location, period)';
+
+
+--
+-- Name: COLUMN market_intelligence_cache.data_type; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.market_intelligence_cache.data_type IS 'Type of cached data: industry_trends, salary_trends, skill_demand, hiring_velocity, etc.';
+
+
+--
+-- Name: COLUMN market_intelligence_cache.data; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.market_intelligence_cache.data IS 'JSONB containing the cached calculation results';
+
+
+--
+-- Name: COLUMN market_intelligence_cache.metadata; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.market_intelligence_cache.metadata IS 'Additional context like sample_size, date_ranges, confidence_score';
+
+
+--
+-- Name: COLUMN market_intelligence_cache.expires_at; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.market_intelligence_cache.expires_at IS 'When this cache entry expires and should be refreshed';
+
+
+--
 -- Name: market_salary_data; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.market_salary_data CASCADE;
 CREATE TABLE public.market_salary_data (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     role character varying(255),
@@ -1684,6 +2353,7 @@ CREATE TABLE public.market_salary_data (
 -- Name: mentor_dashboard_data; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.mentor_dashboard_data CASCADE;
 CREATE TABLE public.mentor_dashboard_data (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     relationship_id uuid NOT NULL,
@@ -1696,6 +2366,7 @@ CREATE TABLE public.mentor_dashboard_data (
 -- Name: mentor_dashboard_views; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.mentor_dashboard_views CASCADE;
 CREATE TABLE public.mentor_dashboard_views (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     mentor_id uuid NOT NULL,
@@ -1714,6 +2385,7 @@ CREATE TABLE public.mentor_dashboard_views (
 -- Name: mentor_feedback; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.mentor_feedback CASCADE;
 CREATE TABLE public.mentor_feedback (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     relationship_id uuid NOT NULL,
@@ -1729,6 +2401,7 @@ CREATE TABLE public.mentor_feedback (
 -- Name: mentor_relationships; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.mentor_relationships CASCADE;
 CREATE TABLE public.mentor_relationships (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     mentor_id uuid NOT NULL,
@@ -1747,6 +2420,7 @@ CREATE TABLE public.mentor_relationships (
 -- Name: mentor_shared_data; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.mentor_shared_data CASCADE;
 CREATE TABLE public.mentor_shared_data (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     relationship_id uuid NOT NULL,
@@ -1761,6 +2435,7 @@ CREATE TABLE public.mentor_shared_data (
 -- Name: message_reactions; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.message_reactions CASCADE;
 CREATE TABLE public.message_reactions (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     message_id uuid NOT NULL,
@@ -1781,6 +2456,7 @@ COMMENT ON TABLE public.message_reactions IS 'Reactions to messages (likes, thum
 -- Name: milestones; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.milestones CASCADE;
 CREATE TABLE public.milestones (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid,
@@ -1806,6 +2482,7 @@ COMMENT ON TABLE public.milestones IS 'Achievement milestones for celebration an
 -- Name: mock_interview_followups; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.mock_interview_followups CASCADE;
 CREATE TABLE public.mock_interview_followups (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     question_id uuid NOT NULL,
@@ -1819,6 +2496,7 @@ CREATE TABLE public.mock_interview_followups (
 -- Name: mock_interview_messages; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.mock_interview_messages CASCADE;
 CREATE TABLE public.mock_interview_messages (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     session_id uuid NOT NULL,
@@ -1835,6 +2513,7 @@ CREATE TABLE public.mock_interview_messages (
 -- Name: mock_interview_questions; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.mock_interview_questions CASCADE;
 CREATE TABLE public.mock_interview_questions (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     session_id uuid NOT NULL,
@@ -1852,6 +2531,7 @@ CREATE TABLE public.mock_interview_questions (
 -- Name: mock_interview_sessions; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.mock_interview_sessions CASCADE;
 CREATE TABLE public.mock_interview_sessions (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -1874,6 +2554,7 @@ CREATE TABLE public.mock_interview_sessions (
 -- Name: mutual_connections; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.mutual_connections CASCADE;
 CREATE TABLE public.mutual_connections (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     contact_id uuid NOT NULL,
@@ -1887,6 +2568,7 @@ CREATE TABLE public.mutual_connections (
 -- Name: network_roi_analytics; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.network_roi_analytics CASCADE;
 CREATE TABLE public.network_roi_analytics (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -1909,6 +2591,7 @@ CREATE TABLE public.network_roi_analytics (
 -- Name: networking_campaigns; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.networking_campaigns CASCADE;
 CREATE TABLE public.networking_campaigns (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -1932,6 +2615,7 @@ CREATE TABLE public.networking_campaigns (
 -- Name: networking_events; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.networking_events CASCADE;
 CREATE TABLE public.networking_events (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -1951,7 +2635,11 @@ CREATE TABLE public.networking_events (
     roi_score integer,
     connections_made_count integer DEFAULT 0,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    cancelled boolean DEFAULT false,
+    cancelled_at timestamp with time zone,
+    end_date date,
+    end_time time without time zone
 );
 
 
@@ -1959,6 +2647,7 @@ CREATE TABLE public.networking_events (
 -- Name: networking_goals; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.networking_goals CASCADE;
 CREATE TABLE public.networking_goals (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -1972,7 +2661,8 @@ CREATE TABLE public.networking_goals (
     deadline date,
     status character varying(50) DEFAULT 'active'::character varying,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    event_id uuid
 );
 
 
@@ -1980,6 +2670,7 @@ CREATE TABLE public.networking_goals (
 -- Name: peer_referrals; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.peer_referrals CASCADE;
 CREATE TABLE public.peer_referrals (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     group_id uuid NOT NULL,
@@ -1994,6 +2685,7 @@ CREATE TABLE public.peer_referrals (
 -- Name: performance_predictions; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.performance_predictions CASCADE;
 CREATE TABLE public.performance_predictions (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -2017,6 +2709,7 @@ CREATE TABLE public.performance_predictions (
 -- Name: performance_trends; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.performance_trends CASCADE;
 CREATE TABLE public.performance_trends (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -2029,9 +2722,50 @@ CREATE TABLE public.performance_trends (
 
 
 --
+-- Name: practice_sessions; Type: TABLE; Schema: public; Owner: -
+--
+
+DROP TABLE IF EXISTS public.practice_sessions CASCADE;
+CREATE TABLE public.practice_sessions (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    session_date timestamp with time zone NOT NULL,
+    format character varying(50) NOT NULL,
+    duration_minutes integer,
+    overall_score integer,
+    notes text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT practice_sessions_overall_score_check CHECK (((overall_score IS NULL) OR ((overall_score >= 0) AND (overall_score <= 100))))
+);
+
+
+--
+-- Name: TABLE practice_sessions; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.practice_sessions IS 'Tracks practice interview sessions separately from real interviews';
+
+
+--
+-- Name: COLUMN practice_sessions.format; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.practice_sessions.format IS 'Practice session format: technical, behavioral, system_design, etc.';
+
+
+--
+-- Name: COLUMN practice_sessions.overall_score; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.practice_sessions.overall_score IS 'Overall performance score from 0 to 100';
+
+
+--
 -- Name: preparation_tasks; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.preparation_tasks CASCADE;
 CREATE TABLE public.preparation_tasks (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     team_id uuid,
@@ -2063,6 +2797,7 @@ COMMENT ON TABLE public.preparation_tasks IS 'Tasks assigned by mentors/admins t
 -- Name: productivity_analysis; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.productivity_analysis CASCADE;
 CREATE TABLE public.productivity_analysis (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -2087,6 +2822,7 @@ CREATE TABLE public.productivity_analysis (
 -- Name: professional_contacts; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.professional_contacts CASCADE;
 CREATE TABLE public.professional_contacts (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -2117,6 +2853,7 @@ CREATE TABLE public.professional_contacts (
 -- Name: professional_references; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.professional_references CASCADE;
 CREATE TABLE public.professional_references (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -2136,6 +2873,7 @@ CREATE TABLE public.professional_references (
 -- Name: profiles; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.profiles CASCADE;
 CREATE TABLE public.profiles (
     first_name character varying(255) NOT NULL,
     middle_name character varying(255),
@@ -2156,6 +2894,7 @@ CREATE TABLE public.profiles (
 -- Name: program_effectiveness_analytics; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.program_effectiveness_analytics CASCADE;
 CREATE TABLE public.program_effectiveness_analytics (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     enterprise_id uuid NOT NULL,
@@ -2174,6 +2913,7 @@ CREATE TABLE public.program_effectiveness_analytics (
 -- Name: progress_reports; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.progress_reports CASCADE;
 CREATE TABLE public.progress_reports (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -2191,6 +2931,7 @@ CREATE TABLE public.progress_reports (
 -- Name: progress_shares; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.progress_shares CASCADE;
 CREATE TABLE public.progress_shares (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid,
@@ -2217,6 +2958,7 @@ COMMENT ON TABLE public.progress_shares IS 'Progress sharing configuration for a
 -- Name: progress_sharing_settings; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.progress_sharing_settings CASCADE;
 CREATE TABLE public.progress_sharing_settings (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -2233,6 +2975,7 @@ CREATE TABLE public.progress_sharing_settings (
 -- Name: projects; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.projects CASCADE;
 CREATE TABLE public.projects (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -2252,6 +2995,7 @@ CREATE TABLE public.projects (
 -- Name: prospectivejob_material_history; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.prospectivejob_material_history CASCADE;
 CREATE TABLE public.prospectivejob_material_history (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     job_id uuid NOT NULL,
@@ -2265,6 +3009,7 @@ CREATE TABLE public.prospectivejob_material_history (
 -- Name: prospectivejobs; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.prospectivejobs CASCADE;
 CREATE TABLE public.prospectivejobs (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -2294,6 +3039,7 @@ CREATE TABLE public.prospectivejobs (
 -- Name: question_practice_sessions; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.question_practice_sessions CASCADE;
 CREATE TABLE public.question_practice_sessions (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -2309,6 +3055,7 @@ CREATE TABLE public.question_practice_sessions (
 -- Name: reference_portfolios; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.reference_portfolios CASCADE;
 CREATE TABLE public.reference_portfolios (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -2323,6 +3070,7 @@ CREATE TABLE public.reference_portfolios (
 -- Name: reference_request_templates; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.reference_request_templates CASCADE;
 CREATE TABLE public.reference_request_templates (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     template_name character varying(255),
@@ -2336,6 +3084,7 @@ CREATE TABLE public.reference_request_templates (
 -- Name: reference_requests; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.reference_requests CASCADE;
 CREATE TABLE public.reference_requests (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     reference_id uuid NOT NULL,
@@ -2355,6 +3104,7 @@ CREATE TABLE public.reference_requests (
 -- Name: referral_requests; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.referral_requests CASCADE;
 CREATE TABLE public.referral_requests (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -2380,6 +3130,7 @@ CREATE TABLE public.referral_requests (
 -- Name: referral_templates; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.referral_templates CASCADE;
 CREATE TABLE public.referral_templates (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     template_name character varying(255),
@@ -2394,6 +3145,7 @@ CREATE TABLE public.referral_templates (
 -- Name: relationship_health_tracking; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.relationship_health_tracking CASCADE;
 CREATE TABLE public.relationship_health_tracking (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     contact_id uuid NOT NULL,
@@ -2412,6 +3164,7 @@ CREATE TABLE public.relationship_health_tracking (
 -- Name: relationship_maintenance_reminders; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.relationship_maintenance_reminders CASCADE;
 CREATE TABLE public.relationship_maintenance_reminders (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -2429,6 +3182,7 @@ CREATE TABLE public.relationship_maintenance_reminders (
 -- Name: report_templates; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.report_templates CASCADE;
 CREATE TABLE public.report_templates (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     template_name character varying(255),
@@ -2443,6 +3197,7 @@ CREATE TABLE public.report_templates (
 -- Name: resume; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.resume CASCADE;
 CREATE TABLE public.resume (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -2531,6 +3286,7 @@ COMMENT ON COLUMN public.resume.is_master IS 'Indicates if this is a master resu
 -- Name: resume_comments; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.resume_comments CASCADE;
 CREATE TABLE public.resume_comments (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     resume_id uuid,
@@ -2543,6 +3299,7 @@ CREATE TABLE public.resume_comments (
 -- Name: resume_tailoring; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.resume_tailoring CASCADE;
 CREATE TABLE public.resume_tailoring (
     id uuid NOT NULL,
     user_id uuid NOT NULL,
@@ -2554,6 +3311,7 @@ CREATE TABLE public.resume_tailoring (
 -- Name: resume_template; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.resume_template CASCADE;
 CREATE TABLE public.resume_template (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     template_name character varying(255),
@@ -2568,6 +3326,7 @@ CREATE TABLE public.resume_template (
 -- Name: review_comments; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.review_comments CASCADE;
 CREATE TABLE public.review_comments (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     review_request_id uuid,
@@ -2581,7 +3340,11 @@ CREATE TABLE public.review_comments (
     resolved_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT review_comments_comment_type_check CHECK (((comment_type)::text = ANY ((ARRAY['comment'::character varying, 'suggestion'::character varying, 'approval'::character varying, 'rejection'::character varying])::text[])))
+    team_id uuid,
+    document_type character varying(50),
+    document_id uuid,
+    CONSTRAINT review_comments_comment_type_check CHECK (((comment_type)::text = ANY ((ARRAY['comment'::character varying, 'suggestion'::character varying, 'approval'::character varying, 'rejection'::character varying])::text[]))),
+    CONSTRAINT review_comments_document_type_check CHECK (((document_type)::text = ANY ((ARRAY['resume'::character varying, 'cover_letter'::character varying, 'coverletter'::character varying])::text[])))
 );
 
 
@@ -2593,9 +3356,31 @@ COMMENT ON TABLE public.review_comments IS 'Comments and suggestions on document
 
 
 --
+-- Name: COLUMN review_comments.team_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.review_comments.team_id IS 'Team ID for team-based document comments (nullable, used when review_request_id is NULL)';
+
+
+--
+-- Name: COLUMN review_comments.document_type; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.review_comments.document_type IS 'Document type for team-based comments (nullable, used when review_request_id is NULL)';
+
+
+--
+-- Name: COLUMN review_comments.document_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.review_comments.document_id IS 'Document ID for team-based comments (nullable, used when review_request_id is NULL)';
+
+
+--
 -- Name: salary_negotiation_prep; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.salary_negotiation_prep CASCADE;
 CREATE TABLE public.salary_negotiation_prep (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -2623,6 +3408,7 @@ CREATE TABLE public.salary_negotiation_prep (
 -- Name: salary_progression_tracking; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.salary_progression_tracking CASCADE;
 CREATE TABLE public.salary_progression_tracking (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -2642,9 +3428,36 @@ CREATE TABLE public.salary_progression_tracking (
 
 
 --
+-- Name: shared_documents; Type: TABLE; Schema: public; Owner: -
+--
+
+DROP TABLE IF EXISTS public.shared_documents CASCADE;
+CREATE TABLE public.shared_documents (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    document_type character varying(50) NOT NULL,
+    document_id uuid NOT NULL,
+    shared_by uuid,
+    shared_by_role character varying(50),
+    team_id uuid,
+    version_number integer,
+    shared_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    shared_with_user_id uuid,
+    CONSTRAINT shared_documents_document_type_check CHECK (((document_type)::text = ANY ((ARRAY['resume'::character varying, 'cover_letter'::character varying])::text[])))
+);
+
+
+--
+-- Name: TABLE shared_documents; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.shared_documents IS 'Documents (resumes/cover letters) shared with team members for collaborative review';
+
+
+--
 -- Name: shared_jobs; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.shared_jobs CASCADE;
 CREATE TABLE public.shared_jobs (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     job_id uuid,
@@ -2663,9 +3476,66 @@ COMMENT ON TABLE public.shared_jobs IS 'Job postings shared with team members fo
 
 
 --
+-- Name: skill_demand_trends; Type: TABLE; Schema: public; Owner: -
+--
+
+DROP TABLE IF EXISTS public.skill_demand_trends CASCADE;
+CREATE TABLE public.skill_demand_trends (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    skill_name character varying(100) NOT NULL,
+    industry character varying(255),
+    location character varying(255),
+    period_start date NOT NULL,
+    period_end date NOT NULL,
+    demand_count integer NOT NULL,
+    avg_salary_for_skill numeric,
+    trend_direction character varying(20),
+    growth_rate numeric,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT skill_demand_trends_trend_check CHECK (((trend_direction)::text = ANY ((ARRAY['rising'::character varying, 'stable'::character varying, 'declining'::character varying, 'emerging'::character varying])::text[])))
+);
+
+
+--
+-- Name: TABLE skill_demand_trends; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.skill_demand_trends IS 'Tracks skill demand evolution over time for market intelligence';
+
+
+--
+-- Name: COLUMN skill_demand_trends.demand_count; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.skill_demand_trends.demand_count IS 'Number of job postings requiring this skill in the time period';
+
+
+--
+-- Name: COLUMN skill_demand_trends.avg_salary_for_skill; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.skill_demand_trends.avg_salary_for_skill IS 'Average salary offered for positions requiring this skill';
+
+
+--
+-- Name: COLUMN skill_demand_trends.trend_direction; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.skill_demand_trends.trend_direction IS 'Whether skill demand is rising, stable, declining, or emerging';
+
+
+--
+-- Name: COLUMN skill_demand_trends.growth_rate; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.skill_demand_trends.growth_rate IS 'Percentage change in demand compared to previous period';
+
+
+--
 -- Name: skills; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.skills CASCADE;
 CREATE TABLE public.skills (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -2680,6 +3550,7 @@ CREATE TABLE public.skills (
 -- Name: success_patterns; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.success_patterns CASCADE;
 CREATE TABLE public.success_patterns (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -2701,6 +3572,7 @@ CREATE TABLE public.success_patterns (
 -- Name: support_effectiveness_tracking; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.support_effectiveness_tracking CASCADE;
 CREATE TABLE public.support_effectiveness_tracking (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -2717,6 +3589,7 @@ CREATE TABLE public.support_effectiveness_tracking (
 -- Name: support_groups; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.support_groups CASCADE;
 CREATE TABLE public.support_groups (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     group_name character varying(255) NOT NULL,
@@ -2734,6 +3607,7 @@ CREATE TABLE public.support_groups (
 -- Name: team_billing; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.team_billing CASCADE;
 CREATE TABLE public.team_billing (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     team_id uuid NOT NULL,
@@ -2749,6 +3623,7 @@ CREATE TABLE public.team_billing (
 -- Name: team_dashboards; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.team_dashboards CASCADE;
 CREATE TABLE public.team_dashboards (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     team_id uuid NOT NULL,
@@ -2761,6 +3636,7 @@ CREATE TABLE public.team_dashboards (
 -- Name: team_invitations; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.team_invitations CASCADE;
 CREATE TABLE public.team_invitations (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     team_id uuid,
@@ -2788,6 +3664,7 @@ COMMENT ON TABLE public.team_invitations IS 'Invitation system for adding member
 -- Name: team_members; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.team_members CASCADE;
 CREATE TABLE public.team_members (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     team_id uuid NOT NULL,
@@ -2807,6 +3684,7 @@ CREATE TABLE public.team_members (
 -- Name: teams; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.teams CASCADE;
 CREATE TABLE public.teams (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     team_name character varying(255) NOT NULL,
@@ -2824,6 +3702,7 @@ CREATE TABLE public.teams (
 -- Name: technical_prep_attempts; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.technical_prep_attempts CASCADE;
 CREATE TABLE public.technical_prep_attempts (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     challenge_id uuid NOT NULL,
@@ -2840,6 +3719,7 @@ CREATE TABLE public.technical_prep_attempts (
 -- Name: technical_prep_challenges; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.technical_prep_challenges CASCADE;
 CREATE TABLE public.technical_prep_challenges (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -2866,6 +3746,7 @@ CREATE TABLE public.technical_prep_challenges (
 -- Name: time_tracking; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.time_tracking CASCADE;
 CREATE TABLE public.time_tracking (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -2882,6 +3763,7 @@ CREATE TABLE public.time_tracking (
 -- Name: user_cohorts; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.user_cohorts CASCADE;
 CREATE TABLE public.user_cohorts (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     enterprise_id uuid NOT NULL,
@@ -2897,6 +3779,7 @@ CREATE TABLE public.user_cohorts (
 -- Name: users; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.users CASCADE;
 CREATE TABLE public.users (
     u_id uuid DEFAULT gen_random_uuid() NOT NULL,
     password character varying(64),
@@ -2943,6 +3826,7 @@ COMMENT ON COLUMN public.users.linkedin_id IS 'LinkedIn OAuth ID for social logi
 -- Name: whiteboarding_practice; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.whiteboarding_practice CASCADE;
 CREATE TABLE public.whiteboarding_practice (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -2957,6 +3841,7 @@ CREATE TABLE public.whiteboarding_practice (
 -- Name: writing_practice_sessions; Type: TABLE; Schema: public; Owner: -
 --
 
+DROP TABLE IF EXISTS public.writing_practice_sessions CASCADE;
 CREATE TABLE public.writing_practice_sessions (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -3320,6 +4205,22 @@ ALTER TABLE ONLY public.event_connections
 
 
 --
+-- Name: event_registrations event_registrations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.event_registrations
+    ADD CONSTRAINT event_registrations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: event_registrations event_registrations_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.event_registrations
+    ADD CONSTRAINT event_registrations_unique UNIQUE (event_id, user_id);
+
+
+--
 -- Name: external_advisors external_advisors_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3341,6 +4242,22 @@ ALTER TABLE ONLY public.family_progress_summaries
 
 ALTER TABLE ONLY public.family_support_access
     ADD CONSTRAINT family_support_access_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: feedback_themes feedback_themes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.feedback_themes
+    ADD CONSTRAINT feedback_themes_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: feedback_themes feedback_themes_theme_name_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.feedback_themes
+    ADD CONSTRAINT feedback_themes_theme_name_key UNIQUE (theme_name);
 
 
 --
@@ -3432,6 +4349,22 @@ ALTER TABLE ONLY public.interview_conflicts
 
 
 --
+-- Name: interview_feedback interview_feedback_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.interview_feedback
+    ADD CONSTRAINT interview_feedback_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: interview_follow_ups interview_follow_ups_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.interview_follow_ups
+    ADD CONSTRAINT interview_follow_ups_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: interview_followups interview_followups_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3445,6 +4378,22 @@ ALTER TABLE ONLY public.interview_followups
 
 ALTER TABLE ONLY public.interview_performance_tracking
     ADD CONSTRAINT interview_performance_tracking_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: interview_post_reflection interview_post_reflection_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.interview_post_reflection
+    ADD CONSTRAINT interview_post_reflection_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: interview_pre_assessment interview_pre_assessment_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.interview_pre_assessment
+    ADD CONSTRAINT interview_pre_assessment_pkey PRIMARY KEY (id);
 
 
 --
@@ -3472,6 +4421,14 @@ ALTER TABLE ONLY public.interview_question_banks
 
 
 --
+-- Name: interview_reminders interview_reminders_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.interview_reminders
+    ADD CONSTRAINT interview_reminders_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: interview_response_coaching interview_response_coaching_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3485,6 +4442,14 @@ ALTER TABLE ONLY public.interview_response_coaching
 
 ALTER TABLE ONLY public.interview_success_probability
     ADD CONSTRAINT interview_success_probability_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: interview_thank_you_notes interview_thank_you_notes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.interview_thank_you_notes
+    ADD CONSTRAINT interview_thank_you_notes_pkey PRIMARY KEY (id);
 
 
 --
@@ -3541,6 +4506,30 @@ ALTER TABLE ONLY public.linkedin_networking_templates
 
 ALTER TABLE ONLY public.linkedin_profile_optimization
     ADD CONSTRAINT linkedin_profile_optimization_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: market_insights market_insights_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.market_insights
+    ADD CONSTRAINT market_insights_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: market_intelligence_cache market_intelligence_cache_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.market_intelligence_cache
+    ADD CONSTRAINT market_intelligence_cache_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: market_intelligence_cache market_intelligence_cache_unique_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.market_intelligence_cache
+    ADD CONSTRAINT market_intelligence_cache_unique_key UNIQUE (cache_key, data_type);
 
 
 --
@@ -3717,6 +4706,14 @@ ALTER TABLE ONLY public.performance_predictions
 
 ALTER TABLE ONLY public.performance_trends
     ADD CONSTRAINT performance_trends_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: practice_sessions practice_sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.practice_sessions
+    ADD CONSTRAINT practice_sessions_pkey PRIMARY KEY (id);
 
 
 --
@@ -3944,6 +4941,14 @@ ALTER TABLE ONLY public.salary_progression_tracking
 
 
 --
+-- Name: shared_documents shared_documents_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.shared_documents
+    ADD CONSTRAINT shared_documents_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: shared_jobs shared_jobs_job_id_team_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3957,6 +4962,14 @@ ALTER TABLE ONLY public.shared_jobs
 
 ALTER TABLE ONLY public.shared_jobs
     ADD CONSTRAINT shared_jobs_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: skill_demand_trends skill_demand_trends_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.skill_demand_trends
+    ADD CONSTRAINT skill_demand_trends_pkey PRIMARY KEY (id);
 
 
 --
@@ -4080,6 +5093,30 @@ ALTER TABLE ONLY public.interview_conflicts
 
 
 --
+-- Name: interview_reminders unique_interview_reminder; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.interview_reminders
+    ADD CONSTRAINT unique_interview_reminder UNIQUE (interview_id, reminder_type);
+
+
+--
+-- Name: interview_post_reflection unique_post_reflection_per_interview; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.interview_post_reflection
+    ADD CONSTRAINT unique_post_reflection_per_interview UNIQUE (interview_id);
+
+
+--
+-- Name: interview_pre_assessment unique_pre_assessment_per_interview; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.interview_pre_assessment
+    ADD CONSTRAINT unique_pre_assessment_per_interview UNIQUE (interview_id);
+
+
+--
 -- Name: cover_letter_template_usage unique_template_user; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4131,1007 +5168,1400 @@ ALTER TABLE ONLY public.writing_practice_sessions
 -- Name: idx_activity_logs_role; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_activity_logs_role ON public.activity_logs USING btree (team_id, actor_role, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_activity_logs_role ON public.activity_logs USING btree (team_id, actor_role, created_at DESC);
 
 
 --
 -- Name: idx_activity_logs_team; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_activity_logs_team ON public.activity_logs USING btree (team_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_activity_logs_team ON public.activity_logs USING btree (team_id, created_at DESC);
 
 
 --
 -- Name: idx_activity_logs_type; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_activity_logs_type ON public.activity_logs USING btree (activity_type, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_activity_logs_type ON public.activity_logs USING btree (activity_type, created_at DESC);
 
 
 --
 -- Name: idx_activity_logs_user; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_activity_logs_user ON public.activity_logs USING btree (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_activity_logs_user ON public.activity_logs USING btree (user_id, created_at DESC);
 
 
 --
 -- Name: idx_application_success_analysis_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_application_success_analysis_user_id ON public.application_success_analysis USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_application_success_analysis_user_id ON public.application_success_analysis USING btree (user_id);
 
 
 --
 -- Name: idx_calendar_sync_settings_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_calendar_sync_settings_user_id ON public.calendar_sync_settings USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_calendar_sync_settings_user_id ON public.calendar_sync_settings USING btree (user_id);
 
 
 --
 -- Name: idx_career_goals_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_career_goals_user_id ON public.career_goals USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_career_goals_user_id ON public.career_goals USING btree (user_id);
 
 
 --
 -- Name: idx_chat_conversations_related; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_chat_conversations_related ON public.chat_conversations USING btree (related_entity_type, related_entity_id);
+CREATE INDEX IF NOT EXISTS idx_chat_conversations_related ON public.chat_conversations USING btree (related_entity_type, related_entity_id);
 
 
 --
 -- Name: idx_chat_conversations_team; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_chat_conversations_team ON public.chat_conversations USING btree (team_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_chat_conversations_team ON public.chat_conversations USING btree (team_id, updated_at DESC);
 
 
 --
 -- Name: idx_chat_conversations_type; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_chat_conversations_type ON public.chat_conversations USING btree (conversation_type, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_chat_conversations_type ON public.chat_conversations USING btree (conversation_type, updated_at DESC);
 
 
 --
 -- Name: idx_chat_messages_conversation; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_chat_messages_conversation ON public.chat_messages USING btree (conversation_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_conversation ON public.chat_messages USING btree (conversation_id, created_at DESC);
 
 
 --
 -- Name: idx_chat_messages_parent; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_chat_messages_parent ON public.chat_messages USING btree (parent_message_id);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_parent ON public.chat_messages USING btree (parent_message_id);
 
 
 --
 -- Name: idx_chat_messages_sender; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_chat_messages_sender ON public.chat_messages USING btree (sender_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_sender ON public.chat_messages USING btree (sender_id, created_at DESC);
 
 
 --
 -- Name: idx_chat_notifications_conversation; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_chat_notifications_conversation ON public.chat_notifications USING btree (conversation_id);
+CREATE INDEX IF NOT EXISTS idx_chat_notifications_conversation ON public.chat_notifications USING btree (conversation_id);
 
 
 --
 -- Name: idx_chat_notifications_user; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_chat_notifications_user ON public.chat_notifications USING btree (user_id, is_read, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_chat_notifications_user ON public.chat_notifications USING btree (user_id, is_read, created_at DESC);
 
 
 --
 -- Name: idx_chat_participants_conversation; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_chat_participants_conversation ON public.chat_participants USING btree (conversation_id, is_active);
+CREATE INDEX IF NOT EXISTS idx_chat_participants_conversation ON public.chat_participants USING btree (conversation_id, is_active);
 
 
 --
 -- Name: idx_chat_participants_user; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_chat_participants_user ON public.chat_participants USING btree (user_id, is_active);
+CREATE INDEX IF NOT EXISTS idx_chat_participants_user ON public.chat_participants USING btree (user_id, is_active);
 
 
 --
 -- Name: idx_coaching_sessions_mentor_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_coaching_sessions_mentor_id ON public.coaching_sessions USING btree (mentor_id);
+CREATE INDEX IF NOT EXISTS idx_coaching_sessions_mentor_id ON public.coaching_sessions USING btree (mentor_id);
 
 
 --
 -- Name: idx_company_interview_insights_company; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_company_interview_insights_company ON public.company_interview_insights USING btree (company_key);
+CREATE INDEX IF NOT EXISTS idx_company_interview_insights_company ON public.company_interview_insights USING btree (company_key);
 
 
 --
 -- Name: idx_company_interview_insights_expires_at; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_company_interview_insights_expires_at ON public.company_interview_insights USING btree (expires_at);
+CREATE INDEX IF NOT EXISTS idx_company_interview_insights_expires_at ON public.company_interview_insights USING btree (expires_at);
 
 
 --
 -- Name: idx_competitive_benchmarks_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_competitive_benchmarks_user_id ON public.competitive_benchmarks USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_competitive_benchmarks_user_id ON public.competitive_benchmarks USING btree (user_id);
 
 
 --
 -- Name: idx_conflicts_conflicting_interview_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_conflicts_conflicting_interview_id ON public.interview_conflicts USING btree (conflicting_interview_id);
+CREATE INDEX IF NOT EXISTS idx_conflicts_conflicting_interview_id ON public.interview_conflicts USING btree (conflicting_interview_id);
 
 
 --
 -- Name: idx_conflicts_interview_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_conflicts_interview_id ON public.interview_conflicts USING btree (interview_id);
+CREATE INDEX IF NOT EXISTS idx_conflicts_interview_id ON public.interview_conflicts USING btree (interview_id);
 
 
 --
 -- Name: idx_conflicts_resolved; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_conflicts_resolved ON public.interview_conflicts USING btree (resolved);
+CREATE INDEX IF NOT EXISTS idx_conflicts_resolved ON public.interview_conflicts USING btree (resolved);
 
 
 --
 -- Name: idx_contact_interactions_contact_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_contact_interactions_contact_id ON public.contact_interactions USING btree (contact_id);
+CREATE INDEX IF NOT EXISTS idx_contact_interactions_contact_id ON public.contact_interactions USING btree (contact_id);
 
 
 --
 -- Name: idx_coverletter_is_master; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_coverletter_is_master ON public.coverletter USING btree (is_master) WHERE (is_master = true);
+CREATE INDEX IF NOT EXISTS idx_coverletter_is_master ON public.coverletter USING btree (is_master) WHERE (is_master = true);
 
 
 --
 -- Name: idx_coverletter_job_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_coverletter_job_id ON public.coverletter USING btree (job_id);
+CREATE INDEX IF NOT EXISTS idx_coverletter_job_id ON public.coverletter USING btree (job_id);
 
 
 --
 -- Name: idx_coverletter_parent_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_coverletter_parent_id ON public.coverletter USING btree (parent_coverletter_id);
+CREATE INDEX IF NOT EXISTS idx_coverletter_parent_id ON public.coverletter USING btree (parent_coverletter_id);
 
 
 --
 -- Name: idx_coverletter_template_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_coverletter_template_id ON public.coverletter USING btree (template_id);
+CREATE INDEX IF NOT EXISTS idx_coverletter_template_id ON public.coverletter USING btree (template_id);
 
 
 --
 -- Name: idx_coverletter_user_id_created; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_coverletter_user_id_created ON public.coverletter USING btree (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_coverletter_user_id_created ON public.coverletter USING btree (user_id, created_at DESC);
 
 
 --
 -- Name: idx_custom_reports_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_custom_reports_user_id ON public.custom_reports USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_custom_reports_user_id ON public.custom_reports USING btree (user_id);
 
 
 --
 -- Name: idx_discovered_contacts_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_discovered_contacts_user_id ON public.discovered_contacts USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_discovered_contacts_user_id ON public.discovered_contacts USING btree (user_id);
 
 
 --
 -- Name: idx_document_approvals_document; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_document_approvals_document ON public.document_approvals USING btree (document_type, document_id);
+CREATE INDEX IF NOT EXISTS idx_document_approvals_document ON public.document_approvals USING btree (document_type, document_id);
 
 
 --
 -- Name: idx_document_approvals_review_request_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_document_approvals_review_request_id ON public.document_approvals USING btree (review_request_id);
+CREATE INDEX IF NOT EXISTS idx_document_approvals_review_request_id ON public.document_approvals USING btree (review_request_id);
 
 
 --
 -- Name: idx_document_review_requests_document; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_document_review_requests_document ON public.document_review_requests USING btree (document_type, document_id);
+CREATE INDEX IF NOT EXISTS idx_document_review_requests_document ON public.document_review_requests USING btree (document_type, document_id);
 
 
 --
 -- Name: idx_document_review_requests_requestor_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_document_review_requests_requestor_id ON public.document_review_requests USING btree (requestor_id);
+CREATE INDEX IF NOT EXISTS idx_document_review_requests_requestor_id ON public.document_review_requests USING btree (requestor_id);
 
 
 --
 -- Name: idx_document_review_requests_reviewer_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_document_review_requests_reviewer_id ON public.document_review_requests USING btree (reviewer_id);
+CREATE INDEX IF NOT EXISTS idx_document_review_requests_reviewer_id ON public.document_review_requests USING btree (reviewer_id);
 
 
 --
 -- Name: idx_document_versions_created_by; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_document_versions_created_by ON public.document_versions USING btree (created_by);
+CREATE INDEX IF NOT EXISTS idx_document_versions_created_by ON public.document_versions USING btree (created_by);
 
 
 --
 -- Name: idx_document_versions_document; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_document_versions_document ON public.document_versions USING btree (document_type, document_id, version_number DESC);
+CREATE INDEX IF NOT EXISTS idx_document_versions_document ON public.document_versions USING btree (document_type, document_id, version_number DESC);
 
 
 --
 -- Name: idx_enterprise_accounts_admin_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_enterprise_accounts_admin_user_id ON public.enterprise_accounts USING btree (admin_user_id);
+CREATE INDEX IF NOT EXISTS idx_enterprise_accounts_admin_user_id ON public.enterprise_accounts USING btree (admin_user_id);
 
 
 --
 -- Name: idx_event_connections_event_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_event_connections_event_id ON public.event_connections USING btree (event_id);
+CREATE INDEX IF NOT EXISTS idx_event_connections_event_id ON public.event_connections USING btree (event_id);
+
+
+--
+-- Name: idx_event_registrations_event_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_event_registrations_event_id ON public.event_registrations USING btree (event_id);
+
+
+--
+-- Name: idx_event_registrations_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_event_registrations_user_id ON public.event_registrations USING btree (user_id);
 
 
 --
 -- Name: idx_external_advisors_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_external_advisors_user_id ON public.external_advisors USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_external_advisors_user_id ON public.external_advisors USING btree (user_id);
+
+
+--
+-- Name: idx_follow_ups_action_type; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_follow_ups_action_type ON public.interview_follow_ups USING btree (action_type);
+
+
+--
+-- Name: idx_follow_ups_completed; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_follow_ups_completed ON public.interview_follow_ups USING btree (completed);
+
+
+--
+-- Name: idx_follow_ups_due_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_follow_ups_due_date ON public.interview_follow_ups USING btree (due_date);
+
+
+--
+-- Name: idx_follow_ups_interview_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_follow_ups_interview_id ON public.interview_follow_ups USING btree (interview_id);
 
 
 --
 -- Name: idx_group_memberships_group_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_group_memberships_group_id ON public.group_memberships USING btree (group_id);
+CREATE INDEX IF NOT EXISTS idx_group_memberships_group_id ON public.group_memberships USING btree (group_id);
 
 
 --
 -- Name: idx_group_memberships_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_group_memberships_user_id ON public.group_memberships USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_group_memberships_user_id ON public.group_memberships USING btree (user_id);
 
 
 --
 -- Name: idx_informational_interviews_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_informational_interviews_user_id ON public.informational_interviews USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_informational_interviews_user_id ON public.informational_interviews USING btree (user_id);
 
 
 --
 -- Name: idx_interview_analytics_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_interview_analytics_user_id ON public.interview_analytics USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_interview_analytics_user_id ON public.interview_analytics USING btree (user_id);
+
+
+--
+-- Name: idx_interview_feedback_interview_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_interview_feedback_interview_id ON public.interview_feedback USING btree (interview_id);
+
+
+--
+-- Name: idx_interview_feedback_sentiment; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_interview_feedback_sentiment ON public.interview_feedback USING btree (sentiment_score, user_id);
+
+
+--
+-- Name: idx_interview_feedback_skill_area; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_interview_feedback_skill_area ON public.interview_feedback USING btree (skill_area);
+
+
+--
+-- Name: idx_interview_feedback_theme; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_interview_feedback_theme ON public.interview_feedback USING btree (feedback_theme, user_id);
+
+
+--
+-- Name: idx_interview_feedback_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_interview_feedback_user_id ON public.interview_feedback USING btree (user_id);
+
+
+--
+-- Name: idx_interview_feedback_user_skill; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_interview_feedback_user_skill ON public.interview_feedback USING btree (user_id, skill_area);
 
 
 --
 -- Name: idx_interview_followups_interview_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_interview_followups_interview_id ON public.interview_followups USING btree (interview_id);
+CREATE INDEX IF NOT EXISTS idx_interview_followups_interview_id ON public.interview_followups USING btree (interview_id);
 
 
 --
 -- Name: idx_interview_performance_tracking_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_interview_performance_tracking_user_id ON public.interview_performance_tracking USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_interview_performance_tracking_user_id ON public.interview_performance_tracking USING btree (user_id);
 
 
 --
 -- Name: idx_interview_preparation_checklists_interview_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_interview_preparation_checklists_interview_id ON public.interview_preparation_checklists USING btree (interview_id);
+CREATE INDEX IF NOT EXISTS idx_interview_preparation_checklists_interview_id ON public.interview_preparation_checklists USING btree (interview_id);
 
 
 --
 -- Name: idx_interview_preparation_tasks_interview_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_interview_preparation_tasks_interview_id ON public.interview_preparation_tasks USING btree (interview_id);
+CREATE INDEX IF NOT EXISTS idx_interview_preparation_tasks_interview_id ON public.interview_preparation_tasks USING btree (interview_id);
 
 
 --
 -- Name: idx_interview_question_banks_job_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_interview_question_banks_job_id ON public.interview_question_banks USING btree (job_id);
+CREATE INDEX IF NOT EXISTS idx_interview_question_banks_job_id ON public.interview_question_banks USING btree (job_id);
 
 
 --
 -- Name: idx_interview_response_coaching_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_interview_response_coaching_user_id ON public.interview_response_coaching USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_interview_response_coaching_user_id ON public.interview_response_coaching USING btree (user_id);
 
 
 --
 -- Name: idx_interview_success_probability_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_interview_success_probability_user_id ON public.interview_success_probability USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_interview_success_probability_user_id ON public.interview_success_probability USING btree (user_id);
 
 
 --
 -- Name: idx_interviews_conflict_detected; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_interviews_conflict_detected ON public.interviews USING btree (conflict_detected);
+CREATE INDEX IF NOT EXISTS idx_interviews_conflict_detected ON public.interviews USING btree (conflict_detected);
+
+
+--
+-- Name: idx_interviews_format; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_interviews_format ON public.interviews USING btree (format);
 
 
 --
 -- Name: idx_interviews_google_calendar_event_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_interviews_google_calendar_event_id ON public.interviews USING btree (google_calendar_event_id);
+CREATE INDEX IF NOT EXISTS idx_interviews_google_calendar_event_id ON public.interviews USING btree (google_calendar_event_id);
+
+
+--
+-- Name: idx_interviews_is_practice; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_interviews_is_practice ON public.interviews USING btree (is_practice, user_id);
 
 
 --
 -- Name: idx_interviews_job_opportunity_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_interviews_job_opportunity_id ON public.interviews USING btree (job_opportunity_id);
+CREATE INDEX IF NOT EXISTS idx_interviews_job_opportunity_id ON public.interviews USING btree (job_opportunity_id);
+
+
+--
+-- Name: idx_interviews_outcome; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_interviews_outcome ON public.interviews USING btree (outcome);
 
 
 --
 -- Name: idx_interviews_rescheduled_from; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_interviews_rescheduled_from ON public.interviews USING btree (rescheduled_from);
+CREATE INDEX IF NOT EXISTS idx_interviews_rescheduled_from ON public.interviews USING btree (rescheduled_from);
 
 
 --
 -- Name: idx_interviews_rescheduled_to; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_interviews_rescheduled_to ON public.interviews USING btree (rescheduled_to);
+CREATE INDEX IF NOT EXISTS idx_interviews_rescheduled_to ON public.interviews USING btree (rescheduled_to);
 
 
 --
 -- Name: idx_interviews_scheduled_at; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_interviews_scheduled_at ON public.interviews USING btree (scheduled_at);
+CREATE INDEX IF NOT EXISTS idx_interviews_scheduled_at ON public.interviews USING btree (scheduled_at);
 
 
 --
 -- Name: idx_interviews_status; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_interviews_status ON public.interviews USING btree (status);
+CREATE INDEX IF NOT EXISTS idx_interviews_status ON public.interviews USING btree (status);
 
 
 --
 -- Name: idx_interviews_type; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_interviews_type ON public.interviews USING btree (type);
+CREATE INDEX IF NOT EXISTS idx_interviews_type ON public.interviews USING btree (type);
 
 
 --
 -- Name: idx_interviews_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_interviews_user_id ON public.interviews USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_interviews_user_id ON public.interviews USING btree (user_id);
 
 
 --
 -- Name: idx_job_comments_job; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_job_comments_job ON public.job_comments USING btree (job_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_job_comments_job ON public.job_comments USING btree (job_id, created_at DESC);
 
 
 --
 -- Name: idx_job_comments_parent; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_job_comments_parent ON public.job_comments USING btree (parent_comment_id);
+CREATE INDEX IF NOT EXISTS idx_job_comments_parent ON public.job_comments USING btree (parent_comment_id);
 
 
 --
 -- Name: idx_job_comments_team; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_job_comments_team ON public.job_comments USING btree (team_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_job_comments_team ON public.job_comments USING btree (team_id, created_at DESC);
+
+
+--
+-- Name: idx_job_opp_application_method; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_job_opp_application_method ON public.job_opportunities USING btree (application_method);
+
+
+--
+-- Name: idx_job_opp_application_source; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_job_opp_application_source ON public.job_opportunities USING btree (application_source);
+
+
+--
+-- Name: idx_job_opp_submitted_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_job_opp_submitted_at ON public.job_opportunities USING btree (application_submitted_at);
 
 
 --
 -- Name: idx_job_opportunities_application_history; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_job_opportunities_application_history ON public.job_opportunities USING gin (application_history);
+CREATE INDEX IF NOT EXISTS idx_job_opportunities_application_history ON public.job_opportunities USING gin (application_history);
 
 
 --
 -- Name: idx_job_opportunities_archived; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_job_opportunities_archived ON public.job_opportunities USING btree (archived);
+CREATE INDEX IF NOT EXISTS idx_job_opportunities_archived ON public.job_opportunities USING btree (archived);
 
 
 --
 -- Name: idx_job_opportunities_deadline; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_job_opportunities_deadline ON public.job_opportunities USING btree (application_deadline);
+CREATE INDEX IF NOT EXISTS idx_job_opportunities_deadline ON public.job_opportunities USING btree (application_deadline);
 
 
 --
 -- Name: idx_job_opportunities_status; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_job_opportunities_status ON public.job_opportunities USING btree (status);
+CREATE INDEX IF NOT EXISTS idx_job_opportunities_status ON public.job_opportunities USING btree (status);
 
 
 --
 -- Name: idx_job_opportunities_status_updated_at; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_job_opportunities_status_updated_at ON public.job_opportunities USING btree (status_updated_at);
+CREATE INDEX IF NOT EXISTS idx_job_opportunities_status_updated_at ON public.job_opportunities USING btree (status_updated_at);
 
 
 --
 -- Name: idx_job_opportunities_user_archived; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_job_opportunities_user_archived ON public.job_opportunities USING btree (user_id, archived);
+CREATE INDEX IF NOT EXISTS idx_job_opportunities_user_archived ON public.job_opportunities USING btree (user_id, archived);
 
 
 --
 -- Name: idx_job_opportunities_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_job_opportunities_user_id ON public.job_opportunities USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_job_opportunities_user_id ON public.job_opportunities USING btree (user_id);
 
 
 --
 -- Name: idx_job_search_metrics_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_job_search_metrics_user_id ON public.job_search_metrics USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_job_search_metrics_user_id ON public.job_search_metrics USING btree (user_id);
 
 
 --
 -- Name: idx_linkedin_networking_templates_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_linkedin_networking_templates_user_id ON public.linkedin_networking_templates USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_linkedin_networking_templates_user_id ON public.linkedin_networking_templates USING btree (user_id);
+
+
+--
+-- Name: idx_market_insights_expires; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_market_insights_expires ON public.market_insights USING btree (expires_at);
+
+
+--
+-- Name: idx_market_insights_priority; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_market_insights_priority ON public.market_insights USING btree (priority);
+
+
+--
+-- Name: idx_market_insights_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_market_insights_status ON public.market_insights USING btree (status);
+
+
+--
+-- Name: idx_market_insights_supporting_data; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_market_insights_supporting_data ON public.market_insights USING gin (supporting_data);
+
+
+--
+-- Name: idx_market_insights_type; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_market_insights_type ON public.market_insights USING btree (insight_type);
+
+
+--
+-- Name: idx_market_insights_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_market_insights_user ON public.market_insights USING btree (user_id);
+
+
+--
+-- Name: idx_market_insights_user_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_market_insights_user_status ON public.market_insights USING btree (user_id, status);
+
+
+--
+-- Name: idx_market_intelligence_cache_expires; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_market_intelligence_cache_expires ON public.market_intelligence_cache USING btree (expires_at);
+
+
+--
+-- Name: idx_market_intelligence_cache_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_market_intelligence_cache_key ON public.market_intelligence_cache USING btree (cache_key);
+
+
+--
+-- Name: idx_market_intelligence_cache_type; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_market_intelligence_cache_type ON public.market_intelligence_cache USING btree (data_type);
+
+
+--
+-- Name: idx_market_intelligence_data; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_market_intelligence_data ON public.market_intelligence_cache USING gin (data);
 
 
 --
 -- Name: idx_market_intelligence_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_market_intelligence_user_id ON public.market_intelligence USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_market_intelligence_user_id ON public.market_intelligence USING btree (user_id);
 
 
 --
 -- Name: idx_mentor_dashboard_views_mentee_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_mentor_dashboard_views_mentee_id ON public.mentor_dashboard_views USING btree (mentee_id);
+CREATE INDEX IF NOT EXISTS idx_mentor_dashboard_views_mentee_id ON public.mentor_dashboard_views USING btree (mentee_id);
 
 
 --
 -- Name: idx_mentor_dashboard_views_mentor_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_mentor_dashboard_views_mentor_id ON public.mentor_dashboard_views USING btree (mentor_id);
+CREATE INDEX IF NOT EXISTS idx_mentor_dashboard_views_mentor_id ON public.mentor_dashboard_views USING btree (mentor_id);
 
 
 --
 -- Name: idx_mentor_relationships_mentee_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_mentor_relationships_mentee_id ON public.mentor_relationships USING btree (mentee_id);
+CREATE INDEX IF NOT EXISTS idx_mentor_relationships_mentee_id ON public.mentor_relationships USING btree (mentee_id);
 
 
 --
 -- Name: idx_mentor_relationships_mentor_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_mentor_relationships_mentor_id ON public.mentor_relationships USING btree (mentor_id);
+CREATE INDEX IF NOT EXISTS idx_mentor_relationships_mentor_id ON public.mentor_relationships USING btree (mentor_id);
 
 
 --
 -- Name: idx_message_reactions_message; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_message_reactions_message ON public.message_reactions USING btree (message_id);
+CREATE INDEX IF NOT EXISTS idx_message_reactions_message ON public.message_reactions USING btree (message_id);
 
 
 --
 -- Name: idx_milestones_team; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_milestones_team ON public.milestones USING btree (team_id, achieved_at DESC);
+CREATE INDEX IF NOT EXISTS idx_milestones_team ON public.milestones USING btree (team_id, achieved_at DESC);
 
 
 --
 -- Name: idx_milestones_type; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_milestones_type ON public.milestones USING btree (milestone_type, achieved_at DESC);
+CREATE INDEX IF NOT EXISTS idx_milestones_type ON public.milestones USING btree (milestone_type, achieved_at DESC);
 
 
 --
 -- Name: idx_milestones_user; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_milestones_user ON public.milestones USING btree (user_id, achieved_at DESC);
+CREATE INDEX IF NOT EXISTS idx_milestones_user ON public.milestones USING btree (user_id, achieved_at DESC);
 
 
 --
 -- Name: idx_mock_interview_messages_created_at; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_mock_interview_messages_created_at ON public.mock_interview_messages USING btree (created_at);
+CREATE INDEX IF NOT EXISTS idx_mock_interview_messages_created_at ON public.mock_interview_messages USING btree (created_at);
 
 
 --
 -- Name: idx_mock_interview_messages_session_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_mock_interview_messages_session_id ON public.mock_interview_messages USING btree (session_id);
+CREATE INDEX IF NOT EXISTS idx_mock_interview_messages_session_id ON public.mock_interview_messages USING btree (session_id);
 
 
 --
 -- Name: idx_mock_interview_questions_session_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_mock_interview_questions_session_id ON public.mock_interview_questions USING btree (session_id);
+CREATE INDEX IF NOT EXISTS idx_mock_interview_questions_session_id ON public.mock_interview_questions USING btree (session_id);
 
 
 --
 -- Name: idx_mock_interview_sessions_status; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_mock_interview_sessions_status ON public.mock_interview_sessions USING btree (status);
+CREATE INDEX IF NOT EXISTS idx_mock_interview_sessions_status ON public.mock_interview_sessions USING btree (status);
 
 
 --
 -- Name: idx_mock_interview_sessions_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_mock_interview_sessions_user_id ON public.mock_interview_sessions USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_mock_interview_sessions_user_id ON public.mock_interview_sessions USING btree (user_id);
 
 
 --
 -- Name: idx_network_roi_analytics_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_network_roi_analytics_user_id ON public.network_roi_analytics USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_network_roi_analytics_user_id ON public.network_roi_analytics USING btree (user_id);
 
 
 --
 -- Name: idx_networking_campaigns_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_networking_campaigns_user_id ON public.networking_campaigns USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_networking_campaigns_user_id ON public.networking_campaigns USING btree (user_id);
+
+
+--
+-- Name: idx_networking_events_cancelled; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_networking_events_cancelled ON public.networking_events USING btree (cancelled);
 
 
 --
 -- Name: idx_networking_events_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_networking_events_user_id ON public.networking_events USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_networking_events_user_id ON public.networking_events USING btree (user_id);
+
+
+--
+-- Name: idx_networking_goals_event_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_networking_goals_event_id ON public.networking_goals USING btree (event_id);
 
 
 --
 -- Name: idx_networking_goals_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_networking_goals_user_id ON public.networking_goals USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_networking_goals_user_id ON public.networking_goals USING btree (user_id);
 
 
 --
 -- Name: idx_performance_coverletter_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_performance_coverletter_id ON public.cover_letter_performance USING btree (coverletter_id);
+CREATE INDEX IF NOT EXISTS idx_performance_coverletter_id ON public.cover_letter_performance USING btree (coverletter_id);
 
 
 --
 -- Name: idx_performance_job_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_performance_job_id ON public.cover_letter_performance USING btree (job_id);
+CREATE INDEX IF NOT EXISTS idx_performance_job_id ON public.cover_letter_performance USING btree (job_id);
 
 
 --
 -- Name: idx_performance_predictions_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_performance_predictions_user_id ON public.performance_predictions USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_performance_predictions_user_id ON public.performance_predictions USING btree (user_id);
 
 
 --
 -- Name: idx_performance_trends_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_performance_trends_user_id ON public.performance_trends USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_performance_trends_user_id ON public.performance_trends USING btree (user_id);
+
+
+--
+-- Name: idx_post_reflection_interview_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_post_reflection_interview_id ON public.interview_post_reflection USING btree (interview_id);
+
+
+--
+-- Name: idx_post_reflection_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_post_reflection_user_id ON public.interview_post_reflection USING btree (user_id);
+
+
+--
+-- Name: idx_practice_sessions_format; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_practice_sessions_format ON public.practice_sessions USING btree (format);
+
+
+--
+-- Name: idx_practice_sessions_session_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_practice_sessions_session_date ON public.practice_sessions USING btree (session_date);
+
+
+--
+-- Name: idx_practice_sessions_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_practice_sessions_user_id ON public.practice_sessions USING btree (user_id);
+
+
+--
+-- Name: idx_pre_assessment_created_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_pre_assessment_created_at ON public.interview_pre_assessment USING btree (created_at);
+
+
+--
+-- Name: idx_pre_assessment_interview_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_pre_assessment_interview_id ON public.interview_pre_assessment USING btree (interview_id);
+
+
+--
+-- Name: idx_pre_assessment_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_pre_assessment_user_id ON public.interview_pre_assessment USING btree (user_id);
 
 
 --
 -- Name: idx_preparation_tasks_assigned_by; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_preparation_tasks_assigned_by ON public.preparation_tasks USING btree (assigned_by);
+CREATE INDEX IF NOT EXISTS idx_preparation_tasks_assigned_by ON public.preparation_tasks USING btree (assigned_by);
 
 
 --
 -- Name: idx_preparation_tasks_assigned_to; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_preparation_tasks_assigned_to ON public.preparation_tasks USING btree (assigned_to, status);
+CREATE INDEX IF NOT EXISTS idx_preparation_tasks_assigned_to ON public.preparation_tasks USING btree (assigned_to, status);
 
 
 --
 -- Name: idx_preparation_tasks_completed; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_preparation_tasks_completed ON public.interview_preparation_tasks USING btree (completed);
+CREATE INDEX IF NOT EXISTS idx_preparation_tasks_completed ON public.interview_preparation_tasks USING btree (completed);
 
 
 --
 -- Name: idx_preparation_tasks_due_date; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_preparation_tasks_due_date ON public.interview_preparation_tasks USING btree (due_date);
+CREATE INDEX IF NOT EXISTS idx_preparation_tasks_due_date ON public.interview_preparation_tasks USING btree (due_date);
 
 
 --
 -- Name: idx_preparation_tasks_interview_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_preparation_tasks_interview_id ON public.interview_preparation_tasks USING btree (interview_id);
+CREATE INDEX IF NOT EXISTS idx_preparation_tasks_interview_id ON public.interview_preparation_tasks USING btree (interview_id);
 
 
 --
 -- Name: idx_preparation_tasks_team; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_preparation_tasks_team ON public.preparation_tasks USING btree (team_id, status);
+CREATE INDEX IF NOT EXISTS idx_preparation_tasks_team ON public.preparation_tasks USING btree (team_id, status);
 
 
 --
 -- Name: idx_productivity_analysis_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_productivity_analysis_user_id ON public.productivity_analysis USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_productivity_analysis_user_id ON public.productivity_analysis USING btree (user_id);
 
 
 --
 -- Name: idx_professional_contacts_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_professional_contacts_user_id ON public.professional_contacts USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_professional_contacts_user_id ON public.professional_contacts USING btree (user_id);
 
 
 --
 -- Name: idx_professional_references_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_professional_references_user_id ON public.professional_references USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_professional_references_user_id ON public.professional_references USING btree (user_id);
 
 
 --
 -- Name: idx_progress_shares_shared_with_user; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_progress_shares_shared_with_user ON public.progress_shares USING btree (shared_with_user_id);
+CREATE INDEX IF NOT EXISTS idx_progress_shares_shared_with_user ON public.progress_shares USING btree (shared_with_user_id);
 
 
 --
 -- Name: idx_progress_shares_team; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_progress_shares_team ON public.progress_shares USING btree (shared_with_team_id);
+CREATE INDEX IF NOT EXISTS idx_progress_shares_team ON public.progress_shares USING btree (shared_with_team_id);
 
 
 --
 -- Name: idx_progress_shares_user; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_progress_shares_user ON public.progress_shares USING btree (user_id, is_active);
+CREATE INDEX IF NOT EXISTS idx_progress_shares_user ON public.progress_shares USING btree (user_id, is_active);
 
 
 --
 -- Name: idx_progress_sharing_settings_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_progress_sharing_settings_user_id ON public.progress_sharing_settings USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_progress_sharing_settings_user_id ON public.progress_sharing_settings USING btree (user_id);
 
 
 --
 -- Name: idx_question_practice_sessions_question_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_question_practice_sessions_question_id ON public.question_practice_sessions USING btree (question_id);
+CREATE INDEX IF NOT EXISTS idx_question_practice_sessions_question_id ON public.question_practice_sessions USING btree (question_id);
 
 
 --
 -- Name: idx_question_practice_sessions_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_question_practice_sessions_user_id ON public.question_practice_sessions USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_question_practice_sessions_user_id ON public.question_practice_sessions USING btree (user_id);
 
 
 --
 -- Name: idx_referral_requests_job_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_referral_requests_job_id ON public.referral_requests USING btree (job_id);
+CREATE INDEX IF NOT EXISTS idx_referral_requests_job_id ON public.referral_requests USING btree (job_id);
 
 
 --
 -- Name: idx_referral_requests_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_referral_requests_user_id ON public.referral_requests USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_referral_requests_user_id ON public.referral_requests USING btree (user_id);
 
 
 --
 -- Name: idx_relationship_maintenance_reminders_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_relationship_maintenance_reminders_user_id ON public.relationship_maintenance_reminders USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_relationship_maintenance_reminders_user_id ON public.relationship_maintenance_reminders USING btree (user_id);
+
+
+--
+-- Name: idx_reminders_interview_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_reminders_interview_id ON public.interview_reminders USING btree (interview_id);
+
+
+--
+-- Name: idx_reminders_scheduled_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_reminders_scheduled_at ON public.interview_reminders USING btree (scheduled_at, status);
+
+
+--
+-- Name: idx_reminders_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_reminders_status ON public.interview_reminders USING btree (status);
 
 
 --
 -- Name: idx_resume_is_master; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_resume_is_master ON public.resume USING btree (is_master) WHERE (is_master = true);
+CREATE INDEX IF NOT EXISTS idx_resume_is_master ON public.resume USING btree (is_master) WHERE (is_master = true);
 
 
 --
 -- Name: idx_resume_job_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_resume_job_id ON public.resume USING btree (job_id);
+CREATE INDEX IF NOT EXISTS idx_resume_job_id ON public.resume USING btree (job_id);
 
 
 --
 -- Name: idx_resume_parent_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_resume_parent_id ON public.resume USING btree (parent_resume_id);
+CREATE INDEX IF NOT EXISTS idx_resume_parent_id ON public.resume USING btree (parent_resume_id);
 
 
 --
 -- Name: idx_resume_template_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_resume_template_id ON public.resume USING btree (template_id);
+CREATE INDEX IF NOT EXISTS idx_resume_template_id ON public.resume USING btree (template_id);
 
 
 --
 -- Name: idx_resume_user_id_created; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_resume_user_id_created ON public.resume USING btree (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_resume_user_id_created ON public.resume USING btree (user_id, created_at DESC);
 
 
 --
 -- Name: idx_review_comments_parent; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_review_comments_parent ON public.review_comments USING btree (parent_comment_id);
+CREATE INDEX IF NOT EXISTS idx_review_comments_parent ON public.review_comments USING btree (parent_comment_id);
 
 
 --
 -- Name: idx_review_comments_resolved; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_review_comments_resolved ON public.review_comments USING btree (is_resolved, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_review_comments_resolved ON public.review_comments USING btree (is_resolved, created_at DESC);
 
 
 --
 -- Name: idx_review_comments_review; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_review_comments_review ON public.review_comments USING btree (review_request_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_review_comments_review ON public.review_comments USING btree (review_request_id, created_at DESC);
 
 
 --
 -- Name: idx_review_comments_reviewer; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_review_comments_reviewer ON public.review_comments USING btree (reviewer_id);
+CREATE INDEX IF NOT EXISTS idx_review_comments_reviewer ON public.review_comments USING btree (reviewer_id);
+
+
+--
+-- Name: idx_review_comments_team_document; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_review_comments_team_document ON public.review_comments USING btree (team_id, document_type, document_id) WHERE (team_id IS NOT NULL);
 
 
 --
 -- Name: idx_salary_negotiation_prep_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_salary_negotiation_prep_user_id ON public.salary_negotiation_prep USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_salary_negotiation_prep_user_id ON public.salary_negotiation_prep USING btree (user_id);
 
 
 --
 -- Name: idx_salary_progression_tracking_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_salary_progression_tracking_user_id ON public.salary_progression_tracking USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_salary_progression_tracking_user_id ON public.salary_progression_tracking USING btree (user_id);
+
+
+--
+-- Name: idx_shared_documents_document; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_shared_documents_document ON public.shared_documents USING btree (document_type, document_id);
+
+
+--
+-- Name: idx_shared_documents_shared_by; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_shared_documents_shared_by ON public.shared_documents USING btree (shared_by);
+
+
+--
+-- Name: idx_shared_documents_shared_with_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_shared_documents_shared_with_user ON public.shared_documents USING btree (shared_with_user_id) WHERE (shared_with_user_id IS NOT NULL);
+
+
+--
+-- Name: idx_shared_documents_team; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_shared_documents_team ON public.shared_documents USING btree (team_id, shared_at DESC);
 
 
 --
 -- Name: idx_shared_jobs_job; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_shared_jobs_job ON public.shared_jobs USING btree (job_id);
+CREATE INDEX IF NOT EXISTS idx_shared_jobs_job ON public.shared_jobs USING btree (job_id);
 
 
 --
 -- Name: idx_shared_jobs_shared_by; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_shared_jobs_shared_by ON public.shared_jobs USING btree (shared_by);
+CREATE INDEX IF NOT EXISTS idx_shared_jobs_shared_by ON public.shared_jobs USING btree (shared_by);
 
 
 --
 -- Name: idx_shared_jobs_team; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_shared_jobs_team ON public.shared_jobs USING btree (team_id, shared_at DESC);
+CREATE INDEX IF NOT EXISTS idx_shared_jobs_team ON public.shared_jobs USING btree (team_id, shared_at DESC);
+
+
+--
+-- Name: idx_skill_demand_industry; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_skill_demand_industry ON public.skill_demand_trends USING btree (industry);
+
+
+--
+-- Name: idx_skill_demand_location; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_skill_demand_location ON public.skill_demand_trends USING btree (location);
+
+
+--
+-- Name: idx_skill_demand_period; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_skill_demand_period ON public.skill_demand_trends USING btree (period_start, period_end);
+
+
+--
+-- Name: idx_skill_demand_skill; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_skill_demand_skill ON public.skill_demand_trends USING btree (skill_name);
+
+
+--
+-- Name: idx_skill_demand_trend; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_skill_demand_trend ON public.skill_demand_trends USING btree (trend_direction);
 
 
 --
 -- Name: idx_success_patterns_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_success_patterns_user_id ON public.success_patterns USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_success_patterns_user_id ON public.success_patterns USING btree (user_id);
 
 
 --
 -- Name: idx_team_invitations_email; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_team_invitations_email ON public.team_invitations USING btree (email, status);
+CREATE INDEX IF NOT EXISTS idx_team_invitations_email ON public.team_invitations USING btree (email, status);
 
 
 --
 -- Name: idx_team_invitations_team; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_team_invitations_team ON public.team_invitations USING btree (team_id, status);
+CREATE INDEX IF NOT EXISTS idx_team_invitations_team ON public.team_invitations USING btree (team_id, status);
 
 
 --
 -- Name: idx_team_invitations_token; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_team_invitations_token ON public.team_invitations USING btree (invitation_token);
+CREATE INDEX IF NOT EXISTS idx_team_invitations_token ON public.team_invitations USING btree (invitation_token);
 
 
 --
 -- Name: idx_team_members_team_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_team_members_team_id ON public.team_members USING btree (team_id);
+CREATE INDEX IF NOT EXISTS idx_team_members_team_id ON public.team_members USING btree (team_id);
 
 
 --
 -- Name: idx_team_members_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_team_members_user_id ON public.team_members USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_team_members_user_id ON public.team_members USING btree (user_id);
 
 
 --
 -- Name: idx_technical_prep_challenges_performance_metrics; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_technical_prep_challenges_performance_metrics ON public.technical_prep_challenges USING gin (performance_metrics);
+CREATE INDEX IF NOT EXISTS idx_technical_prep_challenges_performance_metrics ON public.technical_prep_challenges USING gin (performance_metrics);
 
 
 --
 -- Name: idx_technical_prep_challenges_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_technical_prep_challenges_user_id ON public.technical_prep_challenges USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_technical_prep_challenges_user_id ON public.technical_prep_challenges USING btree (user_id);
 
 
 --
 -- Name: idx_template_usage_template_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_template_usage_template_id ON public.cover_letter_template_usage USING btree (template_id);
+CREATE INDEX IF NOT EXISTS idx_template_usage_template_id ON public.cover_letter_template_usage USING btree (template_id);
 
 
 --
 -- Name: idx_template_usage_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_template_usage_user_id ON public.cover_letter_template_usage USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_template_usage_user_id ON public.cover_letter_template_usage USING btree (user_id);
+
+
+--
+-- Name: idx_thank_you_notes_interview_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_thank_you_notes_interview_id ON public.interview_thank_you_notes USING btree (interview_id);
+
+
+--
+-- Name: idx_thank_you_notes_sent_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_thank_you_notes_sent_at ON public.interview_thank_you_notes USING btree (sent_at);
+
+
+--
+-- Name: idx_thank_you_notes_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_thank_you_notes_status ON public.interview_thank_you_notes USING btree (status);
 
 
 --
 -- Name: idx_time_tracking_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_time_tracking_user_id ON public.time_tracking USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_time_tracking_user_id ON public.time_tracking USING btree (user_id);
 
 
 --
 -- Name: idx_user_cohorts_enterprise_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_user_cohorts_enterprise_id ON public.user_cohorts USING btree (enterprise_id);
+CREATE INDEX IF NOT EXISTS idx_user_cohorts_enterprise_id ON public.user_cohorts USING btree (enterprise_id);
 
 
 --
 -- Name: idx_users_google_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_users_google_id ON public.users USING btree (google_id);
+CREATE INDEX IF NOT EXISTS idx_users_google_id ON public.users USING btree (google_id);
 
 
 --
 -- Name: idx_users_linkedin_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_users_linkedin_id ON public.users USING btree (linkedin_id);
+CREATE INDEX IF NOT EXISTS idx_users_linkedin_id ON public.users USING btree (linkedin_id);
 
 
 --
 -- Name: idx_writing_practice_sessions_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_writing_practice_sessions_user_id ON public.writing_practice_sessions USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_writing_practice_sessions_user_id ON public.writing_practice_sessions USING btree (user_id);
+
+
+--
+-- Name: shared_documents_unique_share; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX IF NOT EXISTS shared_documents_unique_share ON public.shared_documents USING btree (document_type, document_id, team_id, COALESCE(shared_with_user_id, '00000000-0000-0000-0000-000000000000'::uuid));
 
 
 --
 -- Name: users lowercaseemail; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS lowercaseemail ON public.users;
 CREATE TRIGGER lowercaseemail BEFORE INSERT OR UPDATE ON public.users FOR EACH ROW EXECUTE FUNCTION public.lower_email();
 
 
@@ -5139,6 +6569,7 @@ CREATE TRIGGER lowercaseemail BEFORE INSERT OR UPDATE ON public.users FOR EACH R
 -- Name: users set_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS set_updated_at ON public.users;
 CREATE TRIGGER set_updated_at BEFORE UPDATE ON public.users FOR EACH ROW EXECUTE FUNCTION public.addupdatetime();
 
 
@@ -5146,6 +6577,7 @@ CREATE TRIGGER set_updated_at BEFORE UPDATE ON public.users FOR EACH ROW EXECUTE
 -- Name: advisor_recommendations trg_advisor_recommendations_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS trg_advisor_recommendations_updated_at ON public.advisor_recommendations;
 CREATE TRIGGER trg_advisor_recommendations_updated_at BEFORE UPDATE ON public.advisor_recommendations FOR EACH ROW EXECUTE FUNCTION public.addupdatetime();
 
 
@@ -5153,6 +6585,7 @@ CREATE TRIGGER trg_advisor_recommendations_updated_at BEFORE UPDATE ON public.ad
 -- Name: prospectivejobs trg_auto_archive_jobs; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS trg_auto_archive_jobs ON public.prospectivejobs;
 CREATE TRIGGER trg_auto_archive_jobs BEFORE UPDATE OF autoarchive_time_limit ON public.prospectivejobs FOR EACH ROW EXECUTE FUNCTION public.auto_archive_jobs();
 
 
@@ -5160,6 +6593,7 @@ CREATE TRIGGER trg_auto_archive_jobs BEFORE UPDATE OF autoarchive_time_limit ON 
 -- Name: career_goals trg_career_goals_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS trg_career_goals_updated_at ON public.career_goals;
 CREATE TRIGGER trg_career_goals_updated_at BEFORE UPDATE ON public.career_goals FOR EACH ROW EXECUTE FUNCTION public.addupdatetime();
 
 
@@ -5167,6 +6601,7 @@ CREATE TRIGGER trg_career_goals_updated_at BEFORE UPDATE ON public.career_goals 
 -- Name: company_interview_insights trg_company_interview_insights_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS trg_company_interview_insights_updated_at ON public.company_interview_insights;
 CREATE TRIGGER trg_company_interview_insights_updated_at BEFORE UPDATE ON public.company_interview_insights FOR EACH ROW EXECUTE FUNCTION public.addupdatetime();
 
 
@@ -5174,6 +6609,7 @@ CREATE TRIGGER trg_company_interview_insights_updated_at BEFORE UPDATE ON public
 -- Name: coverletter trg_coverletter_timestamp; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS trg_coverletter_timestamp ON public.coverletter;
 CREATE TRIGGER trg_coverletter_timestamp BEFORE UPDATE ON public.coverletter FOR EACH ROW EXECUTE FUNCTION public.update_coverletter_timestamp();
 
 
@@ -5181,6 +6617,7 @@ CREATE TRIGGER trg_coverletter_timestamp BEFORE UPDATE ON public.coverletter FOR
 -- Name: custom_reports trg_custom_reports_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS trg_custom_reports_updated_at ON public.custom_reports;
 CREATE TRIGGER trg_custom_reports_updated_at BEFORE UPDATE ON public.custom_reports FOR EACH ROW EXECUTE FUNCTION public.addupdatetime();
 
 
@@ -5188,6 +6625,7 @@ CREATE TRIGGER trg_custom_reports_updated_at BEFORE UPDATE ON public.custom_repo
 -- Name: enterprise_accounts trg_enterprise_accounts_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS trg_enterprise_accounts_updated_at ON public.enterprise_accounts;
 CREATE TRIGGER trg_enterprise_accounts_updated_at BEFORE UPDATE ON public.enterprise_accounts FOR EACH ROW EXECUTE FUNCTION public.addupdatetime();
 
 
@@ -5195,6 +6633,7 @@ CREATE TRIGGER trg_enterprise_accounts_updated_at BEFORE UPDATE ON public.enterp
 -- Name: informational_interviews trg_informational_interviews_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS trg_informational_interviews_updated_at ON public.informational_interviews;
 CREATE TRIGGER trg_informational_interviews_updated_at BEFORE UPDATE ON public.informational_interviews FOR EACH ROW EXECUTE FUNCTION public.addupdatetime();
 
 
@@ -5202,6 +6641,7 @@ CREATE TRIGGER trg_informational_interviews_updated_at BEFORE UPDATE ON public.i
 -- Name: interview_preparation_checklists trg_interview_preparation_checklists_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS trg_interview_preparation_checklists_updated_at ON public.interview_preparation_checklists;
 CREATE TRIGGER trg_interview_preparation_checklists_updated_at BEFORE UPDATE ON public.interview_preparation_checklists FOR EACH ROW EXECUTE FUNCTION public.addupdatetime();
 
 
@@ -5209,6 +6649,7 @@ CREATE TRIGGER trg_interview_preparation_checklists_updated_at BEFORE UPDATE ON 
 -- Name: interview_success_probability trg_interview_success_probability_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS trg_interview_success_probability_updated_at ON public.interview_success_probability;
 CREATE TRIGGER trg_interview_success_probability_updated_at BEFORE UPDATE ON public.interview_success_probability FOR EACH ROW EXECUTE FUNCTION public.addupdatetime();
 
 
@@ -5216,6 +6657,7 @@ CREATE TRIGGER trg_interview_success_probability_updated_at BEFORE UPDATE ON pub
 -- Name: linkedin_profile_optimization trg_linkedin_profile_optimization_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS trg_linkedin_profile_optimization_updated_at ON public.linkedin_profile_optimization;
 CREATE TRIGGER trg_linkedin_profile_optimization_updated_at BEFORE UPDATE ON public.linkedin_profile_optimization FOR EACH ROW EXECUTE FUNCTION public.addupdatetime();
 
 
@@ -5223,6 +6665,7 @@ CREATE TRIGGER trg_linkedin_profile_optimization_updated_at BEFORE UPDATE ON pub
 -- Name: prospectivejobs trg_log_material_history; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS trg_log_material_history ON public.prospectivejobs;
 CREATE TRIGGER trg_log_material_history AFTER INSERT OR DELETE OR UPDATE ON public.prospectivejobs FOR EACH ROW EXECUTE FUNCTION public.log_material_history();
 
 
@@ -5230,6 +6673,7 @@ CREATE TRIGGER trg_log_material_history AFTER INSERT OR DELETE OR UPDATE ON publ
 -- Name: mentor_dashboard_views trg_mentor_dashboard_views_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS trg_mentor_dashboard_views_updated_at ON public.mentor_dashboard_views;
 CREATE TRIGGER trg_mentor_dashboard_views_updated_at BEFORE UPDATE ON public.mentor_dashboard_views FOR EACH ROW EXECUTE FUNCTION public.addupdatetime();
 
 
@@ -5237,6 +6681,7 @@ CREATE TRIGGER trg_mentor_dashboard_views_updated_at BEFORE UPDATE ON public.men
 -- Name: networking_campaigns trg_networking_campaigns_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS trg_networking_campaigns_updated_at ON public.networking_campaigns;
 CREATE TRIGGER trg_networking_campaigns_updated_at BEFORE UPDATE ON public.networking_campaigns FOR EACH ROW EXECUTE FUNCTION public.addupdatetime();
 
 
@@ -5244,6 +6689,7 @@ CREATE TRIGGER trg_networking_campaigns_updated_at BEFORE UPDATE ON public.netwo
 -- Name: networking_events trg_networking_events_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS trg_networking_events_updated_at ON public.networking_events;
 CREATE TRIGGER trg_networking_events_updated_at BEFORE UPDATE ON public.networking_events FOR EACH ROW EXECUTE FUNCTION public.addupdatetime();
 
 
@@ -5251,6 +6697,7 @@ CREATE TRIGGER trg_networking_events_updated_at BEFORE UPDATE ON public.networki
 -- Name: networking_goals trg_networking_goals_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS trg_networking_goals_updated_at ON public.networking_goals;
 CREATE TRIGGER trg_networking_goals_updated_at BEFORE UPDATE ON public.networking_goals FOR EACH ROW EXECUTE FUNCTION public.addupdatetime();
 
 
@@ -5258,6 +6705,7 @@ CREATE TRIGGER trg_networking_goals_updated_at BEFORE UPDATE ON public.networkin
 -- Name: performance_predictions trg_performance_predictions_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS trg_performance_predictions_updated_at ON public.performance_predictions;
 CREATE TRIGGER trg_performance_predictions_updated_at BEFORE UPDATE ON public.performance_predictions FOR EACH ROW EXECUTE FUNCTION public.addupdatetime();
 
 
@@ -5265,6 +6713,7 @@ CREATE TRIGGER trg_performance_predictions_updated_at BEFORE UPDATE ON public.pe
 -- Name: professional_contacts trg_professional_contacts_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS trg_professional_contacts_updated_at ON public.professional_contacts;
 CREATE TRIGGER trg_professional_contacts_updated_at BEFORE UPDATE ON public.professional_contacts FOR EACH ROW EXECUTE FUNCTION public.addupdatetime();
 
 
@@ -5272,6 +6721,7 @@ CREATE TRIGGER trg_professional_contacts_updated_at BEFORE UPDATE ON public.prof
 -- Name: professional_references trg_professional_references_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS trg_professional_references_updated_at ON public.professional_references;
 CREATE TRIGGER trg_professional_references_updated_at BEFORE UPDATE ON public.professional_references FOR EACH ROW EXECUTE FUNCTION public.addupdatetime();
 
 
@@ -5279,6 +6729,7 @@ CREATE TRIGGER trg_professional_references_updated_at BEFORE UPDATE ON public.pr
 -- Name: progress_sharing_settings trg_progress_sharing_settings_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS trg_progress_sharing_settings_updated_at ON public.progress_sharing_settings;
 CREATE TRIGGER trg_progress_sharing_settings_updated_at BEFORE UPDATE ON public.progress_sharing_settings FOR EACH ROW EXECUTE FUNCTION public.addupdatetime();
 
 
@@ -5286,6 +6737,7 @@ CREATE TRIGGER trg_progress_sharing_settings_updated_at BEFORE UPDATE ON public.
 -- Name: referral_requests trg_referral_requests_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS trg_referral_requests_updated_at ON public.referral_requests;
 CREATE TRIGGER trg_referral_requests_updated_at BEFORE UPDATE ON public.referral_requests FOR EACH ROW EXECUTE FUNCTION public.addupdatetime();
 
 
@@ -5293,6 +6745,7 @@ CREATE TRIGGER trg_referral_requests_updated_at BEFORE UPDATE ON public.referral
 -- Name: relationship_health_tracking trg_relationship_health_tracking_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS trg_relationship_health_tracking_updated_at ON public.relationship_health_tracking;
 CREATE TRIGGER trg_relationship_health_tracking_updated_at BEFORE UPDATE ON public.relationship_health_tracking FOR EACH ROW EXECUTE FUNCTION public.addupdatetime();
 
 
@@ -5300,6 +6753,7 @@ CREATE TRIGGER trg_relationship_health_tracking_updated_at BEFORE UPDATE ON publ
 -- Name: resume trg_resume_timestamp; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS trg_resume_timestamp ON public.resume;
 CREATE TRIGGER trg_resume_timestamp BEFORE UPDATE ON public.resume FOR EACH ROW EXECUTE FUNCTION public.update_resume_timestamp();
 
 
@@ -5307,6 +6761,7 @@ CREATE TRIGGER trg_resume_timestamp BEFORE UPDATE ON public.resume FOR EACH ROW 
 -- Name: salary_negotiation_prep trg_salary_negotiation_prep_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS trg_salary_negotiation_prep_updated_at ON public.salary_negotiation_prep;
 CREATE TRIGGER trg_salary_negotiation_prep_updated_at BEFORE UPDATE ON public.salary_negotiation_prep FOR EACH ROW EXECUTE FUNCTION public.addupdatetime();
 
 
@@ -5314,6 +6769,7 @@ CREATE TRIGGER trg_salary_negotiation_prep_updated_at BEFORE UPDATE ON public.sa
 -- Name: team_billing trg_team_billing_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS trg_team_billing_updated_at ON public.team_billing;
 CREATE TRIGGER trg_team_billing_updated_at BEFORE UPDATE ON public.team_billing FOR EACH ROW EXECUTE FUNCTION public.addupdatetime();
 
 
@@ -5321,34 +6777,103 @@ CREATE TRIGGER trg_team_billing_updated_at BEFORE UPDATE ON public.team_billing 
 -- Name: teams trg_teams_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS trg_teams_updated_at ON public.teams;
 CREATE TRIGGER trg_teams_updated_at BEFORE UPDATE ON public.teams FOR EACH ROW EXECUTE FUNCTION public.addupdatetime();
+
+
+--
+-- Name: interview_follow_ups trg_update_follow_ups_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+DROP TRIGGER IF EXISTS trg_update_follow_ups_updated_at ON public.interview_follow_ups;
+CREATE TRIGGER trg_update_follow_ups_updated_at BEFORE UPDATE ON public.interview_follow_ups FOR EACH ROW EXECUTE FUNCTION public.update_follow_ups_updated_at();
+
+
+--
+-- Name: interview_feedback trg_update_interview_feedback_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+DROP TRIGGER IF EXISTS trg_update_interview_feedback_updated_at ON public.interview_feedback;
+CREATE TRIGGER trg_update_interview_feedback_updated_at BEFORE UPDATE ON public.interview_feedback FOR EACH ROW EXECUTE FUNCTION public.update_interview_feedback_updated_at();
 
 
 --
 -- Name: interviews trg_update_interviews_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS trg_update_interviews_updated_at ON public.interviews;
 CREATE TRIGGER trg_update_interviews_updated_at BEFORE UPDATE ON public.interviews FOR EACH ROW EXECUTE FUNCTION public.update_interviews_updated_at();
+
+
+--
+-- Name: market_insights trg_update_market_insights_timestamp; Type: TRIGGER; Schema: public; Owner: -
+--
+
+DROP TRIGGER IF EXISTS trg_update_market_insights_timestamp ON public.market_insights;
+CREATE TRIGGER trg_update_market_insights_timestamp BEFORE UPDATE ON public.market_insights FOR EACH ROW EXECUTE FUNCTION public.update_market_intelligence_timestamp();
+
+
+--
+-- Name: market_intelligence_cache trg_update_market_intelligence_cache_timestamp; Type: TRIGGER; Schema: public; Owner: -
+--
+
+DROP TRIGGER IF EXISTS trg_update_market_intelligence_cache_timestamp ON public.market_intelligence_cache;
+CREATE TRIGGER trg_update_market_intelligence_cache_timestamp BEFORE UPDATE ON public.market_intelligence_cache FOR EACH ROW EXECUTE FUNCTION public.update_market_intelligence_timestamp();
+
+
+--
+-- Name: practice_sessions trg_update_practice_sessions_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+DROP TRIGGER IF EXISTS trg_update_practice_sessions_updated_at ON public.practice_sessions;
+CREATE TRIGGER trg_update_practice_sessions_updated_at BEFORE UPDATE ON public.practice_sessions FOR EACH ROW EXECUTE FUNCTION public.update_interview_feedback_updated_at();
+
+
+--
+-- Name: interview_pre_assessment trg_update_pre_assessment_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+DROP TRIGGER IF EXISTS trg_update_pre_assessment_updated_at ON public.interview_pre_assessment;
+CREATE TRIGGER trg_update_pre_assessment_updated_at BEFORE UPDATE ON public.interview_pre_assessment FOR EACH ROW EXECUTE FUNCTION public.update_pre_assessment_updated_at();
 
 
 --
 -- Name: interview_preparation_tasks trg_update_preparation_tasks_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS trg_update_preparation_tasks_updated_at ON public.interview_preparation_tasks;
 CREATE TRIGGER trg_update_preparation_tasks_updated_at BEFORE UPDATE ON public.interview_preparation_tasks FOR EACH ROW EXECUTE FUNCTION public.update_interviews_updated_at();
+
+
+--
+-- Name: interview_reminders trg_update_reminders_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+DROP TRIGGER IF EXISTS trg_update_reminders_updated_at ON public.interview_reminders;
+CREATE TRIGGER trg_update_reminders_updated_at BEFORE UPDATE ON public.interview_reminders FOR EACH ROW EXECUTE FUNCTION public.update_reminders_updated_at();
 
 
 --
 -- Name: prospectivejobs trg_update_status_change_time; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS trg_update_status_change_time ON public.prospectivejobs;
 CREATE TRIGGER trg_update_status_change_time BEFORE UPDATE OF stage ON public.prospectivejobs FOR EACH ROW EXECUTE FUNCTION public.update_status_change_time();
+
+
+--
+-- Name: interview_thank_you_notes trg_update_thank_you_notes_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+DROP TRIGGER IF EXISTS trg_update_thank_you_notes_updated_at ON public.interview_thank_you_notes;
+CREATE TRIGGER trg_update_thank_you_notes_updated_at BEFORE UPDATE ON public.interview_thank_you_notes FOR EACH ROW EXECUTE FUNCTION public.update_thank_you_notes_updated_at();
 
 
 --
 -- Name: job_opportunities update_job_opportunities_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS update_job_opportunities_updated_at ON public.job_opportunities;
 CREATE TRIGGER update_job_opportunities_updated_at BEFORE UPDATE ON public.job_opportunities FOR EACH ROW EXECUTE FUNCTION public.addupdatetime();
 
 
@@ -5801,6 +7326,22 @@ ALTER TABLE ONLY public.event_connections
 
 
 --
+-- Name: event_registrations event_registrations_event_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.event_registrations
+    ADD CONSTRAINT event_registrations_event_id_fkey FOREIGN KEY (event_id) REFERENCES public.networking_events(id) ON DELETE CASCADE;
+
+
+--
+-- Name: event_registrations event_registrations_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.event_registrations
+    ADD CONSTRAINT event_registrations_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
 -- Name: external_advisors external_advisors_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5865,6 +7406,30 @@ ALTER TABLE ONLY public.coverletter
 
 
 --
+-- Name: interview_follow_ups fk_follow_ups_interview; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.interview_follow_ups
+    ADD CONSTRAINT fk_follow_ups_interview FOREIGN KEY (interview_id) REFERENCES public.interviews(id) ON DELETE CASCADE;
+
+
+--
+-- Name: interview_feedback fk_interview_feedback_interview; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.interview_feedback
+    ADD CONSTRAINT fk_interview_feedback_interview FOREIGN KEY (interview_id) REFERENCES public.interviews(id) ON DELETE CASCADE;
+
+
+--
+-- Name: interview_feedback fk_interview_feedback_user; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.interview_feedback
+    ADD CONSTRAINT fk_interview_feedback_user FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
 -- Name: interviews fk_interviews_job_opportunity; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5913,11 +7478,59 @@ ALTER TABLE ONLY public.cover_letter_performance
 
 
 --
+-- Name: interview_post_reflection fk_post_reflection_interview; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.interview_post_reflection
+    ADD CONSTRAINT fk_post_reflection_interview FOREIGN KEY (interview_id) REFERENCES public.interviews(id) ON DELETE CASCADE;
+
+
+--
+-- Name: interview_post_reflection fk_post_reflection_user; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.interview_post_reflection
+    ADD CONSTRAINT fk_post_reflection_user FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: practice_sessions fk_practice_sessions_user; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.practice_sessions
+    ADD CONSTRAINT fk_practice_sessions_user FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: interview_pre_assessment fk_pre_assessment_interview; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.interview_pre_assessment
+    ADD CONSTRAINT fk_pre_assessment_interview FOREIGN KEY (interview_id) REFERENCES public.interviews(id) ON DELETE CASCADE;
+
+
+--
+-- Name: interview_pre_assessment fk_pre_assessment_user; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.interview_pre_assessment
+    ADD CONSTRAINT fk_pre_assessment_user FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
 -- Name: interview_preparation_tasks fk_preparation_tasks_interview; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.interview_preparation_tasks
     ADD CONSTRAINT fk_preparation_tasks_interview FOREIGN KEY (interview_id) REFERENCES public.interviews(id) ON DELETE CASCADE;
+
+
+--
+-- Name: interview_reminders fk_reminders_interview; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.interview_reminders
+    ADD CONSTRAINT fk_reminders_interview FOREIGN KEY (interview_id) REFERENCES public.interviews(id) ON DELETE CASCADE;
 
 
 --
@@ -5958,6 +7571,14 @@ ALTER TABLE ONLY public.cover_letter_template_usage
 
 ALTER TABLE ONLY public.cover_letter_template_usage
     ADD CONSTRAINT fk_template_usage_user FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: interview_thank_you_notes fk_thank_you_notes_interview; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.interview_thank_you_notes
+    ADD CONSTRAINT fk_thank_you_notes_interview FOREIGN KEY (interview_id) REFERENCES public.interviews(id) ON DELETE CASCADE;
 
 
 --
@@ -6233,6 +7854,14 @@ ALTER TABLE ONLY public.linkedin_profile_optimization
 
 
 --
+-- Name: market_insights market_insights_user_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.market_insights
+    ADD CONSTRAINT market_insights_user_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
 -- Name: market_intelligence market_intelligence_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6422,6 +8051,14 @@ ALTER TABLE ONLY public.networking_campaigns
 
 ALTER TABLE ONLY public.networking_events
     ADD CONSTRAINT networking_events_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: networking_goals networking_goals_event_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.networking_goals
+    ADD CONSTRAINT networking_goals_event_id_fkey FOREIGN KEY (event_id) REFERENCES public.networking_events(id) ON DELETE CASCADE;
 
 
 --
@@ -6801,6 +8438,14 @@ ALTER TABLE ONLY public.review_comments
 
 
 --
+-- Name: review_comments review_comments_team_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.review_comments
+    ADD CONSTRAINT review_comments_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(id) ON DELETE CASCADE;
+
+
+--
 -- Name: salary_negotiation_prep salary_negotiation_prep_job_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6830,6 +8475,30 @@ ALTER TABLE ONLY public.salary_progression_tracking
 
 ALTER TABLE ONLY public.salary_progression_tracking
     ADD CONSTRAINT salary_progression_tracking_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: shared_documents shared_documents_shared_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.shared_documents
+    ADD CONSTRAINT shared_documents_shared_by_fkey FOREIGN KEY (shared_by) REFERENCES public.users(u_id) ON DELETE SET NULL;
+
+
+--
+-- Name: shared_documents shared_documents_shared_with_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.shared_documents
+    ADD CONSTRAINT shared_documents_shared_with_user_id_fkey FOREIGN KEY (shared_with_user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: shared_documents shared_documents_team_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.shared_documents
+    ADD CONSTRAINT shared_documents_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(id) ON DELETE CASCADE;
 
 
 --

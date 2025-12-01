@@ -92,7 +92,11 @@ export function ChatList({ conversationType, onSelectConversation, selectedConve
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2 mb-1">
                     <div className="font-semibold text-slate-900 text-sm truncate">
-                      {conv.title || `${conv.conversationType} Chat`}
+                      {conv.title && conv.title.trim() 
+                        ? conv.title
+                        : (conv.conversationType 
+                            ? `${conv.conversationType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} Chat`
+                            : "Chat")}
                     </div>
                     {conv.unreadCount > 0 && (
                       <span className="flex-shrink-0 bg-blue-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center shadow-sm">

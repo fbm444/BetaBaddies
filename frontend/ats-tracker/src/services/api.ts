@@ -1388,6 +1388,16 @@ class ApiService {
     );
   }
 
+  async updateConversationTitle(conversationId: string, title: string) {
+    return this.request<ApiResponse<{ conversation: any }>>(
+      `/chat/conversations/${conversationId}/title`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ title }),
+      }
+    );
+  }
+
   async editMessage(messageId: string, messageText: string) {
     return this.request<ApiResponse<{ message: any }>>(
       `/chat/messages/${messageId}`,
@@ -1459,9 +1469,51 @@ class ApiService {
     );
   }
 
+  async getMenteeResumeDetail(menteeId: string, resumeId: string) {
+    return this.request<ApiResponse<{ resume: any }>>(
+      `/collaboration/mentor/mentees/${menteeId}/resumes/${resumeId}`
+    );
+  }
+
+  async getMenteeCoverLetterDetail(menteeId: string, coverLetterId: string) {
+    return this.request<ApiResponse<{ coverLetter: any }>>(
+      `/collaboration/mentor/mentees/${menteeId}/cover-letters/${coverLetterId}`
+    );
+  }
+
+  async getMenteeJobDetail(menteeId: string, jobId: string) {
+    return this.request<ApiResponse<{ job: any }>>(
+      `/collaboration/mentor/mentees/${menteeId}/jobs/${jobId}`
+    );
+  }
+
   async getCoachingInsights(menteeId: string) {
     return this.request<ApiResponse<{ insights: any }>>(
       `/collaboration/mentor/mentees/${menteeId}/insights`
+    );
+  }
+
+  async getMenteeJobs(menteeId: string) {
+    return this.request<ApiResponse<{ jobs: any[] }>>(
+      `/collaboration/mentor/mentees/${menteeId}/jobs`
+    );
+  }
+
+  async getMenteeResumes(menteeId: string) {
+    return this.request<ApiResponse<{ resumes: any[] }>>(
+      `/collaboration/mentor/mentees/${menteeId}/resumes`
+    );
+  }
+
+  async getMenteeCoverLetters(menteeId: string) {
+    return this.request<ApiResponse<{ coverLetters: any[] }>>(
+      `/collaboration/mentor/mentees/${menteeId}/cover-letters`
+    );
+  }
+
+  async getMenteeGoals(menteeId: string) {
+    return this.request<ApiResponse<{ goals: any }>>(
+      `/collaboration/mentor/mentees/${menteeId}/goals`
     );
   }
 
@@ -1482,6 +1534,69 @@ class ApiService {
     );
   }
 
+  // Mentee Dashboard
+  async getMentor() {
+    return this.request<ApiResponse<{ mentor: any }>>(
+      `/collaboration/mentee/mentor`
+    );
+  }
+
+  async getMenteeFeedback() {
+    return this.request<ApiResponse<{ feedback: any[] }>>(
+      `/collaboration/mentee/feedback`
+    );
+  }
+
+  async getMentorActivityFeed() {
+    return this.request<ApiResponse<{ feed: any[] }>>(
+      `/collaboration/mentee/mentor-activity`
+    );
+  }
+
+  async getOwnProgress() {
+    return this.request<ApiResponse<{ progress: any }>>(
+      `/collaboration/mentee/progress`
+    );
+  }
+
+  async getPendingMentorInvitations() {
+    return this.request<ApiResponse<{ invitations: any[] }>>(
+      `/collaboration/mentee/pending-invitations`
+    );
+  }
+
+  async inviteMentor(invitationData: {
+    mentorEmail: string;
+    relationshipType?: string;
+    permissions?: any;
+  }) {
+    return this.request<ApiResponse<{ invitation: any }>>(
+      `/collaboration/mentee/invite-mentor`,
+      {
+        method: "POST",
+        body: JSON.stringify(invitationData),
+      }
+    );
+  }
+
+  async acceptMentorInvitation(relationshipId: string) {
+    return this.request<ApiResponse<{ mentor: any }>>(
+      `/collaboration/mentee/accept-invitation/${relationshipId}`,
+      {
+        method: "POST",
+      }
+    );
+  }
+
+  async declineMentorInvitation(relationshipId: string) {
+    return this.request<ApiResponse<{ message: string }>>(
+      `/collaboration/mentee/decline-invitation/${relationshipId}`,
+      {
+        method: "POST",
+      }
+    );
+  }
+
   // Team Dashboard (UC-108)
   async getTeamDashboard(teamId: string) {
     return this.request<ApiResponse<{ dashboard: any }>>(
@@ -1498,6 +1613,20 @@ class ApiService {
   async getPredefinedMilestones() {
     return this.request<ApiResponse<{ milestones: any[] }>>(
       `/collaboration/milestones/predefined`
+    );
+  }
+
+  async addMilestoneReaction(
+    milestoneId: string,
+    reactionType: string,
+    commentText?: string
+  ) {
+    return this.request<ApiResponse<{ reactions: any[]; comments: any[] }>>(
+      `/collaboration/milestones/${milestoneId}/reactions`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reactionType, commentText }),
+      }
     );
   }
 
@@ -1727,6 +1856,15 @@ class ApiService {
     const query = params.toString() ? `?${params.toString()}` : "";
     return this.request<ApiResponse<{ tasks: any[] }>>(
       `/collaboration/tasks${query}`
+    );
+  }
+
+  async getMenteeTasks(menteeId: string, teamId?: string) {
+    const params = new URLSearchParams();
+    if (teamId) params.append("teamId", teamId);
+    const query = params.toString() ? `?${params.toString()}` : "";
+    return this.request<ApiResponse<{ tasks: any[] }>>(
+      `/collaboration/tasks/mentee/${menteeId}${query}`
     );
   }
 

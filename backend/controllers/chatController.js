@@ -163,6 +163,30 @@ class ChatController {
       data: { notifications },
     });
   });
+
+  /**
+   * PUT /api/chat/conversations/:id/title
+   * Update conversation title
+   */
+  updateConversationTitle = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { id: conversationId } = req.params;
+    const { title } = req.body;
+
+    if (!title || !title.trim()) {
+      return res.status(400).json({
+        ok: false,
+        error: { message: "Title is required" },
+      });
+    }
+
+    const conversation = await chatService.updateConversationTitle(conversationId, userId, title);
+
+    res.status(200).json({
+      ok: true,
+      data: { conversation },
+    });
+  });
 }
 
 export default new ChatController();

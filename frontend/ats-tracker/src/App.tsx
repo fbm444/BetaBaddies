@@ -31,6 +31,7 @@ import { ForgotPassword } from './pages/ForgotPassword'
 import { ResetPassword } from './pages/ResetPassword'
 import { Teams } from './pages/Teams'
 import { MentorDashboard } from './pages/MentorDashboard'
+import { MenteeDashboard } from './pages/MenteeDashboard'
 import { DocumentReviews } from './pages/DocumentReviews'
 import { ProgressSharing } from './pages/ProgressSharing'
 import { SupportGroups } from './pages/SupportGroups'
@@ -100,6 +101,16 @@ function App() {
 			} 
 		/>
 		
+		{/* Public invitation acceptance page - no auth required */}
+		<Route 
+		  path={ROUTES.TEAM_INVITE_ACCEPT}
+		  element={
+		    <ProtectedRoute requireAuth={false}>
+		      <TeamInviteAccept />
+		    </ProtectedRoute>
+		  }
+		/>
+
 		{/* Protected pages - require authentication */}
 		<Route 
 		  element={
@@ -131,10 +142,10 @@ function App() {
 		  <Route path={ROUTES.COVER_LETTER_BUILDER} element={<CoverLetterBuilder />} />
 		  <Route path={ROUTES.COVER_LETTER_TEMPLATES} element={<CoverLetterTemplates />} />
 		  {/* Collaboration */}
-		  <Route path={ROUTES.TEAM_INVITE_ACCEPT} element={<TeamInviteAccept />} />
 		  <Route path={ROUTES.TEAMS} element={<Teams />} />
 		  <Route path={ROUTES.TEAM_DETAIL} element={<Teams />} />
 		  <Route path={ROUTES.MENTOR_DASHBOARD} element={<MentorDashboard />} />
+		  <Route path={ROUTES.MENTEE_DASHBOARD} element={<MenteeDashboard />} />
 		  <Route path={ROUTES.MENTEE_PROGRESS} element={<MentorDashboard />} />
 		  <Route path={ROUTES.DOCUMENT_REVIEWS} element={<DocumentReviews />} />
 		  <Route path={ROUTES.PROGRESS_SHARING} element={<ProgressSharing />} />

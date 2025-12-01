@@ -1,19 +1,37 @@
 import { useState, useEffect } from "react";
 import { Icon } from "@iconify/react";
 import { api } from "../../services/api";
+import { MilestoneCard } from "./MilestoneCard";
 
 interface TeamDashboardProps {
   teamId: string;
+  refreshKey?: number; // Add refresh key to force refresh
 }
 
-export function TeamDashboard({ teamId }: TeamDashboardProps) {
+export function TeamDashboard({ teamId, refreshKey }: TeamDashboardProps) {
   const [dashboard, setDashboard] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchDashboard();
-  }, [teamId]);
+  }, [teamId, refreshKey]); // Add refreshKey to dependencies
+
+  // Fetch current user ID
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      try {
+        const userResponse = await api.getUserAuth();
+        if (userResponse.ok && userResponse.data?.user?.id) {
+          setCurrentUserId(userResponse.data.user.id);
+        }
+      } catch (error) {
+        console.error("Failed to fetch current user:", error);
+      }
+    };
+    fetchCurrentUser();
+  }, []);
 
   const fetchDashboard = async () => {
     try {
@@ -136,20 +154,12 @@ export function TeamDashboard({ teamId }: TeamDashboardProps) {
           <h3 className="text-xl font-bold text-slate-900 mb-4">Recent Milestones</h3>
           <div className="space-y-3">
             {milestones.slice(0, 5).map((milestone: any) => (
-              <div
+              <MilestoneCard
                 key={milestone.id}
-                className="bg-gradient-to-r from-yellow-50 to-orange-50 border-l-4 border-yellow-500 rounded-lg p-4"
-              >
-                <div className="flex items-center gap-2">
-                  <Icon icon="mingcute:trophy-line" width={24} className="text-yellow-600" />
-                  <div className="flex-1">
-                    <div className="font-semibold text-slate-900">{milestone.milestoneTitle}</div>
-                    <div className="text-sm text-slate-600">
-                      {milestone.userName} • {new Date(milestone.achievedAt).toLocaleDateString()}
-                    </div>
-                  </div>
-                </div>
-              </div>
+                milestone={milestone}
+                currentUserId={currentUserId || undefined}
+                onUpdate={fetchDashboard}
+              />
             ))}
           </div>
         </div>
@@ -218,9 +228,17 @@ export function TeamDashboard({ teamId }: TeamDashboardProps) {
 
 function getActivityIcon(activityType: string): string {
   const icons: Record<string, string> = {
+    interview_scheduled: "mingcute:calendar-line",
+    interview_created: "mingcute:calendar-line",
+    skill_added: "mingcute:star-line",
+    certification_earned: "mingcute:certificate-line",
+    certification_added: "mingcute:certificate-line",
+    experience_added: "mingcute:briefcase-line",
+    job_added: "mingcute:briefcase-line",
+    milestone_achieved: "mingcute:trophy-line",
+    // Keep some legacy types for backwards compatibility
     job_shared: "lucide:share-2",
     comment_added: "mingcute:message-line",
-    milestone_achieved: "mingcute:trophy-line",
     feedback_provided: "mingcute:feedback-line",
     task_assigned: "mingcute:task-line",
     task_completed: "mingcute:check-circle-line",
@@ -231,10 +249,41 @@ function getActivityIcon(activityType: string): string {
 }
 
 function getActivityDescription(activityType: string, activityData: any): string {
+  // Parse activity data if it's a string
+  const data = typeof activityData === "string" 
+    ? (() => { try { return JSON.parse(activityData); } catch { return {}; } })()
+    : activityData || {};
+
   const descriptions: Record<string, string> = {
+    interview_scheduled: data.interview_type || data.company
+      ? `scheduled ${data.interview_type ? data.interview_type.replace(/_/g, " ") : ""} interview${data.company ? ` at ${data.company}` : ""}`
+      : "scheduled an interview",
+    interview_created: data.interview_type || data.company
+      ? `scheduled ${data.interview_type ? data.interview_type.replace(/_/g, " ") : ""} interview${data.company ? ` at ${data.company}` : ""}`
+      : "scheduled an interview",
+    skill_added: data.skill_name || data.skill
+      ? `added skill: ${data.skill_name || data.skill}`
+      : "added a new skill",
+    certification_earned: data.certification_name || data.certification
+      ? `earned certification: ${data.certification_name || data.certification}`
+      : "earned a certification",
+    certification_added: data.certification_name || data.certification
+      ? `added certification: ${data.certification_name || data.certification}`
+      : "added a certification",
+    experience_added: data.job_title || data.title
+      ? `added experience: ${data.job_title || data.title}${data.company ? ` at ${data.company}` : ""}`
+      : "added work experience",
+    job_added: data.job_title || data.title
+      ? `added experience: ${data.job_title || data.title}${data.company ? ` at ${data.company}` : ""}`
+      : "added work experience",
+    milestone_achieved: data.milestone_title
+      ? `achieved milestone: ${data.milestone_title}`
+      : data.milestone_type
+      ? `achieved ${data.milestone_type.replace(/_/g, " ")} milestone`
+      : "achieved a milestone",
+    // Keep some legacy types for backwards compatibility
     job_shared: "shared a job posting",
     comment_added: "added a comment",
-    milestone_achieved: `achieved milestone: ${activityData?.milestone_title || ""}`,
     feedback_provided: "provided feedback",
     task_assigned: "assigned a task",
     task_completed: "completed a task",

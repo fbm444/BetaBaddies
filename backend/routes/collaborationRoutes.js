@@ -11,8 +11,27 @@ router.use(isAuthenticated);
 router.get("/mentor/mentees", collaborationController.getMentees);
 router.get("/mentor/mentees/:id/progress", collaborationController.getMenteeProgress);
 router.get("/mentor/mentees/:id/materials", collaborationController.getMenteeMaterials);
+// Specific resource detail routes (must come before list routes)
+router.get("/mentor/mentees/:id/resumes/:resumeId", collaborationController.getMenteeResumeDetail);
+router.get("/mentor/mentees/:id/cover-letters/:coverLetterId", collaborationController.getMenteeCoverLetterDetail);
+router.get("/mentor/mentees/:id/jobs/:jobId", collaborationController.getMenteeJobDetail);
+// Resource list routes for task assignment
+router.get("/mentor/mentees/:id/jobs", collaborationController.getMenteeJobs);
+router.get("/mentor/mentees/:id/resumes", collaborationController.getMenteeResumes);
+router.get("/mentor/mentees/:id/cover-letters", collaborationController.getMenteeCoverLetters);
 router.get("/mentor/mentees/:id/insights", collaborationController.getCoachingInsights);
+router.get("/mentor/mentees/:id/goals", collaborationController.getMenteeGoals);
 router.post("/mentor/feedback", collaborationController.provideFeedback);
+
+// Mentee Dashboard
+router.get("/mentee/mentor", collaborationController.getMentor);
+router.get("/mentee/feedback", collaborationController.getMenteeFeedback);
+router.get("/mentee/progress", collaborationController.getOwnProgress);
+router.get("/mentee/mentor-activity", collaborationController.getMentorActivityFeed);
+router.get("/mentee/pending-invitations", collaborationController.getPendingMentorInvitations);
+router.post("/mentee/invite-mentor", collaborationController.inviteMentor);
+router.post("/mentee/accept-invitation/:relationshipId", collaborationController.acceptMentorInvitation);
+router.post("/mentee/decline-invitation/:relationshipId", collaborationController.declineMentorInvitation);
 
 // Document Review (UC-110)
 router.post("/reviews", collaborationController.requestReview);
@@ -27,6 +46,7 @@ router.get("/progress/report", collaborationController.generateProgressReport);
 router.get("/progress/shared/:userId", collaborationController.getSharedProgress);
 router.post("/milestones", collaborationController.createMilestone);
 router.get("/milestones/predefined", collaborationController.getPredefinedMilestones);
+router.post("/milestones/:milestoneId/reactions", collaborationController.addMilestoneReaction);
 
 // Team Dashboard (UC-108)
 router.get("/teams/:teamId/dashboard", collaborationController.getTeamDashboard);
@@ -41,6 +61,7 @@ router.get("/jobs/:id/comments", collaborationController.getJobComments);
 // Task Management
 router.post("/tasks", collaborationController.assignTask);
 router.get("/tasks", collaborationController.getUserTasks);
+router.get("/tasks/mentee/:menteeId", collaborationController.getMenteeTasks);
 router.put("/tasks/:id/status", collaborationController.updateTaskStatus);
 
 // Activity Feed

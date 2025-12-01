@@ -8,9 +8,10 @@ interface ChatWindowProps {
   onClose?: () => void;
   className?: string;
   currentUserId?: string;
+  onConversationUpdate?: (conversation: any) => void;
 }
 
-export function ChatWindow({ conversationId, title, onClose, className = "", currentUserId }: ChatWindowProps) {
+export function ChatWindow({ conversationId, title, onClose, className = "", currentUserId, onConversationUpdate }: ChatWindowProps) {
   const [conversation, setConversation] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState("");
@@ -20,6 +21,10 @@ export function ChatWindow({ conversationId, title, onClose, className = "", cur
   const [userAvatars, setUserAvatars] = useState<Record<string, string>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [isUpdatingTitle, setIsUpdatingTitle] = useState(false);
+  const titleInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (conversationId) {
@@ -241,6 +246,63 @@ export function ChatWindow({ conversationId, title, onClose, className = "", cur
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  useEffect(() => {
+    if (isRenaming && titleInputRef.current) {
+      titleInputRef.current.focus();
+      titleInputRef.current.select();
+    }
+  }, [isRenaming]);
+
+  const handleStartRename = () => {
+    const currentTitle = conversation?.title || title || "";
+    setNewTitle(currentTitle);
+    setIsRenaming(true);
+  };
+
+  const handleCancelRename = () => {
+    setIsRenaming(false);
+    setNewTitle("");
+  };
+
+  const handleSaveRename = async () => {
+    const trimmedTitle = newTitle.trim();
+    if (!trimmedTitle) {
+      alert("Title cannot be empty");
+      return;
+    }
+
+    try {
+      setIsUpdatingTitle(true);
+      const response = await api.updateConversationTitle(conversationId, trimmedTitle);
+      if (response.ok && response.data) {
+        const updatedConversation = response.data.conversation;
+        setConversation(updatedConversation);
+        setIsRenaming(false);
+        setNewTitle("");
+        
+        // Notify parent component of the update
+        if (onConversationUpdate) {
+          onConversationUpdate(updatedConversation);
+        }
+      } else {
+        alert("Failed to update conversation title");
+      }
+    } catch (error) {
+      console.error("Failed to update conversation title:", error);
+      alert("Failed to update conversation title");
+    } finally {
+      setIsUpdatingTitle(false);
+    }
+  };
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleSaveRename();
+    } else if (e.key === "Escape") {
+      handleCancelRename();
+    }
+  };
+
   if (isLoading) {
     return (
       <div className={`bg-white rounded-lg shadow-lg flex flex-col h-full ${className}`}>
@@ -269,29 +331,74 @@ export function ChatWindow({ conversationId, title, onClose, className = "", cur
     <div className={`bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col ${className || "h-full"}`}>
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-sm">
+        <div className="flex items-center gap-3 flex-1 min-w-0 group">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-sm flex-shrink-0">
             <Icon icon="mingcute:chat-3-line" width={18} className="text-white" />
           </div>
-          <div>
-            <h3 className="font-semibold text-slate-900 text-sm">
-              {title || conversation?.title || "Chat"}
-            </h3>
-            {conversation?.participants && (
-              <p className="text-xs text-slate-500 font-medium">
-                {conversation.participants.length} participant{conversation.participants.length !== 1 ? "s" : ""}
-              </p>
+          <div className="flex-1 min-w-0">
+            {isRenaming ? (
+              <div className="flex items-center gap-2">
+                <input
+                  ref={titleInputRef}
+                  type="text"
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  onKeyDown={handleTitleKeyDown}
+                  disabled={isUpdatingTitle}
+                  className="flex-1 px-2 py-1 text-sm font-semibold text-slate-900 border border-blue-500 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Conversation title"
+                />
+                <button
+                  onClick={handleSaveRename}
+                  disabled={isUpdatingTitle || !newTitle.trim()}
+                  className="p-1.5 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Save"
+                >
+                  <Icon icon="mingcute:check-line" width={18} />
+                </button>
+                <button
+                  onClick={handleCancelRename}
+                  disabled={isUpdatingTitle}
+                  className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition disabled:opacity-50"
+                  title="Cancel"
+                >
+                  <Icon icon="mingcute:close-line" width={18} />
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-semibold text-slate-900 text-sm truncate">
+                    {conversation?.title || title || "Chat"}
+                  </h3>
+                  <button
+                    onClick={handleStartRename}
+                    className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded transition opacity-0 group-hover:opacity-100"
+                    title="Rename conversation"
+                  >
+                    <Icon icon="mingcute:edit-line" width={16} />
+                  </button>
+                </div>
+                {conversation?.participants && (
+                  <p className="text-xs text-slate-500 font-medium">
+                    {conversation.participants.length} participant{conversation.participants.length !== 1 ? "s" : ""}
+                  </p>
+                )}
+              </>
             )}
           </div>
         </div>
-        {onClose && (
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 transition p-1.5 hover:bg-slate-100 rounded-lg"
-          >
-            <Icon icon="mingcute:close-line" width={20} />
-          </button>
-        )}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {!isRenaming && onClose && (
+            <button
+              onClick={onClose}
+              className="text-slate-400 hover:text-slate-600 transition p-1.5 hover:bg-slate-100 rounded-lg"
+              title="Close"
+            >
+              <Icon icon="mingcute:close-line" width={20} />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Messages */}

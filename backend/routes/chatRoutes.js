@@ -13,6 +13,7 @@ router.get("/conversations", chatController.getUserConversations);
 router.get("/conversations/:id", chatController.getConversation);
 router.post("/conversations/:id/participants", chatController.addParticipant);
 router.put("/conversations/:id/read", chatController.markAsRead);
+router.put("/conversations/:id/title", chatController.updateConversationTitle);
 
 // Messages
 router.post("/conversations/:id/messages", chatController.sendMessage);

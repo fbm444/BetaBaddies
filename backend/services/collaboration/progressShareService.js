@@ -155,10 +155,10 @@ class ProgressShareService {
 
       if (share.share_type === "all" || share.share_type === "interviews") {
         progress.interviews = await database.query(
-          `SELECT id, title, company, interview_date, status
+          `SELECT id, title, company, scheduled_at as interview_date, status
            FROM interviews
            WHERE user_id = $1
-           ORDER BY interview_date DESC`,
+           ORDER BY COALESCE(scheduled_at, date) DESC`,
           [targetUserId]
         );
       }
@@ -351,6 +351,96 @@ class ProgressShareService {
       };
     } catch (error) {
       console.error("[ProgressShareService] Error creating milestone:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Add reaction or comment to milestone
+   */
+  async addMilestoneReaction(milestoneId, userId, reactionType, commentText = null) {
+    try {
+      // Get current milestone data
+      const milestone = await database.query(
+        `SELECT milestone_data, user_id, team_id FROM milestones WHERE id = $1`,
+        [milestoneId]
+      );
+
+      if (milestone.rows.length === 0) {
+        throw new Error("Milestone not found");
+      }
+
+      // Parse milestone_data if it's a string (JSONB is usually already parsed, but handle both cases)
+      let currentData = milestone.rows[0].milestone_data || {};
+      if (typeof currentData === 'string') {
+        try {
+          currentData = JSON.parse(currentData);
+        } catch (e) {
+          currentData = {};
+        }
+      }
+      const reactions = currentData.reactions || [];
+      const comments = currentData.comments || [];
+
+      // Get user profile for display
+      const userProfile = await database.query(
+        `SELECT p.first_name, p.last_name, u.email 
+         FROM users u
+         LEFT JOIN profiles p ON u.u_id = p.user_id
+         WHERE u.u_id = $1`,
+        [userId]
+      );
+
+      const userName = userProfile.rows[0]?.first_name && userProfile.rows[0]?.last_name
+        ? `${userProfile.rows[0].first_name} ${userProfile.rows[0].last_name}`
+        : userProfile.rows[0]?.email || "Unknown User";
+
+      if (reactionType === "comment" && commentText) {
+        // Add comment
+        const newComment = {
+          id: uuidv4(),
+          userId,
+          userName,
+          text: commentText,
+          createdAt: new Date().toISOString()
+        };
+        comments.push(newComment);
+      } else if (reactionType && ["celebrate", "congrats", "awesome", "fire", "clap"].includes(reactionType)) {
+        // Add or update reaction
+        const existingReactionIndex = reactions.findIndex((r) => r.userId === userId && r.type === reactionType);
+        
+        if (existingReactionIndex >= 0) {
+          // Remove reaction (toggle off)
+          reactions.splice(existingReactionIndex, 1);
+        } else {
+          // Add reaction
+          reactions.push({
+            userId,
+            userName,
+            type: reactionType,
+            createdAt: new Date().toISOString()
+          });
+        }
+      }
+
+      // Update milestone_data
+      const updatedData = {
+        ...currentData,
+        reactions,
+        comments
+      };
+
+      await database.query(
+        `UPDATE milestones SET milestone_data = $1 WHERE id = $2`,
+        [JSON.stringify(updatedData), milestoneId]
+      );
+
+      return {
+        reactions,
+        comments
+      };
+    } catch (error) {
+      console.error("[ProgressShareService] Error adding milestone reaction:", error);
       throw error;
     }
   }

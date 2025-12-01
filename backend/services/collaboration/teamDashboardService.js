@@ -82,7 +82,7 @@ class TeamDashboardService {
         [teamId]
       );
 
-      // Get recent milestones
+      // Get recent milestones with milestone_data for reactions/comments
       const recentMilestones = await database.query(
         `SELECT 
           m.*,
@@ -112,7 +112,8 @@ class TeamDashboardService {
         [teamId]
       );
 
-      // Get activity feed (last 20 activities)
+      // Get activity feed (last 20 milestone-related activities only)
+      // Focus on: interviews scheduled, skills/certifications added, experience added, milestones achieved
       const activityFeed = await database.query(
         `SELECT 
           al.*,
@@ -123,6 +124,16 @@ class TeamDashboardService {
          JOIN users u ON al.user_id = u.u_id
          LEFT JOIN profiles p ON u.u_id = p.user_id
          WHERE al.team_id = $1
+           AND al.activity_type IN (
+             'interview_scheduled',
+             'interview_created',
+             'skill_added',
+             'certification_earned',
+             'certification_added',
+             'experience_added',
+             'job_added',
+             'milestone_achieved'
+           )
          ORDER BY al.created_at DESC
          LIMIT 20`,
         [teamId]
@@ -158,6 +169,9 @@ class TeamDashboardService {
           milestoneType: row.milestone_type,
           milestoneTitle: row.milestone_title,
           milestoneDescription: row.milestone_description,
+          milestoneData: typeof row.milestone_data === "string"
+            ? JSON.parse(row.milestone_data)
+            : row.milestone_data || {},
           achievedAt: row.achieved_at,
           userEmail: row.user_email,
           userName: row.first_name && row.last_name
@@ -207,9 +221,11 @@ class TeamDashboardService {
       }
 
       // Get anonymized member statistics
+      // Include all active team members (not just candidates/peers) to show performance data for everyone
       const memberStats = await database.query(
         `SELECT 
           tm.user_id,
+          tm.role,
           COUNT(DISTINCT jo.id) FILTER (WHERE jo.status = 'Applied') as applications_count,
           COUNT(DISTINCT jo.id) FILTER (WHERE jo.status = 'Interview') as interviews_count,
           COUNT(DISTINCT jo.id) FILTER (WHERE jo.status = 'Offer') as offers_count,
@@ -221,8 +237,7 @@ class TeamDashboardService {
          LEFT JOIN preparation_tasks pt ON tm.user_id = pt.assigned_to
          LEFT JOIN milestones m ON tm.user_id = m.user_id AND m.team_id = $1
          WHERE tm.team_id = $1 AND tm.active = true
-           AND (tm.role = 'candidate' OR tm.role = 'peer')
-         GROUP BY tm.user_id`,
+         GROUP BY tm.user_id, tm.role`,
         [teamId]
       );
 

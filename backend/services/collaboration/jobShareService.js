@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import database from "../database.js";
 import { teamService } from "./index.js";
+import jobOpportunityService from "../jobOpportunityService.js";
 
 /**
  * Service for sharing job postings with teams
@@ -80,6 +81,7 @@ class JobShareService {
         `SELECT 
           sj.id as share_id,
           sj.shared_at,
+          sj.shared_by,
           sj.shared_by_role,
           jo.*,
           u.email as shared_by_email
@@ -91,7 +93,18 @@ class JobShareService {
         [teamId]
       );
 
-      return result.rows;
+      // Map rows to camelCase format expected by frontend
+      return result.rows.map(row => {
+        const jobOpportunity = jobOpportunityService.mapRowToJobOpportunity(row);
+        return {
+          ...jobOpportunity,
+          shareId: row.share_id,
+          sharedAt: row.shared_at,
+          sharedBy: row.shared_by,
+          sharedByEmail: row.shared_by_email,
+          sharedByRole: row.shared_by_role
+        };
+      });
     } catch (error) {
       console.error("[JobShareService] Error getting shared jobs:", error);
       throw error;

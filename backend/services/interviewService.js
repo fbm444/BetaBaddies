@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import database from "./database.js";
 import googleCalendarService from "./googleCalendarService.js";
+import { teamService } from "./collaboration/index.js";
 
 class InterviewService {
   constructor() {
@@ -180,6 +181,32 @@ class InterviewService {
       } catch (error) {
         console.error("Error syncing interview to Google Calendar:", error);
         // Don't fail the interview creation if calendar sync fails
+      }
+
+      // Log activity to all teams user is a member of
+      try {
+        const userTeams = await database.query(
+          `SELECT team_id, role FROM team_members WHERE user_id = $1 AND active = true`,
+          [userId]
+        );
+        for (const team of userTeams.rows) {
+          await teamService.logActivity(
+            team.team_id,
+            userId,
+            team.role || "candidate",
+            "interview_scheduled",
+            {
+              interview_id: interview.id,
+              interview_type: interviewData.interviewType,
+              company: company,
+              title: title,
+              scheduled_at: interviewData.scheduledAt
+            }
+          );
+        }
+      } catch (error) {
+        console.error("Error logging interview activity:", error);
+        // Don't fail interview creation if activity logging fails
       }
 
       return fullInterview;

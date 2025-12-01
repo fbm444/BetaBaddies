@@ -39,15 +39,25 @@ class ChatService {
       console.log(`[ChatService] Creating NEW conversation: ${conversationId} for team ${teamId || 'N/A'}`);
       // Ensure title is set, especially for team chats
       let conversationTitle = title;
-      if (!conversationTitle && teamId && conversationType === "team") {
-        const team = await database.query(
-          `SELECT team_name FROM teams WHERE id = $1`,
-          [teamId]
-        );
-        if (team.rows.length > 0) {
-          conversationTitle = `${team.rows[0].team_name} Team Chat`;
+      if (!conversationTitle || !conversationTitle.trim()) {
+        if (teamId && conversationType === "team") {
+          const team = await database.query(
+            `SELECT team_name FROM teams WHERE id = $1`,
+            [teamId]
+          );
+          if (team.rows.length > 0) {
+            conversationTitle = `${team.rows[0].team_name} Team Chat`;
+          } else {
+            conversationTitle = "Team Chat";
+          }
+        } else if (conversationType === "mentor_mentee") {
+          conversationTitle = "Mentor Chat";
+        } else if (conversationType === "document_review") {
+          conversationTitle = "Document Review";
+        } else if (relatedEntityType && relatedEntityId) {
+          conversationTitle = `${relatedEntityType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} Discussion`;
         } else {
-          conversationTitle = "Team Chat";
+          conversationTitle = "Chat";
         }
       }
       
@@ -57,7 +67,7 @@ class ChatService {
           `INSERT INTO chat_conversations 
            (id, conversation_type, team_id, related_entity_type, related_entity_id, title, created_by)
            VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-          [conversationId, conversationType, teamId, relatedEntityType, relatedEntityId, conversationTitle || "Chat", userId]
+          [conversationId, conversationType, teamId, relatedEntityType, relatedEntityId, conversationTitle.trim(), userId]
         );
         console.log(`[ChatService] ✅ Created conversation ${conversationId} for team ${teamId}`);
       } catch (error) {
@@ -834,6 +844,42 @@ class ChatService {
       }));
     } catch (error) {
       console.error("[ChatService] Error getting unread notifications:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update conversation title
+   */
+  async updateConversationTitle(conversationId, userId, newTitle) {
+    try {
+      // Verify user is a participant
+      const participant = await database.query(
+        `SELECT * FROM chat_participants 
+         WHERE conversation_id = $1 AND user_id = $2 AND is_active = true`,
+        [conversationId, userId]
+      );
+
+      if (participant.rows.length === 0) {
+        throw new Error("You are not a participant in this conversation");
+      }
+
+      // Update title
+      const result = await database.query(
+        `UPDATE chat_conversations 
+         SET title = $1, updated_at = CURRENT_TIMESTAMP
+         WHERE id = $2
+         RETURNING *`,
+        [newTitle.trim(), conversationId]
+      );
+
+      if (result.rows.length === 0) {
+        throw new Error("Conversation not found");
+      }
+
+      return await this.getConversation(conversationId, userId);
+    } catch (error) {
+      console.error("[ChatService] Error updating conversation title:", error);
       throw error;
     }
   }

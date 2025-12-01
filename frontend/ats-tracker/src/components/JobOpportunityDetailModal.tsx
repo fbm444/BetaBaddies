@@ -30,6 +30,7 @@ interface JobOpportunityDetailModalProps {
   onDelete: () => void;
   onArchive?: (archiveReason?: string) => void;
   onUnarchive?: () => void;
+  readOnly?: boolean; // If true, hides edit/delete/archive buttons
 }
 
 export function JobOpportunityDetailModal({
@@ -39,6 +40,7 @@ export function JobOpportunityDetailModal({
   onDelete,
   onArchive,
   onUnarchive,
+  readOnly = false,
 }: JobOpportunityDetailModalProps) {
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);

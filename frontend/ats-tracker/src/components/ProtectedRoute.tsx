@@ -50,9 +50,28 @@ export function ProtectedRoute({ children, requireAuth = true }: ProtectedRouteP
   }
 
   // If route requires NO auth (like login/register page) and user IS authenticated
-  // BUT there's an invitation token, allow access (user needs to log out first)
-  if (!requireAuth && isAuthenticated && !hasInvitationToken) {
-    return <Navigate to={ROUTES.DASHBOARD} replace />
+  // Allow access if:
+  // 1. There's an invitation token (user might need to log out and use different account)
+  // 2. It's the invitation accept page (it handles email mismatch)
+  // Otherwise, redirect to dashboard
+  const isInvitationAcceptPage = window.location.pathname === ROUTES.TEAM_INVITE_ACCEPT
+  const isLoginOrRegisterPage = window.location.pathname === ROUTES.LOGIN || window.location.pathname === ROUTES.REGISTER
+  
+  if (!requireAuth && isAuthenticated) {
+    // Always allow invitation accept page (it handles email mismatch)
+    if (isInvitationAcceptPage) {
+      return <>{children}</>
+    }
+    
+    // Allow login/register pages if there's an invitation token (user needs to log out)
+    if (isLoginOrRegisterPage && hasInvitationToken) {
+      return <>{children}</>
+    }
+    
+    // Otherwise, redirect authenticated users away from login/register pages
+    if (isLoginOrRegisterPage) {
+      return <Navigate to={ROUTES.DASHBOARD} replace />
+    }
   }
 
   // All good, render the children

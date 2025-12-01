@@ -83,10 +83,14 @@ class TaskService {
       let query = `
         SELECT pt.*, 
                u1.email as assigned_by_email,
-               u2.email as assigned_to_email
+               u1.role as assigned_by_user_role,
+               u2.email as assigned_to_email,
+               p1.first_name as assigned_by_first_name,
+               p1.last_name as assigned_by_last_name
         FROM preparation_tasks pt
         JOIN users u1 ON pt.assigned_by = u1.u_id
         JOIN users u2 ON pt.assigned_to = u2.u_id
+        LEFT JOIN profiles p1 ON pt.assigned_by = p1.user_id
         WHERE pt.assigned_to = $1
       `;
       const params = [userId];
@@ -105,11 +109,18 @@ class TaskService {
 
       const result = await database.query(query, params);
 
-      return result.rows.map(row => ({
+      return result.rows.map(row => {
+        const assignedByName = row.assigned_by_first_name && row.assigned_by_last_name
+          ? `${row.assigned_by_first_name} ${row.assigned_by_last_name}`
+          : row.assigned_by_first_name || row.assigned_by_last_name || row.assigned_by_email;
+
+        return {
         id: row.id,
         teamId: row.team_id,
         assignedBy: row.assigned_by,
         assignedByEmail: row.assigned_by_email,
+          assignedByName: assignedByName,
+          assignedByRole: row.assigned_by_role,
         assignedTo: row.assigned_to,
         assignedToEmail: row.assigned_to_email,
         taskType: row.task_type,
@@ -120,9 +131,87 @@ class TaskService {
         status: row.status,
         completedAt: row.completed_at,
         createdAt: row.created_at
-      }));
+        };
+      });
     } catch (error) {
       console.error("[TaskService] Error getting user tasks:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get tasks for a specific user (for mentors to view their mentees' tasks)
+   */
+  async getTasksForUser(mentorId, menteeId, teamId = null) {
+    try {
+      // Verify mentor is a mentor in a team where mentee is also a member
+      const teamCheck = await database.query(
+        `SELECT tm1.team_id
+         FROM team_members tm1
+         JOIN team_members tm2 ON tm1.team_id = tm2.team_id
+         WHERE tm1.user_id = $1 
+           AND tm1.role IN ('mentor', 'career_coach', 'admin')
+           AND tm1.active = true
+           AND tm2.user_id = $2
+           AND tm2.active = true
+         LIMIT 1`,
+        [mentorId, menteeId]
+      );
+
+      if (teamCheck.rows.length === 0) {
+        throw new Error("You are not a mentor for this mentee");
+      }
+
+      let query = `
+        SELECT pt.*, 
+               u1.email as assigned_by_email,
+               u1.role as assigned_by_user_role,
+               u2.email as assigned_to_email,
+               p1.first_name as assigned_by_first_name,
+               p1.last_name as assigned_by_last_name
+        FROM preparation_tasks pt
+        JOIN users u1 ON pt.assigned_by = u1.u_id
+        JOIN users u2 ON pt.assigned_to = u2.u_id
+        LEFT JOIN profiles p1 ON pt.assigned_by = p1.user_id
+        WHERE pt.assigned_to = $1
+      `;
+      const params = [menteeId];
+
+      if (teamId) {
+        query += ` AND pt.team_id = $${params.length + 1}`;
+        params.push(teamId);
+      }
+
+      query += ` ORDER BY pt.due_date ASC NULLS LAST, pt.created_at DESC`;
+
+      const result = await database.query(query, params);
+
+      return result.rows.map(row => {
+        const assignedByName = row.assigned_by_first_name && row.assigned_by_last_name
+          ? `${row.assigned_by_first_name} ${row.assigned_by_last_name}`
+          : row.assigned_by_first_name || row.assigned_by_last_name || row.assigned_by_email;
+
+        return {
+          id: row.id,
+          teamId: row.team_id,
+          assignedBy: row.assigned_by,
+          assignedByEmail: row.assigned_by_email,
+          assignedByName: assignedByName,
+          assignedByRole: row.assigned_by_role,
+          assignedTo: row.assigned_to,
+          assignedToEmail: row.assigned_to_email,
+          taskType: row.task_type,
+          taskTitle: row.task_title,
+          taskDescription: row.task_description,
+          taskData: typeof row.task_data === "string" ? JSON.parse(row.task_data) : row.task_data,
+          dueDate: row.due_date,
+          status: row.status,
+          completedAt: row.completed_at,
+          createdAt: row.created_at
+        };
+      });
+    } catch (error) {
+      console.error("[TaskService] Error getting tasks for user:", error);
       throw error;
     }
   }
@@ -146,14 +235,21 @@ class TaskService {
         throw new Error("You can only update your own tasks");
       }
 
-      await database.query(
-        `UPDATE preparation_tasks 
-         SET status = $1, 
-             completed_at = CASE WHEN $1 = 'completed' THEN CURRENT_TIMESTAMP ELSE completed_at END,
+      // Update status and completed_at based on the new status
+      // Use explicit type casting to avoid PostgreSQL type inference issues
+      const updateQuery = status === 'completed'
+        ? `UPDATE preparation_tasks 
+           SET status = $1::varchar, 
+               completed_at = CURRENT_TIMESTAMP,
+               updated_at = CURRENT_TIMESTAMP
+           WHERE id = $2::uuid`
+        : `UPDATE preparation_tasks 
+           SET status = $1::varchar, 
+               completed_at = completed_at,
              updated_at = CURRENT_TIMESTAMP
-         WHERE id = $2`,
-        [status, taskId]
-      );
+           WHERE id = $2::uuid`;
+      
+      await database.query(updateQuery, [status, taskId]);
 
       // Log activity
       if (task.rows[0].team_id) {

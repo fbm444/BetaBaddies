@@ -31,6 +31,7 @@ export const ROUTES = {
   TEAMS: "/collaboration/teams",
   TEAM_DETAIL: "/collaboration/teams/:teamId",
   MENTOR_DASHBOARD: "/collaboration/mentor",
+  MENTEE_DASHBOARD: "/collaboration/mentee",
   MENTEE_PROGRESS: "/collaboration/mentor/mentees/:menteeId",
   DOCUMENT_REVIEWS: "/collaboration/reviews",
   PROGRESS_SHARING: "/collaboration/progress",
@@ -192,6 +193,12 @@ export const navigationGroups: NavigationGroup[] = [
         label: "Mentor Dashboard",
         icon: "mingcute:user-star-line",
         path: ROUTES.MENTOR_DASHBOARD,
+      },
+      {
+        id: "mentee-dashboard",
+        label: "Mentee Dashboard",
+        icon: "mingcute:user-heart-line",
+        path: ROUTES.MENTEE_DASHBOARD,
       },
       {
         id: "document-reviews",

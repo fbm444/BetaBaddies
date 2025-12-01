@@ -307,6 +307,12 @@ Return a JSON object with:
     if (actionType === "status_inquiry") {
       return `Interview Status - ${role} at ${company}`.trim();
     }
+    if (actionType === "feedback_request") {
+      return `Feedback Request - ${role} Interview`.trim();
+    }
+    if (actionType === "networking_follow_up") {
+      return `Staying in Touch - ${company}`.trim();
+    }
     return `Following Up on ${role} Interview`.trim();
   }
 
@@ -333,6 +339,24 @@ Return a JSON object with:
       body += `for which we spoke on ${context.interview.date?.toLocaleDateString("en-US") || "a recent date"}. `;
       body += `I'm still very interested in the opportunity and would appreciate any updates you can share on the hiring timeline.\n\n`;
       body += `Thank you again for your time and consideration.\n\n`;
+      body += `Best regards,\n${candidate}`;
+      return { subject, body };
+    }
+
+    if (action.action_type === "feedback_request") {
+      body += `Thank you again for the opportunity to interview for the ${role} position at ${company}. `;
+      body += `While I understand that I was not selected to move forward, I would really appreciate any feedback you might be able to share about my interview or candidacy.\n\n`;
+      body += `Even a few brief points on what I could improve would be very helpful as I continue my search and work on my skills.\n\n`;
+      body += `Thank you again for your time and consideration.\n\n`;
+      body += `Best regards,\n${candidate}`;
+      return { subject, body };
+    }
+
+    if (action.action_type === "networking_follow_up") {
+      body += `Thank you again for speaking with me about the ${role} position at ${company}. `;
+      body += `Although I understand the team has decided to move in a different direction for this role, I enjoyed our conversation and remain very interested in ${company}'s work.\n\n`;
+      body += `If any future opportunities arise that you feel may be a good fit, I would be grateful to stay in touch and be considered. `;
+      body += `In the meantime, please don't hesitate to reach out if I can ever be helpful from my side.\n\n`;
       body += `Best regards,\n${candidate}`;
       return { subject, body };
     }

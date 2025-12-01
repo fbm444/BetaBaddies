@@ -68,6 +68,29 @@ class FollowUpService {
         notes: "Inquire about the hiring decision timeline",
       });
 
+      // 4. Additional templates for rejected applications
+      if (interview.outcome === "rejected") {
+        // Feedback request (a few days after rejection)
+        const feedbackDue = new Date(interviewDate);
+        feedbackDue.setDate(feedbackDue.getDate() + 3);
+
+        actions.push({
+          actionType: "feedback_request",
+          dueDate: feedbackDue,
+          notes: "Politely request feedback on your interview performance",
+        });
+
+        // Networking follow-up (1–2 weeks after rejection)
+        const networkingDue = new Date(interviewDate);
+        networkingDue.setDate(networkingDue.getDate() + 10);
+
+        actions.push({
+          actionType: "networking_follow_up",
+          dueDate: networkingDue,
+          notes: "Stay connected with the interviewer or recruiter for future opportunities",
+        });
+      }
+
       // Insert actions into database
       const createdActions = [];
       for (const action of actions) {

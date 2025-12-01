@@ -26,8 +26,9 @@ export function Interviews() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const jobOpportunityId = searchParams.get("jobOpportunityId");
+  const tabParam = searchParams.get("tab") as TabType | null;
 
-  const [activeTab, setActiveTab] = useState<TabType>("schedule");
+  const [activeTab, setActiveTab] = useState<TabType>(tabParam || "schedule");
   const [interviews, setInterviews] = useState<InterviewData[]>([]);
   const [jobOpportunities, setJobOpportunities] = useState<JobOpportunityData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -849,7 +850,13 @@ export function Interviews() {
             {tabs.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => {
+                  if (tab.id === "analytics") {
+                    navigate(ROUTES.INTERVIEW_ANALYTICS);
+                  } else {
+                    setActiveTab(tab.id);
+                  }
+                }}
                 className={`px-6 py-3 font-medium text-sm whitespace-nowrap border-b-2 transition-colors flex items-center gap-2 ${
                   activeTab === tab.id
                     ? "border-blue-500 text-blue-600"

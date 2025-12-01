@@ -31,20 +31,6 @@ COMMENT ON EXTENSION "uuid-ossp" IS 'generate universally unique identifiers (UU
 
 
 --
--- Name: pgcrypto; Type: EXTENSION; Schema: -; Owner: -
---
-
-CREATE EXTENSION IF NOT EXISTS "pgcrypto" WITH SCHEMA public;
-
-
---
--- Name: EXTENSION "pgcrypto"; Type: COMMENT; Schema: -; Owner: -
---
-
-COMMENT ON EXTENSION "pgcrypto" IS 'cryptographic functions';
-
-
---
 -- Name: addupdatetime(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -281,6 +267,20 @@ CREATE FUNCTION public.update_pre_assessment_updated_at() RETURNS trigger
     AS $$
 BEGIN
     NEW.updated_at := CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: update_prediction_timestamp(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.update_prediction_timestamp() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    NEW.last_updated = now();
     RETURN NEW;
 END;
 $$;
@@ -1834,6 +1834,84 @@ CREATE TABLE public.interview_response_coaching (
 
 
 --
+-- Name: interview_success_predictions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.interview_success_predictions (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    job_opportunity_id uuid NOT NULL,
+    interview_id uuid,
+    predicted_success_probability numeric(5,2) NOT NULL,
+    confidence_score numeric(5,2) NOT NULL,
+    preparation_score numeric(5,2) NOT NULL,
+    role_match_score numeric(5,2) NOT NULL,
+    company_research_score numeric(5,2) NOT NULL,
+    practice_hours_score numeric(5,2) NOT NULL,
+    historical_performance_score numeric(5,2) NOT NULL,
+    factors_breakdown jsonb DEFAULT '{}'::jsonb,
+    recommendations jsonb DEFAULT '[]'::jsonb,
+    actual_outcome character varying(50),
+    outcome_date date,
+    prediction_accuracy numeric(5,2),
+    calculated_at timestamp with time zone DEFAULT now() NOT NULL,
+    last_updated timestamp with time zone DEFAULT now() NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT interview_success_prediction_historical_performance_score_check CHECK (((historical_performance_score >= (0)::numeric) AND (historical_performance_score <= (100)::numeric))),
+    CONSTRAINT interview_success_prediction_predicted_success_probabilit_check CHECK (((predicted_success_probability >= (0)::numeric) AND (predicted_success_probability <= (100)::numeric))),
+    CONSTRAINT interview_success_predictions_actual_outcome_check CHECK (((actual_outcome)::text = ANY ((ARRAY['accepted'::character varying, 'rejected'::character varying, 'pending'::character varying, 'withdrawn'::character varying, 'no_response'::character varying])::text[]))),
+    CONSTRAINT interview_success_predictions_company_research_score_check CHECK (((company_research_score >= (0)::numeric) AND (company_research_score <= (100)::numeric))),
+    CONSTRAINT interview_success_predictions_confidence_score_check CHECK (((confidence_score >= (0)::numeric) AND (confidence_score <= (100)::numeric))),
+    CONSTRAINT interview_success_predictions_practice_hours_score_check CHECK (((practice_hours_score >= (0)::numeric) AND (practice_hours_score <= (100)::numeric))),
+    CONSTRAINT interview_success_predictions_prediction_accuracy_check CHECK (((prediction_accuracy >= ('-100'::integer)::numeric) AND (prediction_accuracy <= (100)::numeric))),
+    CONSTRAINT interview_success_predictions_preparation_score_check CHECK (((preparation_score >= (0)::numeric) AND (preparation_score <= (100)::numeric))),
+    CONSTRAINT interview_success_predictions_role_match_score_check CHECK (((role_match_score >= (0)::numeric) AND (role_match_score <= (100)::numeric)))
+);
+
+
+--
+-- Name: TABLE interview_success_predictions; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.interview_success_predictions IS 'Stores interview success probability predictions with detailed factor breakdowns';
+
+
+--
+-- Name: COLUMN interview_success_predictions.predicted_success_probability; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.interview_success_predictions.predicted_success_probability IS 'Overall success probability score (0-100)';
+
+
+--
+-- Name: COLUMN interview_success_predictions.confidence_score; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.interview_success_predictions.confidence_score IS 'Confidence in the prediction based on data completeness (0-100)';
+
+
+--
+-- Name: COLUMN interview_success_predictions.factors_breakdown; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.interview_success_predictions.factors_breakdown IS 'JSON object with detailed breakdown of each factor calculation';
+
+
+--
+-- Name: COLUMN interview_success_predictions.recommendations; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.interview_success_predictions.recommendations IS 'JSON array of prioritized action items to improve success probability';
+
+
+--
+-- Name: COLUMN interview_success_predictions.prediction_accuracy; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.interview_success_predictions.prediction_accuracy IS 'Difference between predicted and actual outcome (-100 to +100)';
+
+
+--
 -- Name: interview_success_probability; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -3011,6 +3089,49 @@ COMMENT ON COLUMN public.practice_sessions.format IS 'Practice session format: t
 --
 
 COMMENT ON COLUMN public.practice_sessions.overall_score IS 'Overall performance score from 0 to 100';
+
+
+--
+-- Name: prediction_accuracy_metrics; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.prediction_accuracy_metrics (
+    user_id uuid NOT NULL,
+    total_predictions integer DEFAULT 0 NOT NULL,
+    accurate_predictions integer DEFAULT 0 NOT NULL,
+    avg_error numeric(5,2) DEFAULT 0,
+    by_confidence_level jsonb DEFAULT '{}'::jsonb,
+    last_calculated timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: TABLE prediction_accuracy_metrics; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.prediction_accuracy_metrics IS 'Aggregate accuracy metrics per user for tracking prediction quality';
+
+
+--
+-- Name: prediction_history; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.prediction_history (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    prediction_id uuid NOT NULL,
+    probability numeric(5,2) NOT NULL,
+    confidence_score numeric(5,2) NOT NULL,
+    factors_snapshot jsonb DEFAULT '{}'::jsonb,
+    "timestamp" timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: TABLE prediction_history; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.prediction_history IS 'Tracks changes to predictions over time for trend analysis';
 
 
 --
@@ -5232,6 +5353,14 @@ ALTER TABLE ONLY public.interview_response_coaching
 
 
 --
+-- Name: interview_success_predictions interview_success_predictions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.interview_success_predictions
+    ADD CONSTRAINT interview_success_predictions_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: interview_success_probability interview_success_probability_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5533,6 +5662,22 @@ ALTER TABLE ONLY public.performance_trends
 
 ALTER TABLE ONLY public.practice_sessions
     ADD CONSTRAINT practice_sessions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: prediction_accuracy_metrics prediction_accuracy_metrics_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.prediction_accuracy_metrics
+    ADD CONSTRAINT prediction_accuracy_metrics_pkey PRIMARY KEY (user_id);
+
+
+--
+-- Name: prediction_history prediction_history_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.prediction_history
+    ADD CONSTRAINT prediction_history_pkey PRIMARY KEY (id);
 
 
 --
@@ -6045,6 +6190,14 @@ ALTER TABLE ONLY public.interview_pre_assessment
 
 ALTER TABLE ONLY public.cover_letter_template_usage
     ADD CONSTRAINT unique_template_user UNIQUE (template_id, user_id);
+
+
+--
+-- Name: interview_success_predictions unique_user_job_prediction; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.interview_success_predictions
+    ADD CONSTRAINT unique_user_job_prediction UNIQUE (user_id, job_opportunity_id);
 
 
 --
@@ -7169,6 +7322,55 @@ CREATE INDEX idx_pre_assessment_user_id ON public.interview_pre_assessment USING
 
 
 --
+-- Name: idx_prediction_history_prediction_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_prediction_history_prediction_id ON public.prediction_history USING btree (prediction_id);
+
+
+--
+-- Name: idx_prediction_history_timestamp; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_prediction_history_timestamp ON public.prediction_history USING btree ("timestamp");
+
+
+--
+-- Name: idx_predictions_calculated_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_predictions_calculated_at ON public.interview_success_predictions USING btree (calculated_at);
+
+
+--
+-- Name: idx_predictions_interview_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_predictions_interview_id ON public.interview_success_predictions USING btree (interview_id);
+
+
+--
+-- Name: idx_predictions_job_opportunity_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_predictions_job_opportunity_id ON public.interview_success_predictions USING btree (job_opportunity_id);
+
+
+--
+-- Name: idx_predictions_probability; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_predictions_probability ON public.interview_success_predictions USING btree (predicted_success_probability);
+
+
+--
+-- Name: idx_predictions_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_predictions_user_id ON public.interview_success_predictions USING btree (user_id);
+
+
+--
 -- Name: idx_preparation_tasks_assigned_by; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -8282,10 +8484,24 @@ CREATE TRIGGER trigger_update_salary_negotiation_timestamp BEFORE UPDATE ON publ
 
 
 --
+-- Name: prediction_accuracy_metrics update_accuracy_metrics_timestamp; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_accuracy_metrics_timestamp BEFORE UPDATE ON public.prediction_accuracy_metrics FOR EACH ROW EXECUTE FUNCTION public.update_prediction_timestamp();
+
+
+--
 -- Name: support_group_post_comments update_comment_count_trigger; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER update_comment_count_trigger AFTER INSERT OR DELETE ON public.support_group_post_comments FOR EACH ROW EXECUTE FUNCTION public.update_support_group_comment_count();
+
+
+--
+-- Name: interview_success_predictions update_interview_prediction_timestamp; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_interview_prediction_timestamp BEFORE UPDATE ON public.interview_success_predictions FOR EACH ROW EXECUTE FUNCTION public.update_prediction_timestamp();
 
 
 --
@@ -9254,6 +9470,30 @@ ALTER TABLE ONLY public.interview_response_coaching
 
 
 --
+-- Name: interview_success_predictions interview_success_predictions_interview_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.interview_success_predictions
+    ADD CONSTRAINT interview_success_predictions_interview_id_fkey FOREIGN KEY (interview_id) REFERENCES public.interviews(id) ON DELETE SET NULL;
+
+
+--
+-- Name: interview_success_predictions interview_success_predictions_job_opportunity_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.interview_success_predictions
+    ADD CONSTRAINT interview_success_predictions_job_opportunity_id_fkey FOREIGN KEY (job_opportunity_id) REFERENCES public.job_opportunities(id) ON DELETE CASCADE;
+
+
+--
+-- Name: interview_success_predictions interview_success_predictions_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.interview_success_predictions
+    ADD CONSTRAINT interview_success_predictions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
 -- Name: interview_success_probability interview_success_probability_interview_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -9651,6 +9891,22 @@ ALTER TABLE ONLY public.performance_predictions
 
 ALTER TABLE ONLY public.performance_trends
     ADD CONSTRAINT performance_trends_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: prediction_accuracy_metrics prediction_accuracy_metrics_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.prediction_accuracy_metrics
+    ADD CONSTRAINT prediction_accuracy_metrics_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: prediction_history prediction_history_prediction_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.prediction_history
+    ADD CONSTRAINT prediction_history_prediction_id_fkey FOREIGN KEY (prediction_id) REFERENCES public.interview_success_predictions(id) ON DELETE CASCADE;
 
 
 --

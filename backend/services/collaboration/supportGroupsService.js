@@ -836,6 +836,189 @@ class SupportGroupsService {
   }
 
   /**
+   * Get abstract user profile (no personal information)
+   * Returns aggregated skills, experiences, and metrics
+   */
+  async getAbstractUserProfile(targetUserId) {
+    try {
+      // Get aggregated skills data (categories and proficiency levels only)
+      const skillsQuery = await database.query(
+        `
+        SELECT 
+          category,
+          proficiency,
+          COUNT(*) as count
+        FROM skills
+        WHERE user_id = $1
+        GROUP BY category, proficiency
+        ORDER BY category, proficiency
+        `,
+        [targetUserId]
+      );
+
+      // Get experience summary (years, industries - no company names)
+      const experienceQuery = await database.query(
+        `
+        SELECT 
+          COUNT(*) as total_positions,
+          COUNT(CASE WHEN is_current = true THEN 1 END) as current_positions,
+          MIN(start_date) as career_start_date,
+          MAX(CASE WHEN is_current = false THEN end_date END) as latest_end_date,
+          COUNT(DISTINCT company) as companies_worked
+        FROM jobs
+        WHERE user_id = $1
+        `,
+        [targetUserId]
+      );
+
+      // Get profile data separately
+      const profileQuery = await database.query(
+        `
+        SELECT industry, exp_level
+        FROM profiles
+        WHERE user_id = $1
+        `,
+        [targetUserId]
+      );
+
+      // Get education summary (degree types only - no school names)
+      const educationQuery = await database.query(
+        `
+        SELECT 
+          degree_type,
+          field,
+          COUNT(*) as count
+        FROM educations
+        WHERE user_id = $1
+        GROUP BY degree_type, field
+        ORDER BY degree_type
+        `,
+        [targetUserId]
+      );
+
+      // Get job search metrics (aggregated rates, no specific numbers)
+      const metricsQuery = await database.query(
+        `
+        SELECT 
+          COUNT(*) as total_opportunities,
+          COUNT(CASE WHEN status IN ('Applied', 'Phone Screen', 'Interview', 'Offer', 'Rejected') THEN 1 END) as applications_sent,
+          COUNT(CASE WHEN status IN ('Phone Screen', 'Interview', 'Offer') THEN 1 END) as interviews_received,
+          COUNT(CASE WHEN status = 'Offer' THEN 1 END) as offers_received,
+          COUNT(CASE WHEN status IN ('Phone Screen', 'Interview', 'Offer', 'Rejected') AND first_response_at IS NOT NULL THEN 1 END) as responses_received
+        FROM job_opportunities
+        WHERE user_id = $1 AND (archived = false OR archived IS NULL)
+        `,
+        [targetUserId]
+      );
+
+      // Get certifications count (no names)
+      const certificationsQuery = await database.query(
+        `
+        SELECT COUNT(*) as total_certifications
+        FROM certifications
+        WHERE user_id = $1
+        `,
+        [targetUserId]
+      );
+
+      // Get projects count (no names)
+      const projectsQuery = await database.query(
+        `
+        SELECT 
+          COUNT(*) as total_projects,
+          COUNT(DISTINCT industry) as industries_covered
+        FROM projects
+        WHERE user_id = $1
+        `,
+        [targetUserId]
+      );
+
+      const skills = skillsQuery.rows;
+      const experience = experienceQuery.rows[0] || {};
+      const profile = profileQuery.rows[0] || {};
+      const education = educationQuery.rows;
+      const metrics = metricsQuery.rows[0] || {};
+      const certifications = certificationsQuery.rows[0] || {};
+      const projects = projectsQuery.rows[0] || {};
+
+      // Calculate abstract metrics
+      const applicationRate = metrics.applications_sent > 0 && metrics.responses_received > 0
+        ? Math.round((metrics.responses_received / metrics.applications_sent) * 100)
+        : 0;
+      
+      const interviewRate = metrics.applications_sent > 0 && metrics.interviews_received > 0
+        ? Math.round((metrics.interviews_received / metrics.applications_sent) * 100)
+        : 0;
+
+      const offerRate = metrics.interviews_received > 0 && metrics.offers_received > 0
+        ? Math.round((metrics.offers_received / metrics.interviews_received) * 100)
+        : 0;
+
+      // Calculate years of experience
+      let yearsOfExperience = 0;
+      if (experience.career_start_date) {
+        const startDate = new Date(experience.career_start_date);
+        const endDate = experience.latest_end_date 
+          ? new Date(experience.latest_end_date)
+          : new Date();
+        const years = (endDate - startDate) / (1000 * 60 * 60 * 24 * 365.25);
+        yearsOfExperience = Math.round(years * 10) / 10;
+      }
+
+      return {
+        skills: {
+          categories: [...new Set(skills.map(s => s.category).filter(Boolean))],
+          proficiencyDistribution: skills.reduce((acc, s) => {
+            if (!acc[s.proficiency]) acc[s.proficiency] = 0;
+            acc[s.proficiency] += parseInt(s.count);
+            return acc;
+          }, {}),
+          totalSkills: skills.reduce((sum, s) => sum + parseInt(s.count), 0)
+        },
+        experience: {
+          yearsOfExperience,
+          experienceLevel: profile.exp_level || null,
+          totalPositions: parseInt(experience.total_positions) || 0,
+          currentPositions: parseInt(experience.current_positions) || 0,
+          companiesWorked: parseInt(experience.companies_worked) || 0,
+          primaryIndustry: profile.industry || null
+        },
+        education: {
+          degrees: education.map(e => ({
+            type: e.degree_type,
+            field: e.field,
+            count: parseInt(e.count)
+          })),
+          totalDegrees: education.reduce((sum, e) => sum + parseInt(e.count), 0)
+        },
+        jobSearchMetrics: {
+          totalOpportunities: parseInt(metrics.total_opportunities) || 0,
+          applicationResponseRate: applicationRate,
+          interviewConversionRate: interviewRate,
+          offerConversionRate: offerRate,
+          // Abstract ranges instead of exact numbers
+          activityLevel: metrics.applications_sent > 50 ? 'high' : 
+                        metrics.applications_sent > 20 ? 'medium' : 
+                        metrics.applications_sent > 0 ? 'low' : 'none'
+        },
+        certifications: {
+          total: parseInt(certifications.total_certifications) || 0
+        },
+        projects: {
+          total: parseInt(projects.total_projects) || 0,
+          industriesCovered: parseInt(projects.industries_covered) || 0
+        }
+      };
+    } catch (error) {
+      console.error(
+        "[SupportGroupsService] Error getting abstract user profile:",
+        error
+      );
+      throw error;
+    }
+  }
+
+  /**
    * Get group members
    */
   async getGroupMembers(groupId, userId) {
@@ -852,10 +1035,17 @@ class SupportGroupsService {
           p.first_name,
           p.last_name,
           p.bio,
-          p.location,
-          p.linkedin_url,
-          p.github_url,
-          p.portfolio_url
+          CASE 
+            WHEN p.city IS NOT NULL AND p.state IS NOT NULL 
+            THEN CONCAT(p.city, ', ', p.state)
+            WHEN p.city IS NOT NULL 
+            THEN p.city
+            WHEN p.state IS NOT NULL 
+            THEN p.state
+            ELSE NULL
+          END as location,
+          p.job_title,
+          p.industry
         FROM support_group_memberships sgm
         INNER JOIN users u ON sgm.user_id = u.u_id
         LEFT JOIN profiles p ON u.u_id = p.user_id

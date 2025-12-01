@@ -174,6 +174,10 @@ router.get(
   "/support-groups/:groupId/members",
   collaborationController.getGroupMembers
 );
+router.get(
+  "/support-groups/members/:userId/profile",
+  collaborationController.getAbstractUserProfile
+);
 router.post(
   "/support-groups/:groupId/join",
   collaborationController.joinSupportGroup

@@ -1460,6 +1460,20 @@ class CollaborationController {
   });
 
   /**
+   * GET /api/collaboration/support-groups/members/:userId/profile
+   * Get abstract user profile (no personal information)
+   */
+  getAbstractUserProfile = asyncHandler(async (req, res) => {
+    const { userId } = req.params;
+    const profile = await supportGroupsService.getAbstractUserProfile(userId);
+
+    res.status(200).json({
+      ok: true,
+      data: { profile },
+    });
+  });
+
+  /**
    * POST /api/collaboration/support-groups/:groupId/generate-challenge
    * Generate AI monthly challenge
    * DEPRECATED: Challenge generation is now automatic in the background

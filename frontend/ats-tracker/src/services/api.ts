@@ -2461,6 +2461,12 @@ class ApiService {
     );
   }
 
+  async getAbstractUserProfile(userId: string) {
+    return this.request<ApiResponse<{ profile: any }>>(
+      `/collaboration/support-groups/members/${userId}/profile`
+    );
+  }
+
   // Removed: Challenge and resource generation is now automatic in the background
   // async generateMonthlyChallenge(groupId: string) {
   //   return this.request<ApiResponse<{ challenge: any }>>(

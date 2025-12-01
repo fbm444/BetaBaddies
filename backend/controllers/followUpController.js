@@ -44,7 +44,10 @@ class FollowUpController {
     res.status(200).json({
       ok: true,
       data: {
+        // Keep original key for backwards compatibility
         actions,
+        // Frontend expects followUps
+        followUps: actions,
       },
     });
   });

@@ -18,7 +18,6 @@ import {
   INTERVIEW_STATUS_LABELS,
   INTERVIEW_STATUS_COLORS,
 } from "../types/interview.types";
-import { BackButton } from "../components/common/BackButton";
 
 type TabType = "schedule" | "preparation" | "reminders" | "thank-you" | "follow-ups" | "calendar";
 
@@ -388,12 +387,9 @@ export function Interviews() {
       <main className="max-w-[1400px] mx-auto px-6 lg:px-10 py-10">
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-          <div className="flex items-center gap-4">
-            <BackButton />
-            <h1 className="text-4xl md:text-5xl font-bold text-slate-900">
-              Interviews
-            </h1>
-          </div>
+          <h1 className="text-4xl md:text-5xl font-bold text-slate-900">
+            Interviews
+          </h1>
           {activeTab === "schedule" && (
             <button
               onClick={() => navigate(`${ROUTES.INTERVIEW_SCHEDULING}${jobOpportunityId ? `?jobOpportunityId=${jobOpportunityId}` : ""}`)}

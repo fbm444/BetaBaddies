@@ -40,6 +40,14 @@ export function Interviews() {
   // Follow-ups state
   const [pendingFollowUps, setPendingFollowUps] = useState<any[]>([]);
   const [loadingFollowUps, setLoadingFollowUps] = useState(false);
+  const [activeFollowUpDraft, setActiveFollowUpDraft] = useState<{
+    id: string;
+    interviewId: string;
+    subject: string;
+    body: string;
+    generatedBy?: string;
+  } | null>(null);
+  const [draftLoadingId, setDraftLoadingId] = useState<string | null>(null);
 
   // Calendar state
   const [calendarConnected, setCalendarConnected] = useState(false);
@@ -838,26 +846,124 @@ export function Interviews() {
                             <p className="text-slate-600">{followUp.notes}</p>
                           )}
                         </div>
-                        <button
-                          onClick={async () => {
-                            try {
-                              const interviewId = followUp.interview_id;
-                              await api.completeFollowUpAction(interviewId, followUp.id);
-                              showMessage("Follow-up action completed!", "success");
-                              fetchPendingFollowUps();
-                            } catch (err: any) {
-                              showMessage(err.message || "Failed to complete action", "error");
+                    <div className="flex flex-col items-end gap-2">
+                      <button
+                        onClick={async () => {
+                          try {
+                            setDraftLoadingId(followUp.id);
+                            const interviewId = followUp.interview_id;
+                            const response = await api.getFollowUpEmailDraft(
+                              interviewId,
+                              followUp.id
+                            );
+                            if (response.ok && response.data?.draft) {
+                              setActiveFollowUpDraft({
+                                id: followUp.id,
+                                interviewId,
+                                subject: response.data.draft.subject,
+                                body: response.data.draft.body,
+                                generatedBy: response.data.draft.generatedBy,
+                              });
                             }
-                          }}
-                          className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm font-medium"
-                        >
-                          Mark Complete
-                        </button>
+                          } catch (err: any) {
+                            showMessage(
+                              err.message || "Failed to generate email draft",
+                              "error"
+                            );
+                          } finally {
+                            setDraftLoadingId(null);
+                          }
+                        }}
+                        className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 text-sm font-medium"
+                      >
+                        {draftLoadingId === followUp.id
+                          ? "Generating..."
+                          : "Generate email draft"}
+                      </button>
+                      <button
+                        onClick={async () => {
+                          try {
+                            const interviewId = followUp.interview_id;
+                            await api.completeFollowUpAction(interviewId, followUp.id);
+                            showMessage("Follow-up action completed!", "success");
+                            fetchPendingFollowUps();
+                          } catch (err: any) {
+                            showMessage(err.message || "Failed to complete action", "error");
+                          }
+                        }}
+                        className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm font-medium"
+                      >
+                        Mark Complete
+                      </button>
+                    </div>
                       </div>
                     </div>
                   ))}
                 </div>
               )}
+
+        {/* Follow-up email draft modal */}
+        {activeFollowUpDraft && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-40 px-4">
+            <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-6 font-poppins">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900">
+                    Follow-up Email Draft
+                  </h3>
+                  {activeFollowUpDraft.generatedBy && (
+                    <p className="text-xs text-slate-500 mt-1">
+                      Generated by {activeFollowUpDraft.generatedBy === "openai" ? "AI" : "template"}
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={() => setActiveFollowUpDraft(null)}
+                  className="text-slate-400 hover:text-slate-600"
+                >
+                  <Icon icon="mingcute:close-line" width={20} />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">
+                    Subject
+                  </label>
+                  <input
+                    type="text"
+                    readOnly
+                    value={activeFollowUpDraft.subject}
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">
+                    Body
+                  </label>
+                  <textarea
+                    readOnly
+                    rows={8}
+                    value={activeFollowUpDraft.body}
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 font-mono whitespace-pre-wrap"
+                  />
+                </div>
+                <p className="text-xs text-slate-500">
+                  You can copy this draft into your email client and edit as needed before sending.
+                </p>
+              </div>
+
+              <div className="mt-4 flex justify-end">
+                <button
+                  onClick={() => setActiveFollowUpDraft(null)}
+                  className="px-4 py-2 text-sm font-medium text-slate-700 hover:text-slate-900"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
             </div>
           )}
 

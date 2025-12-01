@@ -68,6 +68,7 @@ router.post("/:id/thank-you-notes/:noteId/send", thankYouNoteController.sendThan
 router.get("/:id/follow-ups", followUpController.getFollowUpActions);
 router.post("/:id/follow-ups", followUpController.createFollowUpAction);
 router.post("/:id/follow-ups/:actionId/complete", followUpController.completeFollowUpAction);
+router.get("/:id/follow-ups/:actionId/draft", followUpController.getFollowUpEmailDraft);
 
 // Get interview by ID
 router.get("/:id", interviewController.getInterviewById);

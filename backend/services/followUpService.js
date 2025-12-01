@@ -1,5 +1,6 @@
 import database from "./database.js";
 import { v4 as uuidv4 } from "uuid";
+import communicationsAIService from "./interviewCommunicationsAIService.js";
 
 class FollowUpService {
   /**
@@ -215,6 +216,44 @@ class FollowUpService {
       }));
     } catch (error) {
       console.error("❌ Error getting pending follow-up actions:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Generate an email draft for a specific follow-up action (no DB write)
+   */
+  async generateFollowUpEmailDraft(actionId, userId) {
+    try {
+      const query = `
+        SELECT 
+          fu.id,
+          fu.interview_id,
+          fu.action_type,
+          fu.due_date,
+          fu.notes
+        FROM interview_follow_ups fu
+        JOIN interviews i ON fu.interview_id = i.id
+        WHERE fu.id = $1 AND i.user_id = $2
+      `;
+
+      const result = await database.query(query, [actionId, userId]);
+
+      if (result.rows.length === 0) {
+        throw new Error("Follow-up action not found");
+      }
+
+      const action = result.rows[0];
+
+      const draft = await communicationsAIService.generateFollowUpDraft(
+        action.interview_id,
+        userId,
+        action
+      );
+
+      return draft;
+    } catch (error) {
+      console.error("❌ Error generating follow-up email draft:", error);
       throw error;
     }
   }

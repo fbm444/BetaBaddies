@@ -1191,6 +1191,12 @@ class ApiService {
     >("/follow-ups/pending");
   }
 
+  async getFollowUpEmailDraft(interviewId: string, actionId: string) {
+    return this.request<
+      ApiResponse<{ draft: { subject: string; body: string; generatedBy?: string } }>
+    >(`/interviews/${interviewId}/follow-ups/${actionId}/draft`);
+  }
+
   async completeFollowUpAction(interviewId: string, actionId: string) {
     return this.request<
       ApiResponse<{ message: string }>

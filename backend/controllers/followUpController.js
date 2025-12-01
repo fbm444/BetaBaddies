@@ -73,6 +73,33 @@ class FollowUpController {
     });
   });
 
+  // Generate email draft for a follow-up action
+  getFollowUpEmailDraft = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { actionId } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({
+        ok: false,
+        error: {
+          message: "Unauthorized",
+        },
+      });
+    }
+
+    const draft = await followUpService.generateFollowUpEmailDraft(
+      actionId,
+      userId
+    );
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        draft,
+      },
+    });
+  });
+
   // Create custom follow-up action
   createFollowUpAction = asyncHandler(async (req, res) => {
     const userId = req.session.userId;

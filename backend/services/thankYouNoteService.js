@@ -1,6 +1,7 @@
 import database from "./database.js";
 import emailService from "./emailService.js";
 import { v4 as uuidv4 } from "uuid";
+import communicationsAIService from "./interviewCommunicationsAIService.js";
 
 class ThankYouNoteService {
   /**
@@ -8,7 +9,7 @@ class ThankYouNoteService {
    */
   async generateThankYouNote(interviewId, userId) {
     try {
-      // Get interview details
+      // Get interview details (for recipient and validation)
       const interviewQuery = `
         SELECT 
           i.*,
@@ -34,35 +35,57 @@ class ThankYouNoteService {
       const interview = interviewResult.rows[0];
       const interviewerName = interview.interviewer_name || "Interviewer";
       const interviewerEmail = interview.interviewer_email;
-      const userName = interview.first_name && interview.last_name
-        ? `${interview.first_name} ${interview.last_name}`
-        : "Candidate";
 
       if (!interviewerEmail) {
         throw new Error("Interviewer email is required to send thank-you note");
       }
 
-      // Generate note content
-      const interviewDate = interview.scheduled_at
-        ? new Date(interview.scheduled_at).toLocaleDateString("en-US", {
-            weekday: "long",
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-          })
-        : "recently";
+      // Generate note content using AI + fallback service
+      let draft;
+      try {
+        draft = await communicationsAIService.generateThankYouDraft(
+          interviewId,
+          userId
+        );
+      } catch (error) {
+        console.warn(
+          "[ThankYouNoteService] Failed to generate AI thank-you draft, using legacy template:",
+          error.message
+        );
 
-      const subject = `Thank You - ${interview.job_title || interview.title || "Interview"} at ${interview.company || "your company"}`;
+        const interviewDate = interview.scheduled_at
+          ? new Date(interview.scheduled_at).toLocaleDateString("en-US", {
+              weekday: "long",
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })
+          : "recently";
 
-      const body = this.generateNoteBody({
-        interviewerName,
-        userName,
-        interviewDate,
-        jobTitle: interview.job_title || interview.title,
-        company: interview.company,
-        interviewType: interview.type,
-        interviewNotes: interview.notes,
-      });
+        const userName =
+          interview.first_name && interview.last_name
+            ? `${interview.first_name} ${interview.last_name}`
+            : "Candidate";
+
+        const subject = `Thank You - ${
+          interview.job_title || interview.title || "Interview"
+        } at ${interview.company || "your company"}`;
+
+        const body = this.generateNoteBody({
+          interviewerName,
+          userName,
+          interviewDate,
+          jobTitle: interview.job_title || interview.title,
+          company: interview.company,
+          interviewType: interview.type,
+          interviewNotes: interview.notes,
+        });
+
+        draft = { subject, body, generatedBy: "legacy" };
+      }
+
+      const subject = draft.subject;
+      const body = draft.body;
 
       // Create thank-you note record
       const noteId = uuidv4();

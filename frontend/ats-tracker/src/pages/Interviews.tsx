@@ -91,6 +91,19 @@ export function Interviews() {
     error: string | null;
   }>>(new Map());
   const [loadingPreparation, setLoadingPreparation] = useState(false);
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+
+  const toggleCard = (companyKey: string) => {
+    setExpandedCards(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(companyKey)) {
+        newSet.delete(companyKey);
+      } else {
+        newSet.add(companyKey);
+      }
+      return newSet;
+    });
+  };
 
   useEffect(() => {
     fetchInterviews();
@@ -457,33 +470,70 @@ export function Interviews() {
     });
   };
 
+  // Color mapping for interview format tags
+  const getInterviewFormatColor = (format: string) => {
+    const normalized = format.toLowerCase().trim();
+    if (normalized.includes("phone") || normalized.includes("phone screen")) {
+      return "bg-blue-100 text-blue-700";
+    } else if (normalized.includes("virtual") || normalized.includes("video")) {
+      return "bg-purple-100 text-purple-700";
+    } else if (normalized.includes("in-person") || normalized.includes("onsite") || normalized.includes("on-site")) {
+      return "bg-green-100 text-green-700";
+    }
+    return "bg-slate-100 text-slate-700";
+  };
+
+  // Color mapping for question category tags
+  const getQuestionCategoryColor = (category: string) => {
+    const normalized = category.toLowerCase().trim().replace(/_/g, " ");
+    if (normalized.includes("system design") || normalized.includes("system")) {
+      return "bg-orange-100 text-orange-700";
+    } else if (normalized.includes("behavioral") || normalized.includes("behavior")) {
+      return "bg-pink-100 text-pink-700";
+    } else if (normalized.includes("technical") || normalized.includes("tech")) {
+      return "bg-indigo-100 text-indigo-700";
+    } else if (normalized.includes("culture") || normalized.includes("cultural")) {
+      return "bg-teal-100 text-teal-700";
+    } else if (normalized.includes("coding") || normalized.includes("code")) {
+      return "bg-cyan-100 text-cyan-700";
+    } else if (normalized.includes("algorithm")) {
+      return "bg-amber-100 text-amber-700";
+    }
+    return "bg-slate-100 text-slate-700";
+  };
+
   const tabs: { id: TabType; label: string; icon: string }[] = [
     { id: "schedule", label: "Schedule", icon: "mingcute:calendar-line" },
-    { id: "preparation", label: "Preparation", icon: "mingcute:lightbulb-line" },
-    { id: "reminders", label: "Reminders", icon: "mingcute:alarm-line" },
+    { id: "preparation", label: "Preparation", icon: "mingcute:bulb-line" },
+    { id: "reminders", label: "Reminders", icon: "mingcute:clipboard-line" },
     { id: "thank-you", label: "Thank You Notes", icon: "mingcute:mail-line" },
     { id: "follow-ups", label: "Follow-ups", icon: "mingcute:task-line" },
-    { id: "calendar", label: "Calendar", icon: "mingcute:calendar-check-line" },
-    { id: "analytics", label: "Analytics", icon: "mingcute:chart-line" },
+    { id: "calendar", label: "Calendar", icon: "mingcute:calendar-2-line" },
+    { id: "analytics", label: "Analytics", icon: "mingcute:chart-bar-line" },
   ];
 
   return (
     <div className="min-h-screen bg-white font-poppins">
       <main className="max-w-[1400px] mx-auto px-6 lg:px-10 py-10">
         {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-          <h1 className="text-4xl md:text-5xl font-bold text-slate-900">
+        <div className="mb-6">
+          <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4">
             Interviews
           </h1>
-          {activeTab === "schedule" && (
-            <button
-              onClick={() => navigate(`${ROUTES.INTERVIEW_SCHEDULING}${jobOpportunityId ? `?jobOpportunityId=${jobOpportunityId}` : ""}`)}
-              className="px-6 py-3 rounded-full bg-blue-500 text-white text-sm font-semibold inline-flex items-center gap-2 shadow hover:bg-blue-600"
-            >
-              <Icon icon="mingcute:add-line" width={20} />
-              Schedule New Interview
-            </button>
-          )}
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <p className="text-slate-600">
+              View and manage your interviews. Schedule new interviews, view upcoming ones, and access all interview details.
+            </p>
+            {activeTab === "schedule" && (
+              <button
+                onClick={() => navigate(`${ROUTES.INTERVIEW_SCHEDULING}${jobOpportunityId ? `?jobOpportunityId=${jobOpportunityId}` : ""}`)}
+                className="px-6 py-3 rounded-full bg-blue-500 text-white text-sm font-semibold inline-flex items-center gap-2 shadow hover:bg-blue-600 whitespace-nowrap"
+              >
+                <Icon icon="mingcute:add-line" width={20} />
+                Schedule New Interview
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Messages */}
@@ -754,7 +804,20 @@ export function Interviews() {
                                 setLoadingThankYou(false);
                               }
                             }}
-                            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-xs sm:text-sm font-medium"
+                            className="px-6 py-3 rounded-full transition-all text-xs sm:text-sm font-semibold relative overflow-hidden"
+                            style={{
+                              background: 'linear-gradient(white, white) padding-box, linear-gradient(to right, #845BFF, #F551A2) border-box',
+                              border: '2px solid transparent',
+                              color: '#845BFF'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = 'linear-gradient(to right, #845BFF, #F551A2) padding-box, linear-gradient(to right, #845BFF, #F551A2) border-box';
+                              e.currentTarget.style.color = 'white';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = 'linear-gradient(white, white) padding-box, linear-gradient(to right, #845BFF, #F551A2) border-box';
+                              e.currentTarget.style.color = '#845BFF';
+                            }}
                           >
                             Generate Standard
                           </button>
@@ -787,7 +850,20 @@ export function Interviews() {
                                 setLoadingThankYou(false);
                               }
                             }}
-                            className="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 text-xs sm:text-sm font-medium"
+                            className="px-6 py-3 rounded-full transition-all text-xs sm:text-sm font-semibold relative overflow-hidden"
+                            style={{
+                              background: 'linear-gradient(white, white) padding-box, linear-gradient(to right, #845BFF, #F551A2) border-box',
+                              border: '2px solid transparent',
+                              color: '#845BFF'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = 'linear-gradient(to right, #845BFF, #F551A2) padding-box, linear-gradient(to right, #845BFF, #F551A2) border-box';
+                              e.currentTarget.style.color = 'white';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = 'linear-gradient(white, white) padding-box, linear-gradient(to right, #845BFF, #F551A2) border-box';
+                              e.currentTarget.style.color = '#845BFF';
+                            }}
                           >
                             Generate Enthusiastic
                           </button>
@@ -820,7 +896,20 @@ export function Interviews() {
                                 setLoadingThankYou(false);
                               }
                             }}
-                            className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 text-xs sm:text-sm font-medium"
+                            className="px-6 py-3 rounded-full transition-all text-xs sm:text-sm font-semibold relative overflow-hidden"
+                            style={{
+                              background: 'linear-gradient(white, white) padding-box, linear-gradient(to right, #845BFF, #F551A2) border-box',
+                              border: '2px solid transparent',
+                              color: '#845BFF'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = 'linear-gradient(to right, #845BFF, #F551A2) padding-box, linear-gradient(to right, #845BFF, #F551A2) border-box';
+                              e.currentTarget.style.color = 'white';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = 'linear-gradient(white, white) padding-box, linear-gradient(to right, #845BFF, #F551A2) border-box';
+                              e.currentTarget.style.color = '#845BFF';
+                            }}
                           >
                             Generate Concise
                           </button>
@@ -846,7 +935,7 @@ export function Interviews() {
 
         {/* Tabs */}
         <div className="border-b border-slate-200 mb-8">
-          <div className="flex gap-1 overflow-x-auto">
+          <div className="flex gap-6 overflow-x-auto">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
@@ -857,26 +946,40 @@ export function Interviews() {
                     setActiveTab(tab.id);
                   }
                 }}
-                className={`px-6 py-3 font-medium text-sm whitespace-nowrap border-b-2 transition-colors flex items-center gap-2 ${
+                className={`relative pb-3 font-medium text-sm whitespace-nowrap transition-colors flex items-center gap-2 bg-transparent ${
                   activeTab === tab.id
-                    ? "border-blue-500 text-blue-600"
-                    : "border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300"
+                    ? "text-blue-500"
+                    : "text-slate-600"
                 }`}
+                style={{ 
+                  outline: 'none', 
+                  boxShadow: 'none', 
+                  border: 'none',
+                  borderRadius: '0px',
+                  borderTopLeftRadius: '0px',
+                  borderTopRightRadius: '0px',
+                  borderBottomLeftRadius: '0px',
+                  borderBottomRightRadius: '0px'
+                }}
+                onFocus={(e) => e.target.blur()}
               >
                 <Icon icon={tab.icon} width={18} />
                 {tab.label}
+                {activeTab === tab.id && (
+                  <div 
+                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500"
+                    style={{ height: '2px', borderRadius: '0px' }}
+                  />
+                )}
               </button>
             ))}
           </div>
         </div>
 
         {/* Tab Content */}
-        <div className="mt-8">
+        <div className="mt-8 bg-slate-50 -mx-6 lg:-mx-10 px-6 lg:px-10 py-10 rounded-t-2xl">
           {activeTab === "schedule" && (
             <div>
-              <p className="text-slate-600 mb-6">
-                View and manage your interviews. Schedule new interviews, view upcoming ones, and access all interview details.
-              </p>
               {jobOpportunityId && (
                 <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                   <p className="text-blue-800 text-sm">
@@ -947,7 +1050,7 @@ export function Interviews() {
                             {formatDateTime(interview.scheduledAt)}
                           </p>
                         )}
-                        <button className="text-blue-600 hover:text-blue-700 text-sm font-medium">
+                        <button className="px-4 py-2 bg-transparent border-2 border-blue-500 text-blue-500 rounded-full hover:bg-blue-50 text-sm font-medium transition-colors">
                           View Details →
                         </button>
                       </div>
@@ -957,7 +1060,7 @@ export function Interviews() {
                     <div className="text-center">
                       <button
                         onClick={() => navigate(ROUTES.INTERVIEW_SCHEDULING)}
-                        className="px-6 py-3 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-medium"
+                        className="px-6 py-3 bg-blue-500 text-white rounded-full hover:bg-blue-600 font-medium transition-colors"
                       >
                         View All Interviews
                       </button>
@@ -989,23 +1092,45 @@ export function Interviews() {
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {Array.from(companyInsights.entries()).map(([companyKey, companyData]) => (
+                  {Array.from(companyInsights.entries()).map(([companyKey, companyData]) => {
+                    const isExpanded = expandedCards.has(companyKey);
+                    return (
                     <div
                       key={companyKey}
                       className="bg-white border border-slate-200 rounded-xl p-6 hover:shadow-md transition-shadow"
                     >
                       <div className="flex items-start justify-between mb-4">
-                        <div>
+                        <div className="flex-1">
                           <h3 className="text-xl font-semibold text-slate-900 mb-1">{companyData.company}</h3>
                           <p className="text-slate-600 text-sm">{companyData.jobTitle}</p>
+                          {!isExpanded && companyData.insights?.process_overview && (
+                            <p className="text-sm text-slate-600 mt-3 line-clamp-2">
+                              {companyData.insights.process_overview.substring(0, 150)}...
+                            </p>
+                          )}
                         </div>
-                        {companyData.metadata?.fromCache && (
-                          <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
-                            Cached
-                          </span>
-                        )}
+                        <div className="flex items-center gap-2 ml-4">
+                          {companyData.metadata?.fromCache && (
+                            <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                              Cached
+                            </span>
+                          )}
+                          <button
+                            onClick={() => toggleCard(companyKey)}
+                            className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                            aria-label={isExpanded ? "Collapse" : "Expand"}
+                          >
+                            <Icon 
+                              icon={isExpanded ? "mingcute:up-line" : "mingcute:down-line"} 
+                              width={20} 
+                              className="text-slate-600"
+                            />
+                          </button>
+                        </div>
                       </div>
 
+                      {isExpanded && (
+                        <>
                       {companyData.loading ? (
                         <div className="text-center py-8">
                           <Icon icon="mingcute:loading-line" className="animate-spin text-blue-500 mx-auto mb-2" width={24} />
@@ -1029,8 +1154,9 @@ export function Interviews() {
                             )}
                             <button
                               onClick={() => refreshInsightsForCompany(companyData.jobId, companyKey)}
-                              className="px-3 py-1 border border-slate-300 rounded-md hover:bg-slate-100 text-slate-600 font-medium"
+                              className="flex items-center gap-1 text-blue-500 hover:text-blue-600 font-medium bg-transparent hover:bg-transparent border-none p-0 outline-none"
                             >
+                              <Icon icon="mingcute:refresh-2-line" width={16} />
                               Refresh
                             </button>
                           </div>
@@ -1078,7 +1204,7 @@ export function Interviews() {
                                 {companyData.insights.interview_formats.map((format: string, index: number) => (
                                   <span
                                     key={`${format}-${index}`}
-                                    className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700"
+                                    className={`rounded-full px-3 py-1 text-xs font-medium ${getInterviewFormatColor(format)}`}
                                   >
                                     {format}
                                   </span>
@@ -1095,7 +1221,7 @@ export function Interviews() {
                                   <div key={`${item.question}-${index}`} className="rounded-md border border-slate-200 p-4">
                                     <p className="text-sm font-medium text-slate-900 mb-1">"{item.question}"</p>
                                     <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 mb-2">
-                                      <span className="rounded-full bg-slate-100 px-2 py-1 uppercase tracking-wide">
+                                      <span className={`rounded-full px-2 py-1 uppercase tracking-wide font-medium ${getQuestionCategoryColor(item.category || "")}`}>
                                         {item.category?.replace(/_/g, " ")}
                                       </span>
                                       <span>{item.why_asked}</span>
@@ -1150,8 +1276,11 @@ export function Interviews() {
                           </button>
                         </div>
                       )}
+                      </>
+                      )}
                     </div>
-                  ))}
+                  );
+                  })}
                 </div>
               )}
             </div>
@@ -1231,7 +1360,22 @@ export function Interviews() {
                     >
                       <h3 className="font-semibold text-slate-900 mb-2">{interview.title || "Interview"}</h3>
                       <p className="text-slate-600 text-sm mb-4">{interview.company || "N/A"}</p>
-                      <button className="text-blue-600 hover:text-blue-700 text-sm font-medium">
+                      <button 
+                        className="px-4 py-2 rounded-full transition-all text-sm font-semibold relative overflow-hidden"
+                        style={{
+                          background: 'linear-gradient(white, white) padding-box, linear-gradient(to right, #845BFF, #F551A2) border-box',
+                          border: '2px solid transparent',
+                          color: '#845BFF'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = 'linear-gradient(to right, #845BFF, #F551A2) padding-box, linear-gradient(to right, #845BFF, #F551A2) border-box';
+                          e.currentTarget.style.color = 'white';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'linear-gradient(white, white) padding-box, linear-gradient(to right, #845BFF, #F551A2) border-box';
+                          e.currentTarget.style.color = '#845BFF';
+                        }}
+                      >
                         Generate / View Note →
                       </button>
                     </div>
@@ -1475,140 +1619,139 @@ export function Interviews() {
                       {/* Pending Section */}
                       {pendingFollowUps.length > 0 && (
                         <div className="mb-8">
-                          <h3 className="text-lg font-semibold text-slate-900 mb-4">Pending Actions</h3>
-                <div className="space-y-4">
-                  {pendingFollowUps.map((followUp) => (
+                          <h3 className="text-lg font-semibold text-slate-500 mb-4">Pending Actions</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {pendingFollowUps.map((followUp) => {
+                    const hasDraft = storedFollowUpDrafts.has(followUp.id) && storedFollowUpDrafts.get(followUp.id)!.length > 0;
+                    return (
                     <div
                       key={followUp.id}
-                      className="bg-white border border-slate-200 rounded-xl p-6 hover:shadow-md transition-shadow"
+                      className="bg-white border border-slate-200 rounded-xl p-5 hover:shadow-md transition-shadow flex flex-col relative"
                     >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
+                      {hasDraft && (
+                        <button
+                          onClick={() => {
+                            const drafts = storedFollowUpDrafts.get(followUp.id);
+                            if (drafts && drafts.length > 0) {
+                              const latestDraft = drafts[0];
+                              const interviewId = followUp.interviewId || followUp.interview_id;
+                              setActiveFollowUpDraft({
+                                id: followUp.id,
+                                interviewId,
+                                subject: latestDraft.subject,
+                                body: latestDraft.body,
+                                generatedBy: latestDraft.generatedBy,
+                              });
+                            }
+                          }}
+                          className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                          aria-label="View draft"
+                        >
+                          <Icon icon="mingcute:eye-line" width={18} className="text-blue-500" />
+                        </button>
+                      )}
+                      <div className="flex-1">
                                     {/* Interview Context - Position, Company, Date */}
                                     {(followUp.interview?.jobTitle || followUp.interview?.company || followUp.interview?.scheduledAt) && (
-                                      <div className="mb-4 pb-4 border-b border-slate-200">
+                                      <div className="mb-3 pb-3 border-b border-slate-200">
                                         <div className="flex items-center gap-2 mb-1">
-                                          <Icon icon="mingcute:briefcase-line" width={18} className="text-slate-500" />
-                                          <span className="font-semibold text-slate-900">
+                                          <Icon icon="mingcute:briefcase-line" width={16} className="text-slate-500" />
+                                          <span className="font-semibold text-slate-900 text-sm">
                                             {followUp.interview?.jobTitle || followUp.interview?.title || "Position"}
                                           </span>
-                                          {followUp.interview?.company && (
-                                            <>
-                                              <span className="text-slate-400">•</span>
-                                              <span className="text-slate-700">{followUp.interview.company}</span>
-                                            </>
-                                          )}
                                         </div>
-                                        {followUp.interview?.scheduledAt && (
-                                          <p className="text-sm text-slate-600 ml-6">
-                                            Interview: {formatDate(followUp.interview.scheduledAt)}
-                                          </p>
+                                        {followUp.interview?.company && (
+                                          <p className="text-xs text-slate-600 ml-6 mb-1">{followUp.interview.company}</p>
                                         )}
-                                        {followUp.interview?.jobOpportunityId && (
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              navigate(
-                                                `${ROUTES.JOB_OPPORTUNITIES}?jobId=${followUp.interview?.jobOpportunityId}`
-                                              );
-                                            }}
-                                            className="mt-1 ml-6 text-xs text-blue-600 hover:text-blue-700 underline"
-                                          >
-                                            View linked job application
-                                          </button>
+                                        {followUp.interview?.scheduledAt && (
+                                          <p className="text-xs text-slate-500 ml-6">
+                                            {formatDate(followUp.interview.scheduledAt)}
+                                          </p>
                                         )}
                                       </div>
                                     )}
                                     
                                     {/* Action Type */}
-                          <div className="flex items-center gap-3 mb-2">
-                            <Icon icon="mingcute:task-line" width={20} className="text-blue-500" />
-                            <h3 className="font-semibold text-slate-900 capitalize">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Icon icon="mingcute:task-line" width={18} className="text-blue-500" />
+                            <h3 className="font-semibold text-slate-900 capitalize text-sm">
                                         {followUp.action_type?.replace(/_/g, " ") || followUp.actionType?.replace(/_/g, " ")}
                             </h3>
                           </div>
                                     {(followUp.due_date || followUp.dueDate) && (
-                            <p className="text-slate-600 mb-2">
+                            <p className="text-xs text-slate-600 mb-2">
                                         <strong>Due:</strong> {formatDate(followUp.due_date || followUp.dueDate)}
                             </p>
                           )}
                           {followUp.notes && (
-                            <p className="text-slate-600">{followUp.notes}</p>
+                            <p className="text-xs text-slate-600 mb-3 line-clamp-2">{followUp.notes}</p>
                           )}
-                        </div>
-                                  <div className="flex flex-col items-end gap-2">
-                                    {storedFollowUpDrafts.has(followUp.id) && storedFollowUpDrafts.get(followUp.id)!.length > 0 ? (
-                                      <>
-                                        <button
-                                          onClick={() => {
-                                            const drafts = storedFollowUpDrafts.get(followUp.id);
-                                            if (drafts && drafts.length > 0) {
-                                              const latestDraft = drafts[0]; // Latest is first in array
-                                              const interviewId = followUp.interviewId || followUp.interview_id;
+                      </div>
+                      <div className="flex flex-col gap-2 mt-auto pt-3 border-t border-slate-100">
+                                    {hasDraft ? (
+                                      <button
+                                        onClick={async () => {
+                                          try {
+                                            setDraftLoadingId(followUp.id);
+                                            const interviewId = followUp.interviewId || followUp.interview_id;
+                                            const response = await api.getFollowUpEmailDraft(
+                                              interviewId,
+                                              followUp.id
+                                            );
+                                            if (response.ok && response.data?.draft) {
+                                              const draft = response.data.draft;
+                                              // Store the draft
+                                              setStoredFollowUpDrafts((prev) => {
+                                                const updated = new Map(prev);
+                                                const existing = updated.get(followUp.id) || [];
+                                                updated.set(followUp.id, [
+                                                  {
+                                                    subject: draft.subject,
+                                                    body: draft.body,
+                                                    generatedBy: draft.generatedBy,
+                                                    createdAt: new Date().toISOString(),
+                                                  },
+                                                  ...existing,
+                                                ]);
+                                                return updated;
+                                              });
+                                              // Show it in modal
                                               setActiveFollowUpDraft({
                                                 id: followUp.id,
                                                 interviewId,
-                                                subject: latestDraft.subject,
-                                                body: latestDraft.body,
-                                                generatedBy: latestDraft.generatedBy,
+                                                subject: draft.subject,
+                                                body: draft.body,
+                                                generatedBy: draft.generatedBy,
                                               });
                                             }
-                                          }}
-                                          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm font-medium"
-                                        >
-                                          View Draft
-                                        </button>
-                        <button
-                          onClick={async () => {
-                            try {
-                                              setDraftLoadingId(followUp.id);
-                                              const interviewId = followUp.interviewId || followUp.interview_id;
-                                              const response = await api.getFollowUpEmailDraft(
-                                                interviewId,
-                                                followUp.id
-                                              );
-                                              if (response.ok && response.data?.draft) {
-                                                const draft = response.data.draft;
-                                                // Store the draft
-                                                setStoredFollowUpDrafts((prev) => {
-                                                  const updated = new Map(prev);
-                                                  const existing = updated.get(followUp.id) || [];
-                                                  updated.set(followUp.id, [
-                                                    {
-                                                      subject: draft.subject,
-                                                      body: draft.body,
-                                                      generatedBy: draft.generatedBy,
-                                                      createdAt: new Date().toISOString(),
-                                                    },
-                                                    ...existing,
-                                                  ]);
-                                                  return updated;
-                                                });
-                                                // Show it in modal
-                                                setActiveFollowUpDraft({
-                                                  id: followUp.id,
-                                                  interviewId,
-                                                  subject: draft.subject,
-                                                  body: draft.body,
-                                                  generatedBy: draft.generatedBy,
-                                                });
-                                              }
-                                            } catch (err: any) {
-                                              showMessage(
-                                                err.message || "Failed to regenerate email draft",
-                                                "error"
-                                              );
-                                            } finally {
-                                              setDraftLoadingId(null);
-                                            }
-                                          }}
-                                          className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 text-sm font-medium"
-                                        >
-                                          {draftLoadingId === followUp.id
-                                            ? "Generating..."
-                                            : "Generate Draft"}
-                                        </button>
-                                      </>
+                                          } catch (err: any) {
+                                            showMessage(
+                                              err.message || "Failed to regenerate email draft",
+                                              "error"
+                                            );
+                                          } finally {
+                                            setDraftLoadingId(null);
+                                          }
+                                        }}
+                                        className="w-full px-4 py-2 rounded-full transition-all text-xs font-semibold relative overflow-hidden"
+                                        style={{
+                                          background: 'linear-gradient(white, white) padding-box, linear-gradient(to right, #845BFF, #F551A2) border-box',
+                                          border: '2px solid transparent',
+                                          color: '#845BFF'
+                                        }}
+                                        onMouseEnter={(e) => {
+                                          e.currentTarget.style.background = 'linear-gradient(to right, #845BFF, #F551A2) padding-box, linear-gradient(to right, #845BFF, #F551A2) border-box';
+                                          e.currentTarget.style.color = 'white';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                          e.currentTarget.style.background = 'linear-gradient(white, white) padding-box, linear-gradient(to right, #845BFF, #F551A2) border-box';
+                                          e.currentTarget.style.color = '#845BFF';
+                                        }}
+                                      >
+                                        {draftLoadingId === followUp.id
+                                          ? "Generating..."
+                                          : "Regenerate Draft"}
+                                      </button>
                                     ) : (
                                       <button
                                         onClick={async () => {
@@ -1654,7 +1797,20 @@ export function Interviews() {
                                             setDraftLoadingId(null);
                                           }
                                         }}
-                                        className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 text-sm font-medium"
+                                        className="w-full px-4 py-2 rounded-full transition-all text-xs font-semibold relative overflow-hidden"
+                                        style={{
+                                          background: 'linear-gradient(white, white) padding-box, linear-gradient(to right, #845BFF, #F551A2) border-box',
+                                          border: '2px solid transparent',
+                                          color: '#845BFF'
+                                        }}
+                                        onMouseEnter={(e) => {
+                                          e.currentTarget.style.background = 'linear-gradient(to right, #845BFF, #F551A2) padding-box, linear-gradient(to right, #845BFF, #F551A2) border-box';
+                                          e.currentTarget.style.color = 'white';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                          e.currentTarget.style.background = 'linear-gradient(white, white) padding-box, linear-gradient(to right, #845BFF, #F551A2) border-box';
+                                          e.currentTarget.style.color = '#845BFF';
+                                        }}
                                       >
                                         {draftLoadingId === followUp.id
                                           ? "Generating..."
@@ -1672,14 +1828,14 @@ export function Interviews() {
                               showMessage(err.message || "Failed to complete action", "error");
                             }
                           }}
-                          className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm font-medium"
+                          className="w-full px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 text-xs font-medium"
                         >
                           Mark Complete
                         </button>
                                   </div>
-                      </div>
                     </div>
-                  ))}
+                  );
+                  })}
                           </div>
                 </div>
                       )}
@@ -1688,53 +1844,48 @@ export function Interviews() {
                       {completedFollowUps.length > 0 && (
                         <div className="mt-8 pt-8 border-t border-slate-200">
                           <h3 className="text-lg font-semibold text-slate-500 mb-4">Completed Actions</h3>
-                          <div className="space-y-3">
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {completedFollowUps.map((followUp) => (
                               <div
                                 key={followUp.id}
-                                className="bg-slate-50 border border-slate-200 rounded-xl p-6 opacity-75"
+                                className="bg-slate-50 border border-slate-200 rounded-xl p-5 opacity-75"
                               >
-                                <div className="flex items-start justify-between">
-                                  <div className="flex-1">
+                                <div>
                                     {/* Interview Context - Position, Company, Date */}
                                     {(followUp.interview?.jobTitle || followUp.interview?.company || followUp.interview?.scheduledAt) && (
                                       <div className="mb-3 pb-3 border-b border-slate-200">
                                         <div className="flex items-center gap-2 mb-1">
-                                          <Icon icon="mingcute:briefcase-line" width={18} className="text-slate-400" />
-                                          <span className="font-semibold text-slate-500 line-through">
+                                          <Icon icon="mingcute:briefcase-line" width={16} className="text-slate-400" />
+                                          <span className="font-semibold text-slate-500 line-through text-sm">
                                             {followUp.interview?.jobTitle || followUp.interview?.title || "Position"}
                                           </span>
-                                          {followUp.interview?.company && (
-                                            <>
-                                              <span className="text-slate-300">•</span>
-                                              <span className="text-slate-500">{followUp.interview.company}</span>
-                                            </>
-                                          )}
                                         </div>
+                                        {followUp.interview?.company && (
+                                          <p className="text-xs text-slate-500 ml-6 mb-1">{followUp.interview.company}</p>
+                                        )}
                                         {followUp.interview?.scheduledAt && (
-                                          <p className="text-sm text-slate-500 ml-6">
-                                            Interview: {formatDate(followUp.interview.scheduledAt)}
+                                          <p className="text-xs text-slate-400 ml-6">
+                                            {formatDate(followUp.interview.scheduledAt)}
                                           </p>
                                         )}
                                       </div>
                                     )}
                                     
                                     {/* Action Type */}
-                                    <div className="flex items-center gap-3 mb-2">
-                                      <Icon icon="mingcute:check-circle-line" width={20} className="text-green-500" />
-                                      <h3 className="font-semibold text-slate-500 capitalize line-through">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <Icon icon="mingcute:check-circle-line" width={18} className="text-green-500" />
+                                      <h3 className="font-semibold text-slate-500 capitalize line-through text-sm">
                                         {followUp.action_type?.replace(/_/g, " ") || followUp.actionType?.replace(/_/g, " ")}
                                       </h3>
                                     </div>
                                     {followUp.completedAt && (
-                                      <p className="text-slate-500 text-sm mb-2">
+                                      <p className="text-slate-500 text-xs mb-2">
                                         <strong>Completed:</strong> {formatDate(followUp.completedAt)}
                                       </p>
                                     )}
                                     {followUp.notes && (
-                                      <p className="text-slate-500 text-sm">{followUp.notes}</p>
+                                      <p className="text-slate-500 text-xs line-clamp-2">{followUp.notes}</p>
                                     )}
-                                  </div>
                                 </div>
                               </div>
                             ))}
@@ -1876,24 +2027,23 @@ export function Interviews() {
           )}
 
           {activeTab === "calendar" && (
-            <div>
-              <h2 className="text-2xl font-bold text-slate-900 mb-4">Calendar Integration</h2>
-              <div className="bg-white border border-slate-200 rounded-xl p-8 max-w-2xl">
+            <div className="flex items-center justify-center min-h-[400px]">
+              <div className="bg-white border border-slate-200 rounded-xl p-12 max-w-md w-full shadow-sm">
                 {calendarLoading ? (
-                  <div className="text-center py-8">
-                    <Icon icon="mingcute:loading-line" className="animate-spin text-blue-500 mx-auto mb-4" width={32} />
+                  <div className="text-center py-12">
+                    <Icon icon="mingcute:loading-line" className="animate-spin text-blue-500 mx-auto mb-4" width={40} />
                     <p className="text-slate-600">Checking calendar status...</p>
                   </div>
                 ) : calendarConnected ? (
-                  <div>
-                    <div className="flex items-center gap-3 mb-6">
-                      <Icon icon="mingcute:check-circle-line" width={32} className="text-green-500" />
-                      <div>
-                        <h3 className="text-xl font-semibold text-slate-900">Google Calendar Connected</h3>
-                        <p className="text-slate-600">Your interviews will be automatically synced to your calendar</p>
-                      </div>
+                  <div className="text-center">
+                    <div className="mb-8">
+                      <Icon icon="mingcute:check-circle-line" width={64} className="text-green-500 mx-auto mb-4" />
+                      <h3 className="text-2xl font-semibold text-slate-900 mb-2">Google Calendar Connected</h3>
+                      <p className="text-slate-600">
+                        Your interviews will be automatically synced to your calendar
+                      </p>
                     </div>
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       <button
                         onClick={async () => {
                           try {
@@ -1905,7 +2055,7 @@ export function Interviews() {
                             showMessage(err.message || "Failed to sync interviews", "error");
                           }
                         }}
-                        className="w-full px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium"
+                        className="w-full px-6 py-3 bg-blue-500 text-white rounded-full hover:bg-blue-600 font-medium"
                       >
                         Sync All Interviews
                       </button>
@@ -1919,26 +2069,24 @@ export function Interviews() {
                             showMessage(err.message || "Failed to disconnect", "error");
                           }
                         }}
-                        className="w-full px-6 py-3 bg-slate-200 text-slate-800 rounded-lg hover:bg-slate-300 font-medium"
+                        className="w-full px-6 py-3 bg-slate-200 text-slate-800 rounded-full hover:bg-slate-300 font-medium"
                       >
                         Disconnect Calendar
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <div>
-                    <div className="flex items-center gap-3 mb-6">
-                      <Icon icon="mingcute:calendar-line" width={32} className="text-slate-400" />
-                      <div>
-                        <h3 className="text-xl font-semibold text-slate-900">Connect Google Calendar</h3>
-                        <p className="text-slate-600">
-                          Sync your interviews with Google Calendar to get automatic reminders and updates
-                        </p>
-                      </div>
+                  <div className="text-center">
+                    <div className="mb-8">
+                      <Icon icon="mingcute:calendar-line" width={64} className="text-slate-400 mx-auto mb-4" />
+                      <h3 className="text-2xl font-semibold text-slate-900 mb-2">Connect Google Calendar</h3>
+                      <p className="text-slate-600">
+                        Sync your interviews with Google Calendar to get automatic reminders and updates
+                      </p>
                     </div>
                     <button
                       onClick={handleConnectCalendar}
-                      className="w-full px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium"
+                      className="w-full px-6 py-3 bg-blue-500 text-white rounded-full hover:bg-blue-600 font-medium"
                     >
                       Connect Google Calendar
                     </button>

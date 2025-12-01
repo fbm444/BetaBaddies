@@ -100,7 +100,7 @@ export const navigationGroups: NavigationGroup[] = [
       {
         id: "salary-negotiation",
         label: "Salary Negotiation",
-        icon: "mingcute:dollar-line",
+        icon: "mdi:currency-usd",
         path: ROUTES.SALARY_NEGOTIATION,
       },
       {

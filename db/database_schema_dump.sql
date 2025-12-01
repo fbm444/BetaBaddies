@@ -31,6 +31,20 @@ COMMENT ON EXTENSION "uuid-ossp" IS 'generate universally unique identifiers (UU
 
 
 --
+-- Name: pgcrypto; Type: EXTENSION; Schema: -; Owner: -
+--
+
+CREATE EXTENSION IF NOT EXISTS "pgcrypto" WITH SCHEMA public;
+
+
+--
+-- Name: EXTENSION "pgcrypto"; Type: COMMENT; Schema: -; Owner: -
+--
+
+COMMENT ON EXTENSION "pgcrypto" IS 'cryptographic functions';
+
+
+--
 -- Name: addupdatetime(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -325,6 +339,179 @@ BEGIN
     IF NEW.stage IS DISTINCT FROM OLD.stage THEN
         NEW.status_change_time := CURRENT_TIMESTAMP;
     END IF;
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: update_support_group_comment_count(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.update_support_group_comment_count() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        UPDATE support_group_posts 
+        SET comment_count = (
+            SELECT COUNT(*) 
+            FROM support_group_post_comments 
+            WHERE post_id = NEW.post_id
+        )
+        WHERE id = NEW.post_id;
+        RETURN NEW;
+    ELSIF TG_OP = 'DELETE' THEN
+        UPDATE support_group_posts 
+        SET comment_count = (
+            SELECT COUNT(*) 
+            FROM support_group_post_comments 
+            WHERE post_id = OLD.post_id
+        )
+        WHERE id = OLD.post_id;
+        RETURN OLD;
+    END IF;
+    RETURN NULL;
+END;
+$$;
+
+
+--
+-- Name: update_support_group_like_count(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.update_support_group_like_count() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        IF NEW.post_id IS NOT NULL THEN
+            UPDATE support_group_posts 
+            SET like_count = (
+                SELECT COUNT(*) 
+                FROM support_group_post_likes 
+                WHERE post_id = NEW.post_id
+            )
+            WHERE id = NEW.post_id;
+        ELSIF NEW.comment_id IS NOT NULL THEN
+            UPDATE support_group_post_comments 
+            SET like_count = (
+                SELECT COUNT(*) 
+                FROM support_group_post_likes 
+                WHERE comment_id = NEW.comment_id
+            )
+            WHERE id = NEW.comment_id;
+        END IF;
+        RETURN NEW;
+    ELSIF TG_OP = 'DELETE' THEN
+        IF OLD.post_id IS NOT NULL THEN
+            UPDATE support_group_posts 
+            SET like_count = (
+                SELECT COUNT(*) 
+                FROM support_group_post_likes 
+                WHERE post_id = OLD.post_id
+            )
+            WHERE id = OLD.post_id;
+        ELSIF OLD.comment_id IS NOT NULL THEN
+            UPDATE support_group_post_comments 
+            SET like_count = (
+                SELECT COUNT(*) 
+                FROM support_group_post_likes 
+                WHERE comment_id = OLD.comment_id
+            )
+            WHERE id = OLD.comment_id;
+        END IF;
+        RETURN OLD;
+    END IF;
+    RETURN NULL;
+END;
+$$;
+
+
+--
+-- Name: update_support_group_member_count(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.update_support_group_member_count() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        UPDATE support_groups 
+        SET member_count = (
+            SELECT COUNT(*) 
+            FROM support_group_memberships 
+            WHERE group_id = NEW.group_id AND is_active = true
+        )
+        WHERE id = NEW.group_id;
+        RETURN NEW;
+    ELSIF TG_OP = 'UPDATE' THEN
+        IF OLD.is_active != NEW.is_active THEN
+            UPDATE support_groups 
+            SET member_count = (
+                SELECT COUNT(*) 
+                FROM support_group_memberships 
+                WHERE group_id = NEW.group_id AND is_active = true
+            )
+            WHERE id = NEW.group_id;
+        END IF;
+        RETURN NEW;
+    ELSIF TG_OP = 'DELETE' THEN
+        UPDATE support_groups 
+        SET member_count = (
+            SELECT COUNT(*) 
+            FROM support_group_memberships 
+            WHERE group_id = OLD.group_id AND is_active = true
+        )
+        WHERE id = OLD.group_id;
+        RETURN OLD;
+    END IF;
+    RETURN NULL;
+END;
+$$;
+
+
+--
+-- Name: update_support_group_post_count(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.update_support_group_post_count() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        UPDATE support_groups 
+        SET post_count = (
+            SELECT COUNT(*) 
+            FROM support_group_posts 
+            WHERE group_id = NEW.group_id
+        )
+        WHERE id = NEW.group_id;
+        RETURN NEW;
+    ELSIF TG_OP = 'DELETE' THEN
+        UPDATE support_groups 
+        SET post_count = (
+            SELECT COUNT(*) 
+            FROM support_group_posts 
+            WHERE group_id = OLD.group_id
+        )
+        WHERE id = OLD.group_id;
+        RETURN OLD;
+    END IF;
+    RETURN NULL;
+END;
+$$;
+
+
+--
+-- Name: update_support_group_timestamp(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.update_support_group_timestamp() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    NEW.updated_at = now();
     RETURN NEW;
 END;
 $$;
@@ -3778,20 +3965,295 @@ CREATE TABLE public.support_effectiveness_tracking (
 
 
 --
+-- Name: support_group_challenge_participants; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.support_group_challenge_participants (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    challenge_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    current_value integer DEFAULT 0,
+    progress_updates jsonb DEFAULT '[]'::jsonb,
+    joined_at timestamp with time zone DEFAULT now() NOT NULL,
+    last_updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: support_group_challenges; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.support_group_challenges (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    group_id uuid,
+    created_by uuid,
+    title character varying(500) NOT NULL,
+    description text NOT NULL,
+    challenge_type character varying(50) NOT NULL,
+    start_date date NOT NULL,
+    end_date date,
+    target_metric character varying(100),
+    target_value integer,
+    participant_count integer DEFAULT 0,
+    is_active boolean DEFAULT true,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT challenge_type_check CHECK (((challenge_type)::text = ANY ((ARRAY['daily'::character varying, 'weekly'::character varying, 'monthly'::character varying, 'custom'::character varying])::text[]))),
+    CONSTRAINT date_check CHECK (((end_date IS NULL) OR (end_date >= start_date)))
+);
+
+
+--
+-- Name: COLUMN support_group_challenges.group_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.support_group_challenges.group_id IS 'NULL for global challenges, UUID for group-specific challenges';
+
+
+--
+-- Name: support_group_memberships; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.support_group_memberships (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    group_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    role character varying(50) DEFAULT 'member'::character varying NOT NULL,
+    privacy_level character varying(50) DEFAULT 'standard'::character varying NOT NULL,
+    notification_preferences jsonb DEFAULT '{"posts": true, "comments": true, "challenges": true}'::jsonb,
+    joined_at timestamp with time zone DEFAULT now() NOT NULL,
+    last_active_at timestamp with time zone,
+    is_active boolean DEFAULT true,
+    CONSTRAINT privacy_level_check CHECK (((privacy_level)::text = ANY ((ARRAY['anonymous'::character varying, 'standard'::character varying, 'public'::character varying])::text[]))),
+    CONSTRAINT role_check CHECK (((role)::text = ANY ((ARRAY['member'::character varying, 'moderator'::character varying, 'admin'::character varying])::text[])))
+);
+
+
+--
+-- Name: TABLE support_group_memberships; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.support_group_memberships IS 'User memberships in support groups';
+
+
+--
+-- Name: COLUMN support_group_memberships.privacy_level; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.support_group_memberships.privacy_level IS 'User privacy preference: anonymous, standard, or public';
+
+
+--
+-- Name: COLUMN support_group_memberships.notification_preferences; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.support_group_memberships.notification_preferences IS 'JSON object with notification settings';
+
+
+--
+-- Name: support_group_networking_impact; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.support_group_networking_impact (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    group_id uuid,
+    metric_name character varying(100) NOT NULL,
+    metric_value numeric(10,2),
+    description text,
+    related_post_id uuid,
+    related_referral_id uuid,
+    impact_date date NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT metric_name_check CHECK (((metric_name)::text = ANY ((ARRAY['referral_received'::character varying, 'connection_made'::character varying, 'opportunity_found'::character varying, 'support_received'::character varying, 'interview_landed'::character varying, 'offer_received'::character varying])::text[])))
+);
+
+
+--
+-- Name: support_group_post_comments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.support_group_post_comments (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    post_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    parent_comment_id uuid,
+    content text NOT NULL,
+    is_anonymous boolean DEFAULT false,
+    like_count integer DEFAULT 0,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: support_group_post_likes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.support_group_post_likes (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    post_id uuid,
+    comment_id uuid,
+    user_id uuid NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT like_target_check CHECK ((((post_id IS NOT NULL) AND (comment_id IS NULL)) OR ((post_id IS NULL) AND (comment_id IS NOT NULL))))
+);
+
+
+--
+-- Name: support_group_posts; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.support_group_posts (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    group_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    title character varying(500),
+    content text NOT NULL,
+    post_type character varying(50) DEFAULT 'discussion'::character varying NOT NULL,
+    is_anonymous boolean DEFAULT false,
+    is_pinned boolean DEFAULT false,
+    is_locked boolean DEFAULT false,
+    like_count integer DEFAULT 0,
+    comment_count integer DEFAULT 0,
+    view_count integer DEFAULT 0,
+    metadata jsonb DEFAULT '{}'::jsonb,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT post_type_check CHECK (((post_type)::text = ANY ((ARRAY['discussion'::character varying, 'question'::character varying, 'success_story'::character varying, 'resource'::character varying, 'challenge'::character varying, 'referral'::character varying])::text[])))
+);
+
+
+--
+-- Name: TABLE support_group_posts; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.support_group_posts IS 'Posts within support groups';
+
+
+--
+-- Name: COLUMN support_group_posts.post_type; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.support_group_posts.post_type IS 'Type: discussion, question, success_story, resource, challenge, or referral';
+
+
+--
+-- Name: COLUMN support_group_posts.metadata; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.support_group_posts.metadata IS 'JSON object with additional post data (tags, links, attachments, etc.)';
+
+
+--
+-- Name: support_group_referrals; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.support_group_referrals (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    group_id uuid NOT NULL,
+    posted_by uuid NOT NULL,
+    company_name character varying(255) NOT NULL,
+    role_title character varying(255) NOT NULL,
+    description text,
+    referral_type character varying(50) DEFAULT 'general'::character varying NOT NULL,
+    location character varying(255),
+    is_anonymous boolean DEFAULT false,
+    contact_info jsonb,
+    view_count integer DEFAULT 0,
+    application_count integer DEFAULT 0,
+    is_active boolean DEFAULT true,
+    expires_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT referral_type_check CHECK (((referral_type)::text = ANY ((ARRAY['general'::character varying, 'specific_role'::character varying, 'internal_referral'::character varying])::text[])))
+);
+
+
+--
+-- Name: support_group_resources; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.support_group_resources (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    group_id uuid NOT NULL,
+    created_by uuid,
+    title character varying(500) NOT NULL,
+    description text,
+    resource_type character varying(50) NOT NULL,
+    url text,
+    content text,
+    tags jsonb DEFAULT '[]'::jsonb,
+    view_count integer DEFAULT 0,
+    download_count integer DEFAULT 0,
+    is_featured boolean DEFAULT false,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT resource_type_check CHECK (((resource_type)::text = ANY ((ARRAY['article'::character varying, 'guide'::character varying, 'webinar'::character varying, 'video'::character varying, 'tool'::character varying, 'template'::character varying, 'worksheet'::character varying])::text[])))
+);
+
+
+--
+-- Name: TABLE support_group_resources; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.support_group_resources IS 'Resources shared in support groups';
+
+
+--
+-- Name: COLUMN support_group_resources.resource_type; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.support_group_resources.resource_type IS 'Type: article, guide, webinar, video, tool, template, or worksheet';
+
+
+--
 -- Name: support_groups; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.support_groups (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
-    group_name character varying(255) NOT NULL,
+    name character varying(255) NOT NULL,
     group_type character varying(50),
     industry character varying(255),
     target_role character varying(255),
     description text,
     privacy_level character varying(50) DEFAULT 'public'::character varying,
-    created_by uuid NOT NULL,
-    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+    created_by uuid,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    category character varying(100),
+    role_type character varying(255),
+    interest_tags jsonb DEFAULT '[]'::jsonb,
+    cover_image_url text,
+    icon_url text,
+    is_public boolean DEFAULT true,
+    is_active boolean DEFAULT true,
+    member_count integer DEFAULT 0,
+    post_count integer DEFAULT 0,
+    updated_at timestamp with time zone DEFAULT now(),
+    CONSTRAINT category_check CHECK (((category)::text = ANY ((ARRAY['industry'::character varying, 'role'::character varying, 'interest'::character varying, 'demographic'::character varying, 'general'::character varying])::text[])))
 );
+
+
+--
+-- Name: TABLE support_groups; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.support_groups IS 'Peer networking and support groups';
+
+
+--
+-- Name: COLUMN support_groups.category; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.support_groups.category IS 'Type: industry, role, interest, demographic, or general';
+
+
+--
+-- Name: COLUMN support_groups.interest_tags; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.support_groups.interest_tags IS 'JSON array of interest tags for filtering';
 
 
 --
@@ -5378,6 +5840,78 @@ ALTER TABLE ONLY public.support_effectiveness_tracking
 
 
 --
+-- Name: support_group_challenge_participants support_group_challenge_participants_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.support_group_challenge_participants
+    ADD CONSTRAINT support_group_challenge_participants_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: support_group_challenges support_group_challenges_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.support_group_challenges
+    ADD CONSTRAINT support_group_challenges_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: support_group_memberships support_group_memberships_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.support_group_memberships
+    ADD CONSTRAINT support_group_memberships_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: support_group_networking_impact support_group_networking_impact_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.support_group_networking_impact
+    ADD CONSTRAINT support_group_networking_impact_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: support_group_post_comments support_group_post_comments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.support_group_post_comments
+    ADD CONSTRAINT support_group_post_comments_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: support_group_post_likes support_group_post_likes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.support_group_post_likes
+    ADD CONSTRAINT support_group_post_likes_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: support_group_posts support_group_posts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.support_group_posts
+    ADD CONSTRAINT support_group_posts_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: support_group_referrals support_group_referrals_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.support_group_referrals
+    ADD CONSTRAINT support_group_referrals_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: support_group_resources support_group_resources_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.support_group_resources
+    ADD CONSTRAINT support_group_resources_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: support_groups support_groups_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5458,6 +5992,14 @@ ALTER TABLE ONLY public.time_tracking
 
 
 --
+-- Name: support_group_challenge_participants unique_challenge_participant; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.support_group_challenge_participants
+    ADD CONSTRAINT unique_challenge_participant UNIQUE (challenge_id, user_id);
+
+
+--
 -- Name: interview_conflicts unique_conflict_pair; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5471,6 +6013,14 @@ ALTER TABLE ONLY public.interview_conflicts
 
 ALTER TABLE ONLY public.interview_reminders
     ADD CONSTRAINT unique_interview_reminder UNIQUE (interview_id, reminder_type);
+
+
+--
+-- Name: support_group_memberships unique_membership; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.support_group_memberships
+    ADD CONSTRAINT unique_membership UNIQUE (group_id, user_id);
 
 
 --
@@ -5608,6 +6158,20 @@ CREATE INDEX idx_calendar_sync_settings_user_id ON public.calendar_sync_settings
 --
 
 CREATE INDEX idx_career_goals_user_id ON public.career_goals USING btree (user_id);
+
+
+--
+-- Name: idx_challenge_participants_challenge_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_challenge_participants_challenge_id ON public.support_group_challenge_participants USING btree (challenge_id);
+
+
+--
+-- Name: idx_challenge_participants_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_challenge_participants_user_id ON public.support_group_challenge_participants USING btree (user_id);
 
 
 --
@@ -6493,6 +7057,34 @@ CREATE INDEX idx_networking_goals_user_id ON public.networking_goals USING btree
 
 
 --
+-- Name: idx_networking_impact_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_networking_impact_date ON public.support_group_networking_impact USING btree (impact_date DESC);
+
+
+--
+-- Name: idx_networking_impact_group_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_networking_impact_group_id ON public.support_group_networking_impact USING btree (group_id);
+
+
+--
+-- Name: idx_networking_impact_metric; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_networking_impact_metric ON public.support_group_networking_impact USING btree (metric_name);
+
+
+--
+-- Name: idx_networking_impact_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_networking_impact_user_id ON public.support_group_networking_impact USING btree (user_id);
+
+
+--
 -- Name: idx_performance_coverletter_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -6941,6 +7533,216 @@ CREATE INDEX idx_success_patterns_user_id ON public.success_patterns USING btree
 
 
 --
+-- Name: idx_support_group_challenges_dates; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_support_group_challenges_dates ON public.support_group_challenges USING btree (start_date, end_date);
+
+
+--
+-- Name: idx_support_group_challenges_global; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_support_group_challenges_global ON public.support_group_challenges USING btree (challenge_type, start_date) WHERE (group_id IS NULL);
+
+
+--
+-- Name: idx_support_group_challenges_group_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_support_group_challenges_group_id ON public.support_group_challenges USING btree (group_id);
+
+
+--
+-- Name: idx_support_group_challenges_is_active; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_support_group_challenges_is_active ON public.support_group_challenges USING btree (is_active) WHERE (is_active = true);
+
+
+--
+-- Name: idx_support_group_memberships_group_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_support_group_memberships_group_id ON public.support_group_memberships USING btree (group_id);
+
+
+--
+-- Name: idx_support_group_memberships_is_active; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_support_group_memberships_is_active ON public.support_group_memberships USING btree (is_active) WHERE (is_active = true);
+
+
+--
+-- Name: idx_support_group_memberships_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_support_group_memberships_user_id ON public.support_group_memberships USING btree (user_id);
+
+
+--
+-- Name: idx_support_group_post_comments_created_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_support_group_post_comments_created_at ON public.support_group_post_comments USING btree (created_at DESC);
+
+
+--
+-- Name: idx_support_group_post_comments_parent; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_support_group_post_comments_parent ON public.support_group_post_comments USING btree (parent_comment_id);
+
+
+--
+-- Name: idx_support_group_post_comments_post_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_support_group_post_comments_post_id ON public.support_group_post_comments USING btree (post_id);
+
+
+--
+-- Name: idx_support_group_post_comments_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_support_group_post_comments_user_id ON public.support_group_post_comments USING btree (user_id);
+
+
+--
+-- Name: idx_support_group_posts_created_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_support_group_posts_created_at ON public.support_group_posts USING btree (created_at DESC);
+
+
+--
+-- Name: idx_support_group_posts_group_created; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_support_group_posts_group_created ON public.support_group_posts USING btree (group_id, created_at DESC);
+
+
+--
+-- Name: idx_support_group_posts_group_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_support_group_posts_group_id ON public.support_group_posts USING btree (group_id);
+
+
+--
+-- Name: idx_support_group_posts_is_pinned; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_support_group_posts_is_pinned ON public.support_group_posts USING btree (is_pinned) WHERE (is_pinned = true);
+
+
+--
+-- Name: idx_support_group_posts_post_type; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_support_group_posts_post_type ON public.support_group_posts USING btree (post_type);
+
+
+--
+-- Name: idx_support_group_posts_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_support_group_posts_user_id ON public.support_group_posts USING btree (user_id);
+
+
+--
+-- Name: idx_support_group_referrals_created_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_support_group_referrals_created_at ON public.support_group_referrals USING btree (created_at DESC);
+
+
+--
+-- Name: idx_support_group_referrals_group_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_support_group_referrals_group_id ON public.support_group_referrals USING btree (group_id);
+
+
+--
+-- Name: idx_support_group_referrals_is_active; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_support_group_referrals_is_active ON public.support_group_referrals USING btree (is_active) WHERE (is_active = true);
+
+
+--
+-- Name: idx_support_group_referrals_posted_by; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_support_group_referrals_posted_by ON public.support_group_referrals USING btree (posted_by);
+
+
+--
+-- Name: idx_support_group_resources_created_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_support_group_resources_created_at ON public.support_group_resources USING btree (created_at DESC);
+
+
+--
+-- Name: idx_support_group_resources_group_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_support_group_resources_group_id ON public.support_group_resources USING btree (group_id);
+
+
+--
+-- Name: idx_support_group_resources_is_featured; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_support_group_resources_is_featured ON public.support_group_resources USING btree (is_featured) WHERE (is_featured = true);
+
+
+--
+-- Name: idx_support_group_resources_resource_type; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_support_group_resources_resource_type ON public.support_group_resources USING btree (resource_type);
+
+
+--
+-- Name: idx_support_groups_category; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_support_groups_category ON public.support_groups USING btree (category) WHERE (category IS NOT NULL);
+
+
+--
+-- Name: idx_support_groups_created_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_support_groups_created_at ON public.support_groups USING btree (created_at DESC);
+
+
+--
+-- Name: idx_support_groups_industry; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_support_groups_industry ON public.support_groups USING btree (industry);
+
+
+--
+-- Name: idx_support_groups_is_active; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_support_groups_is_active ON public.support_groups USING btree (is_active) WHERE (is_active = true);
+
+
+--
+-- Name: idx_support_groups_is_public; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_support_groups_is_public ON public.support_groups USING btree (is_public) WHERE (is_public = true);
+
+
+--
 -- Name: idx_team_invitations_email; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -7169,6 +7971,27 @@ CREATE INDEX idx_writing_sessions_user_id ON public.writing_practice_sessions US
 --
 
 CREATE UNIQUE INDEX shared_documents_unique_share ON public.shared_documents USING btree (document_type, document_id, team_id, COALESCE(shared_with_user_id, '00000000-0000-0000-0000-000000000000'::uuid));
+
+
+--
+-- Name: unique_comment_like; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX unique_comment_like ON public.support_group_post_likes USING btree (comment_id, user_id) WHERE (comment_id IS NOT NULL);
+
+
+--
+-- Name: unique_monthly_challenge; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX unique_monthly_challenge ON public.support_group_challenges USING btree (challenge_type, start_date) WHERE (((challenge_type)::text = 'monthly'::text) AND (group_id IS NULL));
+
+
+--
+-- Name: unique_post_like; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX unique_post_like ON public.support_group_post_likes USING btree (post_id, user_id) WHERE (post_id IS NOT NULL);
 
 
 --
@@ -7459,10 +8282,73 @@ CREATE TRIGGER trigger_update_salary_negotiation_timestamp BEFORE UPDATE ON publ
 
 
 --
+-- Name: support_group_post_comments update_comment_count_trigger; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_comment_count_trigger AFTER INSERT OR DELETE ON public.support_group_post_comments FOR EACH ROW EXECUTE FUNCTION public.update_support_group_comment_count();
+
+
+--
 -- Name: job_opportunities update_job_opportunities_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER update_job_opportunities_updated_at BEFORE UPDATE ON public.job_opportunities FOR EACH ROW EXECUTE FUNCTION public.addupdatetime();
+
+
+--
+-- Name: support_group_memberships update_member_count_trigger; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_member_count_trigger AFTER INSERT OR DELETE OR UPDATE ON public.support_group_memberships FOR EACH ROW EXECUTE FUNCTION public.update_support_group_member_count();
+
+
+--
+-- Name: support_group_posts update_post_count_trigger; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_post_count_trigger AFTER INSERT OR DELETE ON public.support_group_posts FOR EACH ROW EXECUTE FUNCTION public.update_support_group_post_count();
+
+
+--
+-- Name: support_group_challenges update_support_group_challenges_timestamp; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_support_group_challenges_timestamp BEFORE UPDATE ON public.support_group_challenges FOR EACH ROW EXECUTE FUNCTION public.update_support_group_timestamp();
+
+
+--
+-- Name: support_group_post_comments update_support_group_post_comments_timestamp; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_support_group_post_comments_timestamp BEFORE UPDATE ON public.support_group_post_comments FOR EACH ROW EXECUTE FUNCTION public.update_support_group_timestamp();
+
+
+--
+-- Name: support_group_posts update_support_group_posts_timestamp; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_support_group_posts_timestamp BEFORE UPDATE ON public.support_group_posts FOR EACH ROW EXECUTE FUNCTION public.update_support_group_timestamp();
+
+
+--
+-- Name: support_group_referrals update_support_group_referrals_timestamp; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_support_group_referrals_timestamp BEFORE UPDATE ON public.support_group_referrals FOR EACH ROW EXECUTE FUNCTION public.update_support_group_timestamp();
+
+
+--
+-- Name: support_group_resources update_support_group_resources_timestamp; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_support_group_resources_timestamp BEFORE UPDATE ON public.support_group_resources FOR EACH ROW EXECUTE FUNCTION public.update_support_group_timestamp();
+
+
+--
+-- Name: support_groups update_support_groups_timestamp; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_support_groups_timestamp BEFORE UPDATE ON public.support_groups FOR EACH ROW EXECUTE FUNCTION public.update_support_group_timestamp();
 
 
 --
@@ -9245,6 +10131,182 @@ ALTER TABLE ONLY public.success_patterns
 
 ALTER TABLE ONLY public.support_effectiveness_tracking
     ADD CONSTRAINT support_effectiveness_tracking_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: support_group_challenge_participants support_group_challenge_participants_challenge_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.support_group_challenge_participants
+    ADD CONSTRAINT support_group_challenge_participants_challenge_id_fkey FOREIGN KEY (challenge_id) REFERENCES public.support_group_challenges(id) ON DELETE CASCADE;
+
+
+--
+-- Name: support_group_challenge_participants support_group_challenge_participants_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.support_group_challenge_participants
+    ADD CONSTRAINT support_group_challenge_participants_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: support_group_challenges support_group_challenges_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.support_group_challenges
+    ADD CONSTRAINT support_group_challenges_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(u_id) ON DELETE SET NULL;
+
+
+--
+-- Name: support_group_challenges support_group_challenges_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.support_group_challenges
+    ADD CONSTRAINT support_group_challenges_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.support_groups(id) ON DELETE CASCADE;
+
+
+--
+-- Name: support_group_memberships support_group_memberships_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.support_group_memberships
+    ADD CONSTRAINT support_group_memberships_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.support_groups(id) ON DELETE CASCADE;
+
+
+--
+-- Name: support_group_memberships support_group_memberships_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.support_group_memberships
+    ADD CONSTRAINT support_group_memberships_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: support_group_networking_impact support_group_networking_impact_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.support_group_networking_impact
+    ADD CONSTRAINT support_group_networking_impact_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.support_groups(id) ON DELETE SET NULL;
+
+
+--
+-- Name: support_group_networking_impact support_group_networking_impact_related_post_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.support_group_networking_impact
+    ADD CONSTRAINT support_group_networking_impact_related_post_id_fkey FOREIGN KEY (related_post_id) REFERENCES public.support_group_posts(id) ON DELETE SET NULL;
+
+
+--
+-- Name: support_group_networking_impact support_group_networking_impact_related_referral_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.support_group_networking_impact
+    ADD CONSTRAINT support_group_networking_impact_related_referral_id_fkey FOREIGN KEY (related_referral_id) REFERENCES public.support_group_referrals(id) ON DELETE SET NULL;
+
+
+--
+-- Name: support_group_networking_impact support_group_networking_impact_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.support_group_networking_impact
+    ADD CONSTRAINT support_group_networking_impact_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: support_group_post_comments support_group_post_comments_parent_comment_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.support_group_post_comments
+    ADD CONSTRAINT support_group_post_comments_parent_comment_id_fkey FOREIGN KEY (parent_comment_id) REFERENCES public.support_group_post_comments(id) ON DELETE CASCADE;
+
+
+--
+-- Name: support_group_post_comments support_group_post_comments_post_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.support_group_post_comments
+    ADD CONSTRAINT support_group_post_comments_post_id_fkey FOREIGN KEY (post_id) REFERENCES public.support_group_posts(id) ON DELETE CASCADE;
+
+
+--
+-- Name: support_group_post_comments support_group_post_comments_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.support_group_post_comments
+    ADD CONSTRAINT support_group_post_comments_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: support_group_post_likes support_group_post_likes_comment_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.support_group_post_likes
+    ADD CONSTRAINT support_group_post_likes_comment_id_fkey FOREIGN KEY (comment_id) REFERENCES public.support_group_post_comments(id) ON DELETE CASCADE;
+
+
+--
+-- Name: support_group_post_likes support_group_post_likes_post_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.support_group_post_likes
+    ADD CONSTRAINT support_group_post_likes_post_id_fkey FOREIGN KEY (post_id) REFERENCES public.support_group_posts(id) ON DELETE CASCADE;
+
+
+--
+-- Name: support_group_post_likes support_group_post_likes_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.support_group_post_likes
+    ADD CONSTRAINT support_group_post_likes_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: support_group_posts support_group_posts_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.support_group_posts
+    ADD CONSTRAINT support_group_posts_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.support_groups(id) ON DELETE CASCADE;
+
+
+--
+-- Name: support_group_posts support_group_posts_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.support_group_posts
+    ADD CONSTRAINT support_group_posts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: support_group_referrals support_group_referrals_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.support_group_referrals
+    ADD CONSTRAINT support_group_referrals_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.support_groups(id) ON DELETE CASCADE;
+
+
+--
+-- Name: support_group_referrals support_group_referrals_posted_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.support_group_referrals
+    ADD CONSTRAINT support_group_referrals_posted_by_fkey FOREIGN KEY (posted_by) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: support_group_resources support_group_resources_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.support_group_resources
+    ADD CONSTRAINT support_group_resources_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(u_id) ON DELETE SET NULL;
+
+
+--
+-- Name: support_group_resources support_group_resources_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.support_group_resources
+    ADD CONSTRAINT support_group_resources_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.support_groups(id) ON DELETE CASCADE;
 
 
 --

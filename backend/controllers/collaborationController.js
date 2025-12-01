@@ -8,6 +8,7 @@ import {
   taskService,
   teamService,
   teamDashboardService,
+  supportGroupsService,
 } from "../services/collaboration/index.js";
 import database from "../services/database.js";
 
@@ -15,7 +16,7 @@ class CollaborationController {
   // ============================================================================
   // UC-109: Mentor Dashboard
   // ============================================================================
-  
+
   // ============================================================================
   // Mentee Dashboard
   // ============================================================================
@@ -82,7 +83,8 @@ class CollaborationController {
    */
   getPendingMentorInvitations = asyncHandler(async (req, res) => {
     const menteeId = req.session.userId;
-    const invitations = await mentorDashboardService.getPendingMentorRelationships(menteeId);
+    const invitations =
+      await mentorDashboardService.getPendingMentorRelationships(menteeId);
 
     res.status(200).json({
       ok: true,
@@ -97,7 +99,10 @@ class CollaborationController {
   acceptMentorInvitation = asyncHandler(async (req, res) => {
     const menteeId = req.session.userId;
     const { relationshipId } = req.params;
-    const mentor = await mentorDashboardService.acceptMentorRelationship(menteeId, relationshipId);
+    const mentor = await mentorDashboardService.acceptMentorRelationship(
+      menteeId,
+      relationshipId
+    );
 
     res.status(200).json({
       ok: true,
@@ -139,7 +144,10 @@ class CollaborationController {
   declineMentorInvitation = asyncHandler(async (req, res) => {
     const menteeId = req.session.userId;
     const { relationshipId } = req.params;
-    const result = await mentorDashboardService.declineMentorInvitation(menteeId, relationshipId);
+    const result = await mentorDashboardService.declineMentorInvitation(
+      menteeId,
+      relationshipId
+    );
 
     res.status(200).json({
       ok: true,
@@ -153,8 +161,10 @@ class CollaborationController {
    */
   getMentees = asyncHandler(async (req, res) => {
     const mentorId = req.session.userId;
-    console.log(`[CollaborationController] getMentees called for userId: ${mentorId}`);
-    
+    console.log(
+      `[CollaborationController] getMentees called for userId: ${mentorId}`
+    );
+
     // Get user email for debugging
     try {
       const userCheck = await database.query(
@@ -162,12 +172,14 @@ class CollaborationController {
         [mentorId]
       );
       if (userCheck.rows.length > 0) {
-        console.log(`[CollaborationController] User email: ${userCheck.rows[0].email}`);
+        console.log(
+          `[CollaborationController] User email: ${userCheck.rows[0].email}`
+        );
       }
     } catch (err) {
       console.error("[CollaborationController] Error getting user email:", err);
     }
-    
+
     const mentees = await mentorDashboardService.getMentees(mentorId);
 
     res.status(200).json({
@@ -182,17 +194,25 @@ class CollaborationController {
    */
   getMenteeProgress = asyncHandler(async (req, res) => {
     try {
-    const mentorId = req.session.userId;
-    const { id: menteeId } = req.params;
-      console.log(`[CollaborationController] getMenteeProgress: mentorId=${mentorId}, menteeId=${menteeId}`);
-    const progress = await mentorDashboardService.getMenteeProgress(mentorId, menteeId);
+      const mentorId = req.session.userId;
+      const { id: menteeId } = req.params;
+      console.log(
+        `[CollaborationController] getMenteeProgress: mentorId=${mentorId}, menteeId=${menteeId}`
+      );
+      const progress = await mentorDashboardService.getMenteeProgress(
+        mentorId,
+        menteeId
+      );
 
-    res.status(200).json({
-      ok: true,
-      data: { progress },
-    });
+      res.status(200).json({
+        ok: true,
+        data: { progress },
+      });
     } catch (error) {
-      console.error(`[CollaborationController] Error in getMenteeProgress:`, error);
+      console.error(
+        `[CollaborationController] Error in getMenteeProgress:`,
+        error
+      );
       throw error;
     }
   });
@@ -203,18 +223,27 @@ class CollaborationController {
    */
   getMenteeMaterials = asyncHandler(async (req, res) => {
     try {
-    const mentorId = req.session.userId;
-    const { id: menteeId } = req.params;
-    const { type } = req.query;
-      console.log(`[CollaborationController] getMenteeMaterials: mentorId=${mentorId}, menteeId=${menteeId}, type=${type}`);
-    const materials = await mentorDashboardService.getMenteeMaterials(mentorId, menteeId, type);
+      const mentorId = req.session.userId;
+      const { id: menteeId } = req.params;
+      const { type } = req.query;
+      console.log(
+        `[CollaborationController] getMenteeMaterials: mentorId=${mentorId}, menteeId=${menteeId}, type=${type}`
+      );
+      const materials = await mentorDashboardService.getMenteeMaterials(
+        mentorId,
+        menteeId,
+        type
+      );
 
-    res.status(200).json({
-      ok: true,
-      data: { materials },
-    });
+      res.status(200).json({
+        ok: true,
+        data: { materials },
+      });
     } catch (error) {
-      console.error(`[CollaborationController] Error in getMenteeMaterials:`, error);
+      console.error(
+        `[CollaborationController] Error in getMenteeMaterials:`,
+        error
+      );
       throw error;
     }
   });
@@ -226,7 +255,11 @@ class CollaborationController {
   getMenteeResumeDetail = asyncHandler(async (req, res) => {
     const mentorId = req.session.userId;
     const { id: menteeId, resumeId } = req.params;
-    const resume = await mentorDashboardService.getMenteeResumeDetail(mentorId, menteeId, resumeId);
+    const resume = await mentorDashboardService.getMenteeResumeDetail(
+      mentorId,
+      menteeId,
+      resumeId
+    );
 
     res.status(200).json({
       ok: true,
@@ -241,7 +274,11 @@ class CollaborationController {
   getMenteeCoverLetterDetail = asyncHandler(async (req, res) => {
     const mentorId = req.session.userId;
     const { id: menteeId, coverLetterId } = req.params;
-    const coverLetter = await mentorDashboardService.getMenteeCoverLetterDetail(mentorId, menteeId, coverLetterId);
+    const coverLetter = await mentorDashboardService.getMenteeCoverLetterDetail(
+      mentorId,
+      menteeId,
+      coverLetterId
+    );
 
     res.status(200).json({
       ok: true,
@@ -256,7 +293,11 @@ class CollaborationController {
   getMenteeJobDetail = asyncHandler(async (req, res) => {
     const mentorId = req.session.userId;
     const { id: menteeId, jobId } = req.params;
-    const job = await mentorDashboardService.getMenteeJobDetail(mentorId, menteeId, jobId);
+    const job = await mentorDashboardService.getMenteeJobDetail(
+      mentorId,
+      menteeId,
+      jobId
+    );
 
     res.status(200).json({
       ok: true,
@@ -271,7 +312,11 @@ class CollaborationController {
   provideFeedback = asyncHandler(async (req, res) => {
     const mentorId = req.session.userId;
     const { menteeId, ...feedbackData } = req.body;
-    const feedback = await mentorDashboardService.provideFeedback(mentorId, menteeId, feedbackData);
+    const feedback = await mentorDashboardService.provideFeedback(
+      mentorId,
+      menteeId,
+      feedbackData
+    );
 
     res.status(201).json({
       ok: true,
@@ -285,17 +330,25 @@ class CollaborationController {
    */
   getCoachingInsights = asyncHandler(async (req, res) => {
     try {
-    const mentorId = req.session.userId;
-    const { id: menteeId } = req.params;
-      console.log(`[CollaborationController] getCoachingInsights: mentorId=${mentorId}, menteeId=${menteeId}`);
-    const insights = await mentorDashboardService.getCoachingInsights(mentorId, menteeId);
+      const mentorId = req.session.userId;
+      const { id: menteeId } = req.params;
+      console.log(
+        `[CollaborationController] getCoachingInsights: mentorId=${mentorId}, menteeId=${menteeId}`
+      );
+      const insights = await mentorDashboardService.getCoachingInsights(
+        mentorId,
+        menteeId
+      );
 
-    res.status(200).json({
-      ok: true,
-      data: { insights },
-    });
+      res.status(200).json({
+        ok: true,
+        data: { insights },
+      });
     } catch (error) {
-      console.error(`[CollaborationController] Error in getCoachingInsights:`, error);
+      console.error(
+        `[CollaborationController] Error in getCoachingInsights:`,
+        error
+      );
       throw error;
     }
   });
@@ -306,17 +359,25 @@ class CollaborationController {
    */
   getMenteeGoals = asyncHandler(async (req, res) => {
     try {
-    const mentorId = req.session.userId;
-    const { id: menteeId } = req.params;
-      console.log(`[CollaborationController] getMenteeGoals: mentorId=${mentorId}, menteeId=${menteeId}`);
-    const goals = await mentorDashboardService.getMenteeGoals(mentorId, menteeId);
+      const mentorId = req.session.userId;
+      const { id: menteeId } = req.params;
+      console.log(
+        `[CollaborationController] getMenteeGoals: mentorId=${mentorId}, menteeId=${menteeId}`
+      );
+      const goals = await mentorDashboardService.getMenteeGoals(
+        mentorId,
+        menteeId
+      );
 
-    res.status(200).json({
-      ok: true,
-      data: { goals },
-    });
+      res.status(200).json({
+        ok: true,
+        data: { goals },
+      });
     } catch (error) {
-      console.error(`[CollaborationController] Error in getMenteeGoals:`, error);
+      console.error(
+        `[CollaborationController] Error in getMenteeGoals:`,
+        error
+      );
       throw error;
     }
   });
@@ -329,7 +390,11 @@ class CollaborationController {
     try {
       const mentorId = req.session.userId;
       const { id: menteeId } = req.params;
-      const materials = await mentorDashboardService.getMenteeMaterials(mentorId, menteeId, "jobs");
+      const materials = await mentorDashboardService.getMenteeMaterials(
+        mentorId,
+        menteeId,
+        "jobs"
+      );
 
       res.status(200).json({
         ok: true,
@@ -349,14 +414,21 @@ class CollaborationController {
     try {
       const mentorId = req.session.userId;
       const { id: menteeId } = req.params;
-      const materials = await mentorDashboardService.getMenteeMaterials(mentorId, menteeId, "resumes");
+      const materials = await mentorDashboardService.getMenteeMaterials(
+        mentorId,
+        menteeId,
+        "resumes"
+      );
 
       res.status(200).json({
         ok: true,
         data: { resumes: materials.resumes || [] },
       });
     } catch (error) {
-      console.error(`[CollaborationController] Error in getMenteeResumes:`, error);
+      console.error(
+        `[CollaborationController] Error in getMenteeResumes:`,
+        error
+      );
       throw error;
     }
   });
@@ -369,14 +441,21 @@ class CollaborationController {
     try {
       const mentorId = req.session.userId;
       const { id: menteeId } = req.params;
-      const materials = await mentorDashboardService.getMenteeMaterials(mentorId, menteeId, "cover_letters");
+      const materials = await mentorDashboardService.getMenteeMaterials(
+        mentorId,
+        menteeId,
+        "cover_letters"
+      );
 
       res.status(200).json({
         ok: true,
         data: { coverLetters: materials.coverLetters || [] },
       });
     } catch (error) {
-      console.error(`[CollaborationController] Error in getMenteeCoverLetters:`, error);
+      console.error(
+        `[CollaborationController] Error in getMenteeCoverLetters:`,
+        error
+      );
       throw error;
     }
   });
@@ -391,7 +470,10 @@ class CollaborationController {
    */
   requestReview = asyncHandler(async (req, res) => {
     const userId = req.session.userId;
-    const requests = await documentReviewService.requestReview(userId, req.body);
+    const requests = await documentReviewService.requestReview(
+      userId,
+      req.body
+    );
 
     res.status(201).json({
       ok: true,
@@ -436,7 +518,11 @@ class CollaborationController {
   addReviewComment = asyncHandler(async (req, res) => {
     const userId = req.session.userId;
     const { id } = req.params;
-    const comment = await documentReviewService.addComment(userId, id, req.body);
+    const comment = await documentReviewService.addComment(
+      userId,
+      id,
+      req.body
+    );
 
     res.status(201).json({
       ok: true,
@@ -485,7 +571,7 @@ class CollaborationController {
     const userId = req.session.userId;
     const { period, generateAI } = req.query;
     const report = await progressShareService.generateProgressReport(
-      userId, 
+      userId,
       period || "week",
       generateAI === "true"
     );
@@ -503,7 +589,11 @@ class CollaborationController {
   saveProgressReport = asyncHandler(async (req, res) => {
     const userId = req.session.userId;
     const { reportData, sharedWithMentorIds = [] } = req.body;
-    const saved = await progressShareService.saveProgressReport(userId, reportData, sharedWithMentorIds);
+    const saved = await progressShareService.saveProgressReport(
+      userId,
+      reportData,
+      sharedWithMentorIds
+    );
 
     res.status(201).json({
       ok: true,
@@ -519,7 +609,11 @@ class CollaborationController {
     const userId = req.session.userId;
     const { reportId } = req.params;
     const { mentorId } = req.body;
-    const result = await progressShareService.shareReportWithMentor(reportId, userId, mentorId);
+    const result = await progressShareService.shareReportWithMentor(
+      reportId,
+      userId,
+      mentorId
+    );
 
     res.status(200).json({
       ok: true,
@@ -547,7 +641,9 @@ class CollaborationController {
    */
   getMenteeProgressReports = asyncHandler(async (req, res) => {
     const mentorId = req.session.userId;
-    const reports = await progressShareService.getMenteeProgressReports(mentorId);
+    const reports = await progressShareService.getMenteeProgressReports(
+      mentorId
+    );
 
     res.status(200).json({
       ok: true,
@@ -563,7 +659,11 @@ class CollaborationController {
     const userId = req.session.userId;
     const { reportId } = req.params;
     const { commentText } = req.body;
-    const comment = await progressShareService.addReportComment(reportId, userId, commentText);
+    const comment = await progressShareService.addReportComment(
+      reportId,
+      userId,
+      commentText
+    );
 
     res.status(201).json({
       ok: true,
@@ -578,7 +678,10 @@ class CollaborationController {
   getReportComments = asyncHandler(async (req, res) => {
     const userId = req.session.userId;
     const { reportId } = req.params;
-    const comments = await progressShareService.getReportComments(reportId, userId);
+    const comments = await progressShareService.getReportComments(
+      reportId,
+      userId
+    );
 
     res.status(200).json({
       ok: true,
@@ -593,7 +696,10 @@ class CollaborationController {
   getSharedProgress = asyncHandler(async (req, res) => {
     const viewerId = req.session.userId;
     const { userId } = req.params;
-    const progress = await progressShareService.getSharedProgress(viewerId, userId);
+    const progress = await progressShareService.getSharedProgress(
+      viewerId,
+      userId
+    );
 
     res.status(200).json({
       ok: true,
@@ -608,7 +714,11 @@ class CollaborationController {
   createMilestone = asyncHandler(async (req, res) => {
     const userId = req.session.userId;
     const { teamId, ...milestoneData } = req.body;
-    const milestone = await progressShareService.createMilestone(userId, milestoneData, teamId);
+    const milestone = await progressShareService.createMilestone(
+      userId,
+      milestoneData,
+      teamId
+    );
 
     res.status(201).json({
       ok: true,
@@ -662,7 +772,10 @@ class CollaborationController {
   getTeamDashboard = asyncHandler(async (req, res) => {
     const userId = req.session.userId;
     const { teamId } = req.params;
-    const dashboard = await teamDashboardService.getTeamDashboard(teamId, userId);
+    const dashboard = await teamDashboardService.getTeamDashboard(
+      teamId,
+      userId
+    );
 
     res.status(200).json({
       ok: true,
@@ -677,7 +790,10 @@ class CollaborationController {
   generateTeamAIInsights = asyncHandler(async (req, res) => {
     const userId = req.session.userId;
     const { teamId } = req.params;
-    const insights = await teamDashboardService.generateTeamAIInsights(teamId, userId);
+    const insights = await teamDashboardService.generateTeamAIInsights(
+      teamId,
+      userId
+    );
 
     res.status(200).json({
       ok: true,
@@ -692,7 +808,10 @@ class CollaborationController {
   getTeamPerformance = asyncHandler(async (req, res) => {
     const userId = req.session.userId;
     const { teamId } = req.params;
-    const performance = await teamDashboardService.getTeamPerformanceComparison(teamId, userId);
+    const performance = await teamDashboardService.getTeamPerformanceComparison(
+      teamId,
+      userId
+    );
 
     res.status(200).json({
       ok: true,
@@ -743,7 +862,12 @@ class CollaborationController {
     const userId = req.session.userId;
     const { id: jobId } = req.params;
     const { teamId, ...commentData } = req.body;
-    const comment = await jobShareService.addJobComment(userId, jobId, teamId, commentData);
+    const comment = await jobShareService.addJobComment(
+      userId,
+      jobId,
+      teamId,
+      commentData
+    );
 
     res.status(201).json({
       ok: true,
@@ -777,7 +901,12 @@ class CollaborationController {
   assignTask = asyncHandler(async (req, res) => {
     const userId = req.session.userId;
     const { assignedTo, teamId, ...taskData } = req.body;
-    const task = await taskService.assignTask(userId, assignedTo, teamId, taskData);
+    const task = await taskService.assignTask(
+      userId,
+      assignedTo,
+      teamId,
+      taskData
+    );
 
     res.status(201).json({
       ok: true,
@@ -885,7 +1014,10 @@ class CollaborationController {
    */
   shareDocument = asyncHandler(async (req, res) => {
     const userId = req.session.userId;
-    const share = await documentShareService.shareDocumentWithTeam(userId, req.body);
+    const share = await documentShareService.shareDocumentWithTeam(
+      userId,
+      req.body
+    );
 
     res.status(201).json({
       ok: true,
@@ -900,7 +1032,10 @@ class CollaborationController {
   getSharedDocuments = asyncHandler(async (req, res) => {
     const userId = req.session.userId;
     const { teamId } = req.params;
-    const documents = await documentShareService.getSharedDocuments(teamId, userId);
+    const documents = await documentShareService.getSharedDocuments(
+      teamId,
+      userId
+    );
 
     res.status(200).json({
       ok: true,
@@ -914,7 +1049,10 @@ class CollaborationController {
    */
   addDocumentComment = asyncHandler(async (req, res) => {
     const userId = req.session.userId;
-    const comment = await documentShareService.addDocumentComment(userId, req.body);
+    const comment = await documentShareService.addDocumentComment(
+      userId,
+      req.body
+    );
 
     res.status(201).json({
       ok: true,
@@ -969,7 +1107,392 @@ class CollaborationController {
       data: { document },
     });
   });
+
+  // ============================================================================
+  // UC-112: Peer Networking and Support Groups
+  // ============================================================================
+
+  /**
+   * GET /api/collaboration/support-groups
+   * Get all public support groups with optional filters
+   */
+  getSupportGroups = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const filters = req.query;
+    const groups = await supportGroupsService.getSupportGroups(userId, filters);
+
+    res.status(200).json({
+      ok: true,
+      data: { groups },
+    });
+  });
+
+  /**
+   * GET /api/collaboration/support-groups/my-groups
+   * Get user's joined support groups
+   */
+  getUserSupportGroups = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const groups = await supportGroupsService.getUserSupportGroups(userId);
+
+    res.status(200).json({
+      ok: true,
+      data: { groups },
+    });
+  });
+
+  /**
+   * GET /api/collaboration/support-groups/:groupId
+   * Get a single support group with details
+   */
+  getSupportGroup = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { groupId } = req.params;
+    const group = await supportGroupsService.getSupportGroup(groupId, userId);
+
+    res.status(200).json({
+      ok: true,
+      data: { group },
+    });
+  });
+
+  /**
+   * POST /api/collaboration/support-groups/:groupId/join
+   * Join a support group
+   */
+  joinSupportGroup = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { groupId } = req.params;
+    const { privacyLevel } = req.body;
+    const group = await supportGroupsService.joinSupportGroup(
+      userId,
+      groupId,
+      privacyLevel
+    );
+
+    res.status(200).json({
+      ok: true,
+      data: { group },
+    });
+  });
+
+  /**
+   * POST /api/collaboration/support-groups/:groupId/leave
+   * Leave a support group
+   */
+  leaveSupportGroup = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { groupId } = req.params;
+    const result = await supportGroupsService.leaveSupportGroup(
+      userId,
+      groupId
+    );
+
+    res.status(200).json({
+      ok: true,
+      data: result,
+    });
+  });
+
+  /**
+   * GET /api/collaboration/support-groups/:groupId/posts
+   * Get posts for a support group
+   */
+  getGroupPosts = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { groupId } = req.params;
+    const filters = req.query;
+    const posts = await supportGroupsService.getGroupPosts(
+      groupId,
+      userId,
+      filters
+    );
+
+    res.status(200).json({
+      ok: true,
+      data: { posts },
+    });
+  });
+
+  /**
+   * POST /api/collaboration/support-groups/:groupId/posts
+   * Create a post in a support group
+   */
+  createPost = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { groupId } = req.params;
+    const postData = req.body;
+    const post = await supportGroupsService.createPost(
+      userId,
+      groupId,
+      postData
+    );
+
+    res.status(201).json({
+      ok: true,
+      data: { post },
+    });
+  });
+
+  /**
+   * GET /api/collaboration/support-groups/posts/:postId
+   * Get a single post with details
+   */
+  getPost = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { postId } = req.params;
+    const post = await supportGroupsService.getPost(postId, userId);
+
+    res.status(200).json({
+      ok: true,
+      data: { post },
+    });
+  });
+
+  /**
+   * POST /api/collaboration/support-groups/posts/:postId/comments
+   * Add a comment to a post
+   */
+  addComment = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { postId } = req.params;
+    const commentData = req.body;
+    const comments = await supportGroupsService.addComment(
+      userId,
+      postId,
+      commentData
+    );
+
+    res.status(201).json({
+      ok: true,
+      data: { comments },
+    });
+  });
+
+  /**
+   * POST /api/collaboration/support-groups/posts/:postId/like
+   * Like/unlike a post
+   */
+  togglePostLike = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { postId } = req.params;
+    const result = await supportGroupsService.toggleLike(userId, postId, null);
+
+    res.status(200).json({
+      ok: true,
+      data: result,
+    });
+  });
+
+  /**
+   * POST /api/collaboration/support-groups/comments/:commentId/like
+   * Like/unlike a comment
+   */
+  toggleCommentLike = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { commentId } = req.params;
+    const result = await supportGroupsService.toggleLike(
+      userId,
+      null,
+      commentId
+    );
+
+    res.status(200).json({
+      ok: true,
+      data: result,
+    });
+  });
+
+  /**
+   * GET /api/collaboration/support-groups/:groupId/resources
+   * Get resources for a support group
+   */
+  getGroupResources = asyncHandler(async (req, res) => {
+    const { groupId } = req.params;
+    const filters = req.query;
+    const resources = await supportGroupsService.getGroupResources(
+      groupId,
+      filters
+    );
+
+    res.status(200).json({
+      ok: true,
+      data: { resources },
+    });
+  });
+
+  /**
+   * GET /api/collaboration/support-groups/:groupId/challenges
+   * Get active challenges for a support group
+   */
+  getGroupChallenges = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { groupId } = req.params;
+    const challenges = await supportGroupsService.getGroupChallenges(
+      groupId,
+      userId
+    );
+
+    res.status(200).json({
+      ok: true,
+      data: { challenges },
+    });
+  });
+
+  /**
+   * POST /api/collaboration/support-groups/challenges/:challengeId/join
+   * Join a challenge
+   */
+  joinChallenge = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { challengeId } = req.params;
+    const result = await supportGroupsService.joinChallenge(
+      userId,
+      challengeId
+    );
+
+    res.status(200).json({
+      ok: true,
+      data: result,
+    });
+  });
+
+  /**
+   * GET /api/collaboration/support-groups/:groupId/referrals
+   * Get referrals for a support group
+   */
+  getGroupReferrals = asyncHandler(async (req, res) => {
+    const { groupId } = req.params;
+    const filters = req.query;
+    const referrals = await supportGroupsService.getGroupReferrals(
+      groupId,
+      filters
+    );
+
+    res.status(200).json({
+      ok: true,
+      data: { referrals },
+    });
+  });
+
+  /**
+   * POST /api/collaboration/support-groups/:groupId/generate-content
+   * Generate AI content for a support group
+   */
+  generateAIContent = asyncHandler(async (req, res) => {
+    const { groupId } = req.params;
+    const { contentType, context } = req.body;
+    const content = await supportGroupsService.generateAIContent(
+      groupId,
+      contentType,
+      context
+    );
+
+    res.status(200).json({
+      ok: true,
+      data: { content },
+    });
+  });
+
+  /**
+   * POST /api/collaboration/support-groups/networking-impact
+   * Track networking impact
+   */
+  trackNetworkingImpact = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const impactData = req.body;
+    const result = await supportGroupsService.trackNetworkingImpact(
+      userId,
+      impactData
+    );
+
+    res.status(201).json({
+      ok: true,
+      data: result,
+    });
+  });
+
+  /**
+   * GET /api/collaboration/support-groups/networking-impact
+   * Get user's networking impact summary
+   */
+  getUserNetworkingImpact = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const impact = await supportGroupsService.getUserNetworkingImpact(userId);
+
+    res.status(200).json({
+      ok: true,
+      data: { impact },
+    });
+  });
+
+  /**
+   * POST /api/collaboration/support-groups/create
+   * Create a new support group
+   */
+  createSupportGroup = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const groupData = req.body;
+    const group = await supportGroupsService.createSupportGroup(
+      userId,
+      groupData
+    );
+
+    res.status(201).json({
+      ok: true,
+      data: { group },
+    });
+  });
+
+  /**
+   * GET /api/collaboration/support-groups/:groupId/members
+   * Get group members
+   */
+  getGroupMembers = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { groupId } = req.params;
+    const members = await supportGroupsService.getGroupMembers(groupId, userId);
+
+    res.status(200).json({
+      ok: true,
+      data: { members },
+    });
+  });
+
+  /**
+   * POST /api/collaboration/support-groups/:groupId/generate-challenge
+   * Generate AI monthly challenge
+   * DEPRECATED: Challenge generation is now automatic in the background
+   */
+  // generateMonthlyChallenge = asyncHandler(async (req, res) => {
+  //   const { groupId } = req.params;
+  //   const challenge = await supportGroupsService.generateMonthlyChallenge(
+  //     groupId
+  //   );
+
+  //   res.status(201).json({
+  //     ok: true,
+  //     data: { challenge },
+  //   });
+  // });
+
+  /**
+   * POST /api/collaboration/support-groups/:groupId/generate-resources
+   * Generate AI resources (user-initiated)
+   */
+  generateGroupResources = asyncHandler(async (req, res) => {
+    const { groupId } = req.params;
+    const { resourceType } = req.body;
+    const resources = await supportGroupsService.generateGroupResources(
+      groupId,
+      resourceType || "general"
+    );
+
+    res.status(201).json({
+      ok: true,
+      data: { resources },
+    });
+  });
 }
 
 export default new CollaborationController();
-

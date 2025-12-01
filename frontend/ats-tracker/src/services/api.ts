@@ -2218,6 +2218,268 @@ class ApiService {
       `/interview-prep/technical/attempts?${params.toString()}`
     );
   }
+
+  // ============================================================================
+  // Support Groups (UC-112)
+  // ============================================================================
+
+  async getSupportGroups(filters?: {
+    category?: string;
+    industry?: string;
+    roleType?: string;
+    search?: string;
+  }) {
+    const params = new URLSearchParams();
+    if (filters?.category) params.append("category", filters.category);
+    if (filters?.industry) params.append("industry", filters.industry);
+    if (filters?.roleType) params.append("roleType", filters.roleType);
+    if (filters?.search) params.append("search", filters.search);
+    return this.request<ApiResponse<{ groups: any[] }>>(
+      `/collaboration/support-groups${
+        params.toString() ? `?${params.toString()}` : ""
+      }`
+    );
+  }
+
+  async getUserSupportGroups() {
+    return this.request<ApiResponse<{ groups: any[] }>>(
+      `/collaboration/support-groups/my-groups`
+    );
+  }
+
+  async getSupportGroup(groupId: string) {
+    return this.request<ApiResponse<{ group: any }>>(
+      `/collaboration/support-groups/${groupId}`
+    );
+  }
+
+  async joinSupportGroup(groupId: string, privacyLevel = "standard") {
+    return this.request<ApiResponse<{ group: any }>>(
+      `/collaboration/support-groups/${groupId}/join`,
+      {
+        method: "POST",
+        body: JSON.stringify({ privacyLevel }),
+      }
+    );
+  }
+
+  async leaveSupportGroup(groupId: string) {
+    return this.request<ApiResponse<{ success: boolean }>>(
+      `/collaboration/support-groups/${groupId}/leave`,
+      {
+        method: "POST",
+      }
+    );
+  }
+
+  async getGroupPosts(
+    groupId: string,
+    filters?: {
+      postType?: string;
+      limit?: number;
+      offset?: number;
+    }
+  ) {
+    const params = new URLSearchParams();
+    if (filters?.postType) params.append("postType", filters.postType);
+    if (filters?.limit) params.append("limit", filters.limit.toString());
+    if (filters?.offset) params.append("offset", filters.offset.toString());
+    return this.request<ApiResponse<{ posts: any[] }>>(
+      `/collaboration/support-groups/${groupId}/posts${
+        params.toString() ? `?${params.toString()}` : ""
+      }`
+    );
+  }
+
+  async createPost(
+    groupId: string,
+    postData: {
+      title?: string;
+      content: string;
+      postType?: string;
+      isAnonymous?: boolean;
+      metadata?: any;
+    }
+  ) {
+    return this.request<ApiResponse<{ post: any }>>(
+      `/collaboration/support-groups/${groupId}/posts`,
+      {
+        method: "POST",
+        body: JSON.stringify(postData),
+      }
+    );
+  }
+
+  async getPost(postId: string) {
+    return this.request<ApiResponse<{ post: any }>>(
+      `/collaboration/support-groups/posts/${postId}`
+    );
+  }
+
+  async addComment(
+    postId: string,
+    commentData: {
+      content: string;
+      parentCommentId?: string;
+      isAnonymous?: boolean;
+    }
+  ) {
+    return this.request<ApiResponse<{ comments: any[] }>>(
+      `/collaboration/support-groups/posts/${postId}/comments`,
+      {
+        method: "POST",
+        body: JSON.stringify(commentData),
+      }
+    );
+  }
+
+  async togglePostLike(postId: string) {
+    return this.request<ApiResponse<{ liked: boolean }>>(
+      `/collaboration/support-groups/posts/${postId}/like`,
+      {
+        method: "POST",
+      }
+    );
+  }
+
+  async toggleCommentLike(commentId: string) {
+    return this.request<ApiResponse<{ liked: boolean }>>(
+      `/collaboration/support-groups/comments/${commentId}/like`,
+      {
+        method: "POST",
+      }
+    );
+  }
+
+  async getGroupResources(
+    groupId: string,
+    filters?: {
+      resourceType?: string;
+      limit?: number;
+      offset?: number;
+    }
+  ) {
+    const params = new URLSearchParams();
+    if (filters?.resourceType)
+      params.append("resourceType", filters.resourceType);
+    if (filters?.limit) params.append("limit", filters.limit.toString());
+    if (filters?.offset) params.append("offset", filters.offset.toString());
+    return this.request<ApiResponse<{ resources: any[] }>>(
+      `/collaboration/support-groups/${groupId}/resources${
+        params.toString() ? `?${params.toString()}` : ""
+      }`
+    );
+  }
+
+  async getGroupChallenges(groupId: string) {
+    return this.request<ApiResponse<{ challenges: any[] }>>(
+      `/collaboration/support-groups/${groupId}/challenges`
+    );
+  }
+
+  async joinChallenge(challengeId: string) {
+    return this.request<ApiResponse<{ success: boolean }>>(
+      `/collaboration/support-groups/challenges/${challengeId}/join`,
+      {
+        method: "POST",
+      }
+    );
+  }
+
+  async getGroupReferrals(
+    groupId: string,
+    filters?: {
+      limit?: number;
+      offset?: number;
+    }
+  ) {
+    const params = new URLSearchParams();
+    if (filters?.limit) params.append("limit", filters.limit.toString());
+    if (filters?.offset) params.append("offset", filters.offset.toString());
+    return this.request<ApiResponse<{ referrals: any[] }>>(
+      `/collaboration/support-groups/${groupId}/referrals${
+        params.toString() ? `?${params.toString()}` : ""
+      }`
+    );
+  }
+
+  async generateAIContent(groupId: string, contentType: string, context?: any) {
+    return this.request<ApiResponse<{ content: string }>>(
+      `/collaboration/support-groups/${groupId}/generate-content`,
+      {
+        method: "POST",
+        body: JSON.stringify({ contentType, context }),
+      }
+    );
+  }
+
+  async trackNetworkingImpact(impactData: {
+    groupId: string;
+    metricName: string;
+    metricValue?: number;
+    description?: string;
+    relatedPostId?: string;
+    relatedReferralId?: string;
+    impactDate?: string;
+  }) {
+    return this.request<ApiResponse<{ success: boolean; impactId: string }>>(
+      `/collaboration/support-groups/networking-impact`,
+      {
+        method: "POST",
+        body: JSON.stringify(impactData),
+      }
+    );
+  }
+
+  async getUserNetworkingImpact() {
+    return this.request<ApiResponse<{ impact: any[] }>>(
+      `/collaboration/support-groups/networking-impact`
+    );
+  }
+
+  async createSupportGroup(groupData: {
+    name: string;
+    description?: string;
+    category: string;
+    industry?: string;
+    roleType?: string;
+    interestTags?: string[];
+    isPublic?: boolean;
+  }) {
+    return this.request<ApiResponse<{ group: any }>>(
+      `/collaboration/support-groups/create`,
+      {
+        method: "POST",
+        body: JSON.stringify(groupData),
+      }
+    );
+  }
+
+  async getGroupMembers(groupId: string) {
+    return this.request<ApiResponse<{ members: any[] }>>(
+      `/collaboration/support-groups/${groupId}/members`
+    );
+  }
+
+  // Removed: Challenge and resource generation is now automatic in the background
+  // async generateMonthlyChallenge(groupId: string) {
+  //   return this.request<ApiResponse<{ challenge: any }>>(
+  //     `/collaboration/support-groups/${groupId}/generate-challenge`,
+  //     {
+  //       method: "POST",
+  //     }
+  //   );
+  // }
+
+  async generateGroupResources(groupId: string, resourceType?: string) {
+    return this.request<ApiResponse<{ resources: any[] }>>(
+      `/collaboration/support-groups/${groupId}/generate-resources`,
+      {
+        method: "POST",
+        body: JSON.stringify({ resourceType: resourceType || "general" }),
+      }
+    );
+  }
 }
 
 export const api = new ApiService();

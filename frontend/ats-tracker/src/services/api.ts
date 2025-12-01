@@ -39,6 +39,18 @@ import {
   InterviewInput,
   InterviewConflict,
   InterviewAnalytics,
+  SalaryNegotiation,
+  SalaryNegotiationInput,
+  SalaryNegotiationUpdate,
+  CounterofferInput,
+  NegotiationOutcomeInput,
+  MarketResearchInput,
+  TalkingPoint,
+  NegotiationScript,
+  CounterofferEvaluation,
+  TimingStrategy,
+  MarketSalaryData,
+  SalaryProgressionEntry,
 } from "../types";
 
 // In development, use proxy (relative path). In production, use env variable or full URL
@@ -1223,6 +1235,156 @@ class ApiService {
     return this.request<
       ApiResponse<{ followUp: any }>
     >(`/interviews/${interviewId}/follow-ups`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  // ========== Salary Negotiation Methods ==========
+
+  async createSalaryNegotiation(data: SalaryNegotiationInput) {
+    return this.request<
+      ApiResponse<{ negotiation: SalaryNegotiation; message: string }>
+    >("/salary-negotiations", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getSalaryNegotiations(filters?: {
+    status?: string;
+    outcome?: string;
+    limit?: number;
+    offset?: number;
+  }) {
+    const queryParams = new URLSearchParams();
+    if (filters?.status) queryParams.append("status", filters.status);
+    if (filters?.outcome) queryParams.append("outcome", filters.outcome);
+    if (filters?.limit) queryParams.append("limit", filters.limit.toString());
+    if (filters?.offset) queryParams.append("offset", filters.offset.toString());
+
+    const query = queryParams.toString();
+    return this.request<
+      ApiResponse<{ negotiations: SalaryNegotiation[] }>
+    >(`/salary-negotiations${query ? `?${query}` : ""}`);
+  }
+
+  async getSalaryNegotiation(id: string) {
+    return this.request<
+      ApiResponse<{ negotiation: SalaryNegotiation }>
+    >(`/salary-negotiations/${id}`);
+  }
+
+  async getSalaryNegotiationByJob(jobOpportunityId: string) {
+    return this.request<
+      ApiResponse<{ negotiation: SalaryNegotiation | null }>
+    >(`/salary-negotiations/job/${jobOpportunityId}`);
+  }
+
+  async updateSalaryNegotiation(id: string, updates: SalaryNegotiationUpdate) {
+    return this.request<
+      ApiResponse<{ negotiation: SalaryNegotiation; message: string }>
+    >(`/salary-negotiations/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(updates),
+    });
+  }
+
+  async addCounteroffer(id: string, counterofferData: CounterofferInput) {
+    return this.request<
+      ApiResponse<{ negotiation: SalaryNegotiation; message: string }>
+    >(`/salary-negotiations/${id}/counteroffer`, {
+      method: "POST",
+      body: JSON.stringify(counterofferData),
+    });
+  }
+
+  async completeNegotiation(id: string, outcomeData: NegotiationOutcomeInput) {
+    return this.request<
+      ApiResponse<{ negotiation: SalaryNegotiation; message: string }>
+    >(`/salary-negotiations/${id}/complete`, {
+      method: "PUT",
+      body: JSON.stringify(outcomeData),
+    });
+  }
+
+  async getMarketResearch(id: string, params?: { role?: string; location?: string; experienceLevel?: number; industry?: string }) {
+    const queryParams = new URLSearchParams();
+    if (params?.role) queryParams.append("role", params.role);
+    if (params?.location) queryParams.append("location", params.location);
+    if (params?.experienceLevel) queryParams.append("experienceLevel", params.experienceLevel.toString());
+    if (params?.industry) queryParams.append("industry", params.industry);
+
+    const query = queryParams.toString();
+    return this.request<
+      ApiResponse<{ marketData: MarketSalaryData }>
+    >(`/salary-negotiations/${id}/market-research${query ? `?${query}` : ""}`);
+  }
+
+  async triggerMarketResearch(id: string, data: MarketResearchInput) {
+    return this.request<
+      ApiResponse<{ marketData: MarketSalaryData; message: string }>
+    >(`/salary-negotiations/${id}/market-research`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getTalkingPoints(id: string) {
+    return this.request<
+      ApiResponse<{ talkingPoints: TalkingPoint[] }>
+    >(`/salary-negotiations/${id}/talking-points`);
+  }
+
+  async generateTalkingPoints(id: string, regenerate?: boolean) {
+    return this.request<
+      ApiResponse<{ talkingPoints: TalkingPoint[]; message: string }>
+    >(`/salary-negotiations/${id}/talking-points`, {
+      method: "POST",
+      body: JSON.stringify({ regenerate: regenerate || false }),
+    });
+  }
+
+  async getNegotiationScript(id: string, scenario: string) {
+    return this.request<
+      ApiResponse<{ script: NegotiationScript }>
+    >(`/salary-negotiations/${id}/scripts/${scenario}`);
+  }
+
+  async generateNegotiationScript(id: string, scenario: string, regenerate?: boolean) {
+    return this.request<
+      ApiResponse<{ script: NegotiationScript; message: string }>
+    >(`/salary-negotiations/${id}/scripts/${scenario}`, {
+      method: "POST",
+      body: JSON.stringify({ regenerate: regenerate || false }),
+    });
+  }
+
+  async evaluateCounteroffer(id: string, counterofferData: CounterofferInput) {
+    return this.request<
+      ApiResponse<{ evaluation: CounterofferEvaluation }>
+    >(`/salary-negotiations/${id}/evaluate-counteroffer`, {
+      method: "POST",
+      body: JSON.stringify(counterofferData),
+    });
+  }
+
+  async getTimingStrategy(id: string) {
+    return this.request<
+      ApiResponse<{ strategy: TimingStrategy }>
+    >(`/salary-negotiations/${id}/timing-strategy`);
+  }
+
+  async getSalaryProgression() {
+    return this.request<
+      ApiResponse<{ progression: SalaryProgressionEntry[] }>
+    >("/salary-negotiations/progression/history");
+  }
+
+  async addSalaryProgressionEntry(data: Omit<SalaryProgressionEntry, "id" | "createdAt">) {
+    return this.request<
+      ApiResponse<{ entry: SalaryProgressionEntry; message: string }>
+    >("/salary-negotiations/progression/entry", {
       method: "POST",
       body: JSON.stringify(data),
     });

@@ -32,6 +32,7 @@ export function Interviews() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
 
   // Reminders state
   const [upcomingReminders, setUpcomingReminders] = useState<any[]>([]);
@@ -387,19 +388,27 @@ export function Interviews() {
     }
   };
 
-  const showMessage = (text: string, type: "success" | "error") => {
+  const showMessage = (text: string, type: "success" | "error" | "info") => {
     if (type === "success") {
       setSuccessMessage(text);
       setError(null);
-    } else {
+      setInfoMessage(null);
+    } else if (type === "error") {
       setError(text);
+      setSuccessMessage(null);
+      setInfoMessage(null);
+    } else {
+      setInfoMessage(text);
+      setError(null);
       setSuccessMessage(null);
     }
     setTimeout(() => {
       if (type === "success") {
         setSuccessMessage(null);
-      } else {
+      } else if (type === "error") {
         setError(null);
+      } else {
+        setInfoMessage(null);
       }
     }, 5000);
   };
@@ -457,6 +466,13 @@ export function Interviews() {
           <div className="mb-6 bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
             <Icon icon="mingcute:check-circle-line" width={20} className="text-green-600" />
             <p className="text-green-800 text-sm m-0">{successMessage}</p>
+          </div>
+        )}
+
+        {infoMessage && (
+          <div className="mb-6 bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center gap-3">
+            <Icon icon="mingcute:information-line" width={20} className="text-blue-600" />
+            <p className="text-blue-800 text-sm m-0">{infoMessage}</p>
           </div>
         )}
 

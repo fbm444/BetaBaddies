@@ -27,6 +27,7 @@ export const ROUTES = {
   COVER_LETTERS: "/coverletter",
   COVER_LETTER_BUILDER: "/coverletter/builder",
   COVER_LETTER_TEMPLATES: "/coverletter/templates",
+  SALARY_NEGOTIATION: "/salary-negotiation",
 } as const;
 
 // Navigation item type
@@ -94,6 +95,12 @@ export const navigationGroups: NavigationGroup[] = [
         label: "Interviews",
         icon: "mingcute:calendar-line",
         path: ROUTES.INTERVIEWS,
+      },
+      {
+        id: "salary-negotiation",
+        label: "Salary Negotiation",
+        icon: "mingcute:dollar-line",
+        path: ROUTES.SALARY_NEGOTIATION,
       },
     ],
   },

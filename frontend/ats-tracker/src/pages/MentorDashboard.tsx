@@ -6,6 +6,8 @@ import { ROUTES } from "../config/routes";
 import { ChatWindow } from "../components/chat/ChatWindow";
 import { DocumentViewer } from "../components/team/DocumentViewer";
 import { AssignTaskModal } from "../components/mentor/AssignTaskModal";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 export function MentorDashboard() {
   const navigate = useNavigate();
@@ -19,7 +21,7 @@ export function MentorDashboard() {
   const [isLoadingMenteeData, setIsLoadingMenteeData] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<"overview" | "materials" | "goals" | "insights" | "communication" | "activity" | "tasks">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "materials" | "goals" | "insights" | "communication" | "activity" | "tasks" | "progressReports">("overview");
   const [menteeTasks, setMenteeTasks] = useState<any[]>([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState(false);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
@@ -40,6 +42,12 @@ export function MentorDashboard() {
   });
   const [availableTeams, setAvailableTeams] = useState<any[]>([]);
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  const [progressReports, setProgressReports] = useState<any[]>([]);
+  const [isLoadingReports, setIsLoadingReports] = useState(false);
+  const [selectedReport, setSelectedReport] = useState<any>(null);
+  const [reportComments, setReportComments] = useState<any[]>([]);
+  const [newComment, setNewComment] = useState("");
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [isSubmittingTask, setIsSubmittingTask] = useState(false);
   const [viewingMaterial, setViewingMaterial] = useState<{
     type: "resume" | "coverLetter" | "job" | null;
@@ -77,11 +85,22 @@ export function MentorDashboard() {
       setMenteeConversations([]);
       setSelectedDocument(null); // Reset selected document when switching mentees
       setMenteeTasks([]);
+      setProgressReports([]);
+      setSelectedReport(null);
       fetchMenteeData(selectedMentee.menteeId);
       fetchMenteeConversations(selectedMentee.menteeId);
       fetchMenteeTasks(selectedMentee.menteeId);
+      if (activeTab === "progressReports") {
+        fetchProgressReports();
+      }
     }
   }, [selectedMentee]);
+
+  useEffect(() => {
+    if (activeTab === "progressReports") {
+      fetchProgressReports();
+    }
+  }, [activeTab]);
 
   const fetchMentees = async () => {
     try {
@@ -291,6 +310,163 @@ export function MentorDashboard() {
       });
     } catch {
       return "N/A";
+    }
+  };
+
+  const fetchProgressReports = async () => {
+    try {
+      setIsLoadingReports(true);
+      const response = await api.getMenteeProgressReports();
+      if (response.ok && response.data) {
+        // Filter reports for selected mentee if one is selected
+        let reports = response.data.reports || [];
+        if (selectedMentee) {
+          reports = reports.filter((r: any) => r.menteeId === selectedMentee.menteeId);
+        }
+        setProgressReports(reports);
+      }
+    } catch (error) {
+      console.error("Failed to fetch progress reports:", error);
+    } finally {
+      setIsLoadingReports(false);
+    }
+  };
+
+  const fetchReportComments = async (reportId: string) => {
+    try {
+      const response = await api.getReportComments(reportId);
+      if (response.ok && response.data) {
+        setReportComments(response.data.comments || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch report comments:", error);
+    }
+  };
+
+  // Helper to clean markdown code blocks and extract text
+  const cleanMarkdownText = (text: string | null | undefined): string | null => {
+    if (!text) return null;
+    let cleaned = String(text);
+    
+    // Remove markdown code blocks if present
+    cleaned = cleaned.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+    cleaned = cleaned.replace(/```markdown\n?/g, '').replace(/```text\n?/g, '');
+    
+    // Remove JSON wrapper if the entire text is a JSON object string
+    if (cleaned.trim().startsWith('{') && cleaned.trim().endsWith('}')) {
+      try {
+        const parsed = JSON.parse(cleaned);
+        // If it's an object with text fields, extract them
+        if (typeof parsed === 'object' && parsed !== null) {
+          if (parsed.summary) return String(parsed.summary);
+          if (parsed.text) return String(parsed.text);
+          if (parsed.content) return String(parsed.content);
+        }
+      } catch (e) {
+        // Not valid JSON, continue with original text
+      }
+    }
+    
+    return cleaned.trim();
+  };
+
+  // Helper to extract and clean text from various formats
+  const getText = (field: any): string | null => {
+    if (!field) return null;
+    
+    let text: string | null = null;
+    
+    if (typeof field === 'string') {
+      text = cleanMarkdownText(field);
+    } else if (typeof field === 'object' && field !== null) {
+      // Try to extract text from object
+      if (field.text) text = String(field.text);
+      else if (field.content) text = String(field.content);
+      else if (Array.isArray(field)) {
+        text = field.map(item => typeof item === 'string' ? item : String(item)).join('\n');
+      } else {
+        // Try to stringify and clean
+        text = cleanMarkdownText(JSON.stringify(field));
+      }
+    } else {
+      text = cleanMarkdownText(String(field));
+    }
+    
+    return text;
+  };
+
+  const handleViewReport = async (report: any) => {
+    // Deep clone to avoid mutating the original
+    const reportCopy = JSON.parse(JSON.stringify(report));
+    
+    // Parse AI summary if needed - handle multiple formats
+    if (reportCopy.reportData?.aiSummary) {
+      let aiSummary = reportCopy.reportData.aiSummary;
+      
+      // If it's a string, try to parse it (could be JSON string)
+      if (typeof aiSummary === 'string') {
+        try {
+          // Try to parse as JSON
+          const parsed = JSON.parse(aiSummary);
+          // If parsing succeeds and gives us an object, use it
+          if (typeof parsed === 'object' && parsed !== null) {
+            aiSummary = parsed;
+          } else {
+            // If it's a string after parsing, wrap it
+            aiSummary = { summary: parsed };
+          }
+        } catch (e) {
+          // If parsing fails, treat as plain text summary
+          aiSummary = { summary: aiSummary };
+        }
+      }
+      
+      // Clean up the aiSummary object - ensure all text fields are strings
+      if (typeof aiSummary === 'object' && aiSummary !== null) {
+        const cleaned: any = {};
+        Object.keys(aiSummary).forEach(key => {
+          const value = aiSummary[key];
+          if (value !== null && value !== undefined) {
+            // If it's already a string, use it
+            if (typeof value === 'string') {
+              cleaned[key] = value;
+            } 
+            // If it's an object, try to extract text or stringify
+            else if (typeof value === 'object') {
+              if (value.text) cleaned[key] = String(value.text);
+              else if (value.content) cleaned[key] = String(value.content);
+              else cleaned[key] = JSON.stringify(value);
+            }
+            // Otherwise convert to string
+            else {
+              cleaned[key] = String(value);
+            }
+          }
+        });
+        aiSummary = cleaned;
+      }
+      
+      reportCopy.reportData.aiSummary = aiSummary;
+    }
+    
+    setSelectedReport(reportCopy);
+    await fetchReportComments(report.id);
+  };
+
+  const handleSubmitComment = async () => {
+    if (!selectedReport || !newComment.trim()) return;
+
+    try {
+      setIsSubmittingComment(true);
+      const response = await api.addReportComment(selectedReport.id, newComment);
+      if (response.ok) {
+        setNewComment("");
+        await fetchReportComments(selectedReport.id);
+      }
+    } catch (error) {
+      console.error("Failed to submit comment:", error);
+    } finally {
+      setIsSubmittingComment(false);
     }
   };
 
@@ -641,6 +817,7 @@ export function MentorDashboard() {
                       { id: "insights", label: "Insights", icon: "mingcute:lightbulb-line", shortLabel: "Insights" },
                       { id: "communication", label: "Messages", icon: "mingcute:message-line", shortLabel: "Messages" },
                       { id: "activity", label: "Activity", icon: "mingcute:time-line", shortLabel: "Activity" },
+                      { id: "progressReports", label: "Progress Reports", icon: "mingcute:file-chart-line", shortLabel: "Reports" },
                 ].map((tab) => (
                   <button
                     key={tab.id}
@@ -1639,6 +1816,272 @@ export function MentorDashboard() {
                             </button>
                           </div>
                         )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Progress Reports Tab */}
+                {activeTab === "progressReports" && (
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xl font-bold text-slate-900">Progress Reports</h3>
+                      <button
+                        onClick={fetchProgressReports}
+                        disabled={isLoadingReports}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+                      >
+                        <Icon icon="mingcute:refresh-line" width={18} />
+                        Refresh
+                      </button>
+                    </div>
+
+                    {isLoadingReports ? (
+                      <div className="flex items-center justify-center py-12">
+                        <Icon icon="mingcute:loading-line" width={32} className="animate-spin text-blue-500" />
+                        <span className="ml-3 text-slate-600">Loading progress reports...</span>
+                      </div>
+                    ) : selectedReport ? (
+                      <div className="space-y-6">
+                        <button
+                          onClick={() => {
+                            setSelectedReport(null);
+                            setReportComments([]);
+                          }}
+                          className="flex items-center gap-2 text-blue-600 hover:text-blue-700"
+                        >
+                          <Icon icon="mingcute:arrow-left-line" width={20} />
+                          Back to Reports
+                        </button>
+
+                        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
+                          <div className="flex items-center justify-between mb-4">
+                            <div>
+                              <h4 className="text-lg font-bold text-slate-900">
+                                Progress Report - {selectedReport.menteeName}
+                              </h4>
+                              <p className="text-sm text-slate-600">
+                                {new Date(selectedReport.periodStart).toLocaleDateString()} -{" "}
+                                {new Date(selectedReport.periodEnd).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <span className="text-xs text-slate-500">
+                              Generated {new Date(selectedReport.generatedAt).toLocaleDateString()}
+                            </span>
+                          </div>
+
+                          {selectedReport.reportData?.aiSummary && (() => {
+                            const aiSummary = selectedReport.reportData.aiSummary;
+                            const summary = getText(aiSummary.summary);
+                            const achievements = getText(aiSummary.achievements);
+                            const improvements = getText(aiSummary.improvements);
+                            const recommendations = getText(aiSummary.recommendations);
+                            const encouragement = getText(aiSummary.encouragement);
+
+                            return (
+                              <div className="mb-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200">
+                                <div className="flex items-center gap-2 mb-4">
+                                  <Icon icon="mingcute:magic-line" width={24} className="text-blue-600" />
+                                  <h5 className="font-semibold text-slate-900 text-lg">AI Summary</h5>
+                                </div>
+                                
+                                {summary && (
+                                  <div className="mb-4">
+                                    <div className="prose prose-sm max-w-none">
+                                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                        {summary}
+                                      </ReactMarkdown>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {achievements && (
+                                  <div className="mt-4 p-3 bg-green-50 rounded-lg border-l-4 border-green-500">
+                                    <h6 className="font-semibold text-green-800 mb-2 flex items-center gap-2">
+                                      <Icon icon="mingcute:check-circle-line" width={18} />
+                                      Achievements
+                                    </h6>
+                                    <div className="prose prose-sm max-w-none text-slate-700">
+                                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                        {achievements}
+                                      </ReactMarkdown>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {improvements && (
+                                  <div className="mt-4 p-3 bg-yellow-50 rounded-lg border-l-4 border-yellow-500">
+                                    <h6 className="font-semibold text-yellow-800 mb-2 flex items-center gap-2">
+                                      <Icon icon="mingcute:arrow-up-line" width={18} />
+                                      Areas for Improvement
+                                    </h6>
+                                    <div className="prose prose-sm max-w-none text-slate-700">
+                                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                        {improvements}
+                                      </ReactMarkdown>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {recommendations && (
+                                  <div className="mt-4 p-3 bg-blue-50 rounded-lg border-l-4 border-blue-500">
+                                    <h6 className="font-semibold text-blue-800 mb-2 flex items-center gap-2">
+                                      <Icon icon="mingcute:lightbulb-line" width={18} />
+                                      Recommendations
+                                    </h6>
+                                    <div className="prose prose-sm max-w-none text-slate-700">
+                                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                        {recommendations}
+                                      </ReactMarkdown>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {encouragement && (
+                                  <div className="mt-4 p-3 bg-purple-50 rounded-lg border-l-4 border-purple-500">
+                                    <h6 className="font-semibold text-purple-800 mb-2 flex items-center gap-2">
+                                      <Icon icon="mingcute:heart-line" width={18} />
+                                      Encouragement
+                                    </h6>
+                                    <div className="prose prose-sm max-w-none text-slate-700">
+                                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                        {encouragement}
+                                      </ReactMarkdown>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()}
+
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                            <div className="bg-white/70 rounded-lg p-3">
+                              <div className="text-2xl font-bold text-blue-600">
+                                {selectedReport.reportData?.jobSearch?.applications_submitted || 0}
+                              </div>
+                              <div className="text-xs text-slate-600">Applications</div>
+                            </div>
+                            <div className="bg-white/70 rounded-lg p-3">
+                              <div className="text-2xl font-bold text-green-600">
+                                {selectedReport.reportData?.jobSearch?.interviews_scheduled || 0}
+                              </div>
+                              <div className="text-xs text-slate-600">Interviews</div>
+                            </div>
+                            <div className="bg-white/70 rounded-lg p-3">
+                              <div className="text-2xl font-bold text-purple-600">
+                                {selectedReport.reportData?.mockInterviews?.completed || 0}
+                              </div>
+                              <div className="text-xs text-slate-600">Mock Interviews</div>
+                            </div>
+                            <div className="bg-white/70 rounded-lg p-3">
+                              <div className="text-2xl font-bold text-yellow-600">
+                                {selectedReport.reportData?.interviewSuccess?.successRate || 0}%
+                              </div>
+                              <div className="text-xs text-slate-600">Success Rate</div>
+                            </div>
+                          </div>
+
+                          {selectedReport.reportData?.upcomingInterviews &&
+                            selectedReport.reportData.upcomingInterviews.length > 0 && (
+                              <div className="bg-white/70 rounded-lg p-4 mb-4">
+                                <h6 className="font-semibold text-slate-900 mb-2">Upcoming Interviews</h6>
+                                <div className="space-y-2">
+                                  {selectedReport.reportData.upcomingInterviews.slice(0, 3).map((interview: any, idx: number) => (
+                                    <div key={idx} className="text-sm text-slate-700">
+                                      • {interview.title || interview.company} -{" "}
+                                      {new Date(interview.interview_date).toLocaleDateString()}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                        </div>
+
+                        {/* Comments Section */}
+                        <div className="bg-white rounded-lg shadow p-6">
+                          <h5 className="font-semibold text-slate-900 mb-4">Comments</h5>
+                          <div className="space-y-4 mb-4">
+                            {reportComments.length > 0 ? (
+                              reportComments.map((comment: any) => (
+                                <div key={comment.id} className="border-l-2 border-blue-200 pl-4">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="font-medium text-slate-900">{comment.userName}</span>
+                                    <span className="text-xs text-slate-500">
+                                      {new Date(comment.createdAt).toLocaleDateString()}
+                                    </span>
+                                  </div>
+                                  <p className="text-slate-700">{comment.text}</p>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="text-slate-500 text-sm">No comments yet. Be the first to provide feedback!</p>
+                            )}
+                          </div>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={newComment}
+                              onChange={(e) => setNewComment(e.target.value)}
+                              placeholder="Add a comment..."
+                              className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              onKeyPress={(e) => {
+                                if (e.key === "Enter" && !e.shiftKey) {
+                                  e.preventDefault();
+                                  handleSubmitComment();
+                                }
+                              }}
+                            />
+                            <button
+                              onClick={handleSubmitComment}
+                              disabled={!newComment.trim() || isSubmittingComment}
+                              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                            >
+                              {isSubmittingComment ? "Posting..." : "Post"}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : progressReports.length > 0 ? (
+                      <div className="space-y-4">
+                        {progressReports.map((report) => (
+                          <div
+                            key={report.id}
+                            className="bg-white rounded-lg shadow p-6 border border-slate-200 hover:shadow-md transition cursor-pointer"
+                            onClick={() => handleViewReport(report)}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h4 className="font-semibold text-slate-900">{report.menteeName}</h4>
+                                <p className="text-sm text-slate-600">
+                                  {new Date(report.periodStart).toLocaleDateString()} -{" "}
+                                  {new Date(report.periodEnd).toLocaleDateString()}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-sm text-slate-600">
+                                  {report.reportData?.jobSearch?.applications_submitted || 0} applications
+                                </div>
+                                <div className="text-sm text-slate-600">
+                                  {report.reportData?.jobSearch?.interviews_scheduled || 0} interviews
+                                </div>
+                              </div>
+                            </div>
+                            {report.reportData?.aiSummary && (
+                              <div className="mt-3 flex items-center gap-2 text-blue-600 text-sm">
+                                <Icon icon="mingcute:magic-line" width={16} />
+                                AI-generated summary included
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-12">
+                        <Icon icon="mingcute:file-chart-line" width={48} className="mx-auto text-slate-300 mb-4" />
+                        <p className="text-slate-600 mb-2">No progress reports available</p>
+                        <p className="text-sm text-slate-500">
+                          Progress reports will appear here when mentees share them with you.
+                        </p>
                       </div>
                     )}
                   </div>

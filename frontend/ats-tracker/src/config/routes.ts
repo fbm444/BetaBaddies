@@ -191,13 +191,13 @@ export const navigationGroups: NavigationGroup[] = [
       {
         id: "mentor-dashboard",
         label: "Mentor Dashboard",
-        icon: "mingcute:user-star-line",
+        icon: "mingcute:award-line",
         path: ROUTES.MENTOR_DASHBOARD,
       },
       {
         id: "mentee-dashboard",
         label: "Mentee Dashboard",
-        icon: "mingcute:user-heart-line",
+        icon: "mingcute:user-3-line",
         path: ROUTES.MENTEE_DASHBOARD,
       },
       {
@@ -207,15 +207,9 @@ export const navigationGroups: NavigationGroup[] = [
         path: ROUTES.DOCUMENT_REVIEWS,
       },
       {
-        id: "progress-sharing",
-        label: "Progress Sharing",
-        icon: "mingcute:chart-line",
-        path: ROUTES.PROGRESS_SHARING,
-      },
-      {
         id: "support-groups",
         label: "Support Groups",
-        icon: "mingcute:community-line",
+        icon: "mingcute:users-line",
         path: ROUTES.SUPPORT_GROUPS,
       },
     ],

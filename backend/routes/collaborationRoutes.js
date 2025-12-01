@@ -43,6 +43,12 @@ router.post("/reviews/:id/complete", collaborationController.completeReview);
 // Progress Sharing (UC-111)
 router.post("/progress/share", collaborationController.configureSharing);
 router.get("/progress/report", collaborationController.generateProgressReport);
+router.post("/progress/report/save", collaborationController.saveProgressReport);
+router.post("/progress/report/:reportId/share", collaborationController.shareReportWithMentor);
+router.get("/progress/reports", collaborationController.getUserProgressReports);
+router.get("/progress/reports/mentee", collaborationController.getMenteeProgressReports);
+router.post("/progress/report/:reportId/comment", collaborationController.addReportComment);
+router.get("/progress/report/:reportId/comments", collaborationController.getReportComments);
 router.get("/progress/shared/:userId", collaborationController.getSharedProgress);
 router.post("/milestones", collaborationController.createMilestone);
 router.get("/milestones/predefined", collaborationController.getPredefinedMilestones);

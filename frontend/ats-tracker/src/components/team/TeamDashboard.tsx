@@ -151,8 +151,21 @@ export function TeamDashboard({ teamId, refreshKey }: TeamDashboardProps) {
       {/* Recent Milestones */}
       {milestones && milestones.length > 0 && (
         <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-xl font-bold text-slate-900 mb-4">Recent Milestones</h3>
-          <div className="space-y-3">
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center">
+                <Icon icon="mingcute:trophy-fill" width={20} className="text-white" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">Recent Milestones</h3>
+                <p className="text-sm text-slate-500 mt-0.5">Celebrate team achievements</p>
+              </div>
+            </div>
+            {milestones.length > 5 && (
+              <span className="text-sm text-slate-500">Showing 5 of {milestones.length}</span>
+            )}
+          </div>
+          <div className="space-y-4">
             {milestones.slice(0, 5).map((milestone: any) => (
               <MilestoneCard
                 key={milestone.id}
@@ -201,24 +214,58 @@ export function TeamDashboard({ teamId, refreshKey }: TeamDashboardProps) {
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-xl font-bold text-slate-900 mb-4">Recent Activity</h3>
           <div className="space-y-3">
-            {activityFeed.slice(0, 10).map((activity: any) => (
-              <div key={activity.id} className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
-                <Icon
-                  icon={getActivityIcon(activity.activityType)}
-                  width={20}
-                  className="text-slate-600 mt-1"
-                />
-                <div className="flex-1">
-                  <div className="text-sm text-slate-900">
-                    <span className="font-medium">{activity.userName}</span>{" "}
-                    {getActivityDescription(activity.activityType, activity.activityData)}
-                  </div>
-                  <div className="text-xs text-slate-500 mt-1">
-                    {new Date(activity.createdAt).toLocaleString()}
+            {activityFeed.slice(0, 10).map((activity: any) => {
+              // If this is a milestone_achieved activity with milestone data, use MilestoneCard
+              if (activity.activityType === 'milestone_achieved' && activity.milestone) {
+                return (
+                  <MilestoneCard
+                    key={activity.id}
+                    milestone={activity.milestone}
+                    currentUserId={currentUserId || undefined}
+                    onUpdate={fetchDashboard}
+                  />
+                );
+              }
+              
+              // Otherwise, render as regular activity item
+              const defaultAvatar = 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_640.png';
+              const userProfilePicture = activity.userProfilePicture;
+              
+              return (
+                <div key={activity.id} className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
+                  {/* Profile Picture or Person Icon */}
+                  {userProfilePicture && !userProfilePicture.includes('blank-profile-picture') ? (
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden border-2 border-slate-200">
+                      <img 
+                        src={userProfilePicture} 
+                        alt={activity.userName || "User"}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.src = defaultAvatar;
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center border-2 border-slate-300">
+                      <Icon
+                        icon="mingcute:user-line"
+                        width={20}
+                        className="text-slate-600"
+                      />
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <div className="text-sm text-slate-900">
+                      <span className="font-medium">{activity.userName}</span>{" "}
+                      {getActivityDescription(activity.activityType, activity.activityData)}
+                    </div>
+                    <div className="text-xs text-slate-500 mt-1">
+                      {new Date(activity.createdAt).toLocaleString()}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

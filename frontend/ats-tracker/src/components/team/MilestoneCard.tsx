@@ -9,6 +9,7 @@ interface MilestoneCardProps {
     milestoneDescription?: string;
     achievedAt: string;
     userName: string;
+    userProfilePicture?: string;
     milestoneData?: {
       reactions?: Array<{
         userId: string;
@@ -30,11 +31,11 @@ interface MilestoneCardProps {
 }
 
 const REACTION_TYPES = [
-  { type: "celebrate", icon: "mingcute:celebration-line", label: "Celebrate", color: "text-yellow-600" },
-  { type: "congrats", icon: "mingcute:hand-clap-line", label: "Congrats", color: "text-green-600" },
-  { type: "awesome", icon: "mingcute:star-line", label: "Awesome", color: "text-blue-600" },
-  { type: "fire", icon: "mingcute:fire-line", label: "Fire", color: "text-orange-600" },
-  { type: "clap", icon: "mingcute:hand-clap-line", label: "Clap", color: "text-purple-600" },
+  { type: "celebrate", icon: "mingcute:trophy-line", emoji: "🎉", label: "Celebrate", color: "text-yellow-600" },
+  { type: "congrats", icon: "mingcute:like-line", emoji: "👏", label: "Congrats", color: "text-green-600" },
+  { type: "awesome", icon: "mingcute:star-line", emoji: "⭐", label: "Awesome", color: "text-blue-600" },
+  { type: "fire", icon: "mingcute:heart-line", emoji: "🔥", label: "Fire", color: "text-orange-600" },
+  { type: "clap", icon: "mingcute:check-circle-line", emoji: "👏", label: "Clap", color: "text-purple-600" },
 ];
 
 export function MilestoneCard({ milestone, currentUserId, onUpdate }: MilestoneCardProps) {
@@ -42,6 +43,7 @@ export function MilestoneCard({ milestone, currentUserId, onUpdate }: MilestoneC
   const [showCommentInput, setShowCommentInput] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   const milestoneData = milestone.milestoneData || {};
   const reactions = milestoneData.reactions || [];
@@ -97,121 +99,164 @@ export function MilestoneCard({ milestone, currentUserId, onUpdate }: MilestoneC
   };
 
   return (
-    <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border-l-4 border-yellow-500 rounded-lg p-4 hover:shadow-md transition-shadow">
+    <div className="bg-white border border-slate-200 rounded-xl p-5 hover:shadow-lg transition-all duration-200">
       {/* Main Milestone Info */}
-      <div className="flex items-start gap-3">
-        <Icon icon="mingcute:trophy-line" width={24} className="text-yellow-600 flex-shrink-0 mt-1" />
+      <div className="flex items-start gap-4">
+        {/* Trophy Icon Badge */}
+        <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center shadow-md">
+          <Icon icon="mingcute:trophy-fill" width={24} className="text-white" />
+        </div>
+        
         <div className="flex-1 min-w-0">
-          <div className="font-semibold text-slate-900">{milestone.milestoneTitle}</div>
-          {milestone.milestoneDescription && (
-            <div className="text-sm text-slate-600 mt-1">{milestone.milestoneDescription}</div>
-          )}
-          <div className="text-sm text-slate-500 mt-1">
-            {milestone.userName} • {new Date(milestone.achievedAt).toLocaleDateString()}
+          {/* Title and User Info */}
+          <div className="flex items-start justify-between gap-3 mb-2">
+            <div className="flex-1 min-w-0">
+              <h4 className="font-bold text-slate-900 text-base leading-tight">{milestone.milestoneTitle}</h4>
+              {milestone.milestoneDescription && (
+                <p className="text-sm text-slate-600 mt-1.5 leading-relaxed">{milestone.milestoneDescription}</p>
+              )}
+            </div>
           </div>
 
-          {/* Reactions Summary */}
-          {Object.keys(reactionsByType).length > 0 && (
-            <div className="flex items-center gap-2 mt-3 flex-wrap">
-              {Object.entries(reactionsByType).map(([type, reactionList]: [string, any]) => {
-                const reactionConfig = REACTION_TYPES.find((r) => r.type === type);
-                return (
-                  <button
-                    key={type}
-                    onClick={() => handleReaction(type)}
-                    disabled={isSubmitting}
-                    className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium transition-colors ${
-                      hasUserReacted(type)
-                        ? "bg-yellow-200 text-yellow-800"
-                        : "bg-white/60 text-slate-600 hover:bg-yellow-100"
-                    }`}
-                  >
-                    {reactionConfig && (
-                      <Icon icon={reactionConfig.icon} width={14} className={reactionConfig.color} />
-                    )}
-                    <span>{reactionList.length}</span>
-                  </button>
-                );
-              })}
+          {/* User and Date */}
+          <div className="flex items-center gap-2 text-xs text-slate-500 mb-3">
+            <div className="flex items-center gap-1.5">
+              {milestone.userProfilePicture && 
+               milestone.userProfilePicture.trim() !== '' && 
+               !milestone.userProfilePicture.includes('blank-profile-picture') &&
+               milestone.userProfilePicture !== null &&
+               !imageError ? (
+                <div className="w-5 h-5 rounded-full overflow-hidden border border-slate-200 flex-shrink-0 bg-slate-100">
+                  <img 
+                    src={milestone.userProfilePicture} 
+                    alt={milestone.userName || "User"}
+                    className="w-full h-full object-cover"
+                    onError={() => setImageError(true)}
+                  />
+                </div>
+              ) : (
+                <div className="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0">
+                  <Icon icon="mingcute:user-line" width={12} className="text-slate-500" />
+                </div>
+              )}
+              <span className="font-medium">{milestone.userName}</span>
             </div>
-          )}
-
-          {/* Comments Count */}
-          {comments.length > 0 && (
-            <button
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="text-sm text-blue-600 hover:text-blue-700 mt-2 flex items-center gap-1"
-            >
-              <Icon icon="mingcute:message-line" width={16} />
-              <span>{comments.length} {comments.length === 1 ? "comment" : "comments"}</span>
-              <Icon
-                icon={isExpanded ? "mingcute:up-line" : "mingcute:down-line"}
-                width={16}
-                className="ml-1"
-              />
-            </button>
-          )}
-
-          {/* Action Buttons */}
-          <div className="flex items-center gap-2 mt-3">
-            {/* Reaction Buttons */}
+            <span>•</span>
             <div className="flex items-center gap-1">
+              <Icon icon="mingcute:calendar-line" width={12} />
+              <span>{new Date(milestone.achievedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+            </div>
+          </div>
+
+          {/* Reactions and Comments Summary */}
+          <div className="flex items-center gap-3 pt-3 border-t border-slate-100">
+            {/* Reactions Summary */}
+            {Object.keys(reactionsByType).length > 0 && (
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {Object.entries(reactionsByType).map(([type, reactionList]: [string, any]) => {
+                  const reactionConfig = REACTION_TYPES.find((r) => r.type === type);
+                  return (
+                    <button
+                      key={type}
+                      onClick={() => handleReaction(type)}
+                      disabled={isSubmitting}
+                      className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
+                        hasUserReacted(type)
+                          ? "bg-yellow-100 text-yellow-700 shadow-sm"
+                          : "bg-slate-100 text-slate-600 hover:bg-yellow-50 hover:text-yellow-700"
+                      }`}
+                    >
+                      {reactionConfig && (
+                        <span className="text-base">{reactionConfig.emoji}</span>
+                      )}
+                      <span className="font-semibold">{reactionList.length}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Comments Count */}
+            {comments.length > 0 && (
+              <button
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="flex items-center gap-1.5 px-2.5 py-1 text-xs text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+              >
+                <Icon icon="mingcute:message-line" width={14} />
+                <span className="font-medium">{comments.length}</span>
+                <Icon
+                  icon={isExpanded ? "mingcute:up-line" : "mingcute:down-line"}
+                  width={12}
+                />
+              </button>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-1.5 ml-auto">
+              {/* Quick Reaction Buttons */}
               {REACTION_TYPES.slice(0, 3).map((reaction) => (
                 <button
                   key={reaction.type}
                   onClick={() => handleReaction(reaction.type)}
                   disabled={isSubmitting}
-                  className={`p-1.5 rounded-full transition-colors ${
+                  className={`p-2 rounded-lg transition-all ${
                     hasUserReacted(reaction.type)
-                      ? "bg-yellow-200 text-yellow-800"
-                      : "bg-white/60 text-slate-600 hover:bg-yellow-100"
+                      ? "bg-yellow-100 text-yellow-700 shadow-sm"
+                      : "bg-slate-100 text-slate-500 hover:bg-yellow-50 hover:text-yellow-600"
                   }`}
                   title={reaction.label}
                 >
-                  <Icon icon={reaction.icon} width={18} className={reaction.color} />
+                  <span className="text-base">{reaction.emoji}</span>
                 </button>
               ))}
-            </div>
 
-            {/* Comment Button */}
-            <button
-              onClick={() => {
-                setShowCommentInput(!showCommentInput);
-                if (!showCommentInput) {
-                  setIsExpanded(true);
-                }
-              }}
-              className="flex items-center gap-1 px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 bg-white/60 rounded-full hover:bg-yellow-100 transition-colors"
-            >
-              <Icon icon="mingcute:message-line" width={16} />
-              <span>Comment</span>
-            </button>
+              {/* Comment Button */}
+              <button
+                onClick={() => {
+                  setShowCommentInput(!showCommentInput);
+                  if (!showCommentInput) {
+                    setIsExpanded(true);
+                  }
+                }}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+              >
+                <Icon icon="mingcute:message-line" width={14} />
+                <span>Comment</span>
+              </button>
+            </div>
           </div>
 
           {/* Comment Input */}
           {showCommentInput && (
-            <div className="mt-3">
+            <div className="mt-4 pt-3 border-t border-slate-100">
               <textarea
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
-                placeholder="Add a comment to celebrate..."
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent resize-none"
-                rows={2}
+                placeholder="Add a comment to celebrate this achievement..."
+                className="w-full px-3 py-2.5 border-2 border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 resize-none bg-slate-50"
+                rows={3}
               />
-              <div className="flex items-center gap-2 mt-2">
+              <div className="flex items-center gap-2 mt-2.5">
                 <button
                   onClick={handleCommentSubmit}
                   disabled={!commentText.trim() || isSubmitting}
-                  className="px-4 py-1.5 bg-yellow-600 text-white text-sm rounded-lg hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-sm font-medium rounded-lg hover:from-yellow-600 hover:to-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
                 >
-                  {isSubmitting ? "Posting..." : "Post Comment"}
+                  {isSubmitting ? (
+                    <span className="flex items-center gap-2">
+                      <Icon icon="mingcute:loading-line" width={14} className="animate-spin" />
+                      Posting...
+                    </span>
+                  ) : (
+                    "Post Comment"
+                  )}
                 </button>
                 <button
                   onClick={() => {
                     setShowCommentInput(false);
                     setCommentText("");
                   }}
-                  className="px-4 py-1.5 text-sm text-slate-600 hover:text-slate-900 transition-colors"
+                  className="px-4 py-2 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
                 >
                   Cancel
                 </button>
@@ -223,20 +268,23 @@ export function MilestoneCard({ milestone, currentUserId, onUpdate }: MilestoneC
 
       {/* Expanded Comments Section */}
       {isExpanded && comments.length > 0 && (
-        <div className="mt-4 pt-4 border-t border-yellow-200">
+        <div className="mt-4 pt-4 border-t border-slate-200">
           <div className="space-y-3">
             {comments.map((comment: any) => (
-              <div key={comment.id} className="bg-white/60 rounded-lg p-3">
-                <div className="flex items-start gap-2">
-                  <div className="w-8 h-8 rounded-full bg-yellow-200 flex items-center justify-center flex-shrink-0">
-                    <Icon icon="mingcute:user-line" width={16} className="text-yellow-700" />
+              <div key={comment.id} className="bg-slate-50 rounded-lg p-3.5 border border-slate-200">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center flex-shrink-0 shadow-sm">
+                    <Icon icon="mingcute:user-fill" width={16} className="text-white" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-slate-900">{comment.userName}</div>
-                    <div className="text-sm text-slate-700 mt-1">{comment.text}</div>
-                    <div className="text-xs text-slate-500 mt-1">
-                      {new Date(comment.createdAt).toLocaleString()}
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm font-semibold text-slate-900">{comment.userName}</span>
+                      <span className="text-xs text-slate-400">•</span>
+                      <span className="text-xs text-slate-500">
+                        {new Date(comment.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </span>
                     </div>
+                    <p className="text-sm text-slate-700 leading-relaxed">{comment.text}</p>
                   </div>
                 </div>
               </div>

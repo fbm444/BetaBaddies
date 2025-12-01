@@ -1510,7 +1510,8 @@ class MentorDashboardService {
           pt.created_at,
           u.email as mentor_email,
           p.first_name as mentor_first_name,
-          p.last_name as mentor_last_name
+          p.last_name as mentor_last_name,
+          p.pfp_link as mentor_profile_picture
          FROM preparation_tasks pt
          JOIN users u ON pt.assigned_by = u.u_id
          LEFT JOIN profiles p ON u.u_id = p.user_id
@@ -1533,6 +1534,7 @@ class MentorDashboardService {
           },
           mentorName: `${task.mentor_first_name || ''} ${task.mentor_last_name || ''}`.trim() || task.mentor_email,
           mentorEmail: task.mentor_email,
+          mentorProfilePicture: task.mentor_profile_picture,
           createdAt: task.created_at,
         });
       });
@@ -1547,7 +1549,8 @@ class MentorDashboardService {
           mf.created_at,
           u.email as mentor_email,
           p.first_name as mentor_first_name,
-          p.last_name as mentor_last_name
+          p.last_name as mentor_last_name,
+          p.pfp_link as mentor_profile_picture
          FROM mentor_feedback mf
          JOIN mentor_relationships mr ON mf.relationship_id = mr.id
          JOIN users u ON mr.mentor_id = u.u_id
@@ -1570,6 +1573,7 @@ class MentorDashboardService {
           },
           mentorName: `${fb.mentor_first_name || ''} ${fb.mentor_last_name || ''}`.trim() || fb.mentor_email,
           mentorEmail: fb.mentor_email,
+          mentorProfilePicture: fb.mentor_profile_picture,
           createdAt: fb.created_at,
         });
       });
@@ -1589,6 +1593,7 @@ class MentorDashboardService {
               u.email as mentor_email,
               p.first_name as mentor_first_name,
               p.last_name as mentor_last_name,
+              p.pfp_link as mentor_profile_picture,
               CASE 
                 WHEN rc.document_type = 'resume' THEN r.name
                 WHEN rc.document_type = 'cover_letter' THEN cl.version_name
@@ -1621,6 +1626,7 @@ class MentorDashboardService {
               },
               mentorName: `${comment.mentor_first_name || ''} ${comment.mentor_last_name || ''}`.trim() || comment.mentor_email,
               mentorEmail: comment.mentor_email,
+              mentorProfilePicture: comment.mentor_profile_picture,
               createdAt: comment.created_at,
             });
           });
@@ -1640,7 +1646,8 @@ class MentorDashboardService {
             cc.title as conversation_title,
             u.email as mentor_email,
             p.first_name as mentor_first_name,
-            p.last_name as mentor_last_name
+            p.last_name as mentor_last_name,
+            p.pfp_link as mentor_profile_picture
            FROM chat_messages cm
            JOIN chat_conversations cc ON cm.conversation_id = cc.id
            JOIN users u ON cm.sender_id = u.u_id
@@ -1668,6 +1675,7 @@ class MentorDashboardService {
             },
             mentorName: `${msg.mentor_first_name || ''} ${msg.mentor_last_name || ''}`.trim() || msg.mentor_email,
             mentorEmail: msg.mentor_email,
+            mentorProfilePicture: msg.mentor_profile_picture,
             createdAt: msg.created_at,
           });
         });

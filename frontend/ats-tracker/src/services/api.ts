@@ -1704,10 +1704,63 @@ class ApiService {
     );
   }
 
-  async generateProgressReport(period?: string) {
-    const params = period ? `?period=${period}` : "";
+  async generateProgressReport(period?: string, generateAI?: boolean) {
+    const params = new URLSearchParams();
+    if (period) params.append("period", period);
+    if (generateAI) params.append("generateAI", "true");
+    const queryString = params.toString();
     return this.request<ApiResponse<{ report: any }>>(
-      `/collaboration/progress/report${params}`
+      `/collaboration/progress/report${queryString ? `?${queryString}` : ""}`
+    );
+  }
+
+  async saveProgressReport(
+    reportData: any,
+    sharedWithMentorIds: string[] = []
+  ) {
+    return this.request<ApiResponse<{ report: any }>>(
+      `/collaboration/progress/report/save`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reportData, sharedWithMentorIds }),
+      }
+    );
+  }
+
+  async shareReportWithMentor(reportId: string, mentorId: string) {
+    return this.request<
+      ApiResponse<{ success: boolean; sharedWith: string[] }>
+    >(`/collaboration/progress/report/${reportId}/share`, {
+      method: "POST",
+      body: JSON.stringify({ mentorId }),
+    });
+  }
+
+  async getUserProgressReports() {
+    return this.request<ApiResponse<{ reports: any[] }>>(
+      `/collaboration/progress/reports`
+    );
+  }
+
+  async getMenteeProgressReports() {
+    return this.request<ApiResponse<{ reports: any[] }>>(
+      `/collaboration/progress/reports/mentee`
+    );
+  }
+
+  async addReportComment(reportId: string, commentText: string) {
+    return this.request<ApiResponse<{ comment: any }>>(
+      `/collaboration/progress/report/${reportId}/comment`,
+      {
+        method: "POST",
+        body: JSON.stringify({ commentText }),
+      }
+    );
+  }
+
+  async getReportComments(reportId: string) {
+    return this.request<ApiResponse<{ comments: any[] }>>(
+      `/collaboration/progress/report/${reportId}/comments`
     );
   }
 

@@ -88,7 +88,8 @@ class TeamDashboardService {
           m.*,
           u.email as user_email,
           p.first_name,
-          p.last_name
+          p.last_name,
+          p.pfp_link as user_profile_picture
          FROM milestones m
          JOIN users u ON m.user_id = u.u_id
          LEFT JOIN profiles p ON u.u_id = p.user_id
@@ -114,15 +115,32 @@ class TeamDashboardService {
 
       // Get activity feed (last 20 milestone-related activities only)
       // Focus on: interviews scheduled, skills/certifications added, experience added, milestones achieved
+      // For milestone_achieved activities, join with milestones table to get full milestone data
       const activityFeed = await database.query(
         `SELECT 
           al.*,
           u.email as user_email,
           p.first_name,
-          p.last_name
+          p.last_name,
+          p.pfp_link as user_profile_picture,
+          m.id as milestone_id,
+          m.milestone_title,
+          m.milestone_description,
+          m.milestone_data,
+          m.achieved_at as milestone_achieved_at
          FROM activity_logs al
          JOIN users u ON al.user_id = u.u_id
          LEFT JOIN profiles p ON u.u_id = p.user_id
+         LEFT JOIN milestones m ON al.activity_type = 'milestone_achieved' 
+           AND (
+             (al.activity_data->>'milestone_id')::uuid = m.id
+             OR (
+               al.activity_data->>'milestone_title' = m.milestone_title
+               AND al.user_id = m.user_id
+               AND m.team_id = $1
+               AND ABS(EXTRACT(EPOCH FROM (al.created_at - m.achieved_at))) < 60
+             )
+           )
          WHERE al.team_id = $1
            AND al.activity_type IN (
              'interview_scheduled',
@@ -176,7 +194,8 @@ class TeamDashboardService {
           userEmail: row.user_email,
           userName: row.first_name && row.last_name
             ? `${row.first_name} ${row.last_name}`.trim()
-            : row.user_email
+            : row.user_email,
+          userProfilePicture: row.user_profile_picture
         })),
         collaboration: {
           ...collaborationMetrics.rows[0],
@@ -192,7 +211,22 @@ class TeamDashboardService {
           userEmail: row.user_email,
           userName: row.first_name && row.last_name
             ? `${row.first_name} ${row.last_name}`.trim()
-            : row.user_email
+            : row.user_email,
+          userProfilePicture: row.user_profile_picture,
+          // Include milestone data if this is a milestone_achieved activity
+          milestone: row.milestone_id ? {
+            id: row.milestone_id,
+            milestoneTitle: row.milestone_title,
+            milestoneDescription: row.milestone_description,
+            milestoneData: typeof row.milestone_data === "string"
+              ? JSON.parse(row.milestone_data)
+              : row.milestone_data || {},
+            achievedAt: row.milestone_achieved_at,
+            userName: row.first_name && row.last_name
+              ? `${row.first_name} ${row.last_name}`.trim()
+              : row.user_email,
+            userProfilePicture: row.user_profile_picture
+          } : null
         })),
         userRole: member.rows[0].role,
         userPermissions: permissions

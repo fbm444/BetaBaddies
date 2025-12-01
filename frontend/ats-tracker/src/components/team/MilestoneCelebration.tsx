@@ -73,36 +73,49 @@ export function MilestoneCelebration({
   const getMilestoneIcon = (milestone: any) => {
     const type = milestone.type || "";
     const category = milestone.category || "";
+    const title = milestone.title || "";
 
-    // Type-specific icons
-    if (type.includes("application")) {
-      return "mingcute:file-edit-line";
+    // Type-specific icons (check both type and title)
+    // Check for "resume_optimized" or "optimized" BEFORE general resume check
+    if (type === "resume_optimized" || 
+        (type.includes("optimized") && type.includes("resume")) ||
+        (title.toLowerCase().includes("optimized") && title.toLowerCase().includes("resume"))) {
+      return "mingcute:magic-line";
     }
-    if (type.includes("interview")) {
-      return "mingcute:calendar-event-line";
+    if (type.includes("application") || title.toLowerCase().includes("application")) {
+      return "mingcute:file-line";
     }
-    if (type.includes("offer")) {
+    if (type.includes("phone_screen") || title.toLowerCase().includes("phone screen")) {
+      return "mingcute:phone-line";
+    }
+    if (type.includes("technical") || title.toLowerCase().includes("technical")) {
+      return "mingcute:code-line";
+    }
+    if (type.includes("interview") || title.toLowerCase().includes("interview")) {
+      return "mingcute:calendar-line";
+    }
+    if (type.includes("offer") || title.toLowerCase().includes("offer")) {
       return "mingcute:gift-line";
     }
-    if (type.includes("resume")) {
+    if (type.includes("resume") || title.toLowerCase().includes("resume")) {
       return "mingcute:file-document-line";
     }
-    if (type.includes("cover_letter")) {
+    if (type.includes("cover_letter") || title.toLowerCase().includes("cover letter")) {
       return "mingcute:mail-line";
     }
-    if (type.includes("network")) {
+    if (type.includes("network") || title.toLowerCase().includes("network")) {
       return "mingcute:user-3-line";
     }
-    if (type.includes("skill") || type.includes("certification")) {
+    if (type.includes("skill") || type.includes("certification") || title.toLowerCase().includes("skill") || title.toLowerCase().includes("certification")) {
       return "mingcute:certificate-line";
     }
 
     // Category-based fallback
     switch (category) {
       case "application":
-        return "mingcute:file-edit-line";
+        return "mingcute:file-line";
       case "interview":
-        return "mingcute:calendar-event-line";
+        return "mingcute:calendar-line";
       case "offer":
         return "mingcute:gift-line";
       case "preparation":

@@ -483,12 +483,106 @@ class CollaborationController {
    */
   generateProgressReport = asyncHandler(async (req, res) => {
     const userId = req.session.userId;
-    const { period } = req.query;
-    const report = await progressShareService.generateProgressReport(userId, period || "week");
+    const { period, generateAI } = req.query;
+    const report = await progressShareService.generateProgressReport(
+      userId, 
+      period || "week",
+      generateAI === "true"
+    );
 
     res.status(200).json({
       ok: true,
       data: { report },
+    });
+  });
+
+  /**
+   * POST /api/collaboration/progress/report/save
+   * Save progress report to database
+   */
+  saveProgressReport = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { reportData, sharedWithMentorIds = [] } = req.body;
+    const saved = await progressShareService.saveProgressReport(userId, reportData, sharedWithMentorIds);
+
+    res.status(201).json({
+      ok: true,
+      data: { report: saved },
+    });
+  });
+
+  /**
+   * POST /api/collaboration/progress/report/:reportId/share
+   * Share progress report with mentor
+   */
+  shareReportWithMentor = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { reportId } = req.params;
+    const { mentorId } = req.body;
+    const result = await progressShareService.shareReportWithMentor(reportId, userId, mentorId);
+
+    res.status(200).json({
+      ok: true,
+      data: result,
+    });
+  });
+
+  /**
+   * GET /api/collaboration/progress/reports
+   * Get user's saved progress reports
+   */
+  getUserProgressReports = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const reports = await progressShareService.getUserProgressReports(userId);
+
+    res.status(200).json({
+      ok: true,
+      data: { reports },
+    });
+  });
+
+  /**
+   * GET /api/collaboration/progress/reports/mentee
+   * Get progress reports from mentees (for mentors)
+   */
+  getMenteeProgressReports = asyncHandler(async (req, res) => {
+    const mentorId = req.session.userId;
+    const reports = await progressShareService.getMenteeProgressReports(mentorId);
+
+    res.status(200).json({
+      ok: true,
+      data: { reports },
+    });
+  });
+
+  /**
+   * POST /api/collaboration/progress/report/:reportId/comment
+   * Add comment to progress report
+   */
+  addReportComment = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { reportId } = req.params;
+    const { commentText } = req.body;
+    const comment = await progressShareService.addReportComment(reportId, userId, commentText);
+
+    res.status(201).json({
+      ok: true,
+      data: { comment },
+    });
+  });
+
+  /**
+   * GET /api/collaboration/progress/report/:reportId/comments
+   * Get comments for a progress report
+   */
+  getReportComments = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { reportId } = req.params;
+    const comments = await progressShareService.getReportComments(reportId, userId);
+
+    res.status(200).json({
+      ok: true,
+      data: { comments },
     });
   });
 

@@ -49,12 +49,19 @@ export function Interviews() {
     generatedBy?: string;
   } | null>(null);
   const [draftLoadingId, setDraftLoadingId] = useState<string | null>(null);
-  // Store generated drafts by follow-up ID
-  const [storedFollowUpDrafts, setStoredFollowUpDrafts] = useState<Map<string, {
-    subject: string;
-    body: string;
-    generatedBy?: string;
-  }>>(new Map());
+  // Store generated drafts history by follow-up ID (latest first)
+  const [storedFollowUpDrafts, setStoredFollowUpDrafts] = useState<
+    Map<
+      string,
+      Array<{
+        subject: string;
+        body: string;
+        generatedBy?: string;
+        createdAt: string;
+      }>
+    >
+  >(new Map());
+  const [showAllFollowUpDrafts, setShowAllFollowUpDrafts] = useState<Map<string, boolean>>(new Map());
 
   // Thank-you notes modal state
   const [activeThankYouInterview, setActiveThankYouInterview] = useState<InterviewData | null>(null);
@@ -1204,27 +1211,27 @@ export function Interviews() {
                 <>
                   {/* Pending Follow-ups Section */}
                   {pendingFollowUps.length === 0 && completedFollowUps.length === 0 ? (
-                    <div className="text-center py-12 bg-slate-50 rounded-xl">
-                      <Icon icon="mingcute:task-line" width={48} className="text-slate-400 mx-auto mb-4" />
+                <div className="text-center py-12 bg-slate-50 rounded-xl">
+                  <Icon icon="mingcute:task-line" width={48} className="text-slate-400 mx-auto mb-4" />
                       <p className="text-slate-600">No follow-up actions</p>
-                      <p className="text-slate-500 text-sm mt-2">
-                        Follow-up actions are automatically created after interviews are completed
-                      </p>
-                    </div>
-                  ) : (
+                  <p className="text-slate-500 text-sm mt-2">
+                    Follow-up actions are automatically created after interviews are completed
+                  </p>
+                </div>
+              ) : (
                     <>
                       {/* Pending Section */}
                       {pendingFollowUps.length > 0 && (
                         <div className="mb-8">
                           <h3 className="text-lg font-semibold text-slate-900 mb-4">Pending Actions</h3>
-                          <div className="space-y-4">
-                            {pendingFollowUps.map((followUp) => (
-                              <div
-                                key={followUp.id}
-                                className="bg-white border border-slate-200 rounded-xl p-6 hover:shadow-md transition-shadow"
-                              >
-                                <div className="flex items-start justify-between">
-                                  <div className="flex-1">
+                <div className="space-y-4">
+                  {pendingFollowUps.map((followUp) => (
+                    <div
+                      key={followUp.id}
+                      className="bg-white border border-slate-200 rounded-xl p-6 hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
                                     {/* Interview Context - Position, Company, Date */}
                                     {(followUp.interview?.jobTitle || followUp.interview?.company || followUp.interview?.scheduledAt) && (
                                       <div className="mb-4 pb-4 border-b border-slate-200">
@@ -1262,35 +1269,36 @@ export function Interviews() {
                                     )}
                                     
                                     {/* Action Type */}
-                                    <div className="flex items-center gap-3 mb-2">
-                                      <Icon icon="mingcute:task-line" width={20} className="text-blue-500" />
-                                      <h3 className="font-semibold text-slate-900 capitalize">
+                          <div className="flex items-center gap-3 mb-2">
+                            <Icon icon="mingcute:task-line" width={20} className="text-blue-500" />
+                            <h3 className="font-semibold text-slate-900 capitalize">
                                         {followUp.action_type?.replace(/_/g, " ") || followUp.actionType?.replace(/_/g, " ")}
-                                      </h3>
-                                    </div>
+                            </h3>
+                          </div>
                                     {(followUp.due_date || followUp.dueDate) && (
-                                      <p className="text-slate-600 mb-2">
+                            <p className="text-slate-600 mb-2">
                                         <strong>Due:</strong> {formatDate(followUp.due_date || followUp.dueDate)}
-                                      </p>
-                                    )}
-                                    {followUp.notes && (
-                                      <p className="text-slate-600">{followUp.notes}</p>
-                                    )}
-                                  </div>
+                            </p>
+                          )}
+                          {followUp.notes && (
+                            <p className="text-slate-600">{followUp.notes}</p>
+                          )}
+                        </div>
                                   <div className="flex flex-col items-end gap-2">
-                                    {storedFollowUpDrafts.has(followUp.id) ? (
+                                    {storedFollowUpDrafts.has(followUp.id) && storedFollowUpDrafts.get(followUp.id)!.length > 0 ? (
                                       <>
                                         <button
                                           onClick={() => {
-                                            const draft = storedFollowUpDrafts.get(followUp.id);
-                                            if (draft) {
+                                            const drafts = storedFollowUpDrafts.get(followUp.id);
+                                            if (drafts && drafts.length > 0) {
+                                              const latestDraft = drafts[0]; // Latest is first in array
                                               const interviewId = followUp.interviewId || followUp.interview_id;
                                               setActiveFollowUpDraft({
                                                 id: followUp.id,
                                                 interviewId,
-                                                subject: draft.subject,
-                                                body: draft.body,
-                                                generatedBy: draft.generatedBy,
+                                                subject: latestDraft.subject,
+                                                body: latestDraft.body,
+                                                generatedBy: latestDraft.generatedBy,
                                               });
                                             }
                                           }}
@@ -1298,9 +1306,9 @@ export function Interviews() {
                                         >
                                           View Draft
                                         </button>
-                                        <button
-                                          onClick={async () => {
-                                            try {
+                        <button
+                          onClick={async () => {
+                            try {
                                               setDraftLoadingId(followUp.id);
                                               const interviewId = followUp.interviewId || followUp.interview_id;
                                               const response = await api.getFollowUpEmailDraft(
@@ -1310,13 +1318,18 @@ export function Interviews() {
                                               if (response.ok && response.data?.draft) {
                                                 const draft = response.data.draft;
                                                 // Store the draft
-                                                setStoredFollowUpDrafts(prev => {
+                                                setStoredFollowUpDrafts((prev) => {
                                                   const updated = new Map(prev);
-                                                  updated.set(followUp.id, {
-                                                    subject: draft.subject,
-                                                    body: draft.body,
-                                                    generatedBy: draft.generatedBy,
-                                                  });
+                                                  const existing = updated.get(followUp.id) || [];
+                                                  updated.set(followUp.id, [
+                                                    {
+                                                      subject: draft.subject,
+                                                      body: draft.body,
+                                                      generatedBy: draft.generatedBy,
+                                                      createdAt: new Date().toISOString(),
+                                                    },
+                                                    ...existing,
+                                                  ]);
                                                   return updated;
                                                 });
                                                 // Show it in modal
@@ -1357,13 +1370,18 @@ export function Interviews() {
                                             if (response.ok && response.data?.draft) {
                                               const draft = response.data.draft;
                                               // Store the draft
-                                              setStoredFollowUpDrafts(prev => {
+                                              setStoredFollowUpDrafts((prev) => {
                                                 const updated = new Map(prev);
-                                                updated.set(followUp.id, {
-                                                  subject: draft.subject,
-                                                  body: draft.body,
-                                                  generatedBy: draft.generatedBy,
-                                                });
+                                                const existing = updated.get(followUp.id) || [];
+                                                updated.set(followUp.id, [
+                                                  {
+                                                    subject: draft.subject,
+                                                    body: draft.body,
+                                                    generatedBy: draft.generatedBy,
+                                                    createdAt: new Date().toISOString(),
+                                                  },
+                                                  ...existing,
+                                                ]);
                                                 return updated;
                                               });
                                               // Show it in modal
@@ -1395,23 +1413,23 @@ export function Interviews() {
                                       onClick={async () => {
                                         try {
                                           const interviewId = followUp.interviewId || followUp.interview_id;
-                                          await api.completeFollowUpAction(interviewId, followUp.id);
-                                          showMessage("Follow-up action completed!", "success");
-                                          fetchPendingFollowUps();
-                                        } catch (err: any) {
-                                          showMessage(err.message || "Failed to complete action", "error");
-                                        }
-                                      }}
-                                      className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm font-medium"
-                                    >
-                                      Mark Complete
-                                    </button>
+                              await api.completeFollowUpAction(interviewId, followUp.id);
+                              showMessage("Follow-up action completed!", "success");
+                              fetchPendingFollowUps();
+                            } catch (err: any) {
+                              showMessage(err.message || "Failed to complete action", "error");
+                            }
+                          }}
+                          className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm font-medium"
+                        >
+                          Mark Complete
+                        </button>
                                   </div>
-                                </div>
-                              </div>
-                            ))}
+                      </div>
+                    </div>
+                  ))}
                           </div>
-                        </div>
+                </div>
                       )}
 
                       {/* Completed Follow-ups Section */}
@@ -1500,31 +1518,95 @@ export function Interviews() {
               </div>
 
               <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-medium text-slate-500 mb-1">
-                    Subject
-                  </label>
-                  <input
-                    type="text"
-                    readOnly
-                    value={activeFollowUpDraft.subject}
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-500 mb-1">
-                    Body
-                  </label>
-                  <textarea
-                    readOnly
-                    rows={8}
-                    value={activeFollowUpDraft.body}
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 font-mono whitespace-pre-wrap"
-                  />
-                </div>
-                <p className="text-xs text-slate-500">
-                  You can copy this draft into your email client and edit as needed before sending.
-                </p>
+                {(() => {
+                  const drafts = storedFollowUpDrafts.get(activeFollowUpDraft.id) || [];
+                  const showAll = showAllFollowUpDrafts.get(activeFollowUpDraft.id) || false;
+                  return (
+                    <>
+                      {drafts.length > 0 && (
+                        <div className="mb-4">
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="block text-xs font-medium text-slate-500">
+                              Latest Draft
+                            </label>
+                            {drafts.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setShowAllFollowUpDrafts((prev) => {
+                                    const updated = new Map(prev);
+                                    updated.set(activeFollowUpDraft.id, !showAll);
+                                    return updated;
+                                  });
+                                }}
+                                className="text-xs text-blue-600 hover:text-blue-700 underline"
+                              >
+                                {showAll
+                                  ? "Hide previous drafts"
+                                  : `View previous drafts (${drafts.length - 1})`}
+                              </button>
+                            )}
+                          </div>
+                          {showAll && drafts.length > 1 && (
+                            <div className="mb-4 max-h-48 overflow-y-auto border border-slate-200 rounded-lg p-2 bg-slate-50">
+                              {drafts.slice(1).map((draft, idx) => (
+                                <div
+                                  key={idx}
+                                  onClick={() => {
+                                    setActiveFollowUpDraft({
+                                      ...activeFollowUpDraft,
+                                      subject: draft.subject,
+                                      body: draft.body,
+                                      generatedBy: draft.generatedBy,
+                                    });
+                                    setShowAllFollowUpDrafts((prev) => {
+                                      const updated = new Map(prev);
+                                      updated.set(activeFollowUpDraft.id, false);
+                                      return updated;
+                                    });
+                                  }}
+                                  className="p-2 mb-2 bg-white rounded border border-slate-200 cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition-colors"
+                                >
+                                  <div className="text-xs font-medium text-slate-700 mb-1 truncate">
+                                    {draft.subject}
+                                  </div>
+                                  <div className="text-xs text-slate-500">
+                                    {new Date(draft.createdAt).toLocaleString()}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      <div>
+                        <label className="block text-xs font-medium text-slate-500 mb-1">
+                          Subject
+                        </label>
+                        <input
+                          type="text"
+                          readOnly
+                          value={activeFollowUpDraft.subject}
+                          className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-500 mb-1">
+                          Body
+                        </label>
+                        <textarea
+                          readOnly
+                          rows={8}
+                          value={activeFollowUpDraft.body}
+                          className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 font-mono whitespace-pre-wrap"
+                        />
+                      </div>
+                      <p className="text-xs text-slate-500">
+                        You can copy this draft into your email client and edit as needed before sending.
+                      </p>
+                    </>
+                  );
+                })()}
               </div>
 
               <div className="mt-4 flex justify-end">
@@ -1537,7 +1619,7 @@ export function Interviews() {
               </div>
             </div>
           </div>
-        )}
+              )}
             </div>
           )}
 

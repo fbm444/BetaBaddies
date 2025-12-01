@@ -65,6 +65,8 @@ export function SalaryNegotiation() {
   useEffect(() => {
     fetchNegotiations();
     fetchJobOpportunities();
+    // Always fetch progression data on mount so employment data is available
+    fetchProgression();
   }, []);
 
   const fetchJobOpportunities = async () => {

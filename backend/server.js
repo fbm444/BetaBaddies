@@ -26,6 +26,7 @@ import analyticsRoutes from "./routes/analyticsRoutes.js";
 import goalRoutes from "./routes/goalRoutes.js";
 import marketIntelligenceRoutes from "./routes/marketIntelligenceRoutes.js";
 import timeLogRoutes from "./routes/timeLogRoutes.js";
+import competitiveAnalysisRoutes from "./routes/competitiveAnalysisRoutes.js";
 
 // Import middleware
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
@@ -136,6 +137,7 @@ app.use("/api/v1/analytics", analyticsRoutes);
 app.use("/api/v1/goals", goalRoutes);
 app.use("/api/v1/market-intelligence", marketIntelligenceRoutes);
 app.use("/api/v1/time-logs", timeLogRoutes);
+app.use("/api/v1/competitive-analysis", competitiveAnalysisRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

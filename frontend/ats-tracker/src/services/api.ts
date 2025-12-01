@@ -1277,6 +1277,11 @@ class ApiService {
   async getGoalAnalytics() {
     return this.request<ApiResponse<{ analytics: GoalAnalytics }>>("/goals/analytics");
   }
+
+  // Competitive Analysis
+  async getCompetitiveAnalysis() {
+    return this.request<ApiResponse<{ analysis: any }>>("/competitive-analysis");
+  }
 }
 
 export const api = new ApiService();

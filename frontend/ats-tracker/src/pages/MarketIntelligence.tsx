@@ -2,15 +2,53 @@ import { useState, useEffect } from 'react';
 import { Icon } from '@iconify/react';
 import { marketIntelligenceService, MarketOverview } from '../services/marketIntelligenceService';
 
+interface CompetitiveAnalysis {
+  peerBenchmarking: {
+    userApplicationsPerWeek: number;
+    peerAverage: string;
+    topPerformers: string;
+    insight: string;
+  };
+  skillGaps: Array<{
+    skill: string;
+    importance: string;
+    currentLevel: number;
+    targetLevel: number;
+  }>;
+  marketPositioning: {
+    competitivenessScore: number;
+    level: string;
+    strengths: string[];
+    insights: string[];
+  };
+  differentiation: {
+    uniqueValueProposition: string;
+    competitiveAdvantages: string[];
+  };
+  recommendations: {
+    quickWins: string[];
+    strategicMoves: string[];
+    longTermEdge: string[];
+  };
+  successPatterns: {
+    avgTimeToOffer: string;
+    nextCareerStep: string;
+    typicalProgression: string;
+  };
+}
+
 export function MarketIntelligence() {
   const [overview, setOverview] = useState<MarketOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [generatingInsights, setGeneratingInsights] = useState(false);
   const [refreshingCache, setRefreshingCache] = useState(false);
+  const [competitiveAnalysis, setCompetitiveAnalysis] = useState<CompetitiveAnalysis | null>(null);
+  const [analysisProgress, setAnalysisProgress] = useState('Initializing...');
 
   useEffect(() => {
     fetchMarketOverview();
+    handleGenerateCompetitiveAnalysis();
   }, []);
 
   const fetchMarketOverview = async () => {
@@ -62,6 +100,47 @@ export function MarketIntelligence() {
       setError(err.response?.data?.error || 'Failed to refresh market data');
     } finally {
       setRefreshingCache(false);
+    }
+  };
+
+  const handleGenerateCompetitiveAnalysis = async () => {
+    try {
+      const messages = [
+        'Gathering your profile data...',
+        'Analyzing your skills and experience...',
+        'Comparing with industry benchmarks...',
+        'Consulting AI for competitive insights...',
+        'Identifying skill gaps and opportunities...',
+        'Generating personalized recommendations...',
+        'Finalizing competitive analysis...',
+      ];
+      
+      let messageIndex = 0;
+      setAnalysisProgress(messages[0]);
+      
+      // Update progress message every 2 seconds
+      const progressTimer = setInterval(() => {
+        messageIndex = (messageIndex + 1) % messages.length;
+        setAnalysisProgress(messages[messageIndex]);
+      }, 2000);
+
+      const response = await fetch('/api/v1/competitive-analysis', {
+        method: 'GET',
+        credentials: 'include',
+      });
+      
+      clearInterval(progressTimer);
+      
+      const data = await response.json();
+      if (data.ok && data.data?.analysis) {
+        setAnalysisProgress('Complete!');
+        setCompetitiveAnalysis(data.data.analysis);
+      } else {
+        setError('Failed to generate competitive analysis');
+      }
+    } catch (err: any) {
+      console.error('Error generating competitive analysis:', err);
+      setError('Failed to generate competitive analysis. Please try refreshing the page.');
     }
   };
 
@@ -439,6 +518,238 @@ export function MarketIntelligence() {
                 );
               })}
             </div>
+          )}
+        </div>
+
+        {/* AI-Powered Competitive Analysis */}
+        <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-lg shadow-sm p-6 border-2 border-purple-200">
+          <div className="flex items-center gap-3 mb-4">
+            <Icon icon="mingcute:sparkles-line" className="w-7 h-7 text-purple-600" />
+            <h2 className="text-xl font-bold text-gray-900">AI Competitive Analysis</h2>
+          </div>
+          
+          <p className="text-sm text-gray-700 mb-6">
+            Understand your competitive position in the job market compared to similar professionals
+          </p>
+
+          {!competitiveAnalysis ? (
+            <div className="text-center py-12">
+              <Icon icon="mingcute:loading-line" className="w-16 h-16 mx-auto mb-4 text-purple-600 animate-spin" />
+              <p className="text-lg font-semibold text-gray-900 mb-2">
+                Generating AI-powered competitive analysis...
+              </p>
+              <p className="text-sm text-purple-600 mb-4">
+                {analysisProgress}
+              </p>
+              <div className="max-w-md mx-auto bg-purple-50 rounded-lg p-4 mt-6">
+                <p className="text-xs text-gray-600">
+                  <Icon icon="mingcute:information-line" className="w-4 h-4 inline mr-1" />
+                  This typically takes 10-15 seconds as we analyze your profile with AI
+                </p>
+              </div>
+            </div>
+          ) : (
+            <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Peer Benchmarking */}
+            <div className="bg-white rounded-lg p-5 shadow-sm">
+              <div className="flex items-center gap-2 mb-3">
+                <Icon icon="mingcute:group-line" className="w-5 h-5 text-blue-600" />
+                <h3 className="font-semibold text-gray-900">Peer Benchmarking</h3>
+              </div>
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Your Applications/Week</span>
+                  <span className="font-semibold text-gray-900">
+                    {competitiveAnalysis.peerBenchmarking.userApplicationsPerWeek}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Peer Average</span>
+                  <span className="font-semibold text-blue-600">{competitiveAnalysis.peerBenchmarking.peerAverage}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Top Performers</span>
+                  <span className="font-semibold text-green-600">{competitiveAnalysis.peerBenchmarking.topPerformers}</span>
+                </div>
+                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                  <p className="text-xs text-blue-900">
+                    <Icon icon="mingcute:lightbulb-line" className="w-4 h-4 inline mr-1" />
+                    {competitiveAnalysis.peerBenchmarking.insight}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Skill Gap vs Top Performers */}
+            <div className="bg-white rounded-lg p-5 shadow-sm">
+              <div className="flex items-center gap-2 mb-3">
+                <Icon icon="mingcute:chart-bar-line" className="w-5 h-5 text-purple-600" />
+                <h3 className="font-semibold text-gray-900">Skill Gap Analysis</h3>
+              </div>
+              <div className="space-y-3">
+                {competitiveAnalysis.skillGaps.slice(0, 3).map((skillGap, idx) => (
+                  <div key={idx}>
+                    <div className="flex justify-between items-center text-sm mb-1">
+                      <span className="font-medium text-gray-700">{skillGap.skill}</span>
+                      <span className="text-xs text-gray-500">{skillGap.importance}</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-purple-600 h-2 rounded-full"
+                        style={{ width: `${(skillGap.currentLevel / skillGap.targetLevel) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+                <div className="mt-4 p-3 bg-purple-50 rounded-lg">
+                  <p className="text-xs text-purple-900">
+                    <Icon icon="mingcute:trophy-line" className="w-4 h-4 inline mr-1" />
+                    Adding these skills could place you in the top 25% of candidates.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Market Positioning */}
+            <div className="bg-white rounded-lg p-5 shadow-sm">
+              <div className="flex items-center gap-2 mb-3">
+                <Icon icon="mingcute:target-line" className="w-5 h-5 text-green-600" />
+                <h3 className="font-semibold text-gray-900">Competitive Position</h3>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <div className="flex justify-between mb-2">
+                    <span className="text-sm text-gray-600">Market Competitiveness</span>
+                    <span className={`text-sm font-semibold ${
+                      competitiveAnalysis.marketPositioning.level === 'Strong' ? 'text-green-600' :
+                      competitiveAnalysis.marketPositioning.level === 'Moderate' ? 'text-yellow-600' :
+                      'text-red-600'
+                    }`}>{competitiveAnalysis.marketPositioning.level}</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-3">
+                    <div className={`h-3 rounded-full ${
+                      competitiveAnalysis.marketPositioning.competitivenessScore > 70 ? 'bg-green-500' :
+                      competitiveAnalysis.marketPositioning.competitivenessScore > 40 ? 'bg-yellow-500' :
+                      'bg-red-500'
+                    }`} style={{ width: `${competitiveAnalysis.marketPositioning.competitivenessScore}%` }}></div>
+                  </div>
+                </div>
+                <div className="space-y-2 text-sm">
+                  {competitiveAnalysis.marketPositioning.strengths.map((strength, idx) => (
+                    <div key={idx} className="flex items-start gap-2">
+                      <Icon icon="mingcute:check-circle-fill" className="w-4 h-4 text-green-500 mt-0.5" />
+                      <span className="text-gray-700">{strength}</span>
+                    </div>
+                  ))}
+                  {competitiveAnalysis.marketPositioning.insights.map((insight, idx) => (
+                    <div key={idx} className="flex items-start gap-2">
+                      <Icon icon="mingcute:information-fill" className="w-4 h-4 text-blue-500 mt-0.5" />
+                      <span className="text-gray-700">{insight}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Differentiation Strategy */}
+            <div className="bg-white rounded-lg p-5 shadow-sm">
+              <div className="flex items-center gap-2 mb-3">
+                <Icon icon="mingcute:star-line" className="w-5 h-5 text-amber-600" />
+                <h3 className="font-semibold text-gray-900">Differentiation Strategy</h3>
+              </div>
+              <div className="space-y-3 text-sm">
+                <div className="p-3 bg-amber-50 rounded-lg border-l-4 border-amber-400">
+                  <p className="font-semibold text-amber-900 mb-1">Unique Value Proposition</p>
+                  <p className="text-amber-800">
+                    {competitiveAnalysis.differentiation.uniqueValueProposition}
+                  </p>
+                </div>
+                <div>
+                  <p className="font-medium text-gray-700 mb-2">Competitive Advantages:</p>
+                  <ul className="space-y-1 ml-4">
+                    {competitiveAnalysis.differentiation.competitiveAdvantages.map((advantage, idx) => (
+                      <li key={idx} className="text-gray-600">• {advantage}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 bg-white rounded-lg p-5 shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <Icon icon="mingcute:magic-line" className="w-5 h-5 text-purple-600" />
+              <h3 className="font-semibold text-gray-900">AI-Powered Recommendations</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <Icon icon="mingcute:rocket-line" className="w-5 h-5 text-purple-600" />
+                  <span className="font-semibold text-purple-900">Quick Wins</span>
+                </div>
+                <ul className="text-sm text-purple-800 space-y-1">
+                  {competitiveAnalysis.recommendations.quickWins.map((item, idx) => (
+                    <li key={idx}>• {item}</li>
+                  ))}
+                </ul>
+              </div>
+              
+              <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <Icon icon="mingcute:compass-line" className="w-5 h-5 text-blue-600" />
+                  <span className="font-semibold text-blue-900">Strategic Moves</span>
+                </div>
+                <ul className="text-sm text-blue-800 space-y-1">
+                  {competitiveAnalysis.recommendations.strategicMoves.map((item, idx) => (
+                    <li key={idx}>• {item}</li>
+                  ))}
+                </ul>
+              </div>
+              
+              <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <Icon icon="mingcute:trophy-line" className="w-5 h-5 text-green-600" />
+                  <span className="font-semibold text-green-900">Long-term Edge</span>
+                </div>
+                <ul className="text-sm text-green-800 space-y-1">
+                  {competitiveAnalysis.recommendations.longTermEdge.map((item, idx) => (
+                    <li key={idx}>• {item}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* Success Pattern Analysis */}
+          <div className="mt-6 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg p-5 border border-purple-200">
+            <div className="flex items-center gap-2 mb-3">
+              <Icon icon="mingcute:chart-line-line" className="w-5 h-5 text-indigo-600" />
+              <h3 className="font-semibold text-gray-900">Success Pattern Analysis</h3>
+            </div>
+            <p className="text-sm text-gray-700 mb-4">
+              Based on successful career progressions in {overview.profile.industry}:
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div className="flex items-start gap-3">
+                <Icon icon="mingcute:time-line" className="w-5 h-5 text-indigo-600 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-gray-900">Average Time to Offer</p>
+                  <p className="text-gray-600">Similar professionals: <strong>{competitiveAnalysis.successPatterns.avgTimeToOffer}</strong></p>
+                  <p className="text-xs text-gray-500 mt-1">{competitiveAnalysis.successPatterns.typicalProgression}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <Icon icon="mingcute:footprint-line" className="w-5 h-5 text-indigo-600 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-gray-900">Common Career Path</p>
+                  <p className="text-gray-600">Next step: <strong>{competitiveAnalysis.successPatterns.nextCareerStep}</strong></p>
+                  <p className="text-xs text-gray-500 mt-1">Based on career progression patterns</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          </>
           )}
         </div>
       </div>

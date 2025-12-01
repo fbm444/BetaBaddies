@@ -14,13 +14,14 @@ import type {
   JobOpportunityData,
   InterviewAnalytics,
 } from "../types";
+import { InterviewPredictionTab } from "../components/interviews/InterviewPredictionTab";
 import {
   INTERVIEW_STATUSES,
   INTERVIEW_STATUS_LABELS,
   INTERVIEW_STATUS_COLORS,
 } from "../types/interview.types";
 
-type TabType = "schedule" | "preparation" | "reminders" | "thank-you" | "follow-ups" | "calendar" | "analytics";
+type TabType = "schedule" | "preparation" | "reminders" | "thank-you" | "follow-ups" | "calendar" | "analytics" | "predictions";
 
 export function Interviews() {
   const navigate = useNavigate();
@@ -465,6 +466,7 @@ export function Interviews() {
     { id: "follow-ups", label: "Follow-ups", icon: "mingcute:task-line" },
     { id: "calendar", label: "Calendar", icon: "mingcute:calendar-check-line" },
     { id: "analytics", label: "Analytics", icon: "mingcute:chart-line" },
+    { id: "predictions", label: "Predictions", icon: "mingcute:target-line" },
   ];
 
   return (
@@ -2091,6 +2093,13 @@ export function Interviews() {
                 </div>
               )}
             </div>
+          )}
+
+          {activeTab === "predictions" && (
+            <InterviewPredictionTab
+              jobOpportunities={jobOpportunities}
+              interviews={interviews}
+            />
           )}
         </div>
       </main>

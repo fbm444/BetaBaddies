@@ -51,6 +51,21 @@ import {
   TimingStrategy,
   MarketSalaryData,
   SalaryProgressionEntry,
+  WritingPracticeSession,
+  WritingPracticeSessionInput,
+  WritingPracticeSessionUpdate,
+  WritingFeedback,
+  WritingPrompt,
+  ProgressMetrics,
+  ProgressTrend,
+  ProgressInsights,
+  NervesExercise,
+  CompletedNervesExercise,
+  PreparationChecklist,
+  SessionComparison,
+  SessionStats,
+  CustomPromptInput,
+  CompleteExerciseInput,
 } from "../types";
 
 // In development, use proxy (relative path). In production, use env variable or full URL
@@ -1388,6 +1403,205 @@ class ApiService {
       method: "POST",
       body: JSON.stringify(data),
     });
+  }
+
+  // ============================================
+  // Writing Practice API Methods
+  // ============================================
+
+  // Practice Sessions
+  async createWritingSession(data: WritingPracticeSessionInput) {
+    return this.request<
+      ApiResponse<{ session: WritingPracticeSession; message: string }>
+    >("/writing-practice/sessions", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getWritingSessions(filters?: {
+    sessionType?: string;
+    isCompleted?: boolean;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    orderDirection?: string;
+  }) {
+    const params = new URLSearchParams();
+    if (filters?.sessionType) params.append("sessionType", filters.sessionType);
+    if (filters?.isCompleted !== undefined) params.append("isCompleted", filters.isCompleted.toString());
+    if (filters?.limit) params.append("limit", filters.limit.toString());
+    if (filters?.offset) params.append("offset", filters.offset.toString());
+    if (filters?.orderBy) params.append("orderBy", filters.orderBy);
+    if (filters?.orderDirection) params.append("orderDirection", filters.orderDirection);
+
+    const query = params.toString() ? `?${params.toString()}` : "";
+    return this.request<
+      ApiResponse<{ sessions: WritingPracticeSession[] }>
+    >(`/writing-practice/sessions${query}`);
+  }
+
+  async getWritingSessionById(id: string) {
+    return this.request<
+      ApiResponse<{ session: WritingPracticeSession }>
+    >(`/writing-practice/sessions/${id}`);
+  }
+
+  async updateWritingSession(id: string, data: WritingPracticeSessionUpdate) {
+    return this.request<
+      ApiResponse<{ session: WritingPracticeSession; message: string }>
+    >(`/writing-practice/sessions/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteWritingSession(id: string) {
+    return this.request<
+      ApiResponse<{ message: string }>
+    >(`/writing-practice/sessions/${id}`, {
+      method: "DELETE",
+    });
+  }
+
+  async getWritingSessionStats(id: string, dateRange?: { startDate?: string; endDate?: string }) {
+    const params = new URLSearchParams();
+    if (dateRange?.startDate) params.append("startDate", dateRange.startDate);
+    if (dateRange?.endDate) params.append("endDate", dateRange.endDate);
+    const query = params.toString() ? `?${params.toString()}` : "";
+    return this.request<
+      ApiResponse<{ stats: SessionStats }>
+    >(`/writing-practice/sessions/${id}/stats${query}`);
+  }
+
+  // Feedback
+  async generateWritingFeedback(id: string, forceRegenerate?: boolean) {
+    return this.request<
+      ApiResponse<{ feedback: WritingFeedback; message: string }>
+    >(`/writing-practice/sessions/${id}/feedback`, {
+      method: "POST",
+      body: JSON.stringify({ forceRegenerate: forceRegenerate || false }),
+    });
+  }
+
+  async getWritingFeedback(id: string) {
+    return this.request<
+      ApiResponse<{ feedback: WritingFeedback }>
+    >(`/writing-practice/sessions/${id}/feedback`);
+  }
+
+  async compareWritingSessions(sessionId1: string, sessionId2: string) {
+    return this.request<
+      ApiResponse<{ comparison: SessionComparison }>
+    >("/writing-practice/compare", {
+      method: "POST",
+      body: JSON.stringify({ sessionId1, sessionId2 }),
+    });
+  }
+
+  async getWritingFeedbackHistory(limit?: number) {
+    const params = limit ? `?limit=${limit}` : "";
+    return this.request<
+      ApiResponse<{ history: Array<WritingFeedback & { prompt: string; sessionType: string }> }>
+    >(`/writing-practice/feedback/history${params}`);
+  }
+
+  // Prompts
+  async getWritingPrompts(filters?: {
+    category?: string;
+    difficulty?: string;
+    isActive?: boolean;
+  }) {
+    const params = new URLSearchParams();
+    if (filters?.category) params.append("category", filters.category);
+    if (filters?.difficulty) params.append("difficulty", filters.difficulty);
+    if (filters?.isActive !== undefined) params.append("isActive", filters.isActive.toString());
+    const query = params.toString() ? `?${params.toString()}` : "";
+    return this.request<
+      ApiResponse<{ prompts: WritingPrompt[] }>
+    >(`/writing-practice/prompts${query}`);
+  }
+
+  async getRandomWritingPrompt(category?: string, difficulty?: string) {
+    const params = new URLSearchParams();
+    if (category) params.append("category", category);
+    if (difficulty) params.append("difficulty", difficulty);
+    const query = params.toString() ? `?${params.toString()}` : "";
+    return this.request<
+      ApiResponse<{ prompt: WritingPrompt }>
+    >(`/writing-practice/prompts/random${query}`);
+  }
+
+  async getWritingPromptsForInterview(jobId: string) {
+    return this.request<
+      ApiResponse<{ prompts: WritingPrompt[] }>
+    >(`/writing-practice/prompts/interview/${jobId}`);
+  }
+
+  async createCustomPrompt(data: CustomPromptInput) {
+    return this.request<
+      ApiResponse<{ prompt: WritingPrompt; message: string }>
+    >("/writing-practice/prompts/custom", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Progress
+  async getWritingProgress(dateRange?: { startDate?: string; endDate?: string }) {
+    const params = new URLSearchParams();
+    if (dateRange?.startDate) params.append("startDate", dateRange.startDate);
+    if (dateRange?.endDate) params.append("endDate", dateRange.endDate);
+    const query = params.toString() ? `?${params.toString()}` : "";
+    return this.request<
+      ApiResponse<{ metrics: ProgressMetrics }>
+    >(`/writing-practice/progress${query}`);
+  }
+
+  async getWritingProgressTrend(metric?: string, period?: string) {
+    const params = new URLSearchParams();
+    if (metric) params.append("metric", metric);
+    if (period) params.append("period", period);
+    const query = params.toString() ? `?${params.toString()}` : "";
+    return this.request<
+      ApiResponse<{ trend: ProgressTrend[] }>
+    >(`/writing-practice/progress/trend${query}`);
+  }
+
+  async getWritingProgressInsights() {
+    return this.request<
+      ApiResponse<{ insights: ProgressInsights }>
+    >("/writing-practice/progress/insights");
+  }
+
+  // Nerves Management
+  async getNervesExercises(sessionId?: string) {
+    const params = sessionId ? `?sessionId=${sessionId}` : "";
+    return this.request<
+      ApiResponse<{ exercises: NervesExercise[] }>
+    >(`/writing-practice/nerves/exercises${params}`);
+  }
+
+  async completeNervesExercise(data: CompleteExerciseInput) {
+    return this.request<
+      ApiResponse<{ exercise: CompletedNervesExercise; message: string }>
+    >("/writing-practice/nerves/exercises/complete", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getNervesExerciseHistory(limit?: number) {
+    const params = limit ? `?limit=${limit}` : "";
+    return this.request<
+      ApiResponse<{ history: CompletedNervesExercise[] }>
+    >(`/writing-practice/nerves/history${params}`);
+  }
+
+  async generatePreparationChecklist(jobId: string) {
+    return this.request<
+      ApiResponse<{ checklist: PreparationChecklist }>
+    >(`/writing-practice/nerves/checklist/${jobId}`);
   }
 }
 

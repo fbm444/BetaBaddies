@@ -344,11 +344,11 @@ async function createTestUser() {
     ];
 
     for (const cert of certifications) {
-      await database.query(
-        `INSERT INTO certifications (id, user_id, name, org_name, date_earned, never_expires, expiration_date)
-         VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6)`,
-        [
-          userId,
+    await database.query(
+      `INSERT INTO certifications (id, user_id, name, org_name, date_earned, never_expires, expiration_date)
+       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6)`,
+      [
+        userId,
           cert.name,
           cert.orgName,
           cert.dateEarned,
@@ -582,7 +582,7 @@ async function createTestUser() {
         isPractice: false,
       },
     ];
-
+    
     // Future scheduled interviews with real companies
     const scheduledInterviewsData = [
       {
@@ -938,59 +938,65 @@ async function createTestUser() {
     // Create feedback entries that show improvement over time
     // Earlier interviews have lower scores, later ones have higher scores
     // Note: Practice interviews are at indices 0-1, past interviews start at index 2, scheduled interviews are at the end
-    const practiceCount = practiceInterviewsData.length;
-    const pastCount = pastInterviewsData.length;
+    const practiceCountForFeedback = practiceInterviewsData.length;
+    const pastCountForFeedback = pastInterviewsData.length;
     const feedbackData = [
       // Past Interview 0 (11 months ago) - Meta Phone screen - Offer
-      { interviewId: interviewIds[practiceCount + 0], skillArea: "behavioral", score: 55 },
+      { interviewId: interviewIds[practiceCountForFeedback + 0], skillArea: "behavioral", score: 55 },
       
       // Past Interview 1 (10 months ago) - Meta Technical - Passed
-      { interviewId: interviewIds[practiceCount + 1], skillArea: "algorithms", score: 60 },
-      { interviewId: interviewIds[practiceCount + 1], skillArea: "system_design", score: 65 },
+      { interviewId: interviewIds[practiceCountForFeedback + 1], skillArea: "algorithms", score: 60 },
+      { interviewId: interviewIds[practiceCountForFeedback + 1], skillArea: "system_design", score: 65 },
       
       // Past Interview 2 (9 months ago) - Meta Behavioral - Offer
-      { interviewId: interviewIds[practiceCount + 2], skillArea: "behavioral", score: 65 },
+      { interviewId: interviewIds[practiceCountForFeedback + 2], skillArea: "behavioral", score: 65 },
       
       // Past Interview 3 (8 months ago) - Amazon Technical - Passed
-      { interviewId: interviewIds[practiceCount + 3], skillArea: "algorithms", score: 70 },
-      { interviewId: interviewIds[practiceCount + 3], skillArea: "apis", score: 75 },
+      { interviewId: interviewIds[practiceCountForFeedback + 3], skillArea: "algorithms", score: 70 },
+      { interviewId: interviewIds[practiceCountForFeedback + 3], skillArea: "apis", score: 75 },
       
       // Past Interview 4 (7 months ago) - Amazon On-site - Rejected (lower scores)
-      { interviewId: interviewIds[practiceCount + 4], skillArea: "behavioral", score: 45 },
-      { interviewId: interviewIds[practiceCount + 4], skillArea: "system_design", score: 50 },
-      { interviewId: interviewIds[practiceCount + 4], skillArea: "time_management", score: 40 },
+      { interviewId: interviewIds[practiceCountForFeedback + 4], skillArea: "behavioral", score: 45 },
+      { interviewId: interviewIds[practiceCountForFeedback + 4], skillArea: "system_design", score: 50 },
+      { interviewId: interviewIds[practiceCountForFeedback + 4], skillArea: "time_management", score: 40 },
       
       // Past Interview 5 (6 months ago) - Amazon System design - Rejected
-      { interviewId: interviewIds[practiceCount + 5], skillArea: "system_design", score: 55 },
+      { interviewId: interviewIds[practiceCountForFeedback + 5], skillArea: "system_design", score: 55 },
       
       // Past Interview 6 (5 months ago) - Apple Technical - Offer (better scores)
-      { interviewId: interviewIds[practiceCount + 6], skillArea: "algorithms", score: 80 },
-      { interviewId: interviewIds[practiceCount + 6], skillArea: "system_design", score: 75 },
+      { interviewId: interviewIds[practiceCountForFeedback + 6], skillArea: "algorithms", score: 80 },
+      { interviewId: interviewIds[practiceCountForFeedback + 6], skillArea: "system_design", score: 75 },
       
       // Past Interview 7 (4 months ago) - Apple Behavioral - Passed
-      { interviewId: interviewIds[practiceCount + 7], skillArea: "behavioral", score: 75 },
+      { interviewId: interviewIds[practiceCountForFeedback + 7], skillArea: "behavioral", score: 75 },
       
       // Past Interview 8 (3 months ago) - Netflix Phone screen - Passed
-      { interviewId: interviewIds[practiceCount + 8], skillArea: "behavioral", score: 70 },
+      { interviewId: interviewIds[practiceCountForFeedback + 8], skillArea: "behavioral", score: 70 },
       
       // Past Interview 9 (2 months ago) - Netflix Technical - Offer (great scores)
-      { interviewId: interviewIds[practiceCount + 9], skillArea: "algorithms", score: 85 },
-      { interviewId: interviewIds[practiceCount + 9], skillArea: "system_design", score: 80 },
-      { interviewId: interviewIds[practiceCount + 9], skillArea: "apis", score: 85 },
+      { interviewId: interviewIds[practiceCountForFeedback + 9], skillArea: "algorithms", score: 85 },
+      { interviewId: interviewIds[practiceCountForFeedback + 9], skillArea: "system_design", score: 80 },
+      { interviewId: interviewIds[practiceCountForFeedback + 9], skillArea: "apis", score: 85 },
       
       // Past Interview 10 (1 month ago) - Google HireVue - Passed
-      { interviewId: interviewIds[practiceCount + 10], skillArea: "behavioral", score: 80 },
-      { interviewId: interviewIds[practiceCount + 10], skillArea: "time_management", score: 75 },
+      { interviewId: interviewIds[practiceCountForFeedback + 10], skillArea: "behavioral", score: 80 },
+      { interviewId: interviewIds[practiceCountForFeedback + 10], skillArea: "time_management", score: 75 },
     ];
 
     // Add notes for theme analysis (using real interview IDs)
     const feedbackNotes = {
-      [interviewIds[practiceCount + 0]]: "Great communication and clear explanation of experience with Meta",
-      [interviewIds[practiceCount + 1]]: "Strong technical depth, excellent problem solving approach at Meta",
-      [interviewIds[practiceCount + 4]]: "Struggled with time management, nervous during Amazon on-site",
-      [interviewIds[practiceCount + 5]]: "Needs improvement in system design, lack of preparation for Amazon",
-      [interviewIds[practiceCount + 6]]: "Outstanding code quality, confident and well-prepared for Apple",
-      [interviewIds[practiceCount + 9]]: "Excellent algorithm knowledge, great communication clarity at Netflix",
+      [interviewIds[practiceCountForFeedback + 0]]:
+        "Great communication and clear explanation of experience with Meta",
+      [interviewIds[practiceCountForFeedback + 1]]:
+        "Strong technical depth, excellent problem solving approach at Meta",
+      [interviewIds[practiceCountForFeedback + 4]]:
+        "Struggled with time management, nervous during Amazon on-site",
+      [interviewIds[practiceCountForFeedback + 5]]:
+        "Needs improvement in system design, lack of preparation for Amazon",
+      [interviewIds[practiceCountForFeedback + 6]]:
+        "Outstanding code quality, confident and well-prepared for Apple",
+      [interviewIds[practiceCountForFeedback + 9]]:
+        "Excellent algorithm knowledge, great communication clarity at Netflix",
     };
 
     for (const feedback of feedbackData) {

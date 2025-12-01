@@ -6,6 +6,7 @@ class ThankYouNoteController {
   generateThankYouNote = asyncHandler(async (req, res) => {
     const userId = req.session.userId;
     const { id: interviewId } = req.params;
+    const { templateStyle } = req.body || {};
 
     if (!userId) {
       return res.status(401).json({
@@ -16,7 +17,9 @@ class ThankYouNoteController {
       });
     }
 
-    const note = await thankYouNoteService.generateThankYouNote(interviewId, userId);
+    const note = await thankYouNoteService.generateThankYouNote(interviewId, userId, {
+      templateStyle: templateStyle || "standard",
+    });
 
     res.status(201).json({
       ok: true,

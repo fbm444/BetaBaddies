@@ -7,7 +7,7 @@ class ThankYouNoteService {
   /**
    * Generate a thank-you note for an interview
    */
-  async generateThankYouNote(interviewId, userId) {
+  async generateThankYouNote(interviewId, userId, options = {}) {
     try {
       // Get interview details (for recipient and validation)
       const interviewQuery = `
@@ -43,7 +43,8 @@ class ThankYouNoteService {
       try {
         draft = await communicationsAIService.generateThankYouDraft(
           interviewId,
-          userId
+          userId,
+          options
         );
       } catch (error) {
         console.warn(

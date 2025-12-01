@@ -1153,11 +1153,14 @@ class ApiService {
     >(`/interviews/${interviewId}/thank-you-notes`);
   }
 
-  async generateThankYouNote(interviewId: string) {
+  async generateThankYouNote(interviewId: string, templateStyle?: string) {
     return this.request<
       ApiResponse<{ note: any }>
     >(`/interviews/${interviewId}/thank-you-notes/generate`, {
       method: "POST",
+      body: JSON.stringify(
+        templateStyle ? { templateStyle } : {}
+      ),
     });
   }
 

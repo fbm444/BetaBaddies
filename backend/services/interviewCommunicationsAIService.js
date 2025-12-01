@@ -78,13 +78,14 @@ class InterviewCommunicationsAIService {
 
   // ---------- Thank-you note generation ----------
 
-  async generateThankYouDraft(interviewId, userId) {
+  async generateThankYouDraft(interviewId, userId, options = {}) {
+    const { templateStyle = "standard" } = options;
     const context = await this.buildContext(interviewId, userId);
 
     // Try AI first if available
     if (this.openai) {
       try {
-        const draft = await this.generateThankYouWithAI(context);
+        const draft = await this.generateThankYouWithAI(context, templateStyle);
         if (draft?.subject && draft?.body) {
           return { ...draft, generatedBy: "openai" };
         }
@@ -97,11 +98,11 @@ class InterviewCommunicationsAIService {
     }
 
     // Fallback template
-    const fallback = this.generateThankYouFallback(context);
+    const fallback = this.generateThankYouFallback(context, templateStyle);
     return { ...fallback, generatedBy: "fallback" };
   }
 
-  async generateThankYouWithAI(context) {
+  async generateThankYouWithAI(context, templateStyle) {
     const interviewDateStr = context.interview.date
       ? context.interview.date.toLocaleDateString("en-US", {
           weekday: "long",
@@ -113,7 +114,8 @@ class InterviewCommunicationsAIService {
 
     const systemPrompt =
       "You are a professional career coach who writes concise, warm, and professional thank-you emails after job interviews. " +
-      "Always keep the email to 2–4 short paragraphs, and avoid inventing specific facts that are not in the context.";
+      "Always keep the email to 2–4 short paragraphs, and avoid inventing specific facts that are not in the context. " +
+      "You can adapt tone and length slightly based on the requested template style.";
 
     const userPrompt = `
 Interview context:
@@ -134,6 +136,12 @@ It should:
 - Briefly mention interest in the role and fit.
 - Optionally reference 1–2 high-level topics from the notes, without fabricating details.
 - End with a polite closing and the candidate's name.
+
+Template style to use (if mentioned):
+- "standard": neutral, professional, balanced length.
+- "enthusiastic": slightly warmer and more expressive about excitement for the role.
+- "concise": shorter, very direct and to the point (1–2 short paragraphs).
+Requested style: ${templateStyle}
 
 Return a JSON object with:
 {
@@ -173,7 +181,7 @@ Do not include any additional commentary.
     };
   }
 
-  generateThankYouFallback(context) {
+  generateThankYouFallback(context, templateStyle) {
     const name = context.interview.interviewerName || "Interviewer";
     const candidate = context.profile.name || "Candidate";
     const company = context.job.company || "your company";
@@ -189,17 +197,32 @@ Do not include any additional commentary.
       : "recently";
 
     let body = `Dear ${name},\n\n`;
-    body += `Thank you for taking the time to speak with me on ${dateStr} about the ${role} position at ${company}. `;
-    body += `I appreciated learning more about the team and how this role contributes to ${company}'s work.\n\n`;
 
-    if (context.interview.notes) {
-      const snippet = context.interview.notes.split(" ").slice(0, 12).join(" ");
-      body += `Our discussion about ${snippet}... was especially insightful and reinforced my excitement about this opportunity.\n\n`;
+    // Standard base text
+    if (templateStyle === "concise") {
+      body += `Thank you for speaking with me on ${dateStr} about the ${role} position at ${company}. `;
+      body += `I appreciated the chance to learn more about the team and remain very interested in the role.\n\n`;
+      body += `Please let me know if you need any additional information from me.\n\n`;
+      body += `Best regards,\n${candidate}`;
+    } else {
+      body += `Thank you for taking the time to speak with me on ${dateStr} about the ${role} position at ${company}. `;
+      body += `I appreciated learning more about the team and how this role contributes to ${company}'s work.\n\n`;
+
+      if (context.interview.notes) {
+        const snippet = context.interview.notes.split(" ").slice(0, 12).join(" ");
+        body += `Our discussion about ${snippet}... was especially insightful and reinforced my excitement about this opportunity.\n\n`;
+      }
+
+      if (templateStyle === "enthusiastic") {
+        body += `I am genuinely excited about the possibility of joining ${company} and contributing to the team's goals. `;
+        body += `I believe my background and experience align strongly with what you're looking for in this role.\n\n`;
+      } else {
+        body += `I am very interested in the opportunity to contribute to ${company} and believe my background and experience align well with the needs of the role.\n\n`;
+      }
+
+      body += `Please let me know if I can provide any additional information. I look forward to hearing from you.\n\n`;
+      body += `Best regards,\n${candidate}`;
     }
-
-    body += `I am very enthusiastic about the possibility of joining ${company} and believe my background and experience align well with the needs of the role.\n\n`;
-    body += `Please let me know if I can provide any additional information. I look forward to hearing from you.\n\n`;
-    body += `Best regards,\n${candidate}`;
 
     const subject = `Thank You - ${role} at ${company}`;
 

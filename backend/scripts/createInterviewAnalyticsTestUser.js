@@ -809,6 +809,7 @@ async function createTestUser() {
     }
 
     const interviewIds = [];
+    const interviewMetaMap = new Map();
     for (const interviewData of allInterviewsData) {
       // Get company name from job opportunity
       const company = interviewData.jobOpportunityId 
@@ -852,15 +853,87 @@ async function createTestUser() {
           interviewData.notes || null,
         ]
       );
-      interviewIds.push(result.rows[0].id);
+      const newId = result.rows[0].id;
+      interviewIds.push(newId);
+      interviewMetaMap.set(newId, {
+        scheduledAt: interviewData.scheduledAt,
+        outcome: interviewData.outcome,
+      });
     }
     console.log(`   ✓ Created ${allInterviewsData.length} interviews:`);
     console.log(`     - ${practiceInterviewsData.length} practice interviews`);
     console.log(`     - ${pastInterviewsData.length} past completed interviews`);
     console.log(`     - ${scheduledInterviewsData.length} scheduled future interviews with real companies`);
 
-    // Step 10: Create interview feedback with skill area scores
-    console.log("\n📝 Step 10: Creating interview feedback...");
+    // Step 10: Create sample follow-up actions for analytics testing
+    console.log("\n📝 Step 10: Creating follow-up actions...");
+
+    const practiceCount = practiceInterviewsData.length;
+    const pastCount = pastInterviewsData.length;
+    const realInterviewIdsForFollowUps = interviewIds.slice(
+      practiceCount,
+      practiceCount + pastCount
+    );
+
+    const followUpActionsData = [];
+
+    // Add thank-you + follow-up/status for a few past interviews
+    realInterviewIdsForFollowUps.slice(0, 3).forEach((id) => {
+      const meta = interviewMetaMap.get(id);
+      if (!meta) return;
+      const baseDate = meta.scheduledAt;
+
+      const addAction = (actionType, hoursOffset, notes) => {
+        const dueDate = new Date(
+          baseDate.getTime() + hoursOffset * 60 * 60 * 1000
+        );
+        followUpActionsData.push({
+          interviewId: id,
+          actionType,
+          dueDate: dueDate.toISOString(),
+          notes,
+          completed: actionType === "thank_you_note", // mark initial thank-you as completed
+        });
+      };
+
+      addAction(
+        "thank_you_note",
+        24,
+        "Send a thank-you note to express appreciation for the interview"
+      );
+      addAction(
+        "follow_up_email",
+        24 * 7,
+        "Follow up on interview status if you haven't heard back"
+      );
+      addAction(
+        "status_inquiry",
+        24 * 14,
+        "Inquire about the hiring decision timeline"
+      );
+    });
+
+    // Insert follow-up actions
+    for (const action of followUpActionsData) {
+      await database.query(
+        `INSERT INTO interview_follow_ups (
+          id, interview_id, action_type, due_date, notes, completed, created_at, updated_at
+        ) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, NOW(), NOW())`,
+        [
+          action.interviewId,
+          action.actionType,
+          action.dueDate,
+          action.notes,
+          action.completed,
+        ]
+      );
+    }
+    console.log(
+      `   ✓ Created ${followUpActionsData.length} follow-up actions for past interviews`
+    );
+
+    // Step 11: Create interview feedback with skill area scores
+    console.log("\n📝 Step 11: Creating interview feedback...");
     
     // Create feedback entries that show improvement over time
     // Earlier interviews have lower scores, later ones have higher scores
@@ -930,8 +1003,8 @@ async function createTestUser() {
     }
     console.log(`   ✓ Created ${feedbackData.length} feedback entries`);
     
-    // Step 11: Create pre/post assessments for confidence/anxiety tracking
-    console.log("\n📝 Step 11: Creating pre/post assessments...");
+    // Step 12: Create pre/post assessments for confidence/anxiety tracking
+    console.log("\n📝 Step 12: Creating pre/post assessments...");
     
     // Create pre-assessments for past real interviews (skip practice interviews and scheduled ones)
     const pastRealInterviewIds = interviewIds.slice(practiceCount, practiceCount + pastCount);

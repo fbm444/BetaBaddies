@@ -34,11 +34,9 @@ class ThankYouNoteService {
 
       const interview = interviewResult.rows[0];
       const interviewerName = interview.interviewer_name || "Interviewer";
-      const interviewerEmail = interview.interviewer_email;
-
-      if (!interviewerEmail) {
-        throw new Error("Interviewer email is required to send thank-you note");
-      }
+      // For draft generation we don't require a real email; use a placeholder if missing
+      const interviewerEmail =
+        interview.interviewer_email || "no-email@placeholder.local";
 
       // Generate note content using AI + fallback service
       let draft;

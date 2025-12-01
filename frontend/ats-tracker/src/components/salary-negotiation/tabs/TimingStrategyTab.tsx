@@ -5,29 +5,64 @@ import type { SalaryNegotiation, TimingStrategy } from "../../../types";
 
 interface TimingStrategyTabProps {
   negotiation: SalaryNegotiation;
-  onUpdate: () => void;
+  onUpdate: (updatedNegotiation?: SalaryNegotiation) => void;
 }
 
 export function TimingStrategyTab({
   negotiation,
   onUpdate,
 }: TimingStrategyTabProps) {
-  const [timingStrategy, setTimingStrategy] = useState<TimingStrategy | null>(null);
+  // Check if timing strategy is cached in negotiation object
+  const getCachedStrategy = (): TimingStrategy | null => {
+    if (negotiation.negotiationStrategy?.timingStrategy) {
+      const cached = negotiation.negotiationStrategy.timingStrategy;
+      if (typeof cached === 'string') {
+        try {
+          return JSON.parse(cached);
+        } catch (e) {
+          return null;
+        }
+      }
+      return cached as TimingStrategy;
+    }
+    return null;
+  };
+
+  const cachedStrategy = getCachedStrategy();
+  const [timingStrategy, setTimingStrategy] = useState<TimingStrategy | null>(cachedStrategy);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchTimingStrategy();
-  }, [negotiation.id]);
+    // Update when negotiation changes
+    const cached = getCachedStrategy();
+    if (cached) {
+      setTimingStrategy(cached);
+    } else if (!timingStrategy) {
+      // Only fetch if we don't have cached data and no current strategy
+      fetchTimingStrategy();
+    }
+  }, [negotiation.id, negotiation.negotiationStrategy]);
 
-  const fetchTimingStrategy = async () => {
+  const fetchTimingStrategy = async (forceRegenerate = false) => {
     try {
       setIsLoading(true);
       setError(null);
       const response = await api.getTimingStrategy(negotiation.id);
 
       if (response.ok && response.data?.strategy) {
-        setTimingStrategy(response.data.strategy);
+        const newStrategy = response.data.strategy;
+        setTimingStrategy(newStrategy);
+        
+        // Update the negotiation object with cached timing strategy
+        const updatedNegotiation = {
+          ...negotiation,
+          negotiationStrategy: {
+            ...negotiation.negotiationStrategy,
+            timingStrategy: newStrategy,
+          },
+        };
+        onUpdate(updatedNegotiation);
       } else {
         setError(response.error || "Failed to get timing strategy");
       }
@@ -50,12 +85,12 @@ export function TimingStrategyTab({
           </p>
         </div>
         <button
-          onClick={fetchTimingStrategy}
+          onClick={() => fetchTimingStrategy(true)}
           disabled={isLoading}
           className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1 disabled:opacity-50"
         >
           <Icon icon="mingcute:refresh-line" width={16} />
-          Refresh
+          Regenerate
         </button>
       </div>
 
@@ -75,6 +110,11 @@ export function TimingStrategyTab({
         </div>
       ) : timingStrategy ? (
         <div className="space-y-6">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded">
+              Cached
+            </span>
+          </div>
           {/* When to Negotiate */}
           <div className="bg-white rounded-xl p-6 border border-slate-200">
             <div className="flex items-center gap-2 mb-4">

@@ -35,15 +35,22 @@ export function NegotiationDetailModal({
   const [activeTab, setActiveTab] = useState<DetailTabType>("overview");
   const [fullNegotiation, setFullNegotiation] = useState<SalaryNegotiation | null>(negotiation);
   const [isLoading, setIsLoading] = useState(false);
+  const [currentNegotiationId, setCurrentNegotiationId] = useState<string | null>(negotiation?.id || null);
 
+  // Only reset tab when negotiation ID changes (new negotiation selected)
   useEffect(() => {
     if (negotiation) {
+      const isNewNegotiation = currentNegotiationId !== negotiation.id;
+      
+      if (isNewNegotiation) {
+        setActiveTab("overview");
+        setCurrentNegotiationId(negotiation.id);
+      }
+      
       setFullNegotiation(negotiation);
-      setActiveTab("overview");
-      // Fetch full negotiation details if needed
       fetchFullNegotiation();
     }
-  }, [negotiation]);
+  }, [negotiation?.id]); // Only depend on ID, not the whole object
 
   const fetchFullNegotiation = async () => {
     if (!negotiation) return;
@@ -59,6 +66,14 @@ export function NegotiationDetailModal({
       setIsLoading(false);
     }
   };
+
+  // Update negotiation data when prop changes (but don't reset tab)
+  useEffect(() => {
+    if (negotiation && negotiation.id === currentNegotiationId) {
+      // Only update if it's the same negotiation (not a new one)
+      setFullNegotiation(negotiation);
+    }
+  }, [negotiation, currentNegotiationId]);
 
   if (!negotiation) return null;
 
@@ -133,25 +148,43 @@ export function NegotiationDetailModal({
               {activeTab === "market-research" && fullNegotiation && (
                 <MarketResearchTab
                   negotiation={fullNegotiation}
-                  onUpdate={onUpdate}
+                  onUpdate={(updatedNegotiation) => {
+                    if (updatedNegotiation) {
+                      setFullNegotiation(updatedNegotiation);
+                    }
+                  }}
                 />
               )}
               {activeTab === "talking-points" && fullNegotiation && (
                 <TalkingPointsTab
                   negotiation={fullNegotiation}
-                  onUpdate={onUpdate}
+                  onUpdate={(updatedNegotiation) => {
+                    if (updatedNegotiation) {
+                      setFullNegotiation(updatedNegotiation);
+                    }
+                    // Don't call parent onUpdate to avoid tab reset
+                    // onUpdate();
+                  }}
                 />
               )}
               {activeTab === "scripts" && fullNegotiation && (
                 <NegotiationScriptsTab
                   negotiation={fullNegotiation}
-                  onUpdate={onUpdate}
+                  onUpdate={(updatedNegotiation) => {
+                    if (updatedNegotiation) {
+                      setFullNegotiation(updatedNegotiation);
+                    }
+                  }}
                 />
               )}
               {activeTab === "timing" && fullNegotiation && (
                 <TimingStrategyTab
                   negotiation={fullNegotiation}
-                  onUpdate={onUpdate}
+                  onUpdate={(updatedNegotiation) => {
+                    if (updatedNegotiation) {
+                      setFullNegotiation(updatedNegotiation);
+                    }
+                  }}
                 />
               )}
               {activeTab === "counteroffer" && fullNegotiation && (

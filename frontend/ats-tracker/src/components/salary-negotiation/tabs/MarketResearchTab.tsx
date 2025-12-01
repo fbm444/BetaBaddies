@@ -5,7 +5,7 @@ import type { SalaryNegotiation, MarketSalaryData } from "../../../types";
 
 interface MarketResearchTabProps {
   negotiation: SalaryNegotiation;
-  onUpdate: () => void;
+  onUpdate: (updatedNegotiation?: SalaryNegotiation) => void;
 }
 
 export function MarketResearchTab({
@@ -17,6 +17,13 @@ export function MarketResearchTab({
   );
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Update market data when negotiation prop changes (cached data loaded)
+  useEffect(() => {
+    if (negotiation.marketSalaryData) {
+      setMarketData(negotiation.marketSalaryData);
+    }
+  }, [negotiation.marketSalaryData]);
 
   const handleResearchMarket = async () => {
     if (!negotiation.jobTitle || !negotiation.location) {
@@ -35,8 +42,15 @@ export function MarketResearchTab({
       });
 
       if (response.ok && response.data?.marketData) {
-        setMarketData(response.data.marketData);
-        onUpdate(); // Refresh negotiation data
+        const newMarketData = response.data.marketData;
+        setMarketData(newMarketData);
+        
+        // Update the negotiation object with new market data
+        const updatedNegotiation = {
+          ...negotiation,
+          marketSalaryData: newMarketData,
+        };
+        onUpdate(updatedNegotiation);
       } else {
         setError(response.error || "Failed to research market data");
       }
@@ -93,14 +107,19 @@ export function MarketResearchTab({
           {/* Market Data Summary */}
           <div className="bg-white rounded-xl p-6 border border-slate-200">
             <div className="flex items-center justify-between mb-4">
-              <h4 className="text-lg font-semibold text-slate-900">Market Data</h4>
+              <div className="flex items-center gap-2">
+                <h4 className="text-lg font-semibold text-slate-900">Market Data</h4>
+                <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded">
+                  Cached
+                </span>
+              </div>
               <button
                 onClick={handleResearchMarket}
                 disabled={isLoading}
                 className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
               >
                 <Icon icon="mingcute:refresh-line" width={16} />
-                Refresh
+                Regenerate
               </button>
             </div>
 

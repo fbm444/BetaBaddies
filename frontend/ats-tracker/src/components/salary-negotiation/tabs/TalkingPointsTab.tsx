@@ -5,7 +5,7 @@ import type { SalaryNegotiation, TalkingPoint } from "../../../types";
 
 interface TalkingPointsTabProps {
   negotiation: SalaryNegotiation;
-  onUpdate: () => void;
+  onUpdate: (updatedNegotiation?: SalaryNegotiation) => void;
 }
 
 export function TalkingPointsTab({
@@ -33,10 +33,19 @@ export function TalkingPointsTab({
       const response = await api.generateTalkingPoints(negotiation.id, regenerate);
 
       if (response.ok && response.data?.talkingPoints) {
-        setTalkingPoints(response.data.talkingPoints);
-        onUpdate();
+        const newTalkingPoints = response.data.talkingPoints;
+        setTalkingPoints(newTalkingPoints);
+        
+        // Update the negotiation object with new talking points
+        const updatedNegotiation = {
+          ...negotiation,
+          talkingPoints: newTalkingPoints,
+        };
+        onUpdate(updatedNegotiation);
       } else {
-        setError(response.error || "Failed to generate talking points");
+        const errorMsg = response.error || "Failed to generate talking points";
+        setError(errorMsg);
+        console.error("Talking points generation error:", errorMsg, response);
       }
     } catch (err: any) {
       console.error("Failed to generate talking points:", err);
@@ -122,6 +131,14 @@ export function TalkingPointsTab({
 
       {talkingPoints.length > 0 ? (
         <div className="space-y-4">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded">
+              Cached
+            </span>
+            <span className="text-xs text-slate-500">
+              {talkingPoints.length} talking points loaded
+            </span>
+          </div>
           {talkingPoints.map((point) => (
             <div
               key={point.id}

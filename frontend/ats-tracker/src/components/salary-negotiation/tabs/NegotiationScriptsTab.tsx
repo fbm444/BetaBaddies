@@ -5,7 +5,7 @@ import type { SalaryNegotiation, NegotiationScript } from "../../../types";
 
 interface NegotiationScriptsTabProps {
   negotiation: SalaryNegotiation;
-  onUpdate: () => void;
+  onUpdate: (updatedNegotiation?: SalaryNegotiation) => void;
 }
 
 const scenarios = [
@@ -40,11 +40,19 @@ export function NegotiationScriptsTab({
       const response = await api.generateNegotiationScript(negotiation.id, scenario, regenerate);
 
       if (response.ok && response.data?.script) {
-        setScripts((prev) => ({
-          ...prev,
-          [scenario]: response.data.script,
-        }));
-        onUpdate();
+        const newScript = response.data.script;
+        const updatedScripts = {
+          ...scripts,
+          [scenario]: newScript,
+        };
+        setScripts(updatedScripts);
+        
+        // Update the negotiation object with cached script
+        const updatedNegotiation = {
+          ...negotiation,
+          scripts: updatedScripts,
+        };
+        onUpdate(updatedNegotiation);
       } else {
         setError(response.error || "Failed to generate script");
       }
@@ -103,9 +111,14 @@ export function NegotiationScriptsTab({
       {currentScript ? (
         <div className="bg-white rounded-xl p-6 border border-slate-200 space-y-6">
           <div className="flex items-center justify-between">
-            <h4 className="text-lg font-semibold text-slate-900">
-              {scenarios.find((s) => s.id === selectedScenario)?.label}
-            </h4>
+            <div className="flex items-center gap-2">
+              <h4 className="text-lg font-semibold text-slate-900">
+                {scenarios.find((s) => s.id === selectedScenario)?.label}
+              </h4>
+              <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded">
+                Cached
+              </span>
+            </div>
             <button
               onClick={() => handleGenerateScript(selectedScenario, true)}
               disabled={isLoading}

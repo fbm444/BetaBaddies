@@ -240,7 +240,10 @@ export function SalaryNegotiation() {
         // Refresh negotiations list
         await fetchNegotiations();
       } else {
-        showMessage(response.error || "Failed to create negotiation", "error");
+        const errorMessage = typeof response.error === 'string' 
+          ? response.error 
+          : response.error?.message || "Failed to create negotiation";
+        showMessage(errorMessage, "error");
       }
     } catch (err: any) {
       console.error("Failed to create negotiation:", err);

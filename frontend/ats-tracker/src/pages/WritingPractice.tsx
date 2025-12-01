@@ -72,9 +72,16 @@ export function WritingPractice() {
 
   const fetchSessions = async () => {
     try {
-      const response = await api.getWritingSessions({ limit: 50 });
+      const response = await api.getWritingSessions({ 
+        limit: 50,
+        isCompleted: true, // Only fetch completed sessions
+      });
       if (response.ok && response.data?.sessions) {
-        setSessions(response.data.sessions);
+        // Filter to only show sessions with responses
+        const sessionsWithResponses = response.data.sessions.filter(
+          (session) => session.response && session.response.trim().length > 0
+        );
+        setSessions(sessionsWithResponses);
       }
     } catch (err: any) {
       console.error("Failed to fetch sessions:", err);
@@ -84,9 +91,16 @@ export function WritingPractice() {
 
   const fetchRecentSessions = async () => {
     try {
-      const response = await api.getWritingSessions({ limit: 5 });
+      const response = await api.getWritingSessions({ 
+        limit: 5,
+        isCompleted: true, // Only fetch completed sessions
+      });
       if (response.ok && response.data?.sessions) {
-        setSessions(response.data.sessions);
+        // Filter to only show sessions with responses
+        const sessionsWithResponses = response.data.sessions.filter(
+          (session) => session.response && session.response.trim().length > 0
+        );
+        setSessions(sessionsWithResponses);
       }
     } catch (err: any) {
       console.error("Failed to fetch recent sessions:", err);

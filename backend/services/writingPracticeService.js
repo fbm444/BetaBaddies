@@ -64,11 +64,17 @@ class WritingPracticeService {
       offset = 0,
       orderBy = "session_date",
       orderDirection = "DESC",
+      onlyWithResponse = true, // Default to only show sessions with responses
     } = filters;
 
     let query = `SELECT * FROM writing_practice_sessions WHERE user_id = $1`;
     const params = [userId];
     let paramIndex = 2;
+
+    // Only show sessions that have a response submitted
+    if (onlyWithResponse) {
+      query += ` AND response IS NOT NULL AND response != ''`;
+    }
 
     if (sessionType) {
       query += ` AND session_type = $${paramIndex++}`;

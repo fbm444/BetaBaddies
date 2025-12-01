@@ -49,11 +49,18 @@ export function Interviews() {
     generatedBy?: string;
   } | null>(null);
   const [draftLoadingId, setDraftLoadingId] = useState<string | null>(null);
+  // Store generated drafts by follow-up ID
+  const [storedFollowUpDrafts, setStoredFollowUpDrafts] = useState<Map<string, {
+    subject: string;
+    body: string;
+    generatedBy?: string;
+  }>>(new Map());
 
   // Thank-you notes modal state
   const [activeThankYouInterview, setActiveThankYouInterview] = useState<InterviewData | null>(null);
   const [thankYouNotes, setThankYouNotes] = useState<any[]>([]);
   const [loadingThankYou, setLoadingThankYou] = useState(false);
+  const [showAllThankYouNotes, setShowAllThankYouNotes] = useState(false);
 
   // Calendar state
   const [calendarConnected, setCalendarConnected] = useState(false);
@@ -494,11 +501,19 @@ export function Interviews() {
                     <div className="mb-4">
                       <div className="flex items-center justify-between mb-1">
                         <label className="block text-xs font-medium text-slate-500">
-                          Latest Draft (cached)
+                          Latest Draft
                         </label>
-                        <span className="text-[10px] uppercase tracking-wide text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">
-                          Using saved draft – no extra AI credits
-                        </span>
+                        {thankYouNotes.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => setShowAllThankYouNotes((prev) => !prev)}
+                            className="text-[11px] text-blue-600 hover:text-blue-700 underline"
+                          >
+                            {showAllThankYouNotes
+                              ? "Hide previous drafts"
+                              : `View previous drafts (${thankYouNotes.length - 1})`}
+                          </button>
+                        )}
                       </div>
                       <input
                         type="text"
@@ -512,6 +527,40 @@ export function Interviews() {
                         value={thankYouNotes[0].body}
                         className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 font-mono whitespace-pre-wrap"
                       />
+
+                      {showAllThankYouNotes && thankYouNotes.length > 1 && (
+                        <div className="mt-3 border-t border-slate-200 pt-3 space-y-2 max-h-40 overflow-y-auto">
+                          {thankYouNotes.slice(1).map((note, index) => (
+                            <button
+                              key={note.id || index}
+                              type="button"
+                              onClick={() => {
+                                // swap selected previous into the main view position
+                                setThankYouNotes((prev) => {
+                                  const copy = [...prev];
+                                  const targetIndex = index + 1;
+                                  const [selected] = copy.splice(targetIndex, 1);
+                                  return [selected, ...copy];
+                                });
+                              }}
+                              className="w-full text-left text-xs px-2 py-1 rounded-lg hover:bg-slate-50 border border-slate-100 flex justify-between items-center"
+                            >
+                              <span className="truncate max-w-[70%]">
+                                {note.subject || "Untitled draft"}
+                              </span>
+                              <span className="text-[10px] text-slate-500">
+                                {(note.createdAt || note.updatedAt || note.sentAt) &&
+                                  new Date(
+                                    note.updatedAt || note.createdAt || note.sentAt
+                                  ).toLocaleDateString("en-US", {
+                                    month: "short",
+                                    day: "numeric",
+                                  })}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -523,107 +572,212 @@ export function Interviews() {
 
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-4 gap-4">
                     <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          if (!activeThankYouInterview) return;
-                          setLoadingThankYou(true);
-                          try {
-                            const response = await api.generateThankYouNote(
-                              activeThankYouInterview.id,
-                              "standard",
-                              thankYouNotes.length > 0 ? { regenerate: true } : undefined
-                            );
-                            if (response.ok && response.data?.note) {
-                              const notesResponse = await api.getThankYouNotes(
-                                activeThankYouInterview.id
-                              );
-                              if (notesResponse.ok && notesResponse.data?.notes) {
-                                setThankYouNotes(notesResponse.data.notes);
+                      {thankYouNotes.length > 0 ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (!activeThankYouInterview) return;
+                              setLoadingThankYou(true);
+                              try {
+                                const response = await api.generateThankYouNote(
+                                  activeThankYouInterview.id,
+                                  "standard",
+                                  { regenerate: true }
+                                );
+                                if (response.ok && response.data?.note) {
+                                  const notesResponse = await api.getThankYouNotes(
+                                    activeThankYouInterview.id
+                                  );
+                                  if (notesResponse.ok && notesResponse.data?.notes) {
+                                    setThankYouNotes(notesResponse.data.notes);
+                                  }
+                                  showMessage("Standard thank-you draft regenerated!", "success");
+                                }
+                              } catch (err: any) {
+                                showMessage(
+                                  err.message || "Failed to regenerate thank-you note",
+                                  "error"
+                                );
+                              } finally {
+                                setLoadingThankYou(false);
                               }
-                              showMessage("Standard thank-you draft generated!", "success");
-                            }
-                          } catch (err: any) {
-                            showMessage(
-                              err.message || "Failed to generate thank-you note",
-                              "error"
-                            );
-                          } finally {
-                            setLoadingThankYou(false);
-                          }
-                        }}
-                        className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-xs sm:text-sm font-medium"
-                      >
-                        Standard
-                      </button>
+                            }}
+                            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-xs sm:text-sm font-medium"
+                          >
+                            Generate Standard
+                          </button>
 
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          if (!activeThankYouInterview) return;
-                          setLoadingThankYou(true);
-                          try {
-                            const response = await api.generateThankYouNote(
-                              activeThankYouInterview.id,
-                              "enthusiastic",
-                              thankYouNotes.length > 0 ? { regenerate: true } : undefined
-                            );
-                            if (response.ok && response.data?.note) {
-                              const notesResponse = await api.getThankYouNotes(
-                                activeThankYouInterview.id
-                              );
-                              if (notesResponse.ok && notesResponse.data?.notes) {
-                                setThankYouNotes(notesResponse.data.notes);
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (!activeThankYouInterview) return;
+                              setLoadingThankYou(true);
+                              try {
+                                const response = await api.generateThankYouNote(
+                                  activeThankYouInterview.id,
+                                  "enthusiastic",
+                                  { regenerate: true }
+                                );
+                                if (response.ok && response.data?.note) {
+                                  const notesResponse = await api.getThankYouNotes(
+                                    activeThankYouInterview.id
+                                  );
+                                  if (notesResponse.ok && notesResponse.data?.notes) {
+                                    setThankYouNotes(notesResponse.data.notes);
+                                  }
+                                  showMessage("Enthusiastic thank-you draft regenerated!", "success");
+                                }
+                              } catch (err: any) {
+                                showMessage(
+                                  err.message || "Failed to regenerate thank-you note",
+                                  "error"
+                                );
+                              } finally {
+                                setLoadingThankYou(false);
                               }
-                              showMessage("Enthusiastic thank-you draft generated!", "success");
-                            }
-                          } catch (err: any) {
-                            showMessage(
-                              err.message || "Failed to generate thank-you note",
-                              "error"
-                            );
-                          } finally {
-                            setLoadingThankYou(false);
-                          }
-                        }}
-                        className="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 text-xs sm:text-sm font-medium"
-                      >
-                        Enthusiastic
-                      </button>
+                            }}
+                            className="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 text-xs sm:text-sm font-medium"
+                          >
+                            Generate Enthusiastic
+                          </button>
 
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          if (!activeThankYouInterview) return;
-                          setLoadingThankYou(true);
-                          try {
-                            const response = await api.generateThankYouNote(
-                              activeThankYouInterview.id,
-                              "concise",
-                              thankYouNotes.length > 0 ? { regenerate: true } : undefined
-                            );
-                            if (response.ok && response.data?.note) {
-                              const notesResponse = await api.getThankYouNotes(
-                                activeThankYouInterview.id
-                              );
-                              if (notesResponse.ok && notesResponse.data?.notes) {
-                                setThankYouNotes(notesResponse.data.notes);
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (!activeThankYouInterview) return;
+                              setLoadingThankYou(true);
+                              try {
+                                const response = await api.generateThankYouNote(
+                                  activeThankYouInterview.id,
+                                  "concise",
+                                  { regenerate: true }
+                                );
+                                if (response.ok && response.data?.note) {
+                                  const notesResponse = await api.getThankYouNotes(
+                                    activeThankYouInterview.id
+                                  );
+                                  if (notesResponse.ok && notesResponse.data?.notes) {
+                                    setThankYouNotes(notesResponse.data.notes);
+                                  }
+                                  showMessage("Concise thank-you draft regenerated!", "success");
+                                }
+                              } catch (err: any) {
+                                showMessage(
+                                  err.message || "Failed to regenerate thank-you note",
+                                  "error"
+                                );
+                              } finally {
+                                setLoadingThankYou(false);
                               }
-                              showMessage("Concise thank-you draft generated!", "success");
-                            }
-                          } catch (err: any) {
-                            showMessage(
-                              err.message || "Failed to generate thank-you note",
-                              "error"
-                            );
-                          } finally {
-                            setLoadingThankYou(false);
-                          }
-                        }}
-                        className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 text-xs sm:text-sm font-medium"
-                      >
-                        Concise
-                      </button>
+                            }}
+                            className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 text-xs sm:text-sm font-medium"
+                          >
+                            Generate Concise
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (!activeThankYouInterview) return;
+                              setLoadingThankYou(true);
+                              try {
+                                const response = await api.generateThankYouNote(
+                                  activeThankYouInterview.id,
+                                  "standard"
+                                );
+                                if (response.ok && response.data?.note) {
+                                  const notesResponse = await api.getThankYouNotes(
+                                    activeThankYouInterview.id
+                                  );
+                                  if (notesResponse.ok && notesResponse.data?.notes) {
+                                    setThankYouNotes(notesResponse.data.notes);
+                                  }
+                                  showMessage("Standard thank-you draft generated!", "success");
+                                }
+                              } catch (err: any) {
+                                showMessage(
+                                  err.message || "Failed to generate thank-you note",
+                                  "error"
+                                );
+                              } finally {
+                                setLoadingThankYou(false);
+                              }
+                            }}
+                            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-xs sm:text-sm font-medium"
+                          >
+                            Generate Standard
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (!activeThankYouInterview) return;
+                              setLoadingThankYou(true);
+                              try {
+                                const response = await api.generateThankYouNote(
+                                  activeThankYouInterview.id,
+                                  "enthusiastic"
+                                );
+                                if (response.ok && response.data?.note) {
+                                  const notesResponse = await api.getThankYouNotes(
+                                    activeThankYouInterview.id
+                                  );
+                                  if (notesResponse.ok && notesResponse.data?.notes) {
+                                    setThankYouNotes(notesResponse.data.notes);
+                                  }
+                                  showMessage("Enthusiastic thank-you draft generated!", "success");
+                                }
+                              } catch (err: any) {
+                                showMessage(
+                                  err.message || "Failed to generate thank-you note",
+                                  "error"
+                                );
+                              } finally {
+                                setLoadingThankYou(false);
+                              }
+                            }}
+                            className="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 text-xs sm:text-sm font-medium"
+                          >
+                            Generate Enthusiastic
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (!activeThankYouInterview) return;
+                              setLoadingThankYou(true);
+                              try {
+                                const response = await api.generateThankYouNote(
+                                  activeThankYouInterview.id,
+                                  "concise"
+                                );
+                                if (response.ok && response.data?.note) {
+                                  const notesResponse = await api.getThankYouNotes(
+                                    activeThankYouInterview.id
+                                  );
+                                  if (notesResponse.ok && notesResponse.data?.notes) {
+                                    setThankYouNotes(notesResponse.data.notes);
+                                  }
+                                  showMessage("Concise thank-you draft generated!", "success");
+                                }
+                              } catch (err: any) {
+                                showMessage(
+                                  err.message || "Failed to generate thank-you note",
+                                  "error"
+                                );
+                              } finally {
+                                setLoadingThankYou(false);
+                              }
+                            }}
+                            className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 text-xs sm:text-sm font-medium"
+                          >
+                            Generate Concise
+                          </button>
+                        </>
+                      )}
                     </div>
 
                     <button
@@ -708,6 +862,20 @@ export function Interviews() {
                           <div className="flex-1">
                             <h3 className="font-semibold text-slate-900 mb-1">{interview.title || "Interview"}</h3>
                             <p className="text-slate-600 text-sm">{interview.company || "N/A"}</p>
+                            {interview.jobOpportunityId && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(
+                                    `${ROUTES.JOB_OPPORTUNITIES}?jobId=${interview.jobOpportunityId}`
+                                  );
+                                }}
+                                className="mt-1 text-xs text-blue-600 hover:text-blue-700 underline"
+                              >
+                                View linked job application
+                              </button>
+                            )}
                           </div>
                           <span
                             className="px-2 py-1 rounded text-xs font-medium"
@@ -1077,6 +1245,19 @@ export function Interviews() {
                                             Interview: {formatDate(followUp.interview.scheduledAt)}
                                           </p>
                                         )}
+                                        {followUp.interview?.jobOpportunityId && (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              navigate(
+                                                `${ROUTES.JOB_OPPORTUNITIES}?jobId=${followUp.interview?.jobOpportunityId}`
+                                              );
+                                            }}
+                                            className="mt-1 ml-6 text-xs text-blue-600 hover:text-blue-700 underline"
+                                          >
+                                            View linked job application
+                                          </button>
+                                        )}
                                       </div>
                                     )}
                                     
@@ -1097,39 +1278,119 @@ export function Interviews() {
                                     )}
                                   </div>
                                   <div className="flex flex-col items-end gap-2">
-                                    <button
-                                      onClick={async () => {
-                                        try {
-                                          setDraftLoadingId(followUp.id);
-                                          const interviewId = followUp.interviewId || followUp.interview_id;
-                                          const response = await api.getFollowUpEmailDraft(
-                                            interviewId,
-                                            followUp.id
-                                          );
-                                          if (response.ok && response.data?.draft) {
-                                            setActiveFollowUpDraft({
-                                              id: followUp.id,
+                                    {storedFollowUpDrafts.has(followUp.id) ? (
+                                      <>
+                                        <button
+                                          onClick={() => {
+                                            const draft = storedFollowUpDrafts.get(followUp.id);
+                                            if (draft) {
+                                              const interviewId = followUp.interviewId || followUp.interview_id;
+                                              setActiveFollowUpDraft({
+                                                id: followUp.id,
+                                                interviewId,
+                                                subject: draft.subject,
+                                                body: draft.body,
+                                                generatedBy: draft.generatedBy,
+                                              });
+                                            }
+                                          }}
+                                          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm font-medium"
+                                        >
+                                          View Draft
+                                        </button>
+                                        <button
+                                          onClick={async () => {
+                                            try {
+                                              setDraftLoadingId(followUp.id);
+                                              const interviewId = followUp.interviewId || followUp.interview_id;
+                                              const response = await api.getFollowUpEmailDraft(
+                                                interviewId,
+                                                followUp.id
+                                              );
+                                              if (response.ok && response.data?.draft) {
+                                                const draft = response.data.draft;
+                                                // Store the draft
+                                                setStoredFollowUpDrafts(prev => {
+                                                  const updated = new Map(prev);
+                                                  updated.set(followUp.id, {
+                                                    subject: draft.subject,
+                                                    body: draft.body,
+                                                    generatedBy: draft.generatedBy,
+                                                  });
+                                                  return updated;
+                                                });
+                                                // Show it in modal
+                                                setActiveFollowUpDraft({
+                                                  id: followUp.id,
+                                                  interviewId,
+                                                  subject: draft.subject,
+                                                  body: draft.body,
+                                                  generatedBy: draft.generatedBy,
+                                                });
+                                              }
+                                            } catch (err: any) {
+                                              showMessage(
+                                                err.message || "Failed to regenerate email draft",
+                                                "error"
+                                              );
+                                            } finally {
+                                              setDraftLoadingId(null);
+                                            }
+                                          }}
+                                          className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 text-sm font-medium"
+                                        >
+                                          {draftLoadingId === followUp.id
+                                            ? "Generating..."
+                                            : "Generate Draft"}
+                                        </button>
+                                      </>
+                                    ) : (
+                                      <button
+                                        onClick={async () => {
+                                          try {
+                                            setDraftLoadingId(followUp.id);
+                                            const interviewId = followUp.interviewId || followUp.interview_id;
+                                            const response = await api.getFollowUpEmailDraft(
                                               interviewId,
-                                              subject: response.data.draft.subject,
-                                              body: response.data.draft.body,
-                                              generatedBy: response.data.draft.generatedBy,
-                                            });
+                                              followUp.id
+                                            );
+                                            if (response.ok && response.data?.draft) {
+                                              const draft = response.data.draft;
+                                              // Store the draft
+                                              setStoredFollowUpDrafts(prev => {
+                                                const updated = new Map(prev);
+                                                updated.set(followUp.id, {
+                                                  subject: draft.subject,
+                                                  body: draft.body,
+                                                  generatedBy: draft.generatedBy,
+                                                });
+                                                return updated;
+                                              });
+                                              // Show it in modal
+                                              setActiveFollowUpDraft({
+                                                id: followUp.id,
+                                                interviewId,
+                                                subject: draft.subject,
+                                                body: draft.body,
+                                                generatedBy: draft.generatedBy,
+                                              });
+                                            }
+                                          } catch (err: any) {
+                                            showMessage(
+                                              err.message || "Failed to generate email draft",
+                                              "error"
+                                            );
+                                          } finally {
+                                            setDraftLoadingId(null);
                                           }
-                                        } catch (err: any) {
-                                          showMessage(
-                                            err.message || "Failed to generate email draft",
-                                            "error"
-                                          );
-                                        } finally {
-                                          setDraftLoadingId(null);
-                                        }
-                                      }}
-                                      className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 text-sm font-medium"
-                                    >
-                                      {draftLoadingId === followUp.id
-                                        ? "Generating..."
-                                        : "Generate email draft"}
-                                    </button>
+                                        }}
+                                        className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 text-sm font-medium"
+                                      >
+                                        {draftLoadingId === followUp.id
+                                          ? "Generating..."
+                                          : "Generate Draft"}
+                                      </button>
+                                    )}
                                     <button
                                       onClick={async () => {
                                         try {

@@ -593,6 +593,18 @@ END:VCALENDAR`;
                         minute: "2-digit",
                       })}
                     </div>
+                    {interview.jobOpportunityId && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          window.location.href = `/job-opportunities?jobId=${interview.jobOpportunityId}`;
+                        }}
+                        className="mt-1 text-xs text-blue-600 hover:text-blue-700 underline"
+                      >
+                        View linked job application
+                      </button>
+                    )}
                   </div>
                   <span
                     className="px-2 py-1 rounded text-xs font-medium text-white"
@@ -1406,6 +1418,17 @@ function InterviewDetailModal({
               <p className="text-lg font-medium text-slate-700 mb-4">
                 {interview.company}
               </p>
+              {interview.jobOpportunityId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.location.href = `/job-opportunities?jobId=${interview.jobOpportunityId}`;
+                  }}
+                  className="text-sm text-blue-600 hover:text-blue-700 underline mb-2"
+                >
+                  View linked job application
+                </button>
+              )}
               <div className="flex items-center gap-3">
                 <span
                   className="px-3 py-1 rounded-full text-sm font-medium text-white"

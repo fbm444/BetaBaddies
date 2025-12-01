@@ -189,6 +189,7 @@ class FollowUpService {
           i.title as interview_title,
           i.company,
           i.scheduled_at as interview_date,
+          i.job_opportunity_id,
           jo.title as job_title
         FROM interview_follow_ups fu
         JOIN interviews i ON fu.interview_id = i.id
@@ -211,6 +212,7 @@ class FollowUpService {
           title: row.interview_title,
           company: row.company,
           scheduledAt: row.interview_date,
+          jobOpportunityId: row.job_opportunity_id,
           jobTitle: row.job_title,
         },
       }));
@@ -238,6 +240,7 @@ class FollowUpService {
           i.title as interview_title,
           i.company,
           i.scheduled_at as interview_date,
+          i.job_opportunity_id,
           jo.title as job_title
         FROM interview_follow_ups fu
         JOIN interviews i ON fu.interview_id = i.id
@@ -264,6 +267,7 @@ class FollowUpService {
           title: row.interview_title,
           company: row.company,
           scheduledAt: row.interview_date,
+          jobOpportunityId: row.job_opportunity_id,
           jobTitle: row.job_title,
         },
       }));

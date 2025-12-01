@@ -49,6 +49,11 @@ export function Interviews() {
   } | null>(null);
   const [draftLoadingId, setDraftLoadingId] = useState<string | null>(null);
 
+  // Thank-you notes modal state
+  const [activeThankYouInterview, setActiveThankYouInterview] = useState<InterviewData | null>(null);
+  const [thankYouNotes, setThankYouNotes] = useState<any[]>([]);
+  const [loadingThankYou, setLoadingThankYou] = useState(false);
+
   // Calendar state
   const [calendarConnected, setCalendarConnected] = useState(false);
   const [calendarLoading, setCalendarLoading] = useState(false);
@@ -236,6 +241,24 @@ export function Interviews() {
     }
   };
 
+  const openThankYouModal = async (interview: InterviewData) => {
+    setActiveThankYouInterview(interview);
+    setLoadingThankYou(true);
+    try {
+      const response = await api.getThankYouNotes(interview.id);
+      if (response.ok && response.data?.notes) {
+        setThankYouNotes(response.data.notes);
+      } else {
+        setThankYouNotes([]);
+      }
+    } catch (err) {
+      console.error("Failed to load thank-you notes:", err);
+      setThankYouNotes([]);
+    } finally {
+      setLoadingThankYou(false);
+    }
+  };
+
   const fetchInsightsForCompany = async (jobId: string, company: string, companyKey: string) => {
     setCompanyInsights((prev) => {
       const updated = new Map(prev);
@@ -417,10 +440,123 @@ export function Interviews() {
           </div>
         )}
 
+        {/* Follow-up email draft modal */}
         {error && (
           <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
             <Icon icon="mingcute:alert-line" width={20} className="text-red-600" />
             <p className="text-red-800 text-sm m-0">{error}</p>
+          </div>
+        )}
+
+        {/* Thank-you note modal */}
+        {activeThankYouInterview && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-40 px-4">
+            <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-6 font-poppins">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900">
+                    Thank You Note – {activeThankYouInterview.title || "Interview"} at{" "}
+                    {activeThankYouInterview.company || "Company"}
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Generate a draft, then copy it into your email client and edit before sending.
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setActiveThankYouInterview(null);
+                    setThankYouNotes([]);
+                  }}
+                  className="text-slate-400 hover:text-slate-600"
+                >
+                  <Icon icon="mingcute:close-line" width={20} />
+                </button>
+              </div>
+
+              {loadingThankYou ? (
+                <div className="text-center py-8">
+                  <Icon
+                    icon="mingcute:loading-line"
+                    className="animate-spin text-blue-500 mx-auto mb-2"
+                    width={24}
+                  />
+                  <p className="text-slate-600 text-sm">Loading thank-you notes...</p>
+                </div>
+              ) : (
+                <>
+                  {thankYouNotes.length > 0 && (
+                    <div className="mb-4">
+                      <label className="block text-xs font-medium text-slate-500 mb-1">
+                        Latest Draft
+                      </label>
+                      <input
+                        type="text"
+                        readOnly
+                        value={thankYouNotes[0].subject}
+                        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 mb-2"
+                      />
+                      <textarea
+                        readOnly
+                        rows={8}
+                        value={thankYouNotes[0].body}
+                        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 font-mono whitespace-pre-wrap"
+                      />
+                    </div>
+                  )}
+
+                  {thankYouNotes.length === 0 && (
+                    <p className="text-sm text-slate-500 mb-4">
+                      No thank-you note has been generated yet for this interview.
+                    </p>
+                  )}
+
+                  <div className="flex justify-between items-center mt-4">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!activeThankYouInterview) return;
+                        setLoadingThankYou(true);
+                        try {
+                          const response = await api.generateThankYouNote(
+                            activeThankYouInterview.id
+                          );
+                          if (response.ok && response.data?.note) {
+                            // Reload list so we always show latest first
+                            const notesResponse = await api.getThankYouNotes(
+                              activeThankYouInterview.id
+                            );
+                            if (notesResponse.ok && notesResponse.data?.notes) {
+                              setThankYouNotes(notesResponse.data.notes);
+                            }
+                            showMessage("Thank-you note draft generated!", "success");
+                          }
+                        } catch (err: any) {
+                          showMessage(
+                            err.message || "Failed to generate thank-you note",
+                            "error"
+                          );
+                        } finally {
+                          setLoadingThankYou(false);
+                        }
+                      }}
+                      className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm font-medium"
+                    >
+                      {thankYouNotes.length > 0 ? "Regenerate draft" : "Generate draft"}
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setActiveThankYouInterview(null);
+                        setThankYouNotes([]);
+                      }}
+                      className="px-4 py-2 text-sm font-medium text-slate-700 hover:text-slate-900"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         )}
 
@@ -777,7 +913,7 @@ export function Interviews() {
             <div>
               <h2 className="text-2xl font-bold text-slate-900 mb-4">Thank You Notes</h2>
               <p className="text-slate-600 mb-6">
-                Generate and send thank-you notes after your interviews. Click on any interview to manage thank-you notes.
+                Generate and send thank-you notes after your interviews. Click on any interview to create or review a draft.
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {interviews
@@ -787,12 +923,12 @@ export function Interviews() {
                     <div
                       key={interview.id}
                       className="bg-white border border-slate-200 rounded-xl p-6 hover:shadow-md transition-shadow cursor-pointer"
-                      onClick={() => navigate(`${ROUTES.INTERVIEW_SCHEDULING}?interviewId=${interview.id}&tab=thank-you`)}
+                      onClick={() => openThankYouModal(interview)}
                     >
                       <h3 className="font-semibold text-slate-900 mb-2">{interview.title || "Interview"}</h3>
                       <p className="text-slate-600 text-sm mb-4">{interview.company || "N/A"}</p>
                       <button className="text-blue-600 hover:text-blue-700 text-sm font-medium">
-                        Manage Notes →
+                        Generate / View Note →
                       </button>
                     </div>
                   ))}

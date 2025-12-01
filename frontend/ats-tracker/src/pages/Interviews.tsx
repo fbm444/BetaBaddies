@@ -99,6 +99,13 @@ export function Interviews() {
     checkCalendarStatus();
   }, []);
 
+  // Sync activeTab with URL parameter
+  useEffect(() => {
+    if (tabParam && tabParam !== activeTab) {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam]);
+
   useEffect(() => {
     if (activeTab === "reminders") {
       fetchUpcomingReminders();
@@ -477,15 +484,24 @@ export function Interviews() {
           <h1 className="text-4xl md:text-5xl font-bold text-slate-900">
             Interviews
           </h1>
-          {activeTab === "schedule" && (
+          <div className="flex items-center gap-3">
+            {activeTab === "schedule" && (
+              <button
+                onClick={() => navigate(`${ROUTES.INTERVIEW_SCHEDULING}${jobOpportunityId ? `?jobOpportunityId=${jobOpportunityId}` : ""}`)}
+                className="px-6 py-3 rounded-full bg-blue-500 text-white text-sm font-semibold inline-flex items-center gap-2 shadow hover:bg-blue-600"
+              >
+                <Icon icon="mingcute:add-line" width={20} />
+                Schedule New Interview
+              </button>
+            )}
             <button
-              onClick={() => navigate(`${ROUTES.INTERVIEW_SCHEDULING}${jobOpportunityId ? `?jobOpportunityId=${jobOpportunityId}` : ""}`)}
-              className="px-6 py-3 rounded-full bg-blue-500 text-white text-sm font-semibold inline-flex items-center gap-2 shadow hover:bg-blue-600"
+              onClick={() => navigate(ROUTES.INTERVIEW_SCHEDULING)}
+              className="px-6 py-3 rounded-full bg-slate-100 text-slate-700 text-sm font-semibold inline-flex items-center gap-2 shadow hover:bg-slate-200"
             >
-              <Icon icon="mingcute:add-line" width={20} />
-              Schedule New Interview
+              <Icon icon="mingcute:calendar-line" width={20} />
+              Interview Calendar
             </button>
-          )}
+          </div>
         </div>
 
         {/* Messages */}
@@ -853,11 +869,11 @@ export function Interviews() {
               <button
                 key={tab.id}
                 onClick={() => {
-                  if (tab.id === "analytics") {
-                    navigate(ROUTES.INTERVIEW_ANALYTICS);
-                  } else {
-                    setActiveTab(tab.id);
-                  }
+                  setActiveTab(tab.id);
+                  // Update URL without navigating away
+                  const newSearchParams = new URLSearchParams(searchParams);
+                  newSearchParams.set("tab", tab.id);
+                  navigate(`?${newSearchParams.toString()}`, { replace: true });
                 }}
                 className={`px-6 py-3 font-medium text-sm whitespace-nowrap border-b-2 transition-colors flex items-center gap-2 ${
                   activeTab === tab.id

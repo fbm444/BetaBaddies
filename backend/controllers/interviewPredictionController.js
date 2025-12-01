@@ -13,26 +13,38 @@ class InterviewPredictionController {
     if (!jobOpportunityId) {
       return res.status(400).json({
         ok: false,
-        error: "Job opportunity ID is required",
+        error: { message: "Job opportunity ID is required" },
       });
     }
 
-    const prediction = await interviewPredictionService.getPrediction(
-      jobOpportunityId,
-      userId
-    );
-
-    if (!prediction) {
-      return res.status(404).json({
+    if (!userId) {
+      return res.status(401).json({
         ok: false,
-        error: "Prediction not found. Calculate prediction first.",
+        error: { message: "User not authenticated" },
       });
     }
 
-    res.status(200).json({
-      ok: true,
-      data: { prediction },
-    });
+    try {
+      const prediction = await interviewPredictionService.getPrediction(
+        jobOpportunityId,
+        userId
+      );
+
+      if (!prediction) {
+        return res.status(404).json({
+          ok: false,
+          error: { message: "Prediction not found. Calculate prediction first." },
+        });
+      }
+
+      res.status(200).json({
+        ok: true,
+        data: { prediction },
+      });
+    } catch (error) {
+      console.error("Error in getPrediction controller:", error);
+      throw error;
+    }
   });
 
   /**

@@ -34,8 +34,11 @@ export function InterviewPredictionTab({
   );
 
   useEffect(() => {
-    if (selectedJobId && !prediction) {
+    if (selectedJobId) {
       loadPrediction(selectedJobId);
+    } else {
+      setPrediction(null);
+      setError(null);
     }
   }, [selectedJobId]);
 
@@ -52,7 +55,15 @@ export function InterviewPredictionTab({
       }
     } catch (err: any) {
       console.error("Failed to load prediction:", err);
-      setError(err.message || "Failed to load prediction");
+      // 404 means prediction doesn't exist yet, which is fine
+      if (err.status === 404 || err.message?.includes("not found")) {
+        setPrediction(null);
+        setError(null); // Clear error for 404
+      } else {
+        const errorMsg = err.detail || err.message || err.error?.message || "Failed to load prediction";
+        setError(errorMsg);
+        console.error("Full error object:", err);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -66,11 +77,13 @@ export function InterviewPredictionTab({
       if (response.ok && response.data?.prediction) {
         setPrediction(response.data.prediction);
       } else {
-        setError(response.error?.message || "Failed to calculate prediction");
+        const errorMsg = response.error?.message || response.error?.detail || "Failed to calculate prediction";
+        setError(errorMsg);
       }
     } catch (err: any) {
       console.error("Failed to calculate prediction:", err);
-      setError(err.message || "Failed to calculate prediction");
+      const errorMsg = err.message || err.detail || err.error?.message || "Failed to calculate prediction";
+      setError(errorMsg);
     } finally {
       setIsCalculating(false);
     }
@@ -169,7 +182,7 @@ export function InterviewPredictionTab({
           <option value="">Choose a job opportunity...</option>
           {activeJobs.map((job) => (
             <option key={job.id} value={job.id}>
-              {job.job_title} at {job.company_name}
+              {job.title} at {job.company}
             </option>
           ))}
         </select>
@@ -277,7 +290,7 @@ export function InterviewPredictionTab({
                 <div className="flex items-start justify-between mb-4">
                   <div>
                     <h3 className="text-lg font-semibold text-slate-900 mb-1">
-                      {selectedJob?.job_title} at {selectedJob?.company_name}
+                      {selectedJob?.title} at {selectedJob?.company}
                     </h3>
                     <p className="text-sm text-slate-600">Interview Success Probability</p>
                   </div>

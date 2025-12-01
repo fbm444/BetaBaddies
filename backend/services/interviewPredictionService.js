@@ -49,7 +49,7 @@ class InterviewPredictionService {
         historical: historicalResult.score,
       };
 
-      // Calculate weighted base score
+      // Calculate weighted base score using linear combination
       const baseScore =
         factors.preparation * this.weights.preparation +
         factors.roleMatch * this.weights.roleMatch +
@@ -57,7 +57,8 @@ class InterviewPredictionService {
         factors.practiceHours * this.weights.practiceHours +
         factors.historical * this.weights.historical;
 
-      // Apply adjustments (can be extended later)
+      // Apply non-linear adjustments using sigmoid-like function
+      // This creates more realistic probability curves
       const adjustments = this.calculateAdjustments(factors, {
         preparation: preparationResult,
         roleMatch: roleMatchResult,
@@ -66,7 +67,22 @@ class InterviewPredictionService {
         historical: historicalResult,
       });
 
-      const finalProbability = Math.min(100, Math.max(0, baseScore + adjustments.total));
+      // Apply sigmoid transformation for more realistic probability distribution
+      // This prevents extreme probabilities and creates a more bell-curve-like distribution
+      let adjustedScore = baseScore + adjustments.total;
+      
+      // Apply sigmoid transformation: S(x) = 1 / (1 + e^(-k(x - x0)))
+      // For our case: maps [0, 100] to [0, 100] with center at 50
+      const k = 0.1; // Steepness parameter
+      const x0 = 50;  // Center point
+      const normalizedScore = (adjustedScore - 50) / 50; // Normalize to [-1, 1]
+      const sigmoidValue = 1 / (1 + Math.exp(-k * normalizedScore * 10));
+      const transformedScore = sigmoidValue * 100;
+      
+      // Blend original and transformed (70% transformed, 30% original) for balance
+      const finalProbability = Math.min(100, Math.max(0, 
+        transformedScore * 0.7 + adjustedScore * 0.3
+      ));
 
       // Calculate confidence score
       const confidence = this.calculateConfidence({
@@ -155,30 +171,73 @@ class InterviewPredictionService {
   }
 
   /**
-   * Calculate adjustments to base score
+   * Calculate adjustments to base score using multiplicative and additive factors
+   * Implements a more sophisticated adjustment model
    */
   calculateAdjustments(factors, factorResults) {
     let total = 0;
     const details = {};
 
-    // Bonus for high preparation (above 80)
-    if (factors.preparation >= 80) {
-      const bonus = (factors.preparation - 80) * 0.1; // Up to +2 points
-      total += bonus;
-      details.highPreparation = bonus;
+    // 1. Preparation multiplier (critical factor)
+    // High preparation amplifies other factors
+    if (factors.preparation >= 85) {
+      const multiplier = 1.05; // 5% boost
+      total += (factors.preparation - 85) * 0.08; // Additional points
+      details.highPreparation = (factors.preparation - 85) * 0.08;
+    } else if (factors.preparation < 50) {
+      const penalty = (50 - factors.preparation) * 0.2; // Up to -10 points
+      total -= penalty;
+      details.lowPreparation = -penalty;
     }
 
-    // Penalty for very low role match (below 40)
+    // 2. Role match criticality (non-linear penalty)
+    // Low role match is a strong negative signal
     if (factors.roleMatch < 40) {
-      const penalty = (40 - factors.roleMatch) * 0.15; // Up to -6 points
+      const penalty = Math.pow((40 - factors.roleMatch) / 10, 1.5) * 3; // Exponential penalty
       total -= penalty;
       details.lowRoleMatch = -penalty;
+    } else if (factors.roleMatch >= 80) {
+      const bonus = (factors.roleMatch - 80) * 0.12; // Bonus for high match
+      total += bonus;
+      details.highRoleMatch = bonus;
     }
 
-    // Bonus for recent practice activity
+    // 3. Practice momentum (recent activity is valuable)
     if (factorResults.practice && factorResults.practice.recentActivity) {
+      total += 3; // Increased from 2
+      details.recentPractice = 3;
+    }
+
+    // 4. Company research depth bonus
+    if (factors.companyResearch >= 75) {
       total += 2;
-      details.recentPractice = 2;
+      details.deepResearch = 2;
+    }
+
+    // 5. Historical performance trend
+    if (factorResults.historical && factorResults.historical.breakdown?.recentTrend) {
+      const trend = factorResults.historical.breakdown.recentTrend.trend;
+      if (trend === "improving") {
+        total += 4;
+        details.improvingTrend = 4;
+      } else if (trend === "declining") {
+        total -= 3;
+        details.decliningTrend = -3;
+      }
+    }
+
+    // 6. Synergy bonus: High preparation + High role match
+    if (factors.preparation >= 75 && factors.roleMatch >= 75) {
+      total += 2;
+      details.synergyBonus = 2;
+    }
+
+    // 7. Critical gap penalty: Missing both resume and cover letter
+    if (factorResults.preparation && 
+        factorResults.preparation.breakdown?.resume?.score < 50 &&
+        factorResults.preparation.breakdown?.coverLetter?.score < 50) {
+      total -= 5;
+      details.missingMaterials = -5;
     }
 
     return { total, details };
@@ -336,8 +395,35 @@ class InterviewPredictionService {
       }
 
       const row = result.rows[0];
+      
+      // Parse JSON fields if they're strings
+      let factorsBreakdown = {};
+      if (row.factors_breakdown) {
+        try {
+          factorsBreakdown = typeof row.factors_breakdown === 'string' 
+            ? JSON.parse(row.factors_breakdown) 
+            : row.factors_breakdown;
+        } catch (e) {
+          console.error("Error parsing factors_breakdown:", e);
+          factorsBreakdown = {};
+        }
+      }
+      
+      let recommendations = [];
+      if (row.recommendations) {
+        try {
+          recommendations = typeof row.recommendations === 'string'
+            ? JSON.parse(row.recommendations)
+            : row.recommendations;
+        } catch (e) {
+          console.error("Error parsing recommendations:", e);
+          recommendations = [];
+        }
+      }
+      
       return {
         id: row.id,
+        userId: row.user_id,
         jobOpportunityId: row.job_opportunity_id,
         predictedSuccessProbability: parseFloat(row.predicted_success_probability),
         confidenceScore: parseFloat(row.confidence_score),
@@ -346,11 +432,13 @@ class InterviewPredictionService {
         companyResearchScore: parseFloat(row.company_research_score),
         practiceHoursScore: parseFloat(row.practice_hours_score),
         historicalPerformanceScore: parseFloat(row.historical_performance_score),
-        factorsBreakdown: row.factors_breakdown || {},
-        recommendations: row.recommendations || [],
+        factorsBreakdown,
+        recommendations,
         calculatedAt: row.calculated_at,
         lastUpdated: row.last_updated,
+        createdAt: row.created_at,
         actualOutcome: row.actual_outcome,
+        outcomeDate: row.outcome_date,
         predictionAccuracy: row.prediction_accuracy ? parseFloat(row.prediction_accuracy) : null,
       };
     } catch (error) {

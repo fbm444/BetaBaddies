@@ -149,11 +149,10 @@ class InterviewService {
 
       const interview = result.rows[0];
 
-      // Create preparation tasks if provided
+      // Create preparation tasks if provided, otherwise generate a tailored checklist
       if (interviewData.preparationTasks && interviewData.preparationTasks.length > 0) {
         await this.createPreparationTasks(interview.id, interviewData.preparationTasks);
       } else {
-        // Generate default preparation tasks
         await this.generateDefaultPreparationTasks(interview.id, interviewData.interviewType);
       }
 
@@ -206,30 +205,164 @@ class InterviewService {
     }
   }
 
-  // Generate default preparation tasks
-  async generateDefaultPreparationTasks(interviewId, interviewType) {
-    const defaultTasks = [
-      "Review job description and requirements",
-      "Research the company and role",
-      "Prepare questions to ask the interviewer",
-      "Review your resume and relevant experience",
-    ];
+  // Generate default (but tailored) preparation tasks for an interview
+  async generateDefaultPreparationTasks(interviewId, interviewTypeHint) {
+    // Load interview + related job information so we can customize tasks
+    const query = `
+      SELECT 
+        i.type,
+        i.scheduled_at,
+        i.format,
+        i.job_opportunity_id,
+        jo.title       AS job_title,
+        jo.company     AS company,
+        jo.industry    AS industry
+      FROM interviews i
+      LEFT JOIN job_opportunities jo ON i.job_opportunity_id = jo.id
+      WHERE i.id = $1
+    `;
 
+    const result = await database.query(query, [interviewId]);
+    const row = result.rows[0] || {};
+
+    const interviewType = row.type || interviewTypeHint || "video";
+    const scheduledAt = row.scheduled_at ? new Date(row.scheduled_at) : null;
+    const jobTitle = row.job_title || "this role";
+    const company = row.company || "the company";
+    const industry = (row.industry || "").toLowerCase();
+
+    const tasks = [];
+
+    // Helper to compute due dates relative to interview time
+    const addHours = (date, hours) =>
+      new Date(date.getTime() + hours * 60 * 60 * 1000);
+
+    const addTask = (task, offsetHoursFromInterview = null) => {
+      let dueDate = null;
+      if (scheduledAt && offsetHoursFromInterview !== null) {
+        dueDate = addHours(scheduledAt, offsetHoursFromInterview).toISOString();
+      }
+      tasks.push({ task, completed: false, dueDate });
+    };
+
+    // 1) Role & experience specific
+    addTask(
+      `Read the ${jobTitle} job description at ${company} and highlight the top 5 responsibilities.`,
+      scheduledAt ? -48 : null
+    );
+    addTask(
+      "Write 3–5 STAR stories that match the main requirements of this role.",
+      scheduledAt ? -36 : null
+    );
+
+    // 2) Company research verification
+    addTask(
+      `Skim ${company}'s homepage and product pages; write a 2–3 sentence summary of what they do.`,
+      scheduledAt ? -48 : null
+    );
+    addTask(
+      `Check ${company}'s values/culture page and note 2–3 values you can speak to with examples.`,
+      scheduledAt ? -36 : null
+    );
+
+    // 3) Thoughtful questions for interviewer
+    addTask(
+      "Draft at least 5 questions for the interviewer about the team, product roadmap, and growth opportunities.",
+      scheduledAt ? -24 : null
+    );
+
+    // 4) Attire suggestion based on industry
+    let attireSuggestion = "smart casual (nice top, dark jeans or chinos, closed‑toe shoes)";
+    if (industry.includes("finance") || industry.includes("law") || industry.includes("consulting")) {
+      attireSuggestion = "business formal (suit or blazer, dress shirt, dress shoes)";
+    } else if (industry.includes("startup")) {
+      attireSuggestion = "startup smart casual (clean sneakers ok, no logos, simple layers)";
+    }
+    addTask(
+      `Pick your interview outfit (${attireSuggestion}) and lay it out the night before.`,
+      scheduledAt ? -18 : null
+    );
+
+    // 5) Logistics & technology
     if (interviewType === "video") {
-      defaultTasks.push("Test video call software and internet connection");
-      defaultTasks.push("Set up a quiet, well-lit space for the interview");
+      addTask(
+        "Join a test video call to check camera, microphone, and screen share.",
+        scheduledAt ? -12 : null
+      );
+      addTask(
+        "Choose a quiet, well‑lit spot; check your background and lighting on camera.",
+        scheduledAt ? -6 : null
+      );
     } else if (interviewType === "in-person") {
-      defaultTasks.push("Plan your route and arrive 10-15 minutes early");
-      defaultTasks.push("Prepare professional attire");
+      addTask(
+        "Confirm the office address and entry instructions; plan your route with 10–15 minutes buffer.",
+        scheduledAt ? -24 : null
+      );
+      addTask(
+        "Save directions and interview contact info offline in case of transit or signal issues.",
+        scheduledAt ? -18 : null
+      );
     } else if (interviewType === "phone") {
-      defaultTasks.push("Find a quiet location for the call");
-      defaultTasks.push("Ensure your phone is charged and has good reception");
+      addTask(
+        "Pick a quiet location for the call and silence notifications on all devices.",
+        scheduledAt ? -12 : null
+      );
+      addTask(
+        "Charge your phone to 100% and test your headset or speakerphone.",
+        scheduledAt ? -6 : null
+      );
     }
 
-    const tasks = defaultTasks.map((task) => ({
-      task,
-      completed: false,
-    }));
+    // 6) Confidence-building activities
+    addTask(
+      "Answer 5 common behavioral questions using STAR; record yourself or practice in a mirror.",
+      scheduledAt ? -24 : null
+    );
+    addTask(
+      "Do a 20–30 minute mock interview with a friend, mentor, or practice tool.",
+      scheduledAt ? -24 : null
+    );
+    addTask(
+      "Choose a 5‑minute breathing or visualization exercise to do right before the interview.",
+      scheduledAt ? -1 : null
+    );
+
+    // 7) Portfolio / work samples (for relevant roles)
+    const titleLower = jobTitle.toLowerCase();
+    if (
+      titleLower.includes("engineer") ||
+      titleLower.includes("developer") ||
+      titleLower.includes("designer") ||
+      titleLower.includes("data") ||
+      titleLower.includes("scientist") ||
+      titleLower.includes("analyst")
+    ) {
+      addTask(
+        "Pick 2–3 projects/work samples that best match this role and note talking points for each.",
+        scheduledAt ? -36 : null
+      );
+      addTask(
+        "Update your portfolio / GitHub / case studies and keep the links ready to share.",
+        scheduledAt ? -30 : null
+      );
+    }
+
+    // 8) Post-interview follow-up tasks
+    // These are scheduled after the interview time so they show up as reminders later.
+    if (scheduledAt) {
+      addTask(
+        `Send a personalized thank‑you email to your interviewer(s) for the ${jobTitle} role at ${company}.`,
+        24 // 24 hours after interview
+      );
+      addTask(
+        "Write a short reflection: what went well, what was challenging, and what to improve next time.",
+        26 // shortly after the thank-you
+      );
+      addTask(
+        "Update your job search tracker with the interview outcome and key notes from the conversation.",
+        28
+      );
+    }
 
     await this.createPreparationTasks(interviewId, tasks);
   }
@@ -681,6 +814,36 @@ class InterviewService {
       return result.rows[0];
     } catch (error) {
       console.error("Error updating preparation task:", error);
+      throw error;
+    }
+  }
+
+  // Regenerate preparation tasks for an interview
+  async regeneratePreparationTasks(interviewId) {
+    try {
+      // Clear existing tasks
+      await database.query(
+        `DELETE FROM interview_preparation_tasks WHERE interview_id = $1`,
+        [interviewId]
+      );
+
+      // Re-generate using the latest interview/job data
+      await this.generateDefaultPreparationTasks(interviewId, null);
+
+      // Return updated list of tasks
+      const result = await database.query(
+        `
+        SELECT id, task, completed, due_date AS "dueDate", created_at AS "createdAt"
+        FROM interview_preparation_tasks
+        WHERE interview_id = $1
+        ORDER BY due_date NULLS LAST, created_at ASC
+        `,
+        [interviewId]
+      );
+
+      return result.rows;
+    } catch (error) {
+      console.error("Error regenerating preparation tasks:", error);
       throw error;
     }
   }

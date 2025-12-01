@@ -176,6 +176,33 @@ class InterviewController {
     });
   });
 
+  // Regenerate preparation tasks for an interview
+  regeneratePreparationTasks = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { id } = req.params;
+
+    // Verify interview belongs to user
+    const interview = await interviewService.getInterviewById(userId, id);
+    if (!interview) {
+      return res.status(404).json({
+        ok: false,
+        error: {
+          message: "Interview not found",
+        },
+      });
+    }
+
+    const tasks = await interviewService.regeneratePreparationTasks(id);
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        tasks,
+        message: "Preparation checklist generated successfully",
+      },
+    });
+  });
+
   // Delete interview
   deleteInterview = asyncHandler(async (req, res) => {
     const userId = req.session.userId;

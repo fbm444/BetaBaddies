@@ -1063,6 +1063,14 @@ class ApiService {
     });
   }
 
+  async generatePreparationTasks(interviewId: string) {
+    return this.request<
+      ApiResponse<{ tasks: any[]; message: string }>
+    >(`/interviews/${interviewId}/preparation/generate`, {
+      method: "POST",
+    });
+  }
+
   async deleteInterview(id: string) {
     return this.request<ApiResponse<{ message: string }>>(`/interviews/${id}`, {
       method: "DELETE",

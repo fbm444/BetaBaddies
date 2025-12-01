@@ -1539,11 +1539,30 @@ function InterviewDetailModal({
             )}
 
             {/* Preparation Tasks */}
-            {interview.preparationTasks && interview.preparationTasks.length > 0 && (
-              <div>
-                <div className="text-sm font-medium text-slate-700 mb-3">
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-sm font-medium text-slate-700">
                   Preparation Tasks
                 </div>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await api.generatePreparationTasks(interview.id);
+                      await onRefresh();
+                    } catch (err) {
+                      console.error("Failed to generate preparation tasks:", err);
+                    }
+                  }}
+                  className="text-xs font-medium text-blue-600 hover:text-blue-700"
+                >
+                  {interview.preparationTasks && interview.preparationTasks.length > 0
+                    ? "Regenerate checklist"
+                    : "Generate checklist"}
+                </button>
+              </div>
+
+              {interview.preparationTasks && interview.preparationTasks.length > 0 ? (
                 <div className="space-y-2">
                   {interview.preparationTasks.map((task: any) => (
                     <div
@@ -1566,8 +1585,14 @@ function InterviewDetailModal({
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+              ) : (
+                <p className="text-sm text-slate-500">
+                  No preparation checklist yet. Click{" "}
+                  <span className="font-medium text-blue-600">Generate checklist</span> to
+                  create a tailored list of tasks for this role and company.
+                </p>
+              )}
+            </div>
 
             {/* Outcome */}
             {interview.status === "completed" && (

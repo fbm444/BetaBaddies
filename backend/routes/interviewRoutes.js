@@ -81,6 +81,9 @@ router.post("/:id/cancel", interviewController.cancelInterview);
 // Reschedule interview
 router.post("/:id/reschedule", interviewController.rescheduleInterview);
 
+// Regenerate preparation tasks for an interview
+router.post("/:id/preparation/generate", interviewController.regeneratePreparationTasks);
+
 // Update preparation task
 router.put("/:interviewId/tasks/:taskId", interviewController.updatePreparationTask);
 

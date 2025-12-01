@@ -7,7 +7,7 @@ class RecommendationEngineService {
     const recommendations = [];
 
     // Analyze each factor and generate recommendations
-    Object.entries(factors).forEach(([factorName, factorData]) => {
+    for (const [factorName, factorData] of Object.entries(factors)) {
       const score = factorData.score;
       const breakdown = factorData.breakdown || {};
 
@@ -86,10 +86,11 @@ class RecommendationEngineService {
       // Low practice hours
       if (factorName === "practiceHours" && score < 50) {
         if (breakdown.writingPractice?.sessions < 5) {
+          const sessionsDone = breakdown.writingPractice?.sessions || 0;
           recommendations.push({
             id: `practice-writing-${Date.now()}`,
             title: "Complete Writing Practice Sessions",
-            description: `Complete at least 5 writing practice sessions. You've done ${breakdown.writingPractice?.sessions || 0} so far.`,
+            description: `Complete at least 5 writing practice sessions. You've done ${sessionsDone} so far.`,
             priority: "high",
             impact: 18,
             category: "practice",

@@ -176,7 +176,7 @@ class InterviewPredictionService {
     }
 
     // Bonus for recent practice activity
-    if (factorResults.practice.recentActivity) {
+    if (factorResults.practice && factorResults.practice.recentActivity) {
       total += 2;
       details.recentPractice = 2;
     }

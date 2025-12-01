@@ -1,11 +1,11 @@
 import express from "express";
 import salaryNegotiationController from "../controllers/salaryNegotiationController.js";
-import { requireAuth } from "../middleware/auth.js";
+import { isAuthenticated } from "../middleware/auth.js";
 
 const router = express.Router();
 
 // All routes require authentication
-router.use(requireAuth);
+router.use(isAuthenticated);
 
 // Create negotiation
 router.post("/", salaryNegotiationController.createNegotiation);

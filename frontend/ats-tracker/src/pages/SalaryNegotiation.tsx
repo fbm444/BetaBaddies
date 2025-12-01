@@ -15,6 +15,7 @@ import type {
   TimingStrategy,
   SalaryProgressionEntry,
   JobOpportunityData,
+  JobData,
 } from "../types";
 import { SalaryProgressionChart } from "../components/salary-negotiation/SalaryProgressionChart";
 
@@ -38,6 +39,7 @@ export function SalaryNegotiation() {
   const [creatingNegotiation, setCreatingNegotiation] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [progressionEntries, setProgressionEntries] = useState<SalaryProgressionEntry[]>([]);
+  const [employmentJobs, setEmploymentJobs] = useState<JobData[]>([]);
   const [loadingProgression, setLoadingProgression] = useState(false);
   const [showAddProgressionModal, setShowAddProgressionModal] = useState(false);
 
@@ -99,9 +101,20 @@ export function SalaryNegotiation() {
   const fetchProgression = async () => {
     try {
       setLoadingProgression(true);
-      const response = await api.getSalaryProgression();
-      if (response.ok && response.data?.progression) {
-        setProgressionEntries(response.data.progression);
+      // Fetch both salary progression entries and employment data
+      const [progressionRes, jobsRes] = await Promise.all([
+        api.getSalaryProgression().catch(() => ({ ok: false, data: { progression: [] } })),
+        api.getJobs().catch(() => ({ ok: false, data: { jobs: [] } })),
+      ]);
+
+      if (progressionRes.ok && progressionRes.data?.progression) {
+        setProgressionEntries(progressionRes.data.progression);
+      }
+
+      if (jobsRes.ok && jobsRes.data?.jobs) {
+        // Filter jobs that have salary data
+        const jobsWithSalary = jobsRes.data.jobs.filter((job: JobData) => job.salary && job.salary > 0);
+        setEmploymentJobs(jobsWithSalary);
       }
     } catch (err: any) {
       console.error("Failed to fetch salary progression:", err);
@@ -667,155 +680,188 @@ export function SalaryNegotiation() {
                 />
                 <p className="text-slate-600">Loading progression data...</p>
               </div>
-            ) : progressionEntries.length === 0 ? (
-              <div className="bg-white rounded-xl p-12 text-center border border-slate-200">
-                <Icon icon="mingcute:chart-line" width={48} className="text-slate-400 mx-auto mb-4" />
-                <p className="text-slate-600 mb-2">No salary progression data yet</p>
-                <p className="text-sm text-slate-500 mb-6">
-                  Add entries to track your compensation growth over time
-                </p>
-                <button
-                  onClick={() => setShowAddProgressionModal(true)}
-                  className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium"
-                >
-                  Add First Entry
-                </button>
-              </div>
-            ) : (
-              <>
-                {/* Statistics */}
-                {(() => {
-                  const sortedEntries = [...progressionEntries].sort(
-                    (a, b) => new Date(a.effectiveDate).getTime() - new Date(b.effectiveDate).getTime()
-                  );
-                  const firstEntry = sortedEntries[0];
-                  const lastEntry = sortedEntries[sortedEntries.length - 1];
-                  const totalIncrease = lastEntry.totalCompensation - firstEntry.totalCompensation;
-                  const percentIncrease = firstEntry.totalCompensation > 0
-                    ? (totalIncrease / firstEntry.totalCompensation) * 100
-                    : 0;
-                  const avgIncrease = sortedEntries.length > 1
-                    ? totalIncrease / (sortedEntries.length - 1)
-                    : 0;
+            ) : (() => {
+              // Combine progression entries and employment jobs
+              const combinedData: Array<{
+                id: string;
+                date: string;
+                salary: number;
+                roleTitle: string;
+                company: string;
+                location?: string;
+                source: "progression" | "employment";
+              }> = [];
 
-                  return (
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                      <div className="bg-white rounded-xl p-6 border border-slate-200">
-                        <div className="flex items-center justify-between mb-2">
-                          <p className="text-sm text-slate-600">Current Total</p>
-                          <Icon icon="mingcute:dollar-line" width={24} className="text-green-500" />
-                        </div>
-                        <p className="text-3xl font-bold text-slate-900">
-                          ${lastEntry.totalCompensation.toLocaleString()}
-                        </p>
-                        <p className="text-xs text-slate-500 mt-1">
-                          {lastEntry.roleTitle || "Current Role"}
-                        </p>
-                      </div>
+              // Add progression entries
+              progressionEntries.forEach((entry) => {
+                combinedData.push({
+                  id: entry.id,
+                  date: entry.effectiveDate,
+                  salary: entry.totalCompensation,
+                  roleTitle: entry.roleTitle || "Unknown Role",
+                  company: entry.company || "Unknown Company",
+                  location: entry.location,
+                  source: "progression",
+                });
+              });
 
-                      <div className="bg-white rounded-xl p-6 border border-slate-200">
-                        <div className="flex items-center justify-between mb-2">
-                          <p className="text-sm text-slate-600">Total Increase</p>
-                          <Icon icon="mingcute:trending-up-line" width={24} className="text-blue-500" />
-                        </div>
-                        <p className="text-3xl font-bold text-slate-900">
-                          ${totalIncrease.toLocaleString()}
-                        </p>
-                        <p className="text-xs text-slate-500 mt-1">
-                          {percentIncrease > 0 ? `+${percentIncrease.toFixed(1)}%` : `${percentIncrease.toFixed(1)}%`}
-                        </p>
-                      </div>
+              // Add employment jobs with salary
+              employmentJobs.forEach((job) => {
+                if (job.salary && job.startDate) {
+                  combinedData.push({
+                    id: `employment-${job.id}`,
+                    date: job.startDate,
+                    salary: job.salary,
+                    roleTitle: job.title,
+                    company: job.company,
+                    location: job.location,
+                    source: "employment",
+                  });
+                }
+              });
 
-                      <div className="bg-white rounded-xl p-6 border border-slate-200">
-                        <div className="flex items-center justify-between mb-2">
-                          <p className="text-sm text-slate-600">Avg. Per Move</p>
-                          <Icon icon="mingcute:arrow-up-line" width={24} className="text-purple-500" />
-                        </div>
-                        <p className="text-3xl font-bold text-slate-900">
-                          ${avgIncrease > 0 ? `+${avgIncrease.toLocaleString()}` : avgIncrease.toLocaleString()}
-                        </p>
-                        <p className="text-xs text-slate-500 mt-1">
-                          {sortedEntries.length - 1} transitions
-                        </p>
-                      </div>
+              // Sort by date
+              combinedData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-                      <div className="bg-white rounded-xl p-6 border border-slate-200">
-                        <div className="flex items-center justify-between mb-2">
-                          <p className="text-sm text-slate-600">Total Entries</p>
-                          <Icon icon="mingcute:file-list-line" width={24} className="text-orange-500" />
-                        </div>
-                        <p className="text-3xl font-bold text-slate-900">
-                          {progressionEntries.length}
-                        </p>
-                        <p className="text-xs text-slate-500 mt-1">
-                          Over time
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {/* Chart */}
-                <SalaryProgressionChart entries={progressionEntries} />
-
-                {/* Progression Timeline */}
-                <div className="bg-white rounded-xl border border-slate-200">
-                  <div className="p-6 border-b border-slate-200">
-                    <h3 className="text-xl font-semibold text-slate-900">Progression Timeline</h3>
+              if (combinedData.length === 0) {
+                return (
+                  <div className="bg-white rounded-xl p-12 text-center border border-slate-200">
+                    <Icon icon="mingcute:chart-line" width={48} className="text-slate-400 mx-auto mb-4" />
+                    <p className="text-slate-600 mb-2">No salary progression data yet</p>
+                    <p className="text-sm text-slate-500 mb-6">
+                      Add salary information to your employment history or add progression entries
+                    </p>
+                    <button
+                      onClick={() => setShowAddProgressionModal(true)}
+                      className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium"
+                    >
+                      Add First Entry
+                    </button>
                   </div>
-                  <div className="divide-y divide-slate-200">
-                    {[...progressionEntries]
-                      .sort((a, b) => new Date(b.effectiveDate).getTime() - new Date(a.effectiveDate).getTime())
-                      .map((entry, index, array) => {
-                        const previousEntry = array[index + 1];
-                        const increase = previousEntry
-                          ? entry.totalCompensation - previousEntry.totalCompensation
-                          : 0;
-                        const percentIncrease = previousEntry && previousEntry.totalCompensation > 0
-                          ? (increase / previousEntry.totalCompensation) * 100
-                          : 0;
+                );
+              }
 
-                        return (
-                          <div key={entry.id} className="p-6 hover:bg-slate-50 transition-colors">
-                            <div className="flex items-start justify-between">
+              const firstEntry = combinedData[0];
+              const lastEntry = combinedData[combinedData.length - 1];
+              const totalIncrease = lastEntry.salary - firstEntry.salary;
+              const percentIncrease = firstEntry.salary > 0
+                ? (totalIncrease / firstEntry.salary) * 100
+                : 0;
+              const avgIncrease = combinedData.length > 1
+                ? totalIncrease / (combinedData.length - 1)
+                : 0;
+
+              // Convert to chart format
+              const chartEntries: SalaryProgressionEntry[] = combinedData.map((item) => ({
+                id: item.id,
+                baseSalary: item.salary,
+                totalCompensation: item.salary,
+                currency: "USD",
+                roleTitle: item.roleTitle,
+                company: item.company,
+                location: item.location,
+                effectiveDate: item.date,
+                createdAt: item.date,
+              }));
+
+              return (
+                <>
+                  {/* Statistics */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div className="bg-white rounded-xl p-6 border border-slate-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-sm text-slate-600">Current Salary</p>
+                        <Icon icon="mingcute:dollar-line" width={24} className="text-green-500" />
+                      </div>
+                      <p className="text-3xl font-bold text-slate-900">
+                        ${lastEntry.salary.toLocaleString()}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        {lastEntry.roleTitle} @ {lastEntry.company}
+                      </p>
+                    </div>
+
+                    <div className="bg-white rounded-xl p-6 border border-slate-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-sm text-slate-600">Total Increase</p>
+                        <Icon icon="mingcute:trending-up-line" width={24} className="text-blue-500" />
+                      </div>
+                      <p className="text-3xl font-bold text-slate-900">
+                        ${totalIncrease.toLocaleString()}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        {percentIncrease > 0 ? `+${percentIncrease.toFixed(1)}%` : `${percentIncrease.toFixed(1)}%`}
+                      </p>
+                    </div>
+
+                    <div className="bg-white rounded-xl p-6 border border-slate-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-sm text-slate-600">Avg. Per Move</p>
+                        <Icon icon="mingcute:arrow-up-line" width={24} className="text-purple-500" />
+                      </div>
+                      <p className="text-3xl font-bold text-slate-900">
+                        ${avgIncrease > 0 ? `+${avgIncrease.toLocaleString()}` : avgIncrease.toLocaleString()}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        {combinedData.length - 1} transitions
+                      </p>
+                    </div>
+
+                    <div className="bg-white rounded-xl p-6 border border-slate-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-sm text-slate-600">Data Sources</p>
+                        <Icon icon="mingcute:file-list-line" width={24} className="text-orange-500" />
+                      </div>
+                      <p className="text-3xl font-bold text-slate-900">
+                        {combinedData.length}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        {progressionEntries.length} progression, {employmentJobs.length} employment
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Chart */}
+                  <SalaryProgressionChart entries={chartEntries} />
+
+                  {/* Detailed Timeline Chart */}
+                  <div className="bg-white rounded-xl border border-slate-200 p-6">
+                    <h3 className="text-xl font-semibold text-slate-900 mb-4">Salary Progression Timeline</h3>
+                    <div className="space-y-4">
+                      {combinedData
+                        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                        .map((item, index, array) => {
+                          const previousItem = array[index + 1];
+                          const increase = previousItem ? item.salary - previousItem.salary : 0;
+                          const percentIncrease = previousItem && previousItem.salary > 0
+                            ? (increase / previousItem.salary) * 100
+                            : 0;
+
+                          return (
+                            <div key={item.id} className="flex items-start gap-4 p-4 bg-slate-50 rounded-lg border border-slate-200 hover:bg-slate-100 transition-colors">
+                              <div className="flex-shrink-0 w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">
+                                {combinedData.length - index}
+                              </div>
                               <div className="flex-1">
-                                <div className="flex items-center gap-3 mb-2">
-                                  <div className="w-3 h-3 rounded-full bg-blue-500 flex-shrink-0" />
+                                <div className="flex items-center justify-between mb-2">
                                   <div>
                                     <h4 className="font-semibold text-slate-900">
-                                      {entry.roleTitle || "Role"} @ {entry.company || "Company"}
+                                      {item.roleTitle} @ {item.company}
                                     </h4>
                                     <p className="text-sm text-slate-600">
-                                      {new Date(entry.effectiveDate).toLocaleDateString("en-US", {
+                                      {new Date(item.date).toLocaleDateString("en-US", {
                                         year: "numeric",
                                         month: "long",
                                         day: "numeric",
                                       })}
                                     </p>
                                   </div>
-                                </div>
-                                <div className="ml-6 space-y-1">
-                                  <div className="flex items-center gap-4 text-sm">
-                                    <span className="text-slate-600">
-                                      Base: <span className="font-medium text-slate-900">${entry.baseSalary.toLocaleString()}</span>
-                                    </span>
-                                    {entry.bonus && (
-                                      <span className="text-slate-600">
-                                        Bonus: <span className="font-medium text-slate-900">${entry.bonus.toLocaleString()}</span>
-                                      </span>
-                                    )}
-                                    {entry.equity && (
-                                      <span className="text-slate-600">
-                                        Equity: <span className="font-medium text-slate-900">${entry.equity.toLocaleString()}</span>
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-lg font-bold text-blue-600">
-                                      Total: ${entry.totalCompensation.toLocaleString()}
-                                    </span>
+                                  <div className="text-right">
+                                    <p className="text-2xl font-bold text-blue-600">
+                                      ${item.salary.toLocaleString()}
+                                    </p>
                                     {increase !== 0 && (
-                                      <span
+                                      <p
                                         className={`text-sm font-medium ${
                                           increase > 0 ? "text-green-600" : "text-red-600"
                                         }`}
@@ -823,41 +869,34 @@ export function SalaryNegotiation() {
                                         {increase > 0 ? "+" : ""}${increase.toLocaleString()} (
                                         {percentIncrease > 0 ? "+" : ""}
                                         {percentIncrease.toFixed(1)}%)
-                                      </span>
+                                      </p>
                                     )}
                                   </div>
-                                  {entry.location && (
-                                    <p className="text-xs text-slate-500 flex items-center gap-1">
-                                      <Icon icon="mingcute:map-pin-line" width={14} />
-                                      {entry.location}
-                                    </p>
-                                  )}
-                                  {entry.notes && (
-                                    <p className="text-sm text-slate-600 mt-2 italic">{entry.notes}</p>
-                                  )}
                                 </div>
-                              </div>
-                              {entry.negotiationType && (
+                                {item.location && (
+                                  <p className="text-xs text-slate-500 flex items-center gap-1">
+                                    <Icon icon="mingcute:map-pin-line" width={14} />
+                                    {item.location}
+                                  </p>
+                                )}
                                 <span
-                                  className={`px-3 py-1 rounded-full text-xs font-medium ${
-                                    entry.negotiationType === "accepted"
-                                      ? "bg-green-100 text-green-700"
-                                      : entry.negotiationType === "final_offer"
-                                      ? "bg-blue-100 text-blue-700"
-                                      : "bg-slate-100 text-slate-700"
+                                  className={`inline-block mt-2 px-2 py-1 rounded text-xs font-medium ${
+                                    item.source === "progression"
+                                      ? "bg-purple-100 text-purple-700"
+                                      : "bg-green-100 text-green-700"
                                   }`}
                                 >
-                                  {entry.negotiationType.replace("_", " ")}
+                                  {item.source === "progression" ? "Negotiation" : "Employment"}
                                 </span>
-                              )}
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                    </div>
                   </div>
-                </div>
-              </>
-            )}
+                </>
+              );
+            })()}
           </div>
         )}
       </div>

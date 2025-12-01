@@ -13,9 +13,13 @@ export function TeamDashboard({ teamId, refreshKey }: TeamDashboardProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [aiInsights, setAiInsights] = useState<any>(null);
+  const [isLoadingInsights, setIsLoadingInsights] = useState(false);
 
   useEffect(() => {
     fetchDashboard();
+    // Only fetch insights if not cached (fetchAIInsights checks cache internally)
+    fetchAIInsights(false);
   }, [teamId, refreshKey]); // Add refreshKey to dependencies
 
   // Fetch current user ID
@@ -48,6 +52,59 @@ export function TeamDashboard({ teamId, refreshKey }: TeamDashboardProps) {
       setError("Failed to load team dashboard");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchAIInsights = async (forceRefresh = false) => {
+    try {
+      setIsLoadingInsights(true);
+      
+      // Check cache first (unless forcing refresh)
+      if (!forceRefresh) {
+        const cacheKey = `team_insights_${teamId}`;
+        const cached = localStorage.getItem(cacheKey);
+        
+        if (cached) {
+          try {
+            const { data, timestamp } = JSON.parse(cached);
+            const cacheAge = Date.now() - timestamp;
+            const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
+            
+            // Use cached data if it's less than 30 minutes old
+            if (cacheAge < CACHE_DURATION) {
+              console.log("Using cached AI insights");
+              setAiInsights(data);
+              setIsLoadingInsights(false);
+              return;
+            } else {
+              console.log("Cache expired, fetching new insights");
+              localStorage.removeItem(cacheKey);
+            }
+          } catch (e) {
+            console.warn("Failed to parse cached insights:", e);
+            localStorage.removeItem(cacheKey);
+          }
+        }
+      }
+      
+      // Fetch fresh insights
+      const response = await api.getTeamAIInsights(teamId);
+      if (response.ok && response.data) {
+        const insights = response.data.insights;
+        setAiInsights(insights);
+        
+        // Cache the insights
+        const cacheKey = `team_insights_${teamId}`;
+        localStorage.setItem(cacheKey, JSON.stringify({
+          data: insights,
+          timestamp: Date.now()
+        }));
+      }
+    } catch (err) {
+      console.error("Failed to fetch AI insights:", err);
+      // Don't set error state - insights are optional
+    } finally {
+      setIsLoadingInsights(false);
     }
   };
 
@@ -90,6 +147,121 @@ export function TeamDashboard({ teamId, refreshKey }: TeamDashboardProps) {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* AI Insights Section */}
+      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg shadow-lg p-6 border border-blue-200">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+              <Icon icon="mingcute:chart-2-line" width={20} height={20} className="text-white" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-slate-900">Team Performance Insights</h3>
+              <p className="text-sm text-slate-600">AI-powered analysis of team success patterns and collaboration</p>
+            </div>
+          </div>
+          <button
+            onClick={() => fetchAIInsights(true)}
+            disabled={isLoadingInsights}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
+          >
+            <Icon 
+              icon={isLoadingInsights ? "mingcute:loading-line" : "mingcute:refresh-line"} 
+              width={18} 
+              className={isLoadingInsights ? "animate-spin" : ""} 
+            />
+            {isLoadingInsights ? "Generating..." : "Refresh Insights"}
+          </button>
+        </div>
+
+        {isLoadingInsights && !aiInsights && (
+          <div className="flex items-center justify-center py-8">
+            <Icon icon="mingcute:loading-line" width={32} className="animate-spin text-blue-500" />
+            <span className="ml-3 text-slate-600">Generating AI insights...</span>
+          </div>
+        )}
+
+        {!isLoadingInsights && aiInsights && aiInsights.insights && aiInsights.insights.length > 0 && (
+          <div className="space-y-4">
+            {aiInsights.insights.map((insight: any, index: number) => (
+              <div
+                key={index}
+                className="bg-white rounded-lg p-5 border border-slate-200 hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-start gap-4">
+                  <div className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${
+                    insight.type === 'success_pattern' ? 'bg-green-100' :
+                    insight.type === 'improvement_opportunity' ? 'bg-orange-100' :
+                    insight.type === 'collaboration_insight' ? 'bg-blue-100' :
+                    insight.type === 'trend_analysis' ? 'bg-purple-100' :
+                    'bg-slate-100'
+                  }`}>
+                    <Icon
+                      icon={
+                        insight.type === 'success_pattern' ? 'mingcute:trophy-line' :
+                        insight.type === 'improvement_opportunity' ? 'mingcute:target-line' :
+                        insight.type === 'collaboration_insight' ? 'mingcute:team-line' :
+                        insight.type === 'trend_analysis' ? 'mingcute:chart-line' :
+                        'mingcute:lightbulb-line'
+                      }
+                      width={20}
+                      className={
+                        insight.type === 'success_pattern' ? 'text-green-600' :
+                        insight.type === 'improvement_opportunity' ? 'text-orange-600' :
+                        insight.type === 'collaboration_insight' ? 'text-blue-600' :
+                        insight.type === 'trend_analysis' ? 'text-purple-600' :
+                        'text-slate-600'
+                      }
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <h4 className="text-lg font-semibold text-slate-900">{insight.title}</h4>
+                      <span className={`px-2 py-1 rounded text-xs font-medium flex-shrink-0 ${
+                        insight.impact === 'high' ? 'bg-red-100 text-red-700' :
+                        insight.impact === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-slate-100 text-slate-700'
+                      }`}>
+                        {insight.impact} impact
+                      </span>
+                    </div>
+                    <p className="text-slate-700 mb-3 leading-relaxed">{insight.description}</p>
+                    {insight.actionableAdvice && (
+                      <div className="bg-slate-50 rounded-lg p-3 border-l-4 border-blue-500">
+                        <p className="text-sm font-medium text-slate-900 mb-1">💡 Actionable Advice:</p>
+                        <p className="text-sm text-slate-700">{insight.actionableAdvice}</p>
+                      </div>
+                    )}
+                    <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
+                      <span className="px-2 py-1 bg-slate-100 rounded capitalize">{insight.category}</span>
+                      <span className="px-2 py-1 bg-slate-100 rounded capitalize">{insight.type?.replace('_', ' ')}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {!isLoadingInsights && (!aiInsights || !aiInsights.insights || aiInsights.insights.length === 0) && (
+          <div className="bg-white rounded-lg p-6 border border-slate-200 text-center">
+            <Icon icon="mingcute:information-line" width={32} className="text-slate-400 mx-auto mb-2" />
+            <p className="text-slate-600">No insights available. Click "Refresh Insights" to generate AI-powered analysis.</p>
+          </div>
+        )}
+
+        {aiInsights && aiInsights.teamStats && (
+          <div className="mt-4 pt-4 border-t border-blue-200">
+            <p className="text-xs text-slate-600">
+              Generated at {new Date(aiInsights.generatedAt).toLocaleString()} • 
+              Based on {aiInsights.teamStats.totalMembers} team members • 
+              {aiInsights.teamStats.totalApplications} applications • 
+              {aiInsights.teamStats.totalInterviews} interviews • 
+              {aiInsights.teamStats.totalOffers} offers
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Job Search Statistics */}

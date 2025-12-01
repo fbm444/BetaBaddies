@@ -671,6 +671,21 @@ class CollaborationController {
   });
 
   /**
+   * GET /api/collaboration/teams/:teamId/insights
+   * Generate AI insights for team performance
+   */
+  generateTeamAIInsights = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { teamId } = req.params;
+    const insights = await teamDashboardService.generateTeamAIInsights(teamId, userId);
+
+    res.status(200).json({
+      ok: true,
+      data: { insights },
+    });
+  });
+
+  /**
    * GET /api/collaboration/teams/:teamId/performance
    * Get team performance comparison (anonymized benchmarking)
    */

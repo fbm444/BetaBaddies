@@ -32,7 +32,6 @@ import { ResetPassword } from './pages/ResetPassword'
 import { Teams } from './pages/Teams'
 import { MentorDashboard } from './pages/MentorDashboard'
 import { MenteeDashboard } from './pages/MenteeDashboard'
-import { DocumentReviews } from './pages/DocumentReviews'
 import { ProgressSharing } from './pages/ProgressSharing'
 import { SupportGroups } from './pages/SupportGroups'
 import { TeamInviteAccept } from './pages/TeamInviteAccept'
@@ -147,7 +146,6 @@ function App() {
 		  <Route path={ROUTES.MENTOR_DASHBOARD} element={<MentorDashboard />} />
 		  <Route path={ROUTES.MENTEE_DASHBOARD} element={<MenteeDashboard />} />
 		  <Route path={ROUTES.MENTEE_PROGRESS} element={<MentorDashboard />} />
-		  <Route path={ROUTES.DOCUMENT_REVIEWS} element={<DocumentReviews />} />
 		  <Route path={ROUTES.PROGRESS_SHARING} element={<ProgressSharing />} />
 		  <Route path={ROUTES.SUPPORT_GROUPS} element={<SupportGroups />} />
 		</Route>

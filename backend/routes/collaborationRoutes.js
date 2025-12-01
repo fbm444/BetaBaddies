@@ -57,6 +57,7 @@ router.post("/milestones/:milestoneId/reactions", collaborationController.addMil
 // Team Dashboard (UC-108)
 router.get("/teams/:teamId/dashboard", collaborationController.getTeamDashboard);
 router.get("/teams/:teamId/performance", collaborationController.getTeamPerformance);
+router.get("/teams/:teamId/insights", collaborationController.generateTeamAIInsights);
 
 // Job Sharing
 router.post("/jobs/:id/share", collaborationController.shareJob);

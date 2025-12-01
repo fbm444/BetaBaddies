@@ -201,12 +201,6 @@ export const navigationGroups: NavigationGroup[] = [
         path: ROUTES.MENTEE_DASHBOARD,
       },
       {
-        id: "document-reviews",
-        label: "Document Reviews",
-        icon: "mingcute:file-edit-line",
-        path: ROUTES.DOCUMENT_REVIEWS,
-      },
-      {
         id: "support-groups",
         label: "Support Groups",
         icon: "mingcute:users-line",

@@ -75,6 +75,27 @@ router.post(
   "/mock-interviews/:id/complete",
   interviewPrepController.completeMockSession
 );
+// Mock interview comments routes (must come before generic :id route)
+router.get(
+  "/mock-interviews/with-comments",
+  interviewPrepController.getUserMockInterviewsWithComments
+);
+router.get(
+  "/mock-interviews/:id/mentor-view",
+  interviewPrepController.getMockSessionForMentor
+);
+router.post(
+  "/mock-interviews/:id/comments",
+  interviewPrepController.addMockInterviewComment
+);
+router.get(
+  "/mock-interviews/:id/comments",
+  interviewPrepController.getMockInterviewComments
+);
+router.get(
+  "/mentees/:menteeId/mock-interviews",
+  interviewPrepController.getMenteeMockInterviews
+);
 // Generic :id route comes last
 router.get("/mock-interviews/:id", interviewPrepController.getMockSession);
 

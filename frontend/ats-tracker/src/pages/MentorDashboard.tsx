@@ -21,7 +21,7 @@ export function MentorDashboard() {
   const [isLoadingMenteeData, setIsLoadingMenteeData] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<"overview" | "materials" | "goals" | "insights" | "communication" | "activity" | "tasks" | "progressReports">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "materials" | "goals" | "insights" | "communication" | "activity" | "tasks" | "progressReports" | "mockInterviews">("overview");
   const [menteeTasks, setMenteeTasks] = useState<any[]>([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState(false);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
@@ -56,6 +56,12 @@ export function MentorDashboard() {
   }>({ type: null, id: null, data: null });
   const [isLoadingMaterial, setIsLoadingMaterial] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<any>(null);
+  const [menteeMockInterviews, setMenteeMockInterviews] = useState<any[]>([]);
+  const [isLoadingMockInterviews, setIsLoadingMockInterviews] = useState(false);
+  const [selectedMockInterview, setSelectedMockInterview] = useState<any>(null);
+  const [mockInterviewComments, setMockInterviewComments] = useState<any[]>([]);
+  const [newMockInterviewComment, setNewMockInterviewComment] = useState("");
+  const [isSubmittingMockInterviewComment, setIsSubmittingMockInterviewComment] = useState(false);
 
   useEffect(() => {
     fetchMentees();
@@ -87,14 +93,25 @@ export function MentorDashboard() {
       setMenteeTasks([]);
       setProgressReports([]);
       setSelectedReport(null);
+      setMenteeMockInterviews([]);
+      setSelectedMockInterview(null);
       fetchMenteeData(selectedMentee.menteeId);
       fetchMenteeConversations(selectedMentee.menteeId);
       fetchMenteeTasks(selectedMentee.menteeId);
       if (activeTab === "progressReports") {
         fetchProgressReports();
       }
+      if (activeTab === "mockInterviews") {
+        fetchMenteeMockInterviews();
+      }
     }
   }, [selectedMentee]);
+
+  useEffect(() => {
+    if (activeTab === "mockInterviews" && selectedMentee) {
+      fetchMenteeMockInterviews();
+    }
+  }, [activeTab, selectedMentee]);
 
   useEffect(() => {
     if (activeTab === "progressReports") {
@@ -340,6 +357,54 @@ export function MentorDashboard() {
       }
     } catch (error) {
       console.error("Failed to fetch report comments:", error);
+    }
+  };
+
+  const fetchMenteeMockInterviews = async () => {
+    if (!selectedMentee) return;
+    try {
+      setIsLoadingMockInterviews(true);
+      const response = await api.getMenteeMockInterviews(selectedMentee.menteeId);
+      if (response.ok && response.data) {
+        setMenteeMockInterviews(response.data.sessions || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch mock interviews:", error);
+    } finally {
+      setIsLoadingMockInterviews(false);
+    }
+  };
+
+  const fetchMockInterviewDetails = async (sessionId: string) => {
+    try {
+      const response = await api.getMockInterviewSessionForMentor(sessionId);
+      if (response.ok && response.data) {
+        setSelectedMockInterview(response.data.session);
+        setMockInterviewComments(response.data.session.comments || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch mock interview details:", error);
+    }
+  };
+
+  const handleSubmitMockInterviewComment = async () => {
+    if (!selectedMockInterview || !newMockInterviewComment.trim() || !selectedMentee) return;
+    try {
+      setIsSubmittingMockInterviewComment(true);
+      const response = await api.addMockInterviewComment(
+        selectedMockInterview.id,
+        selectedMentee.menteeId,
+        newMockInterviewComment,
+        "general"
+      );
+      if (response.ok) {
+        setNewMockInterviewComment("");
+        await fetchMockInterviewDetails(selectedMockInterview.id);
+      }
+    } catch (error) {
+      console.error("Failed to submit comment:", error);
+    } finally {
+      setIsSubmittingMockInterviewComment(false);
     }
   };
 
@@ -818,6 +883,7 @@ export function MentorDashboard() {
                       { id: "communication", label: "Messages", icon: "mingcute:message-line", shortLabel: "Messages" },
                       { id: "activity", label: "Activity", icon: "mingcute:time-line", shortLabel: "Activity" },
                       { id: "progressReports", label: "Progress Reports", icon: "mingcute:file-chart-line", shortLabel: "Reports" },
+                      { id: "mockInterviews", label: "Mock Interviews", icon: "mingcute:microphone-line", shortLabel: "Mock Interviews" },
                 ].map((tab) => (
                   <button
                     key={tab.id}
@@ -2081,6 +2147,228 @@ export function MentorDashboard() {
                         <p className="text-slate-600 mb-2">No progress reports available</p>
                         <p className="text-sm text-slate-500">
                           Progress reports will appear here when mentees share them with you.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {activeTab === "mockInterviews" && (
+                  <div className="space-y-6 p-6">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xl font-bold text-slate-900">Mock Interview Sessions</h3>
+                      <button
+                        onClick={fetchMenteeMockInterviews}
+                        disabled={isLoadingMockInterviews}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+                      >
+                        <Icon icon="mingcute:refresh-line" width={18} />
+                        Refresh
+                      </button>
+                    </div>
+
+                    {isLoadingMockInterviews ? (
+                      <div className="flex items-center justify-center py-12">
+                        <Icon icon="mingcute:loading-line" width={32} className="animate-spin text-blue-500" />
+                        <span className="ml-3 text-slate-600">Loading mock interviews...</span>
+                      </div>
+                    ) : selectedMockInterview ? (
+                      <div className="space-y-6">
+                        <button
+                          onClick={() => {
+                            setSelectedMockInterview(null);
+                            setMockInterviewComments([]);
+                          }}
+                          className="flex items-center gap-2 text-blue-600 hover:text-blue-700"
+                        >
+                          <Icon icon="mingcute:arrow-left-line" width={20} />
+                          Back to Sessions
+                        </button>
+
+                        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
+                          <div className="flex items-center justify-between mb-4">
+                            <div>
+                              <h4 className="text-lg font-bold text-slate-900">
+                                Mock Interview - {selectedMockInterview.targetRole || "Practice Session"}
+                              </h4>
+                              <p className="text-sm text-slate-600">
+                                {selectedMockInterview.targetCompany && `${selectedMockInterview.targetCompany} • `}
+                                {new Date(selectedMockInterview.startedAt).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                              selectedMockInterview.status === 'completed' 
+                                ? 'bg-green-100 text-green-700' 
+                                : 'bg-yellow-100 text-yellow-700'
+                            }`}>
+                              {selectedMockInterview.status}
+                            </span>
+                          </div>
+
+                          {/* Conversation Messages */}
+                          <div className="bg-white rounded-lg p-4 mb-4 max-h-96 overflow-y-auto">
+                            <h5 className="font-semibold text-slate-900 mb-3">Conversation</h5>
+                            <div className="space-y-3">
+                              {selectedMockInterview.messages?.map((msg: any, idx: number) => (
+                                <div
+                                  key={idx}
+                                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                                >
+                                  <div
+                                    className={`max-w-[80%] rounded-lg p-3 ${
+                                      msg.role === 'user'
+                                        ? 'bg-blue-500 text-white'
+                                        : 'bg-slate-100 text-slate-900'
+                                    }`}
+                                  >
+                                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                                    <p className={`text-xs mt-1 ${
+                                      msg.role === 'user' ? 'text-blue-100' : 'text-slate-500'
+                                    }`}>
+                                      {new Date(msg.createdAt).toLocaleTimeString()}
+                                    </p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Performance Summary */}
+                          {selectedMockInterview.performanceSummary && (() => {
+                            const getPerformanceSummaryText = (summary: any): string | null => {
+                              if (!summary) return null;
+                              if (typeof summary === 'string') {
+                                return cleanMarkdownText(summary);
+                              }
+                              if (typeof summary === 'object' && summary !== null) {
+                                // If it's an object, try to extract meaningful text
+                                if (summary.overall) return cleanMarkdownText(String(summary.overall));
+                                if (summary.summary) return cleanMarkdownText(String(summary.summary));
+                                if (summary.text) return cleanMarkdownText(String(summary.text));
+                                if (summary.content) return cleanMarkdownText(String(summary.content));
+                                // If it's an array, join it
+                                if (Array.isArray(summary)) {
+                                  return cleanMarkdownText(summary.map(item => String(item)).join('\n\n'));
+                                }
+                                // Otherwise, stringify and clean
+                                return cleanMarkdownText(JSON.stringify(summary, null, 2));
+                              }
+                              return cleanMarkdownText(String(summary));
+                            };
+
+                            const summaryText = getPerformanceSummaryText(selectedMockInterview.performanceSummary);
+                            
+                            return (
+                              <div className="bg-white rounded-lg p-4 mb-4">
+                                <h5 className="font-semibold text-slate-900 mb-2">Performance Summary</h5>
+                                <div className="text-sm text-slate-700 prose prose-sm max-w-none">
+                                  {summaryText ? (
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                      {summaryText}
+                                    </ReactMarkdown>
+                                  ) : (
+                                    <p className="text-slate-500 italic">No summary available</p>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })()}
+
+                          {/* Comments Section */}
+                          <div className="bg-white rounded-lg p-4">
+                            <h5 className="font-semibold text-slate-900 mb-3">Your Feedback</h5>
+                            
+                            {/* Existing Comments */}
+                            {mockInterviewComments.length > 0 && (
+                              <div className="space-y-3 mb-4">
+                                {mockInterviewComments.map((comment: any) => (
+                                  <div key={comment.id} className="bg-slate-50 rounded-lg p-3 border border-slate-200">
+                                    <div className="flex items-start justify-between mb-2">
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium text-slate-900">You</span>
+                                        <span className="text-xs text-slate-500">
+                                          {new Date(comment.createdAt).toLocaleString()}
+                                        </span>
+                                      </div>
+                                      <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">
+                                        {comment.commentType}
+                                      </span>
+                                    </div>
+                                    <p className="text-sm text-slate-700">{comment.commentText}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Add Comment Form */}
+                            <div className="border-t border-slate-200 pt-4">
+                              <textarea
+                                value={newMockInterviewComment}
+                                onChange={(e) => setNewMockInterviewComment(e.target.value)}
+                                placeholder="Add your feedback on this mock interview..."
+                                className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                                rows={4}
+                              />
+                              <button
+                                onClick={handleSubmitMockInterviewComment}
+                                disabled={!newMockInterviewComment.trim() || isSubmittingMockInterviewComment}
+                                className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+                              >
+                                {isSubmittingMockInterviewComment ? "Posting..." : "Post Feedback"}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : menteeMockInterviews.length > 0 ? (
+                      <div className="space-y-4">
+                        {menteeMockInterviews.map((session) => (
+                          <div
+                            key={session.id}
+                            className="bg-white rounded-lg shadow p-6 border border-slate-200 hover:shadow-md transition cursor-pointer"
+                            onClick={() => fetchMockInterviewDetails(session.id)}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h4 className="font-semibold text-slate-900">
+                                  {session.targetRole || "Practice Session"}
+                                </h4>
+                                <p className="text-sm text-slate-600">
+                                  {session.targetCompany && `${session.targetCompany} • `}
+                                  {new Date(session.startedAt).toLocaleDateString()}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                  session.status === 'completed' 
+                                    ? 'bg-green-100 text-green-700' 
+                                    : 'bg-yellow-100 text-yellow-700'
+                                }`}>
+                                  {session.status}
+                                </span>
+                                {session.commentCount > 0 && (
+                                  <div className="mt-2 text-sm text-blue-600 flex items-center gap-1">
+                                    <Icon icon="mingcute:message-line" width={16} />
+                                    {session.commentCount} feedback
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            {session.confidenceScore && (
+                              <div className="mt-3 flex items-center gap-2 text-sm text-slate-600">
+                                <Icon icon="mingcute:star-line" width={16} />
+                                Confidence Score: {session.confidenceScore}/10
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-12">
+                        <Icon icon="mingcute:microphone-line" width={48} className="mx-auto text-slate-300 mb-4" />
+                        <p className="text-slate-600 mb-2">No mock interview sessions found</p>
+                        <p className="text-sm text-slate-500">
+                          Mock interview sessions will appear here when the mentee completes practice sessions.
                         </p>
                       </div>
                     )}

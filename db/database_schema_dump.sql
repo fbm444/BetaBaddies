@@ -245,6 +245,20 @@ $$;
 
 
 --
+-- Name: update_mock_interview_comment_timestamp(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.update_mock_interview_comment_timestamp() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    NEW.updated_at = now();
+    RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: update_pre_assessment_updated_at(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -2432,6 +2446,36 @@ CREATE TABLE public.milestones (
 --
 
 COMMENT ON TABLE public.milestones IS 'Achievement milestones for celebration and motivation';
+
+
+--
+-- Name: mock_interview_comments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.mock_interview_comments (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    session_id uuid NOT NULL,
+    mentor_id uuid NOT NULL,
+    mentee_id uuid NOT NULL,
+    comment_text text NOT NULL,
+    comment_type character varying(50) DEFAULT 'general'::character varying,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: TABLE mock_interview_comments; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.mock_interview_comments IS 'Comments from mentors on mentee mock interview sessions';
+
+
+--
+-- Name: COLUMN mock_interview_comments.comment_type; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.mock_interview_comments.comment_type IS 'Type: general, strength, improvement, or question';
 
 
 --
@@ -4902,6 +4946,14 @@ ALTER TABLE ONLY public.milestones
 
 
 --
+-- Name: mock_interview_comments mock_interview_comments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.mock_interview_comments
+    ADD CONSTRAINT mock_interview_comments_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: mock_interview_followups mock_interview_followups_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6315,6 +6367,27 @@ CREATE INDEX idx_milestones_user ON public.milestones USING btree (user_id, achi
 
 
 --
+-- Name: idx_mock_interview_comments_mentee_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_mock_interview_comments_mentee_id ON public.mock_interview_comments USING btree (mentee_id);
+
+
+--
+-- Name: idx_mock_interview_comments_mentor_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_mock_interview_comments_mentor_id ON public.mock_interview_comments USING btree (mentor_id);
+
+
+--
+-- Name: idx_mock_interview_comments_session_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_mock_interview_comments_session_id ON public.mock_interview_comments USING btree (session_id);
+
+
+--
 -- Name: idx_mock_interview_messages_created_at; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -7369,6 +7442,13 @@ CREATE TRIGGER trg_update_status_change_time BEFORE UPDATE OF stage ON public.pr
 --
 
 CREATE TRIGGER trg_update_thank_you_notes_updated_at BEFORE UPDATE ON public.interview_thank_you_notes FOR EACH ROW EXECUTE FUNCTION public.update_thank_you_notes_updated_at();
+
+
+--
+-- Name: mock_interview_comments trigger_update_mock_interview_comment_timestamp; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trigger_update_mock_interview_comment_timestamp BEFORE UPDATE ON public.mock_interview_comments FOR EACH ROW EXECUTE FUNCTION public.update_mock_interview_comment_timestamp();
 
 
 --
@@ -8485,6 +8565,30 @@ ALTER TABLE ONLY public.milestones
 
 ALTER TABLE ONLY public.milestones
     ADD CONSTRAINT milestones_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: mock_interview_comments mock_interview_comments_mentee_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.mock_interview_comments
+    ADD CONSTRAINT mock_interview_comments_mentee_id_fkey FOREIGN KEY (mentee_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: mock_interview_comments mock_interview_comments_mentor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.mock_interview_comments
+    ADD CONSTRAINT mock_interview_comments_mentor_id_fkey FOREIGN KEY (mentor_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: mock_interview_comments mock_interview_comments_session_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.mock_interview_comments
+    ADD CONSTRAINT mock_interview_comments_session_id_fkey FOREIGN KEY (session_id) REFERENCES public.mock_interview_sessions(id) ON DELETE CASCADE;
 
 
 --

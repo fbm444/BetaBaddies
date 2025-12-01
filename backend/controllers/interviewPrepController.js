@@ -554,6 +554,123 @@ class InterviewPrepController {
   });
 
   // ============================================================================
+  // Mock Interview Comments (Mentor/Mentee)
+  // ============================================================================
+
+  /**
+   * GET /api/interview-prep/mentees/:menteeId/mock-interviews
+   * Get mentee's mock interview sessions (for mentor)
+   */
+  getMenteeMockInterviews = asyncHandler(async (req, res) => {
+    const mentorId = req.session.userId;
+    const { menteeId } = req.params;
+
+    const sessions = await mockInterviewService.getMenteeMockInterviews(
+      menteeId,
+      mentorId
+    );
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        sessions,
+      },
+    });
+  });
+
+  /**
+   * GET /api/interview-prep/mock-interviews/:id/mentor-view
+   * Get mock interview session with messages (for mentor view)
+   */
+  getMockSessionForMentor = asyncHandler(async (req, res) => {
+    const mentorId = req.session.userId;
+    const { id: sessionId } = req.params;
+
+    const session = await mockInterviewService.getMockSessionForMentor(
+      sessionId,
+      mentorId
+    );
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        session,
+      },
+    });
+  });
+
+  /**
+   * POST /api/interview-prep/mock-interviews/:id/comments
+   * Add comment to mock interview session
+   */
+  addMockInterviewComment = asyncHandler(async (req, res) => {
+    const mentorId = req.session.userId;
+    const { id: sessionId } = req.params;
+    const { menteeId, commentText, commentType } = req.body;
+
+    if (!menteeId || !commentText) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          message: "menteeId and commentText are required",
+        },
+      });
+    }
+
+    const comment = await mockInterviewService.addMockInterviewComment(
+      sessionId,
+      mentorId,
+      menteeId,
+      commentText,
+      commentType || "general"
+    );
+
+    res.status(201).json({
+      ok: true,
+      data: {
+        comment,
+        message: "Comment added successfully",
+      },
+    });
+  });
+
+  /**
+   * GET /api/interview-prep/mock-interviews/:id/comments
+   * Get comments for a mock interview session
+   */
+  getMockInterviewComments = asyncHandler(async (req, res) => {
+    const { id: sessionId } = req.params;
+
+    const comments = await mockInterviewService.getSessionComments(sessionId);
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        comments,
+      },
+    });
+  });
+
+  /**
+   * GET /api/interview-prep/mock-interviews/with-comments
+   * Get user's mock interviews with mentor comments (for mentee)
+   */
+  getUserMockInterviewsWithComments = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+
+    const sessions = await mockInterviewService.getUserMockInterviewsWithComments(
+      userId
+    );
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        sessions,
+      },
+    });
+  });
+
+  // ============================================================================
   // UC-078: Technical Interview Preparation
   // ============================================================================
 

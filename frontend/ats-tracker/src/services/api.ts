@@ -1610,6 +1610,12 @@ class ApiService {
     );
   }
 
+  async getTeamAIInsights(teamId: string) {
+    return this.request<ApiResponse<{ insights: any }>>(
+      `/collaboration/teams/${teamId}/insights`
+    );
+  }
+
   async getPredefinedMilestones() {
     return this.request<ApiResponse<{ milestones: any[] }>>(
       `/collaboration/milestones/predefined`
@@ -2065,6 +2071,46 @@ class ApiService {
   async getMockInterviewMessages(sessionId: string) {
     return this.request<ApiResponse<{ messages: any[] }>>(
       `/interview-prep/mock-interviews/${sessionId}/messages`
+    );
+  }
+
+  // Mock Interview Comments (Mentor/Mentee)
+  async getMenteeMockInterviews(menteeId: string) {
+    return this.request<ApiResponse<{ sessions: any[] }>>(
+      `/interview-prep/mentees/${menteeId}/mock-interviews`
+    );
+  }
+
+  async getMockInterviewSessionForMentor(sessionId: string) {
+    return this.request<ApiResponse<{ session: any }>>(
+      `/interview-prep/mock-interviews/${sessionId}/mentor-view`
+    );
+  }
+
+  async addMockInterviewComment(
+    sessionId: string,
+    menteeId: string,
+    commentText: string,
+    commentType: string = "general"
+  ) {
+    return this.request<ApiResponse<{ comment: any; message: string }>>(
+      `/interview-prep/mock-interviews/${sessionId}/comments`,
+      {
+        method: "POST",
+        body: JSON.stringify({ menteeId, commentText, commentType }),
+      }
+    );
+  }
+
+  async getMockInterviewComments(sessionId: string) {
+    return this.request<ApiResponse<{ comments: any[] }>>(
+      `/interview-prep/mock-interviews/${sessionId}/comments`
+    );
+  }
+
+  async getUserMockInterviewsWithComments() {
+    return this.request<ApiResponse<{ sessions: any[] }>>(
+      `/interview-prep/mock-interviews/with-comments`
     );
   }
 

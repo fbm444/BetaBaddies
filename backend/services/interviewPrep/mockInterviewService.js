@@ -1147,6 +1147,318 @@ Provide feedback in JSON format:
       throw error;
     }
   }
+
+  /**
+   * Get mentee's mock interview sessions (for mentor view)
+   */
+  async getMenteeMockInterviews(menteeId, mentorId) {
+    try {
+      // Verify mentor-mentee relationship through team membership
+      const relationshipCheck = await database.query(
+        `SELECT tm1.team_id
+         FROM team_members tm1
+         JOIN team_members tm2 ON tm1.team_id = tm2.team_id
+         WHERE tm1.user_id = $1 
+           AND tm1.role IN ('mentor', 'career_coach')
+           AND tm1.active = true
+           AND tm2.user_id = $2
+           AND tm2.active = true`,
+        [mentorId, menteeId]
+      );
+
+      if (relationshipCheck.rows.length === 0) {
+        throw new Error("You are not authorized to view this mentee's mock interviews");
+      }
+
+      const query = `
+        SELECT 
+          mis.id,
+          mis.job_id,
+          mis.target_role,
+          mis.target_company,
+          mis.interview_format,
+          mis.status,
+          mis.started_at,
+          mis.completed_at,
+          mis.confidence_score,
+          mis.performance_summary,
+          mis.improvement_areas,
+          jo.title as job_title,
+          jo.company as job_company,
+          COUNT(DISTINCT mic.id) as comment_count
+        FROM mock_interview_sessions mis
+        LEFT JOIN job_opportunities jo ON mis.job_id = jo.id
+        LEFT JOIN mock_interview_comments mic ON mis.id = mic.session_id
+        WHERE mis.user_id = $1
+        GROUP BY mis.id, mis.job_id, mis.target_role, mis.target_company, mis.interview_format, 
+                 mis.status, mis.started_at, mis.completed_at, mis.confidence_score, 
+                 mis.performance_summary, mis.improvement_areas, jo.title, jo.company
+        ORDER BY mis.started_at DESC
+      `;
+      const result = await database.query(query, [menteeId]);
+
+      return result.rows.map((row) => ({
+        id: row.id,
+        jobId: row.job_id,
+        jobTitle: row.job_title,
+        jobCompany: row.job_company,
+        targetRole: row.target_role,
+        targetCompany: row.target_company,
+        interviewFormat: row.interview_format,
+        status: row.status,
+        startedAt: row.started_at,
+        completedAt: row.completed_at,
+        confidenceScore: row.confidence_score,
+        performanceSummary: typeof row.performance_summary === "string"
+          ? JSON.parse(row.performance_summary)
+          : row.performance_summary,
+        improvementAreas: typeof row.improvement_areas === "string"
+          ? JSON.parse(row.improvement_areas)
+          : row.improvement_areas,
+        commentCount: parseInt(row.comment_count || 0),
+      }));
+    } catch (error) {
+      console.error(
+        "[MockInterviewService] Error getting mentee mock interviews:",
+        error
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Get mock interview session with messages (for mentor view)
+   */
+  async getMockSessionForMentor(sessionId, mentorId) {
+    try {
+      // Get session - verify mentor-mentee relationship through team membership
+      const sessionQuery = `
+        SELECT mis.*
+        FROM mock_interview_sessions mis
+        JOIN team_members tm1 ON tm1.user_id = $2 
+          AND tm1.role IN ('mentor', 'career_coach')
+          AND tm1.active = true
+        JOIN team_members tm2 ON tm2.team_id = tm1.team_id
+          AND tm2.user_id = mis.user_id
+          AND tm2.active = true
+        WHERE mis.id = $1
+      `;
+      const sessionResult = await database.query(sessionQuery, [
+        sessionId,
+        mentorId,
+      ]);
+
+      if (sessionResult.rows.length === 0) {
+        throw new Error("Session not found or access denied");
+      }
+
+      const session = sessionResult.rows[0];
+
+      // Get messages
+      const messages = await this.getSessionMessages(sessionId, session.user_id);
+
+      // Get comments
+      const comments = await this.getSessionComments(sessionId);
+
+      return {
+        id: session.id,
+        userId: session.user_id,
+        interviewId: session.interview_id,
+        jobId: session.job_id,
+        targetRole: session.target_role,
+        targetCompany: session.target_company,
+        interviewFormat: session.interview_format,
+        status: session.status,
+        startedAt: session.started_at,
+        completedAt: session.completed_at,
+        performanceSummary:
+          typeof session.performance_summary === "string"
+            ? JSON.parse(session.performance_summary)
+            : session.performance_summary,
+        improvementAreas:
+          typeof session.improvement_areas === "string"
+            ? JSON.parse(session.improvement_areas)
+            : session.improvement_areas,
+        confidenceScore: session.confidence_score,
+        pacingRecommendations: session.pacing_recommendations,
+        messages: messages,
+        comments: comments,
+      };
+    } catch (error) {
+      console.error(
+        "[MockInterviewService] Error getting session for mentor:",
+        error
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Add comment to mock interview session
+   */
+  async addMockInterviewComment(sessionId, mentorId, menteeId, commentText, commentType = "general") {
+    try {
+      // Verify mentor-mentee relationship through team membership
+      const relationshipCheck = await database.query(
+        `SELECT tm1.team_id
+         FROM team_members tm1
+         JOIN team_members tm2 ON tm1.team_id = tm2.team_id
+         WHERE tm1.user_id = $1 
+           AND tm1.role IN ('mentor', 'career_coach')
+           AND tm1.active = true
+           AND tm2.user_id = $2
+           AND tm2.active = true`,
+        [mentorId, menteeId]
+      );
+
+      if (relationshipCheck.rows.length === 0) {
+        throw new Error("You are not authorized to comment on this mentee's mock interview");
+      }
+
+      // Verify session belongs to mentee
+      const sessionCheck = await database.query(
+        `SELECT id FROM mock_interview_sessions WHERE id = $1 AND user_id = $2`,
+        [sessionId, menteeId]
+      );
+
+      if (sessionCheck.rows.length === 0) {
+        throw new Error("Session not found");
+      }
+
+      const commentId = uuidv4();
+      await database.query(
+        `INSERT INTO mock_interview_comments 
+         (id, session_id, mentor_id, mentee_id, comment_text, comment_type, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, now())`,
+        [commentId, sessionId, mentorId, menteeId, commentText, commentType]
+      );
+
+      return {
+        id: commentId,
+        sessionId,
+        mentorId,
+        menteeId,
+        commentText,
+        commentType,
+        createdAt: new Date(),
+      };
+    } catch (error) {
+      console.error(
+        "[MockInterviewService] Error adding comment:",
+        error
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Get comments for a mock interview session
+   */
+  async getSessionComments(sessionId) {
+    try {
+      const query = `
+        SELECT 
+          mic.*,
+          u.email as mentor_email,
+          p.first_name as mentor_first_name,
+          p.last_name as mentor_last_name,
+          p.pfp_link as mentor_profile_picture
+        FROM mock_interview_comments mic
+        JOIN users u ON mic.mentor_id = u.u_id
+        LEFT JOIN profiles p ON u.u_id = p.user_id
+        WHERE mic.session_id = $1
+        ORDER BY mic.created_at ASC
+      `;
+      const result = await database.query(query, [sessionId]);
+
+      return result.rows.map((row) => ({
+        id: row.id,
+        sessionId: row.session_id,
+        mentorId: row.mentor_id,
+        menteeId: row.mentee_id,
+        commentText: row.comment_text,
+        commentType: row.comment_type,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        mentorEmail: row.mentor_email,
+        mentorName: row.mentor_first_name && row.mentor_last_name
+          ? `${row.mentor_first_name} ${row.mentor_last_name}`.trim()
+          : row.mentor_email,
+        mentorProfilePicture: row.mentor_profile_picture,
+      }));
+    } catch (error) {
+      console.error(
+        "[MockInterviewService] Error getting comments:",
+        error
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Get user's mock interviews with mentor comments
+   */
+  async getUserMockInterviewsWithComments(userId) {
+    try {
+      console.log(`[MockInterviewService] getUserMockInterviewsWithComments called for userId: ${userId}`);
+      const query = `
+        SELECT 
+          mis.id,
+          mis.job_id,
+          mis.target_role,
+          mis.target_company,
+          mis.interview_format,
+          mis.status,
+          mis.started_at,
+          mis.completed_at,
+          mis.confidence_score,
+          COUNT(DISTINCT mic.id) as comment_count
+        FROM mock_interview_sessions mis
+        INNER JOIN mock_interview_comments mic ON mis.id = mic.session_id
+        WHERE mis.user_id = $1
+        GROUP BY mis.id, mis.job_id, mis.target_role, mis.target_company, 
+                 mis.interview_format, mis.status, mis.started_at, 
+                 mis.completed_at, mis.confidence_score
+        HAVING COUNT(DISTINCT mic.id) > 0
+        ORDER BY mis.started_at DESC
+      `;
+      const result = await database.query(query, [userId]);
+      console.log(`[MockInterviewService] Found ${result.rows.length} sessions with comments`);
+
+      const sessions = result.rows.map((row) => ({
+        id: row.id,
+        jobId: row.job_id,
+        targetRole: row.target_role,
+        targetCompany: row.target_company,
+        interviewFormat: row.interview_format,
+        status: row.status,
+        startedAt: row.started_at,
+        completedAt: row.completed_at,
+        confidenceScore: row.confidence_score,
+        commentCount: parseInt(row.comment_count || 0),
+      }));
+
+      // Get comments for each session
+      for (const session of sessions) {
+        try {
+          session.comments = await this.getSessionComments(session.id);
+          console.log(`[MockInterviewService] Loaded ${session.comments?.length || 0} comments for session ${session.id}`);
+        } catch (error) {
+          console.error(`[MockInterviewService] Error loading comments for session ${session.id}:`, error);
+          session.comments = [];
+        }
+      }
+
+      console.log(`[MockInterviewService] Returning ${sessions.length} sessions with comments`);
+      return sessions;
+    } catch (error) {
+      console.error(
+        "[MockInterviewService] Error getting user mock interviews with comments:",
+        error
+      );
+      throw error;
+    }
+  }
 }
 
 export default new MockInterviewService();

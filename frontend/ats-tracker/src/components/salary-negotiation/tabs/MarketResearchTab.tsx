@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Icon } from "@iconify/react";
 import { api } from "../../../services/api";
 import type { SalaryNegotiation, MarketSalaryData } from "../../../types";
@@ -127,25 +127,25 @@ export function MarketResearchTab({
               <div className="text-center p-4 bg-slate-50 rounded-lg">
                 <p className="text-xs text-slate-600 mb-1">25th Percentile</p>
                 <p className="text-lg font-bold text-slate-900">
-                  ${marketData.percentile25.toLocaleString()}
+                  ${(marketData.percentile25 || 0).toLocaleString()}
                 </p>
               </div>
               <div className="text-center p-4 bg-blue-50 rounded-lg border border-blue-200">
                 <p className="text-xs text-blue-700 mb-1 font-medium">50th Percentile (Median)</p>
                 <p className="text-lg font-bold text-blue-900">
-                  ${marketData.percentile50.toLocaleString()}
+                  ${(marketData.percentile50 || 0).toLocaleString()}
                 </p>
               </div>
               <div className="text-center p-4 bg-slate-50 rounded-lg">
                 <p className="text-xs text-slate-600 mb-1">75th Percentile</p>
                 <p className="text-lg font-bold text-slate-900">
-                  ${marketData.percentile75.toLocaleString()}
+                  ${(marketData.percentile75 || 0).toLocaleString()}
                 </p>
               </div>
               <div className="text-center p-4 bg-slate-50 rounded-lg">
                 <p className="text-xs text-slate-600 mb-1">90th Percentile</p>
                 <p className="text-lg font-bold text-slate-900">
-                  ${marketData.percentile90.toLocaleString()}
+                  ${(marketData.percentile90 || 0).toLocaleString()}
                 </p>
               </div>
             </div>
@@ -163,21 +163,23 @@ export function MarketResearchTab({
                     style={{
                       width: `${Math.min(
                         100,
-                        ((offerTotal - marketData.percentile25) /
-                          (marketData.percentile90 - marketData.percentile25)) *
-                          100
+                        marketData.percentile90 > marketData.percentile25
+                          ? ((offerTotal - (marketData.percentile25 || 0)) /
+                              ((marketData.percentile90 || 1) - (marketData.percentile25 || 0))) *
+                              100
+                          : 50
                       )}%`,
                     }}
                   />
                 </div>
                 <p className="text-xs text-blue-700 mt-2">
-                  {offerTotal < marketData.percentile25
+                  {offerTotal < (marketData.percentile25 || 0)
                     ? "Below 25th percentile"
-                    : offerTotal < marketData.percentile50
+                    : offerTotal < (marketData.percentile50 || 0)
                     ? "Between 25th-50th percentile"
-                    : offerTotal < marketData.percentile75
+                    : offerTotal < (marketData.percentile75 || 0)
                     ? "Between 50th-75th percentile"
-                    : offerTotal < marketData.percentile90
+                    : offerTotal < (marketData.percentile90 || 0)
                     ? "Between 75th-90th percentile"
                     : "Above 90th percentile"}
                 </p>

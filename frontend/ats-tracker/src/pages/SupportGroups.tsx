@@ -197,6 +197,54 @@ export function SupportGroups() {
     }
   };
 
+  const handleCreateGroup = async () => {
+    if (!newGroup.name.trim()) {
+      showNotification("error", "Group name is required");
+      return;
+    }
+    if (!newGroup.category) {
+      showNotification("error", "Category is required");
+      return;
+    }
+    setIsCreatingGroup(true);
+    try {
+      const response = await api.createSupportGroup({
+        name: newGroup.name.trim(),
+        description: newGroup.description.trim() || undefined,
+        category: newGroup.category,
+        industry: newGroup.industry.trim() || undefined,
+        roleType: newGroup.roleType.trim() || undefined,
+        isPublic: newGroup.isPublic,
+      });
+      if (response.ok && response.data) {
+        showNotification("success", "Support group created successfully!");
+        setShowCreateGroupModal(false);
+        // Reset form
+        setNewGroup({
+          name: "",
+          description: "",
+          category: "general",
+          industry: "",
+          roleType: "",
+          isPublic: true,
+        });
+        // Refresh groups list
+        await fetchGroups();
+        await fetchMyGroups();
+        // If a group was created, navigate to it
+        if (response.data.group) {
+          setSelectedGroup(response.data.group);
+          setView("group-detail");
+        }
+      }
+    } catch (error: any) {
+      console.error("Failed to create support group:", error);
+      showNotification("error", error.message || "Failed to create support group");
+    } finally {
+      setIsCreatingGroup(false);
+    }
+  };
+
   const handleViewGroup = async (group: any) => {
     // Fetch fresh group data to ensure membership status is up to date
     try {
@@ -790,36 +838,36 @@ export function SupportGroups() {
                           group
                         </p>
                       </div>
-                      <button
-                        onClick={async () => {
-                          if (!selectedGroup) return;
-                          setIsGeneratingResources(true);
-                          try {
-                            const response = await api.generateGroupResources(
-                              selectedGroup.id,
+                    <button
+                      onClick={async () => {
+                        if (!selectedGroup) return;
+                        setIsGeneratingResources(true);
+                        try {
+                          const response = await api.generateGroupResources(
+                            selectedGroup.id,
                               "general"
-                            );
-                            if (response.ok) {
-                              showNotification(
-                                "success",
+                          );
+                          if (response.ok) {
+                            showNotification(
+                              "success",
                                 "Resources generated successfully!"
-                              );
-                              await fetchGroupDetails();
-                            }
-                          } catch (error) {
+                            );
+                            await fetchGroupDetails();
+                          }
+                        } catch (error) {
                             console.error(
                               "Failed to generate resources:",
                               error
                             );
-                            showNotification(
-                              "error",
-                              "Failed to generate resources"
-                            );
-                          } finally {
-                            setIsGeneratingResources(false);
-                          }
-                        }}
-                        disabled={isGeneratingResources}
+                          showNotification(
+                            "error",
+                            "Failed to generate resources"
+                          );
+                        } finally {
+                          setIsGeneratingResources(false);
+                        }
+                      }}
+                      disabled={isGeneratingResources}
                         className="px-5 py-2.5 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 text-white rounded-xl font-semibold hover:from-blue-600 hover:via-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105 active:scale-95"
                       >
                         {isGeneratingResources ? (
@@ -833,7 +881,7 @@ export function SupportGroups() {
                             <span>Generate Resources</span>
                           </>
                         )}
-                      </button>
+                    </button>
                     </div>
                   </div>
                 )}
@@ -871,7 +919,7 @@ export function SupportGroups() {
                           <Icon icon="mingcute:article-line" width={20} />
                           Articles & Resources
                         </h3>
-                        <div className="space-y-4">
+                  <div className="space-y-4">
                           {resources
                             .filter(
                               (r) =>
@@ -880,12 +928,12 @@ export function SupportGroups() {
                                 r.url !== "#"
                             )
                             .map((resource) => (
-                              <div
-                                key={resource.id}
-                                className="p-4 border border-slate-200 rounded-xl hover:border-blue-300 hover:shadow-md transition-all"
-                              >
+                      <div
+                        key={resource.id}
+                        className="p-4 border border-slate-200 rounded-xl hover:border-blue-300 hover:shadow-md transition-all"
+                      >
                                 <h4 className="font-semibold text-slate-900 mb-2">
-                                  {resource.title}
+                          {resource.title}
                                 </h4>
                                 {resource.description && (
                                   <p className="text-sm text-slate-600 mb-3">
@@ -976,27 +1024,27 @@ export function SupportGroups() {
                                 <h4 className="font-semibold text-slate-900 mb-2">
                                   {resource.title}
                                 </h4>
-                                {resource.description && (
-                                  <p className="text-sm text-slate-600 mb-3">
-                                    {resource.description}
-                                  </p>
-                                )}
+                        {resource.description && (
+                          <p className="text-sm text-slate-600 mb-3">
+                            {resource.description}
+                          </p>
+                        )}
                                 {resource.url && resource.url !== "#" && (
-                                  <a
-                                    href={resource.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
+                          <a
+                            href={resource.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
                                     className="text-blue-600 hover:text-blue-700 hover:underline text-sm font-medium inline-flex items-center gap-1"
-                                  >
-                                    <span>View Resource</span>
-                                    <Icon
-                                      icon="mingcute:external-link-line"
-                                      width={16}
-                                    />
-                                  </a>
-                                )}
-                              </div>
-                            ))}
+                          >
+                            <span>View Resource</span>
+                            <Icon
+                              icon="mingcute:external-link-line"
+                              width={16}
+                            />
+                          </a>
+                        )}
+                      </div>
+                    ))}
                         </div>
                       </div>
                     )}
@@ -1050,17 +1098,17 @@ export function SupportGroups() {
                     )}
 
                     {/* Challenges List */}
-                    <div className="space-y-4">
-                      {challenges.map((challenge) => (
-                        <div
-                          key={challenge.id}
+                  <div className="space-y-4">
+                    {challenges.map((challenge) => (
+                      <div
+                        key={challenge.id}
                           className="p-6 border border-slate-200 rounded-xl bg-gradient-to-br from-blue-50 to-purple-50 hover:shadow-lg transition-all"
-                        >
-                          <div className="flex items-start justify-between mb-3">
+                      >
+                        <div className="flex items-start justify-between mb-3">
                             <div className="flex-1">
                               <h3 className="font-bold text-lg text-slate-900 mb-2">
-                                {challenge.title}
-                              </h3>
+                            {challenge.title}
+                          </h3>
                               <p className="text-slate-700 mb-4 leading-relaxed">
                                 {challenge.description}
                               </p>
@@ -1081,8 +1129,8 @@ export function SupportGroups() {
                                   </div>
                                 )}
                             </div>
-                            {!challenge.is_participating && (
-                              <button
+                          {!challenge.is_participating && (
+                            <button
                                 onClick={async () => {
                                   try {
                                     await api.joinChallenge(challenge.id);
@@ -1105,40 +1153,40 @@ export function SupportGroups() {
                                 className="px-5 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg text-sm font-medium hover:from-blue-600 hover:to-purple-600 transition-all shadow-md hover:shadow-lg ml-4 flex-shrink-0"
                               >
                                 Join Challenge
-                              </button>
-                            )}
-                          </div>
-                          {challenge.is_participating && (
+                            </button>
+                          )}
+                        </div>
+                        {challenge.is_participating && (
                             <div className="mt-4 pt-4 border-t border-slate-200">
-                              <div className="flex items-center justify-between text-sm mb-2">
+                            <div className="flex items-center justify-between text-sm mb-2">
                                 <span className="text-slate-700 font-medium">
-                                  Your Progress
-                                </span>
-                                <span className="font-semibold text-blue-600">
-                                  {challenge.user_progress || 0} /{" "}
-                                  {challenge.target_value || "?"}
-                                </span>
-                              </div>
+                                Your Progress
+                              </span>
+                              <span className="font-semibold text-blue-600">
+                                {challenge.user_progress || 0} /{" "}
+                                {challenge.target_value || "?"}
+                              </span>
+                            </div>
                               <div className="w-full bg-slate-200 rounded-full h-3">
-                                <div
+                              <div
                                   className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all"
-                                  style={{
-                                    width: `${Math.min(
-                                      ((challenge.user_progress || 0) /
-                                        (challenge.target_value || 1)) *
-                                        100,
-                                      100
-                                    )}%`,
-                                  }}
-                                ></div>
-                              </div>
+                                style={{
+                                  width: `${Math.min(
+                                    ((challenge.user_progress || 0) /
+                                      (challenge.target_value || 1)) *
+                                      100,
+                                    100
+                                  )}%`,
+                                }}
+                              ></div>
+                            </div>
                               <p className="text-xs text-slate-500 mt-2">
                                 Keep going! You're making great progress.
                               </p>
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
                     </div>
                   </div>
                 )}
@@ -1989,10 +2037,10 @@ export function SupportGroups() {
                             {memberProfile.experience.yearsOfExperience}
                           </p>
                           <p className="text-sm text-slate-600">Years Experience</p>
-                        </div>
-                      )}
+                  </div>
+                )}
                       {memberProfile.experience.experienceLevel && (
-                        <div>
+                <div>
                           <p className="text-lg font-semibold text-slate-900 capitalize">
                             {memberProfile.experience.experienceLevel}
                           </p>
@@ -2032,7 +2080,7 @@ export function SupportGroups() {
                       <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
                         <Icon icon="mingcute:star-line" width={20} />
                         Skills Overview
-                      </h3>
+                  </h3>
                       <div className="space-y-3">
                         <div>
                           <p className="text-2xl font-bold text-purple-600 mb-1">
@@ -2052,7 +2100,7 @@ export function SupportGroups() {
                                   className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium capitalize"
                                 >
                                   {cat}
-                                </span>
+                    </span>
                               ))}
                             </div>
                           </div>
@@ -2076,16 +2124,16 @@ export function SupportGroups() {
                                           width: `${(count / memberProfile.skills.totalSkills) * 100}%`,
                                         }}
                                       ></div>
-                                    </div>
+                </div>
                                     <span className="text-xs font-medium text-slate-700 w-8">
                                       {count}
                                     </span>
-                                  </div>
+              </div>
                                 )
                               )}
                             </div>
-                          </div>
-                        )}
+                </div>
+              )}
                       </div>
                     </div>
                   )}
@@ -2127,7 +2175,7 @@ export function SupportGroups() {
                         Job Search Activity
                       </h3>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                        <div>
+                  <div>
                           <p className="text-2xl font-bold text-orange-600">
                             {memberProfile.jobSearchMetrics.totalOpportunities}
                           </p>
@@ -2139,26 +2187,26 @@ export function SupportGroups() {
                               {memberProfile.jobSearchMetrics.applicationResponseRate}%
                             </p>
                             <p className="text-sm text-slate-600">Response Rate</p>
-                          </div>
-                        )}
+                  </div>
+                )}
                         {memberProfile.jobSearchMetrics.interviewConversionRate > 0 && (
-                          <div>
+                  <div>
                             <p className="text-2xl font-bold text-orange-600">
                               {memberProfile.jobSearchMetrics.interviewConversionRate}%
                             </p>
                             <p className="text-sm text-slate-600">Interview Rate</p>
-                          </div>
-                        )}
+                  </div>
+                )}
                         {memberProfile.jobSearchMetrics.offerConversionRate > 0 && (
                           <div>
                             <p className="text-2xl font-bold text-orange-600">
                               {memberProfile.jobSearchMetrics.offerConversionRate}%
                             </p>
                             <p className="text-sm text-slate-600">Offer Rate</p>
-                          </div>
+              </div>
                         )}
                       </div>
-                      <div>
+                <div>
                         <p className="text-sm text-slate-600 mb-1">Activity Level</p>
                         <span
                           className={`inline-block px-3 py-1 rounded-full text-xs font-medium capitalize ${
@@ -2204,10 +2252,10 @@ export function SupportGroups() {
                             Across {memberProfile.projects.industriesCovered} industries
                           </p>
                         )}
-                      </div>
-                    )}
-                  </div>
                 </div>
+              )}
+            </div>
+          </div>
               ) : (
                 <div className="text-center py-12">
                   <Icon
@@ -2219,8 +2267,8 @@ export function SupportGroups() {
                   <p className="text-sm text-slate-500">
                     This member hasn't added profile information yet.
                   </p>
-                </div>
-              )}
+        </div>
+      )}
             </div>
           </div>
         </div>,

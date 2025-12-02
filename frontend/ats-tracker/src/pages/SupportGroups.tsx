@@ -339,7 +339,23 @@ export function SupportGroups() {
   };
 
   const getGroupIcon = (group: any) => {
-    // First, try to get industry-specific icon
+    // First, check group name for specific keywords (highest priority)
+    const nameLower = (group.name || "").toLowerCase().replace(/&/g, "and");
+    if (
+      nameLower.includes("career changer") ||
+      nameLower.includes("career changers")
+    ) {
+      return "mingcute:group-2-line";
+    }
+    if (
+      nameLower.includes("data science") ||
+      nameLower.includes("analytics") ||
+      (nameLower.includes("data") && nameLower.includes("analytics"))
+    ) {
+      return "mingcute:chart-pie-2-line";
+    }
+    
+    // Then, try to get industry-specific icon
     if (group.industry) {
       const industryLower = group.industry.toLowerCase();
       if (
@@ -360,7 +376,7 @@ export function SupportGroups() {
         industryLower.includes("analytics") ||
         industryLower.includes("machine learning")
       ) {
-        return "mingcute:chart-line";
+        return "mingcute:chart-pie-2-line";
       }
       if (
         industryLower.includes("design") ||
@@ -390,7 +406,7 @@ export function SupportGroups() {
         roleLower.includes("career changer") ||
         roleLower.includes("transition")
       ) {
-        return "mingcute:refresh-line";
+        return "mingcute:group-2-line";
       }
     }
 
@@ -410,8 +426,13 @@ export function SupportGroups() {
       }
     }
 
-    // Check group name for specific keywords
-    const nameLower = (group.name || "").toLowerCase();
+    // Check group name for other specific keywords
+    if (
+      nameLower.includes("career changer") ||
+      nameLower.includes("career changers")
+    ) {
+      return "mingcute:group-2-line";
+    }
     if (nameLower.includes("interview") || nameLower.includes("prep")) {
       return "mingcute:question-line";
     }
@@ -1619,7 +1640,7 @@ export function SupportGroups() {
         </div>
         <button
           onClick={() => setShowCreateGroupModal(true)}
-          className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-semibold hover:from-blue-600 hover:to-purple-600 transition-all shadow-md hover:shadow-lg flex items-center gap-2"
+          className="px-6 py-3 bg-blue-500 text-white rounded-full font-semibold hover:bg-blue-600 transition-all shadow-md hover:shadow-lg flex items-center gap-2"
         >
           <Icon icon="mingcute:add-line" width={20} />
           Create Group
@@ -1729,7 +1750,7 @@ export function SupportGroups() {
           {(view === "browse" ? groups : myGroups).map((group) => (
             <div
               key={group.id}
-              className="bg-white rounded-2xl shadow-lg border border-slate-200 hover:shadow-2xl transition-all cursor-pointer overflow-hidden group"
+              className="bg-white rounded-2xl shadow-lg border border-slate-200 hover:shadow-2xl transition-all cursor-pointer overflow-hidden group flex flex-col"
               onClick={() => handleViewGroup(group)}
             >
               {/* Header with gradient background */}
@@ -1763,7 +1784,7 @@ export function SupportGroups() {
               </div>
 
               {/* Content */}
-              <div className="p-6">
+              <div className="p-6 flex flex-col flex-grow">
                 {group.description && (
                   <p className="text-slate-600 text-sm mb-4 line-clamp-3 leading-relaxed">
                     {group.description}
@@ -1811,37 +1832,39 @@ export function SupportGroups() {
                 )}
 
                 {/* Action button */}
-                {view === "my-groups" || group.is_member ? (
-                  // For "My Groups" view or if already a member, show "View Group" button
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleViewGroup(group);
-                    }}
-                    className="w-full py-3 rounded-xl font-semibold bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600 transition-all shadow-md hover:shadow-lg transform hover:scale-[1.02]"
-                  >
-                    <span className="flex items-center justify-center gap-2">
-                      <Icon icon="mingcute:arrow-right-line" width={18} />
-                      View Group
-                    </span>
-                  </button>
-                ) : (
-                  // For "Browse" view and not a member, show "Join Group" button
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleJoinGroup(group.id);
-                    }}
-                    className={`w-full py-3 rounded-xl font-semibold transition-all bg-gradient-to-r ${getGroupGradient(
-                      group
-                    )} text-white hover:shadow-lg transform hover:scale-[1.02]`}
-                  >
-                    <span className="flex items-center justify-center gap-2">
-                      <Icon icon="mingcute:add-line" width={18} />
-                      Join Group
-                    </span>
-                  </button>
-                )}
+                <div className="mt-auto">
+                  {view === "my-groups" || group.is_member ? (
+                    // For "My Groups" view or if already a member, show "View Group" button
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleViewGroup(group);
+                      }}
+                      className="w-full py-3 rounded-xl font-semibold bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600 transition-all shadow-md hover:shadow-lg transform hover:scale-[1.02]"
+                    >
+                      <span className="flex items-center justify-center gap-2">
+                        <Icon icon="mingcute:arrow-right-line" width={18} />
+                        View Group
+                      </span>
+                    </button>
+                  ) : (
+                    // For "Browse" view and not a member, show "Join Group" button
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleJoinGroup(group.id);
+                      }}
+                      className={`w-full py-3 rounded-xl font-semibold transition-all bg-gradient-to-r ${getGroupGradient(
+                        group
+                      )} text-white hover:shadow-lg transform hover:scale-[1.02]`}
+                    >
+                      <span className="flex items-center justify-center gap-2">
+                        <Icon icon="mingcute:add-line" width={18} />
+                        Join Group
+                      </span>
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           ))}
@@ -1963,7 +1986,7 @@ export function SupportGroups() {
                 <button
                   onClick={handleCreateGroup}
                   disabled={isCreatingGroup}
-                  className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-medium hover:from-blue-600 hover:to-purple-600 disabled:opacity-50"
+                  className="flex-1 px-4 py-3 bg-blue-500 text-white rounded-full font-medium hover:bg-blue-600 disabled:opacity-50"
                 >
                   {isCreatingGroup ? "Creating..." : "Create Group"}
                 </button>

@@ -134,13 +134,13 @@ export function InterviewPreparation() {
     !showInterviewModal
   ) {
     return (
-      <div className="min-h-screen bg-slate-50 p-6 font-poppins">
-        <div className="max-w-7xl mx-auto">
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200 mb-6">
-            <h1 className="text-3xl font-bold text-slate-900 mb-2">
+      <div className="min-h-screen bg-white font-poppins">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="mb-8">
+            <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4">
               Interview Preparation
             </h1>
-            <p className="text-slate-600">
+            <p className="text-slate-600 mb-6">
               Select an interview to prepare for, or use general preparation
               tools.
             </p>
@@ -152,6 +152,9 @@ export function InterviewPreparation() {
               <h2 className="text-xl font-semibold text-slate-900 mb-4">
                 Select an Interview
               </h2>
+              <p className="text-slate-600 mb-6">
+                Choose a scheduled interview to access personalized preparation tools and company-specific insights.
+              </p>
               {interviews.length === 0 ? (
                 <div className="text-center py-12">
                   <Icon
@@ -399,58 +402,60 @@ export function InterviewPreparation() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 font-poppins">
-      {/* Header Bar - Sticky */}
-      <div className="sticky top-[80px] z-40 bg-white border-b border-slate-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex flex-col items-center py-5">
-            <div className="w-full flex items-center justify-center mb-3">
-              <h1 className="text-2xl font-bold text-slate-900">
-                Interview Preparation
-              </h1>
-            </div>
-            {interview ? (
-              <div className="flex flex-wrap items-center justify-center gap-3 mb-3">
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg">
-                  <Icon icon="mingcute:building-line" width={18} />
-                  <span className="font-medium text-sm">
-                    {interview.company}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 text-slate-700 rounded-lg">
-                  <Icon icon="mingcute:briefcase-line" width={18} />
-                  <span className="text-sm">{interview.title}</span>
-                </div>
-                {interview.scheduledAt && (
-                  <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 text-amber-700 rounded-lg">
-                    <Icon icon="mingcute:calendar-line" width={18} />
-                    <span className="text-sm">
-                      {new Date(interview.scheduledAt).toLocaleDateString()}
+    <div className="min-h-screen bg-white font-poppins">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4">
+            Interview Preparation
+          </h1>
+          <div className="flex items-center justify-between gap-4 mb-4">
+            <div className="flex-1">
+              {interview ? (
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full">
+                    <Icon icon="mingcute:building-line" width={18} />
+                    <span className="font-medium text-sm">
+                      {interview.company}
                     </span>
                   </div>
-                )}
-                {interview && (
-                  <button
-                    onClick={() => {
-                      setShowInterviewSelector(true);
-                      setInterview(null);
-                      navigate("/interview-preparation", { replace: true });
-                    }}
-                    className="flex items-center gap-2 px-4 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition font-medium whitespace-nowrap ml-2"
-                  >
-                    <Icon icon="mingcute:arrow-left-line" width={18} />
-                    <span className="hidden sm:inline">Change Interview</span>
-                  </button>
-                )}
-              </div>
-            ) : (
-              <p className="text-slate-600 text-sm mb-3">
-                General interview preparation tools
-              </p>
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 text-slate-700 rounded-full">
+                    <Icon icon="mingcute:briefcase-line" width={18} />
+                    <span className="text-sm">{interview.title}</span>
+                  </div>
+                  {interview.scheduledAt && (
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 text-amber-700 rounded-full">
+                      <Icon icon="mingcute:calendar-line" width={18} />
+                      <span className="text-sm">
+                        {new Date(interview.scheduledAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-slate-600">
+                  Get personalized interview tips, insights, and preparation guides organized by company. This information is cached and saved for quick access.
+                </p>
+              )}
+            </div>
+            {interview && (
+              <button
+                onClick={() => {
+                  setShowInterviewSelector(true);
+                  setInterview(null);
+                  navigate("/interview-preparation", { replace: true });
+                }}
+                className="flex items-center gap-2 text-blue-600 hover:text-blue-700 transition font-medium whitespace-nowrap bg-transparent hover:bg-transparent border-none p-0"
+              >
+                <Icon icon="mingcute:arrow-left-line" width={18} className="text-blue-600" />
+                <span className="hidden sm:inline">Change Interview</span>
+              </button>
             )}
+          </div>
 
-            {/* Tabs */}
-            <div className="w-full flex gap-1 overflow-x-auto scrollbar-hide pb-1 justify-center">
+        {/* Tabs */}
+        <div className="border-b border-slate-200 mb-8">
+          <div className="flex gap-1 overflow-x-auto scrollbar-hide">
               {[
                 {
                   id: "research" as TabType,
@@ -467,7 +472,7 @@ export function InterviewPreparation() {
                 {
                   id: "coaching" as TabType,
                   label: "Response Coaching",
-                  icon: "mingcute:chat-line",
+                  icon: "mingcute:chat-3-line",
                   color: "green",
                 },
                 {
@@ -482,56 +487,46 @@ export function InterviewPreparation() {
                   icon: "mingcute:code-line",
                   color: "indigo",
                 },
-              ].map((tab) => {
-                const isActive = activeTab === tab.id;
-                const colorClasses = {
-                  blue: isActive
-                    ? "bg-blue-50 text-blue-700 border-blue-200"
-                    : "hover:bg-blue-50 hover:text-blue-600",
-                  purple: isActive
-                    ? "bg-purple-50 text-purple-700 border-purple-200"
-                    : "hover:bg-purple-50 hover:text-purple-600",
-                  green: isActive
-                    ? "bg-green-50 text-green-700 border-green-200"
-                    : "hover:bg-green-50 hover:text-green-600",
-                  orange: isActive
-                    ? "bg-orange-50 text-orange-700 border-orange-200"
-                    : "hover:bg-orange-50 hover:text-orange-600",
-                  indigo: isActive
-                    ? "bg-indigo-50 text-indigo-700 border-indigo-200"
-                    : "hover:bg-indigo-50 hover:text-indigo-600",
-                };
-
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => {
-                      setActiveTab(tab.id);
-                      navigate(`?tab=${tab.id}`, { replace: true });
-                    }}
-                    className={`flex items-center gap-2 px-4 py-3 font-medium transition rounded-t-lg border-b-2 whitespace-nowrap ${
-                      isActive
-                        ? `${
-                            colorClasses[tab.color as keyof typeof colorClasses]
-                          } border-b-2`
-                        : "text-slate-600 hover:text-slate-900 border-transparent"
-                    }`}
-                  >
-                    <Icon icon={tab.icon} width={20} />
-                    <span className="hidden sm:inline">{tab.label}</span>
-                    <span className="sm:hidden">{tab.label.split(" ")[0]}</span>
-                  </button>
-                );
-              })}
-            </div>
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => {
+                    setActiveTab(tab.id);
+                    navigate(`?tab=${tab.id}`, { replace: true });
+                  }}
+                  className={`px-6 py-3 font-medium text-sm whitespace-nowrap flex items-center gap-2 flex-shrink-0 min-w-fit bg-transparent hover:bg-transparent focus:bg-transparent ${
+                    activeTab === tab.id
+                      ? "text-blue-500 border-b-2 border-blue-500"
+                      : "text-slate-600"
+                  }`}
+                  style={{
+                    outline: 'none',
+                    boxShadow: 'none',
+                    borderTop: 'none',
+                    borderLeft: 'none',
+                    borderRight: 'none',
+                    borderRadius: '0'
+                  }}
+                  onFocus={(e) => e.target.blur()}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  <Icon icon={tab.icon} width={18} height={18} className="flex-shrink-0" style={{ minWidth: '18px', minHeight: '18px' }} />
+                  <span className="flex-shrink-0 hidden sm:inline">{tab.label}</span>
+                  <span className="flex-shrink-0 sm:hidden">{tab.label.split(" ")[0]}</span>
+                </button>
+              ))}
           </div>
         </div>
-      </div>
+        </div>
 
-      {/* Content */}
-      <div className="max-w-7xl mx-auto p-6">
         {/* Tab Content */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mt-6">
+        <div className="mt-8 bg-slate-50 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-10 rounded-t-2xl">
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
           {!interview &&
           (activeTab === "research" ||
             activeTab === "questions" ||
@@ -587,6 +582,7 @@ export function InterviewPreparation() {
               jobOpportunity={jobOpportunity}
             />
           ) : null}
+          </div>
         </div>
       </div>
     </div>
@@ -1322,19 +1318,20 @@ function CompanyResearchTab({
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
           <button
             onClick={handleGenerate}
             disabled={isGenerating}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition disabled:opacity-50"
+            className="flex items-center gap-1 text-blue-600 hover:text-blue-700 transition disabled:opacity-50 bg-transparent hover:bg-transparent border-none p-0 cursor-pointer mr-4 font-medium"
+            style={{ outline: 'none' }}
           >
-            <Icon icon="mingcute:refresh-line" width={20} />
-            {isGenerating ? "Generating..." : "Refresh Research"}
+            <Icon icon="mingcute:refresh-2-line" width={16} height={16} className="flex-shrink-0 inline-block text-blue-600" style={{ display: 'inline-block' }} />
+            <span className="text-sm">{isGenerating ? "Generating..." : "Refresh Research"}</span>
           </button>
           <button
             onClick={handleExportClick}
             disabled={!research}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Icon icon="mingcute:download-line" width={20} />
             Export
@@ -2320,7 +2317,7 @@ function QuestionBankTab({
         <button
           onClick={handleGenerate}
           disabled={isGenerating || !interview?.jobOpportunityId}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-full hover:from-pink-600 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-medium"
         >
           <Icon icon="mingcute:add-line" width={20} />
           {isGenerating ? "Generating..." : "Generate Questions"}
@@ -2371,7 +2368,7 @@ function QuestionBankTab({
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-4 py-2 rounded-lg font-medium transition ${
+                className={`px-4 py-2 rounded-full font-medium transition ${
                   selectedCategory === cat
                     ? "bg-blue-500 text-white"
                     : "bg-slate-100 text-slate-700 hover:bg-slate-200"
@@ -2396,7 +2393,7 @@ function QuestionBankTab({
                     <button
                       key={diff}
                       onClick={() => setSelectedDifficulty(diff)}
-                      className={`px-4 py-2 rounded-lg font-medium transition ${
+                      className={`px-4 py-2 rounded-full font-medium transition ${
                         selectedDifficulty === diff
                           ? "bg-purple-500 text-white"
                           : "bg-slate-100 text-slate-700 hover:bg-slate-200"
@@ -2423,7 +2420,7 @@ function QuestionBankTab({
                         setCategoryDifficulty(diff);
                         setSelectedDifficulty(diff);
                       }}
-                      className={`px-4 py-2 rounded-lg font-medium transition ${
+                      className={`px-4 py-2 rounded-full font-medium transition ${
                         categoryDifficulty === diff
                           ? "bg-purple-500 text-white"
                           : "bg-slate-100 text-slate-700 hover:bg-slate-200"
@@ -2469,7 +2466,7 @@ function QuestionBankTab({
           <button
             onClick={handleGenerate}
             disabled={isGenerating || !interview?.jobOpportunityId}
-            className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition disabled:opacity-50"
+            className="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-6 py-2 rounded-full hover:from-pink-600 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-medium"
           >
             {isGenerating ? "Generating..." : "Generate Question Bank"}
           </button>
@@ -3684,7 +3681,7 @@ function MockInterviewTab({
           <button
             onClick={handleCreateSession}
             disabled={isCreating}
-            className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition disabled:opacity-50 inline-flex items-center gap-2"
+            className="bg-blue-500 text-white px-6 py-2 rounded-full hover:bg-blue-600 transition disabled:opacity-50 inline-flex items-center gap-2"
           >
             {isCreating ? (
               <>
@@ -5002,33 +4999,47 @@ def solve(nums):
               Your Progress
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="text-center p-4 bg-blue-50 rounded-lg">
-                <div className="text-3xl font-bold text-blue-600 mb-1">
+              <div className="flex flex-col justify-between rounded-2xl bg-gradient-to-b from-[#1E3097] to-[#3351FD] p-6 text-white border border-slate-300 min-h-[180px]">
+                <div className="flex items-start justify-between">
+                  <p className="text-[22px] font-normal" style={{ fontFamily: "Poppins" }}>
+                    Total Attempts
+                  </p>
+                </div>
+                <p className="text-6xl font-medium leading-none text-[#E7EFFF] mt-2" style={{ fontFamily: "Poppins" }}>
                   {progress.totalAttempts || 0}
-                </div>
-                <div className="text-sm text-slate-600">Total Attempts</div>
+                </p>
               </div>
-              <div className="text-center p-4 bg-green-50 rounded-lg">
-                <div className="text-3xl font-bold text-green-600 mb-1">
-                  {progress.averageScore
-                    ? Math.round(progress.averageScore)
-                    : 0}
+              <div className="flex flex-col justify-between rounded-2xl bg-gradient-to-b from-[#2563EB] to-[#60A5FA] p-6 text-white border border-slate-300 min-h-[180px]">
+                <div className="flex items-start justify-between">
+                  <p className="text-[22px] font-normal" style={{ fontFamily: "Poppins" }}>
+                    Avg Score
+                  </p>
                 </div>
-                <div className="text-sm text-slate-600">Avg Score</div>
+                <p className="text-6xl font-medium leading-none text-[#E7EFFF] mt-2" style={{ fontFamily: "Poppins" }}>
+                  {progress.averageScore ? Math.round(progress.averageScore) : 0}
+                </p>
               </div>
-              <div className="text-center p-4 bg-purple-50 rounded-lg">
-                <div className="text-3xl font-bold text-purple-600 mb-1">
+              <div className="flex flex-col justify-between rounded-2xl bg-gradient-to-b from-[#3B82F6] to-[#93C5FD] p-6 text-white border border-slate-300 min-h-[180px]">
+                <div className="flex items-start justify-between">
+                  <p className="text-[22px] font-normal" style={{ fontFamily: "Poppins" }}>
+                    Challenges Solved
+                  </p>
+                </div>
+                <p className="text-6xl font-medium leading-none text-[#E7EFFF] mt-2" style={{ fontFamily: "Poppins" }}>
                   {progress.uniqueChallenges || 0}
-                </div>
-                <div className="text-sm text-slate-600">Challenges Solved</div>
+                </p>
               </div>
-              <div className="text-center p-4 bg-amber-50 rounded-lg">
-                <div className="text-sm font-semibold text-amber-700 mb-1">
+              <div className="flex flex-col justify-between rounded-2xl bg-gradient-to-b from-[#0284C7] to-[#38BDF8] p-6 text-white border border-slate-300 min-h-[180px]">
+                <div className="flex items-start justify-between">
+                  <p className="text-[22px] font-normal" style={{ fontFamily: "Poppins" }}>
+                    Last Attempt
+                  </p>
+                </div>
+                <p className="text-3xl font-medium leading-none text-[#E7EFFF] mt-2" style={{ fontFamily: "Poppins" }}>
                   {progress.lastAttemptDate
                     ? new Date(progress.lastAttemptDate).toLocaleDateString()
                     : "Never"}
-                </div>
-                <div className="text-sm text-slate-600">Last Attempt</div>
+                </p>
               </div>
             </div>
           </div>
@@ -5041,7 +5052,7 @@ def solve(nums):
           <button
             onClick={handleGenerate}
             disabled={isGenerating}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-full hover:from-pink-600 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-medium"
           >
             <Icon icon="mingcute:add-line" width={20} />
             {isGenerating ? "Generating..." : "Generate Prep"}
@@ -5058,17 +5069,10 @@ def solve(nums):
             <h4 className="text-lg font-semibold text-slate-900 mb-2">
               No Challenges Available
             </h4>
-            <p className="text-slate-600 mb-6">
+            <p className="text-slate-600">
               Generate technical interview preparation challenges based on your
               role.
             </p>
-            <button
-              onClick={handleGenerate}
-              disabled={isGenerating}
-              className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition disabled:opacity-50"
-            >
-              {isGenerating ? "Generating..." : "Generate Technical Prep"}
-            </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -5976,7 +5980,7 @@ def solve(nums):
               </div>
             </div>
           </div>
-        </div>
+      </div>
       )}
     </>
   );

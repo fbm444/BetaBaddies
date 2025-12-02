@@ -767,20 +767,19 @@ export function NetworkContacts() {
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
             <button
               onClick={() => setIsAddModalOpen(true)}
-              className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a43d4] transition-colors flex items-center gap-2"
+              className="px-4 py-2 bg-[#3351FD] text-white rounded-full hover:bg-[#2a43d4] transition-colors flex items-center gap-2"
             >
               <Icon icon="mingcute:add-line" width={20} height={20} />
               Add Contact
             </button>
             <button
               onClick={handleGoogleImportClick}
-              className={`px-4 py-2 rounded-lg border transition-colors flex items-center gap-2 ${
+              className={`px-4 py-2 rounded-full border transition-colors flex items-center gap-2 ${
                 googleStatus?.connected
                   ? "bg-white border-[#3351FD] text-[#3351FD] hover:bg-blue-50"
                   : "bg-white border-slate-300 text-slate-700 hover:bg-slate-50"
               }`}
             >
-              <Icon icon="mdi:google-contacts" width={20} height={20} />
               {googleStatus?.connected ? "Import Google Contacts" : "Connect Google Contacts"}
             </button>
             {googleStatus?.connected && (
@@ -911,7 +910,7 @@ export function NetworkContacts() {
           {!searchTerm && (
             <button
               onClick={() => setIsAddModalOpen(true)}
-              className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a43d4] transition-colors"
+              className="px-4 py-2 bg-[#3351FD] text-white rounded-full hover:bg-[#2a43d4] transition-colors"
             >
               Add Contact
             </button>
@@ -1188,7 +1187,7 @@ export function NetworkContacts() {
                     <button
                       onClick={() => handleAddFromExplore(contact)}
                       disabled={addingContactIds.has(contact.id)}
-                      className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a43d4] transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
+                      className="px-4 py-2 bg-[#3351FD] text-white rounded-full hover:bg-[#2a43d4] transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
                     >
                       {addingContactIds.has(contact.id) ? (
                         <>
@@ -1449,7 +1448,7 @@ export function NetworkContacts() {
               <button
                 key={option.value}
                 onClick={() => setDegreeFilter(option.value as "all" | "2nd" | "3rd")}
-                className={`px-3 py-2 rounded-lg text-sm border ${
+                className={`px-3 py-2 rounded-full text-sm border ${
                   degreeFilter === option.value
                     ? "bg-[#3351FD] text-white border-[#3351FD]"
                     : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
@@ -1460,7 +1459,7 @@ export function NetworkContacts() {
             ))}
           </div>
         </div>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-slate-500 mt-6">
           Find new connections through your network. We'll show you people connected to your contacts (2nd degree) 
           and people connected to those connections (3rd degree) who aren't already in your contact list.
         </p>
@@ -1611,27 +1610,59 @@ export function NetworkContacts() {
           <p className="text-slate-600">Manage your professional network and relationships</p>
         </div>
 
-        <div className="mb-6 flex flex-wrap gap-3 border-b border-slate-200 pb-3">
-          <button
-            onClick={() => setActiveTab("my")}
-            className={`px-4 py-2 rounded-md text-sm font-medium ${
-              activeTab === "my"
-                ? "bg-[#3351FD] text-white"
-                : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
-            }`}
-          >
-            My Contacts
-          </button>
-          <button
-            onClick={() => setActiveTab("explore")}
-            className={`px-4 py-2 rounded-md text-sm font-medium ${
-              activeTab === "explore"
-                ? "bg-[#3351FD] text-white"
-                : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
-            }`}
-          >
-            Explore Network
-          </button>
+        <div className="border-b border-slate-200 mb-8">
+          <div className="flex gap-1 overflow-x-auto scrollbar-hide">
+            <button
+              onClick={() => setActiveTab("my")}
+              className={`px-6 py-3 font-medium text-sm whitespace-nowrap flex-shrink-0 min-w-fit bg-transparent hover:bg-transparent focus:bg-transparent ${
+                activeTab === "my"
+                  ? "text-blue-500 border-b-2 border-blue-500"
+                  : "text-slate-600"
+              }`}
+              style={{ 
+                outline: 'none', 
+                boxShadow: 'none',
+                borderTop: 'none',
+                borderLeft: 'none',
+                borderRight: 'none',
+                borderRadius: '0'
+              }}
+              onFocus={(e) => e.target.blur()}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              My Contacts
+            </button>
+            <button
+              onClick={() => setActiveTab("explore")}
+              className={`px-6 py-3 font-medium text-sm whitespace-nowrap flex-shrink-0 min-w-fit bg-transparent hover:bg-transparent focus:bg-transparent ${
+                activeTab === "explore"
+                  ? "text-blue-500 border-b-2 border-blue-500"
+                  : "text-slate-600"
+              }`}
+              style={{ 
+                outline: 'none', 
+                boxShadow: 'none',
+                borderTop: 'none',
+                borderLeft: 'none',
+                borderRight: 'none',
+                borderRadius: '0'
+              }}
+              onFocus={(e) => e.target.blur()}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              Explore Network
+            </button>
+          </div>
         </div>
 
         {activeTab === "my" ? renderMyContactsSection() : renderExploreNetworkSection()}
@@ -1741,8 +1772,8 @@ function ContactModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 p-2 sm:p-4 pt-16 sm:pt-20 overflow-y-auto">
-      <div className="bg-white rounded-lg max-w-2xl w-full mb-4 sm:mb-8 max-h-[85vh] sm:max-h-[80vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-[110] p-2 sm:p-4 overflow-y-auto" style={{ paddingTop: '80px' }}>
+      <div className="bg-white rounded-lg max-w-2xl w-full my-4 sm:my-8 max-h-[calc(100vh-120px)] overflow-y-auto">
         <div className="p-6 border-b border-slate-200">
           <h2 className="text-2xl font-bold text-slate-900">
             {contact ? "Edit Contact" : "Add Contact"}
@@ -1929,7 +1960,7 @@ function GoogleContactsImportModal({
   const errorsToShow = summary?.errors?.slice(0, 3) || [];
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 p-2 sm:p-4 pt-16 sm:pt-20 overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-[110] p-2 sm:p-4 overflow-y-auto" style={{ paddingTop: '80px' }}>
       <div className="bg-white rounded-lg max-w-xl w-full mb-4 sm:mb-8 max-h-[85vh] sm:max-h-[80vh] overflow-y-auto">
         <div className="p-6 border-b border-slate-200">
           <h2 className="text-2xl font-bold text-slate-900">Import from Google Contacts</h2>
@@ -2051,7 +2082,7 @@ function ContactNetworkModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 p-2 sm:p-4 pt-16 sm:pt-20 overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-[110] p-2 sm:p-4 overflow-y-auto" style={{ paddingTop: '80px' }}>
       <div className="bg-white rounded-lg max-w-4xl w-full mb-4 sm:mb-8 max-h-[85vh] sm:max-h-[80vh] overflow-y-auto">
         <div className="p-6 border-b border-slate-200">
           <div className="flex items-center justify-between">
@@ -2230,7 +2261,7 @@ function ContactInteractionsModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 p-2 sm:p-4 pt-16 sm:pt-20 overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-[110] p-2 sm:p-4 overflow-y-auto" style={{ paddingTop: '80px' }}>
       <div className="bg-white rounded-lg max-w-4xl w-full mb-4 sm:mb-8 flex flex-col shadow-xl max-h-[85vh] sm:max-h-[80vh]">
         <div className="p-4 sm:p-6 border-b border-slate-200 flex-shrink-0">
           <div className="flex items-start sm:items-center justify-between gap-2">

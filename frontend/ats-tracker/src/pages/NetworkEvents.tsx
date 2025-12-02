@@ -602,27 +602,59 @@ export function NetworkEvents() {
         </div>
 
         {/* Tabs */}
-        <div className="bg-white rounded-lg border border-slate-200 p-1 mb-6 flex gap-2">
-          <button
-            onClick={() => setActiveTab("my-events")}
-            className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
-              activeTab === "my-events"
-                ? "bg-[#3351FD] text-white"
-                : "text-slate-600 hover:bg-slate-100"
-            }`}
-          >
-            My Events
-          </button>
-          <button
-            onClick={() => setActiveTab("discover")}
-            className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
-              activeTab === "discover"
-                ? "bg-[#3351FD] text-white"
-                : "text-slate-600 hover:bg-slate-100"
-            }`}
-          >
-            Discover Events
-          </button>
+        <div className="border-b border-slate-200 mb-8">
+          <div className="flex gap-1 overflow-x-auto scrollbar-hide">
+            <button
+              onClick={() => setActiveTab("my-events")}
+              className={`px-6 py-3 font-medium text-sm whitespace-nowrap flex-shrink-0 min-w-fit bg-transparent hover:bg-transparent focus:bg-transparent ${
+                activeTab === "my-events"
+                  ? "text-blue-500 border-b-2 border-blue-500"
+                  : "text-slate-600"
+              }`}
+              style={{ 
+                outline: 'none', 
+                boxShadow: 'none',
+                borderTop: 'none',
+                borderLeft: 'none',
+                borderRight: 'none',
+                borderRadius: '0'
+              }}
+              onFocus={(e) => e.target.blur()}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              My Events
+            </button>
+            <button
+              onClick={() => setActiveTab("discover")}
+              className={`px-6 py-3 font-medium text-sm whitespace-nowrap flex-shrink-0 min-w-fit bg-transparent hover:bg-transparent focus:bg-transparent ${
+                activeTab === "discover"
+                  ? "text-blue-500 border-b-2 border-blue-500"
+                  : "text-slate-600"
+              }`}
+              style={{ 
+                outline: 'none', 
+                boxShadow: 'none',
+                borderTop: 'none',
+                borderLeft: 'none',
+                borderRight: 'none',
+                borderRadius: '0'
+              }}
+              onFocus={(e) => e.target.blur()}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              Discover Events
+            </button>
+          </div>
         </div>
 
         {activeTab === "my-events" && (
@@ -634,7 +666,7 @@ export function NetworkEvents() {
                   setSelectedEvent(null);
                   setIsEditModalOpen(true);
                 }}
-                className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a43d4] transition-colors flex items-center gap-2"
+                className="px-4 py-2 bg-[#3351FD] text-white rounded-full hover:bg-[#2a43d4] transition-colors flex items-center gap-2"
               >
                 <Icon icon="mingcute:add-line" width={20} height={20} />
                 Create Event
@@ -663,14 +695,14 @@ export function NetworkEvents() {
                       setSelectedEvent(null);
                       setIsEditModalOpen(true);
                     }}
-                    className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a43d4] transition-colors flex items-center gap-2"
+                    className="px-4 py-2 bg-[#3351FD] text-white rounded-full hover:bg-[#2a43d4] transition-colors flex items-center gap-2"
                   >
                     <Icon icon="mingcute:add-line" width={20} height={20} />
                     Create Event
                   </button>
                   <button
                     onClick={() => setActiveTab("discover")}
-                    className="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors flex items-center gap-2"
+                    className="px-4 py-2 bg-slate-200 text-slate-700 rounded-full hover:bg-slate-300 transition-colors flex items-center gap-2"
                   >
                     <Icon icon="mingcute:search-line" width={20} height={20} />
                     Discover Events
@@ -752,7 +784,7 @@ export function NetworkEvents() {
                             {currentUserId && event.userId === currentUserId && (
                               <button
                                 onClick={() => handleToggleEventTabs(event.id, "planning")}
-                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
                                   expandedEventId === event.id && eventTab[event.id] === "planning"
                                     ? "bg-[#3351FD] text-white"
                                     : "bg-slate-100 text-slate-700 hover:bg-slate-200"
@@ -765,7 +797,7 @@ export function NetworkEvents() {
                               <>
                                 <button
                                   onClick={() => handleToggleEventTabs(event.id, "debrief")}
-                                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
                                     expandedEventId === event.id && eventTab[event.id] === "debrief"
                                       ? "bg-[#3351FD] text-white"
                                       : "bg-slate-100 text-slate-700 hover:bg-slate-200"
@@ -775,7 +807,7 @@ export function NetworkEvents() {
                                 </button>
                                 <button
                                   onClick={() => handleToggleEventTabs(event.id, "outcomes")}
-                                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
                                     expandedEventId === event.id && eventTab[event.id] === "outcomes"
                                       ? "bg-[#3351FD] text-white"
                                       : "bg-slate-100 text-slate-700 hover:bg-slate-200"
@@ -956,8 +988,8 @@ function AttendeesModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 p-2 sm:p-4 pt-16 sm:pt-20 overflow-y-auto">
-      <div className="bg-white rounded-lg max-w-4xl w-full mb-4 sm:mb-8 max-h-[85vh] sm:max-h-[80vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-[110] p-2 sm:p-4 overflow-y-auto" style={{ paddingTop: '80px' }}>
+      <div className="bg-white rounded-lg max-w-4xl w-full my-4 sm:my-8 max-h-[calc(100vh-120px)] overflow-y-auto">
         <div className="p-6 border-b border-slate-200">
           <h2 className="text-2xl font-bold text-slate-900">Event Attendees</h2>
           <p className="text-sm text-slate-600 mt-1">{event.eventName}</p>
@@ -1009,7 +1041,7 @@ function AttendeesModal({
                       <button
                         onClick={() => onAddAsContact(attendee)}
                         disabled={isSubmitting}
-                        className="ml-4 px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a43d4] transition-colors disabled:opacity-50 text-sm flex items-center gap-2"
+                        className="ml-4 px-4 py-2 bg-[#3351FD] text-white rounded-full hover:bg-[#2a43d4] transition-colors disabled:opacity-50 text-sm flex items-center gap-2"
                       >
                         <Icon icon="mingcute:user-add-line" width={16} height={16} />
                         Add as Contact
@@ -1024,7 +1056,7 @@ function AttendeesModal({
         <div className="p-6 border-t border-slate-200 flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200"
+            className="px-4 py-2 text-slate-700 bg-slate-100 rounded-full hover:bg-slate-200"
           >
             Close
           </button>
@@ -1143,8 +1175,8 @@ function EventGoalsModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 p-2 sm:p-4 pt-16 sm:pt-20 overflow-y-auto">
-      <div className="bg-white rounded-lg max-w-2xl w-full mb-4 sm:mb-8 max-h-[85vh] sm:max-h-[80vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-[110] p-2 sm:p-4 overflow-y-auto" style={{ paddingTop: '80px' }}>
+      <div className="bg-white rounded-lg max-w-2xl w-full my-4 sm:my-8 max-h-[calc(100vh-120px)] overflow-y-auto">
         <div className="p-6 border-b border-slate-200">
           <h2 className="text-2xl font-bold text-slate-900">Event Goals</h2>
           <p className="text-sm text-slate-600 mt-1">{event.eventName}</p>
@@ -1254,14 +1286,14 @@ function EventGoalsModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200"
+                className="px-4 py-2 text-slate-700 bg-slate-100 rounded-full hover:bg-slate-200"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a43d4] disabled:opacity-50"
+                className="px-4 py-2 bg-[#3351FD] text-white rounded-full hover:bg-[#2a43d4] disabled:opacity-50"
               >
                 {isSubmitting ? "Saving..." : goals ? "Update Goal" : "Save Goal"}
               </button>
@@ -1441,8 +1473,8 @@ function EventModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 p-2 sm:p-4 pt-16 sm:pt-20 overflow-y-auto">
-      <div className="bg-white rounded-lg max-w-2xl w-full mb-4 sm:mb-8 max-h-[85vh] sm:max-h-[80vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-[110] p-2 sm:p-4 overflow-y-auto" style={{ paddingTop: '80px' }}>
+      <div className="bg-white rounded-lg max-w-2xl w-full my-4 sm:my-8 max-h-[calc(100vh-120px)] overflow-y-auto">
         <div className="p-6 border-b border-slate-200">
           <h2 className="text-2xl font-bold text-slate-900">
             {event ? "Edit Event" : "Create Event"}
@@ -1511,7 +1543,7 @@ function EventModal({
                   <button
                     type="button"
                     onClick={() => handleFieldChange("eventTime", "")}
-                    className="px-3 py-2 text-slate-600 hover:text-slate-900 border border-slate-300 rounded-lg hover:bg-slate-50"
+                    className="px-3 py-2 text-slate-600 hover:text-slate-900 border border-slate-300 rounded-full hover:bg-slate-50"
                     title="Clear time"
                   >
                     <Icon icon="mingcute:close-line" width={16} height={16} />
@@ -1562,7 +1594,7 @@ function EventModal({
                   <button
                     type="button"
                     onClick={() => handleFieldChange("endTime", "")}
-                    className="px-3 py-2 text-slate-600 hover:text-slate-900 border border-slate-300 rounded-lg hover:bg-slate-50"
+                    className="px-3 py-2 text-slate-600 hover:text-slate-900 border border-slate-300 rounded-full hover:bg-slate-50"
                     title="Clear time"
                   >
                     <Icon icon="mingcute:close-line" width={16} height={16} />
@@ -1639,14 +1671,14 @@ function EventModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200"
+              className="px-4 py-2 text-slate-700 bg-slate-100 rounded-full hover:bg-slate-200"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a43d4] disabled:opacity-50"
+              className="px-4 py-2 bg-[#3351FD] text-white rounded-full hover:bg-[#2a43d4] disabled:opacity-50"
             >
               {isSubmitting ? (event ? "Updating..." : "Creating...") : (event ? "Update" : "Create")} Event
             </button>
@@ -1766,8 +1798,8 @@ function EventDiscoveryPanel({
       {/* Search Form */}
       <form onSubmit={handleFormSubmit} className="bg-white rounded-lg border border-slate-200 p-6">
         <h2 className="text-xl font-semibold text-slate-900 mb-4">Discover Networking Events</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-          <div>
+        <div className="flex flex-col md:flex-row gap-4 mb-4 items-end">
+          <div className="flex-1 min-w-0">
             <label className="block text-sm font-medium text-slate-700 mb-1">Location</label>
             <input
               type="text"
@@ -1777,7 +1809,7 @@ function EventDiscoveryPanel({
               className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#3351FD]"
             />
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
             <label className="block text-sm font-medium text-slate-700 mb-1">Industry</label>
             <select
               value={searchFilters.industry}
@@ -1792,7 +1824,7 @@ function EventDiscoveryPanel({
               ))}
             </select>
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
             <label className="block text-sm font-medium text-slate-700 mb-1">Keywords</label>
             <input
               type="text"
@@ -1802,15 +1834,14 @@ function EventDiscoveryPanel({
               className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#3351FD]"
             />
           </div>
-        </div>
-        <button
-          onClick={(e) => {
-            e.preventDefault();
-            handleSearch();
-          }}
-          disabled={isDiscovering}
-          className="px-6 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a43d4] transition-colors disabled:opacity-50 flex items-center gap-2"
-        >
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              handleSearch();
+            }}
+            disabled={isDiscovering}
+            className="px-6 py-2 bg-[#3351FD] text-white rounded-full hover:bg-[#2a43d4] transition-colors disabled:opacity-50 flex items-center gap-2 whitespace-nowrap"
+          >
           {isDiscovering ? (
             <>
               <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
@@ -1823,6 +1854,7 @@ function EventDiscoveryPanel({
             </>
           )}
         </button>
+        </div>
       </form>
 
       {discoveryError && (
@@ -1953,7 +1985,7 @@ function EventDiscoveryPanel({
                       <button
                         onClick={() => onImportEvent(event)}
                         disabled={isSubmitting}
-                        className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a43d4] transition-colors disabled:opacity-50 text-sm flex items-center gap-2"
+                        className="px-4 py-2 bg-[#3351FD] text-white rounded-full hover:bg-[#2a43d4] transition-colors disabled:opacity-50 text-sm flex items-center gap-2"
                       >
                         <Icon icon="mingcute:add-line" width={16} height={16} />
                         Add to My Events
@@ -2020,7 +2052,7 @@ function PlanningTab({
           <button
             onClick={handleSave}
             disabled={isSaving || isSubmitting}
-            className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a43d4] transition-colors disabled:opacity-50 text-sm"
+            className="px-4 py-2 bg-[#3351FD] text-white rounded-full hover:bg-[#2a43d4] transition-colors disabled:opacity-50 text-sm"
           >
             {isSaving ? "Saving..." : "Save Notes"}
           </button>

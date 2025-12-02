@@ -1,24 +1,7 @@
 --
 -- PostgreSQL database dump
 --
--- This file contains the complete database schema for the ATS Tracker application.
--- It can be used to recreate the database structure on any PostgreSQL 14+ server.
---
--- Usage:
---   1. Create a new database: CREATE DATABASE ats_tracker;
---   2. Run this file: psql -U your_user -d ats_tracker -f database_schema_dump.sql
---
--- Requirements:
---   - PostgreSQL 14 or higher
---   - Superuser privileges (to create extensions) OR pre-installed extensions:
---     * pgcrypto (for gen_random_uuid())
---     * uuid-ossp (for UUID generation functions)
---
--- Note: This dump does not include:
---   - Data (rows) - only schema (structure)
---   - Owner information - uses default ownership
---   - Privileges/ACLs - grants must be set separately if needed
---
+
 -- Dumped from database version 14.17 (Homebrew)
 -- Dumped by pg_dump version 14.17 (Homebrew)
 
@@ -346,20 +329,6 @@ $$;
 
 
 --
--- Name: update_time_logs_timestamp(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.update_time_logs_timestamp() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-    NEW.updated_at = CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$;
-
-
---
 -- Name: update_salary_negotiation_timestamp(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -577,6 +546,20 @@ $$;
 
 
 --
+-- Name: update_time_logs_timestamp(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.update_time_logs_timestamp() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: update_writing_practice_timestamp(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -589,6 +572,8 @@ BEGIN
 END;
 $$;
 
+
+SET default_tablespace = '';
 
 SET default_table_access_method = heap;
 
@@ -812,7 +797,8 @@ CREATE TABLE public.career_goals (
     achievement_date date,
     impact_on_job_search text,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT career_goals_status_check CHECK ((((status)::text = ANY ((ARRAY['active'::character varying, 'completed'::character varying, 'paused'::character varying, 'cancelled'::character varying])::text[])) OR (status IS NULL)))
 );
 
 
@@ -4438,60 +4424,6 @@ COMMENT ON COLUMN public.support_groups.interest_tags IS 'JSON array of interest
 
 
 --
--- Name: time_logs; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.time_logs (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
-    user_id uuid NOT NULL,
-    job_opportunity_id uuid,
-    activity_type character varying(50) NOT NULL,
-    hours_spent numeric(5,2) NOT NULL,
-    activity_date date DEFAULT CURRENT_DATE NOT NULL,
-    notes text,
-    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT time_logs_activity_type_check CHECK (((activity_type)::text = ANY ((ARRAY['research'::character varying, 'application'::character varying, 'interview_prep'::character varying, 'interview'::character varying, 'networking'::character varying, 'follow_up'::character varying, 'offer_negotiation'::character varying, 'other'::character varying])::text[]))),
-    CONSTRAINT time_logs_hours_spent_check CHECK (((hours_spent >= (0)::numeric) AND (hours_spent <= (24)::numeric)))
-);
-
-
---
--- Name: TABLE time_logs; Type: COMMENT; Schema: public; Owner: -
---
-
-COMMENT ON TABLE public.time_logs IS 'Manual time tracking for job search activities (UC-103)';
-
-
---
--- Name: COLUMN time_logs.job_opportunity_id; Type: COMMENT; Schema: public; Owner: -
---
-
-COMMENT ON COLUMN public.time_logs.job_opportunity_id IS 'Optional: Link to specific job opportunity';
-
-
---
--- Name: COLUMN time_logs.activity_type; Type: COMMENT; Schema: public; Owner: -
---
-
-COMMENT ON COLUMN public.time_logs.activity_type IS 'Type of job search activity: research, application, interview_prep, interview, networking, follow_up, offer_negotiation, other';
-
-
---
--- Name: COLUMN time_logs.hours_spent; Type: COMMENT; Schema: public; Owner: -
---
-
-COMMENT ON COLUMN public.time_logs.hours_spent IS 'Actual hours spent on the activity (0-24 per entry)';
-
-
---
--- Name: COLUMN time_logs.activity_date; Type: COMMENT; Schema: public; Owner: -
---
-
-COMMENT ON COLUMN public.time_logs.activity_date IS 'Date when the activity occurred';
-
-
---
 -- Name: team_billing; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -4624,6 +4556,60 @@ CREATE TABLE public.technical_prep_challenges (
 
 
 --
+-- Name: time_logs; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.time_logs (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    job_opportunity_id uuid,
+    activity_type character varying(50) NOT NULL,
+    hours_spent numeric(5,2) NOT NULL,
+    activity_date date DEFAULT CURRENT_DATE NOT NULL,
+    notes text,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT time_logs_activity_type_check CHECK (((activity_type)::text = ANY ((ARRAY['research'::character varying, 'application'::character varying, 'interview_prep'::character varying, 'interview'::character varying, 'networking'::character varying, 'follow_up'::character varying, 'offer_negotiation'::character varying, 'other'::character varying])::text[]))),
+    CONSTRAINT time_logs_hours_spent_check CHECK (((hours_spent >= (0)::numeric) AND (hours_spent <= (24)::numeric)))
+);
+
+
+--
+-- Name: TABLE time_logs; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.time_logs IS 'Manual time tracking for job search activities (UC-103)';
+
+
+--
+-- Name: COLUMN time_logs.job_opportunity_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.time_logs.job_opportunity_id IS 'Optional: Link to specific job opportunity';
+
+
+--
+-- Name: COLUMN time_logs.activity_type; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.time_logs.activity_type IS 'Type of job search activity: research, application, interview_prep, interview, networking, follow_up, offer_negotiation, other';
+
+
+--
+-- Name: COLUMN time_logs.hours_spent; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.time_logs.hours_spent IS 'Actual hours spent on the activity (0-24 per entry)';
+
+
+--
+-- Name: COLUMN time_logs.activity_date; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.time_logs.activity_date IS 'Date when the activity occurred';
+
+
+--
 -- Name: time_tracking; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -4680,7 +4666,10 @@ CREATE TABLE public.users (
     google_contacts_refresh_token text,
     google_contacts_token_expiry timestamp with time zone,
     google_contacts_sync_enabled boolean DEFAULT false,
-    google_contacts_last_sync_at timestamp with time zone
+    google_contacts_last_sync_at timestamp with time zone,
+    linkedin_access_token text,
+    linkedin_refresh_token text,
+    linkedin_token_expires_at timestamp with time zone
 );
 
 
@@ -4703,6 +4692,27 @@ COMMENT ON COLUMN public.users.auth_provider IS 'Authentication provider: local 
 --
 
 COMMENT ON COLUMN public.users.linkedin_id IS 'LinkedIn OAuth ID for social login';
+
+
+--
+-- Name: COLUMN users.linkedin_access_token; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.users.linkedin_access_token IS 'UC-089: LinkedIn OAuth access token (encrypted)';
+
+
+--
+-- Name: COLUMN users.linkedin_refresh_token; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.users.linkedin_refresh_token IS 'UC-089: LinkedIn OAuth refresh token (encrypted)';
+
+
+--
+-- Name: COLUMN users.linkedin_token_expires_at; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.users.linkedin_token_expires_at IS 'UC-089: LinkedIn OAuth token expiration timestamp';
 
 
 --
@@ -4997,14 +5007,6 @@ ALTER TABLE ONLY public.campaign_outreach
 
 ALTER TABLE ONLY public.career_goals
     ADD CONSTRAINT career_goals_pkey PRIMARY KEY (id);
-
-
---
--- Name: career_goals career_goals_status_check; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.career_goals
-    ADD CONSTRAINT career_goals_status_check CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'completed'::character varying, 'paused'::character varying, 'cancelled'::character varying])::text[])) OR (status IS NULL));
 
 
 --
@@ -6184,19 +6186,19 @@ ALTER TABLE ONLY public.support_group_resources
 
 
 --
+-- Name: support_groups support_groups_name_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.support_groups
+    ADD CONSTRAINT support_groups_name_unique UNIQUE (name);
+
+
+--
 -- Name: support_groups support_groups_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.support_groups
     ADD CONSTRAINT support_groups_pkey PRIMARY KEY (id);
-
-
---
--- Name: time_logs time_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.time_logs
-    ADD CONSTRAINT time_logs_pkey PRIMARY KEY (id);
 
 
 --
@@ -6261,6 +6263,14 @@ ALTER TABLE ONLY public.technical_prep_attempts
 
 ALTER TABLE ONLY public.technical_prep_challenges
     ADD CONSTRAINT technical_prep_challenges_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: time_logs time_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.time_logs
+    ADD CONSTRAINT time_logs_pkey PRIMARY KEY (id);
 
 
 --
@@ -7030,10 +7040,24 @@ CREATE INDEX idx_job_opportunities_archived ON public.job_opportunities USING bt
 
 
 --
+-- Name: idx_job_opportunities_coverletter_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_job_opportunities_coverletter_id ON public.job_opportunities USING btree (coverletter_id);
+
+
+--
 -- Name: idx_job_opportunities_deadline; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_job_opportunities_deadline ON public.job_opportunities USING btree (application_deadline);
+
+
+--
+-- Name: idx_job_opportunities_resume_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_job_opportunities_resume_id ON public.job_opportunities USING btree (resume_id);
 
 
 --
@@ -7062,20 +7086,6 @@ CREATE INDEX idx_job_opportunities_user_archived ON public.job_opportunities USI
 --
 
 CREATE INDEX idx_job_opportunities_user_id ON public.job_opportunities USING btree (user_id);
-
-
---
--- Name: idx_job_opportunities_resume_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_job_opportunities_resume_id ON public.job_opportunities USING btree (resume_id);
-
-
---
--- Name: idx_job_opportunities_coverletter_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_job_opportunities_coverletter_id ON public.job_opportunities USING btree (coverletter_id);
 
 
 --
@@ -8073,48 +8083,6 @@ CREATE INDEX idx_support_groups_category ON public.support_groups USING btree (c
 
 
 --
--- Name: idx_time_logs_activity_date; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_time_logs_activity_date ON public.time_logs USING btree (activity_date);
-
-
---
--- Name: idx_time_logs_activity_type; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_time_logs_activity_type ON public.time_logs USING btree (activity_type);
-
-
---
--- Name: idx_time_logs_job_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_time_logs_job_id ON public.time_logs USING btree (job_opportunity_id);
-
-
---
--- Name: idx_time_logs_user_date; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_time_logs_user_date ON public.time_logs USING btree (user_id, activity_date DESC);
-
-
---
--- Name: idx_time_logs_user_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_time_logs_user_id ON public.time_logs USING btree (user_id);
-
-
---
--- Name: idx_time_logs_user_job_date; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_time_logs_user_job_date ON public.time_logs USING btree (user_id, job_opportunity_id, activity_date);
-
-
---
 -- Name: idx_support_groups_created_at; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -8224,6 +8192,48 @@ CREATE INDEX idx_thank_you_notes_sent_at ON public.interview_thank_you_notes USI
 --
 
 CREATE INDEX idx_thank_you_notes_status ON public.interview_thank_you_notes USING btree (status);
+
+
+--
+-- Name: idx_time_logs_activity_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_time_logs_activity_date ON public.time_logs USING btree (activity_date);
+
+
+--
+-- Name: idx_time_logs_activity_type; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_time_logs_activity_type ON public.time_logs USING btree (activity_type);
+
+
+--
+-- Name: idx_time_logs_job_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_time_logs_job_id ON public.time_logs USING btree (job_opportunity_id);
+
+
+--
+-- Name: idx_time_logs_user_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_time_logs_user_date ON public.time_logs USING btree (user_id, activity_date DESC);
+
+
+--
+-- Name: idx_time_logs_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_time_logs_user_id ON public.time_logs USING btree (user_id);
+
+
+--
+-- Name: idx_time_logs_user_job_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_time_logs_user_job_date ON public.time_logs USING btree (user_id, job_opportunity_id, activity_date);
 
 
 --
@@ -9371,6 +9381,22 @@ ALTER TABLE ONLY public.interviews
 
 
 --
+-- Name: job_opportunities fk_job_opportunities_coverletter; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.job_opportunities
+    ADD CONSTRAINT fk_job_opportunities_coverletter FOREIGN KEY (coverletter_id) REFERENCES public.coverletter(id) ON DELETE SET NULL;
+
+
+--
+-- Name: job_opportunities fk_job_opportunities_resume; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.job_opportunities
+    ADD CONSTRAINT fk_job_opportunities_resume FOREIGN KEY (resume_id) REFERENCES public.resume(id) ON DELETE SET NULL;
+
+
+--
 -- Name: cover_letter_performance fk_performance_coverletter; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -9752,22 +9778,6 @@ ALTER TABLE ONLY public.job_comments
 
 ALTER TABLE ONLY public.job_opportunities
     ADD CONSTRAINT job_opportunities_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
-
-
---
--- Name: job_opportunities fk_job_opportunities_resume; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.job_opportunities
-    ADD CONSTRAINT fk_job_opportunities_resume FOREIGN KEY (resume_id) REFERENCES public.resume(id) ON DELETE SET NULL;
-
-
---
--- Name: job_opportunities fk_job_opportunities_coverletter; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.job_opportunities
-    ADD CONSTRAINT fk_job_opportunities_coverletter FOREIGN KEY (coverletter_id) REFERENCES public.coverletter(id) ON DELETE SET NULL;
 
 
 --
@@ -10803,22 +10813,6 @@ ALTER TABLE ONLY public.support_groups
 
 
 --
--- Name: time_logs time_logs_job_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.time_logs
-    ADD CONSTRAINT time_logs_job_fkey FOREIGN KEY (job_opportunity_id) REFERENCES public.job_opportunities(id) ON DELETE CASCADE;
-
-
---
--- Name: time_logs time_logs_user_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.time_logs
-    ADD CONSTRAINT time_logs_user_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
-
-
---
 -- Name: team_billing team_billing_team_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -10904,6 +10898,22 @@ ALTER TABLE ONLY public.technical_prep_challenges
 
 ALTER TABLE ONLY public.technical_prep_challenges
     ADD CONSTRAINT technical_prep_challenges_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: time_logs time_logs_job_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.time_logs
+    ADD CONSTRAINT time_logs_job_fkey FOREIGN KEY (job_opportunity_id) REFERENCES public.job_opportunities(id) ON DELETE CASCADE;
+
+
+--
+-- Name: time_logs time_logs_user_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.time_logs
+    ADD CONSTRAINT time_logs_user_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
 
 
 --

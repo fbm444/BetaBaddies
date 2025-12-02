@@ -15,10 +15,20 @@
 BEGIN;
 
 -- ============================================================================
--- Add LinkedIn OAuth token columns to users table
+-- Add LinkedIn OAuth columns to users table
 -- ============================================================================
 -- These columns enable LinkedIn OAuth integration for authentication
 -- and profile data import
+
+-- Add LinkedIn ID (unique identifier from LinkedIn)
+DO $$
+BEGIN
+    ALTER TABLE public.users 
+    ADD COLUMN IF NOT EXISTS linkedin_id character varying(255);
+EXCEPTION WHEN OTHERS THEN
+    -- Column might already exist or user doesn't have permission
+    NULL;
+END $$;
 
 -- Add LinkedIn access token
 DO $$
@@ -50,9 +60,19 @@ EXCEPTION WHEN OTHERS THEN
     NULL;
 END $$;
 
+-- Create index on linkedin_id for faster lookups
+DO $$
+BEGIN
+    CREATE INDEX IF NOT EXISTS idx_users_linkedin_id ON public.users USING btree (linkedin_id);
+EXCEPTION WHEN OTHERS THEN
+    -- Index might already exist or user doesn't have permission
+    NULL;
+END $$;
+
 -- Add comments for documentation (will fail silently if user doesn't have permission)
 DO $$
 BEGIN
+    COMMENT ON COLUMN public.users.linkedin_id IS 'UC-089: LinkedIn OAuth ID for social login';
     COMMENT ON COLUMN public.users.linkedin_access_token IS 'UC-089: LinkedIn OAuth access token (encrypted)';
     COMMENT ON COLUMN public.users.linkedin_refresh_token IS 'UC-089: LinkedIn OAuth refresh token (encrypted)';
     COMMENT ON COLUMN public.users.linkedin_token_expires_at IS 'UC-089: LinkedIn OAuth token expiration timestamp';

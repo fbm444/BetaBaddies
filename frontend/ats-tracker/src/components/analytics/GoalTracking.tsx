@@ -150,7 +150,7 @@ export function GoalTracking({ dateRange }: GoalTrackingProps) {
                   >
                     {goal.status}
                   </span>
-                  {goal.status === "active" && (
+                  {(goal.status === "active" || !goal.status || goal.status === "") && (
                     <button
                       onClick={async () => {
                         try {
@@ -158,15 +158,21 @@ export function GoalTracking({ dateRange }: GoalTrackingProps) {
                           if (response.ok) {
                             await fetchGoals();
                             await fetchAnalytics();
+                          } else {
+                            console.error("Failed to complete goal:", response.error || response.data?.error);
+                            alert("Failed to complete goal. Please try again.");
                           }
                         } catch (err: any) {
                           console.error("Failed to complete goal:", err);
+                          alert(err.message || "Failed to complete goal");
                         }
                       }}
-                      className="p-2 text-green-600 hover:text-green-700 hover:bg-green-50 rounded transition-colors"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium text-sm shadow-sm"
                       title="Complete Goal"
+                      aria-label="Complete Goal"
                     >
-                      <Icon icon="mingcute:check-circle-line" width={20} />
+                      <Icon icon="mingcute:check-circle-line" width={18} />
+                      Complete
                     </button>
                   )}
                   <button
@@ -284,12 +290,15 @@ function GoalFormModal({
 
       if (response.ok) {
         onSuccess();
+        onClose(); // Close modal on success
       } else {
-        setError(response.data?.error || "Failed to save goal");
+        const errorMsg = response.error?.message || response.data?.error?.message || "Failed to save goal";
+        setError(errorMsg);
       }
     } catch (err: any) {
       console.error("Failed to save goal:", err);
-      setError(err.message || "Failed to save goal");
+      const errorMsg = err.message || err.error?.message || "Failed to save goal";
+      setError(errorMsg);
     } finally {
       setIsSubmitting(false);
     }

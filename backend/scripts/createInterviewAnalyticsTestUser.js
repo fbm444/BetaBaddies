@@ -1814,7 +1814,6 @@ Sarah Chen`,
 
     // Step 16: Create career goals
     console.log("\n📝 Step 16: Creating career goals...");
-    // Reuse 'now' from Step 9
     const goalsData = [
       {
         goalType: "Application",

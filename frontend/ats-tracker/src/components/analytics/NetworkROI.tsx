@@ -81,7 +81,7 @@ export function NetworkROI({ dateRange }: NetworkROIProps) {
     <div className="space-y-6">
       {/* Overall Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="rounded-2xl bg-gradient-to-b from-[#1E3097] to-[#3351FD] p-5 text-white">
+        <div className="rounded-2xl bg-gradient-to-b from-[#1E3097] to-[#3351FD] p-6 text-white min-h-[160px] flex flex-col justify-between">
           <div className="flex items-start justify-between mb-2">
             <p className="text-[18px] font-normal">Total Activities</p>
             <Icon
@@ -95,7 +95,7 @@ export function NetworkROI({ dateRange }: NetworkROIProps) {
           </p>
         </div>
 
-        <div className="rounded-2xl bg-white p-5 border border-[#E4E8F5]">
+        <div className="rounded-2xl bg-white p-6 border border-[#E4E8F5] min-h-[160px] flex flex-col justify-between">
           <div className="flex items-start justify-between mb-2">
             <p className="text-[18px] font-normal text-[#0F1D3A]">
               Referrals Generated
@@ -106,15 +106,17 @@ export function NetworkROI({ dateRange }: NetworkROIProps) {
               className="text-[#09244B]"
             />
           </div>
-          <p className="text-4xl font-extralight text-[#5A87E6]">
-            {data.overall.referrals}
-          </p>
-          <p className="text-xs text-[#6D7A99] mt-1">
-            {referralRate}% referral rate
-          </p>
+          <div className="flex items-end gap-3">
+            <p className="text-5xl font-extralight text-[#5A87E6]">
+              {data.overall.referrals}
+            </p>
+            <p className="text-xs text-[#6D7A99] mb-1">
+              {referralRate}% referral rate
+            </p>
+          </div>
         </div>
 
-        <div className="rounded-2xl bg-white p-5 border border-[#E4E8F5]">
+        <div className="rounded-2xl bg-white p-6 border border-[#E4E8F5] min-h-[160px] flex flex-col justify-between">
           <div className="flex items-start justify-between mb-2">
             <p className="text-[18px] font-normal text-[#0F1D3A]">
               Opportunities
@@ -125,15 +127,17 @@ export function NetworkROI({ dateRange }: NetworkROIProps) {
               className="text-[#09244B]"
             />
           </div>
-          <p className="text-4xl font-extralight text-[#5A87E6]">
-            {data.overall.opportunitiesFromNetwork}
-          </p>
-          <p className="text-xs text-[#6D7A99] mt-1">
-            {opportunityRate}% opportunity rate
-          </p>
+          <div className="flex items-end gap-3">
+            <p className="text-5xl font-extralight text-[#5A87E6]">
+              {data.overall.opportunitiesFromNetwork}
+            </p>
+            <p className="text-xs text-[#6D7A99] mb-1">
+              {opportunityRate}% opportunity rate
+            </p>
+          </div>
         </div>
 
-        <div className="rounded-2xl bg-white p-5 border border-[#E4E8F5]">
+        <div className="rounded-2xl bg-white p-6 border border-[#E4E8F5] min-h-[160px] flex flex-col justify-between">
           <div className="flex items-start justify-between mb-2">
             <p className="text-[18px] font-normal text-[#0F1D3A]">
               Unique Contacts
@@ -144,7 +148,7 @@ export function NetworkROI({ dateRange }: NetworkROIProps) {
               className="text-[#09244B]"
             />
           </div>
-          <p className="text-4xl font-extralight text-[#5A87E6]">
+          <p className="text-5xl font-extralight text-[#5A87E6]">
             {data.overall.uniqueContacts}
           </p>
         </div>

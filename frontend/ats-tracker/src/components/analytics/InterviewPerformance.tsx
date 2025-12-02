@@ -81,9 +81,9 @@ export function InterviewPerformance({ dateRange }: InterviewPerformanceProps) {
                 <p className="text-[18px] font-normal text-[#0F1D3A]">Interview to Offer</p>
                 <Icon icon="mingcute:target-line" width={20} className="text-[#09244B]" />
               </div>
-              <div>
+              <div className="flex items-end gap-3">
                 <p className="text-5xl font-extralight text-[#5A87E6]">{data.overall.offerRate}%</p>
-                <p className="text-xs text-[#6D7A99] mt-2">
+                <p className="text-xs text-[#6D7A99] mb-1">
                   {data.overall.offers} offers from {data.overall.totalInterviews} interviews
                 </p>
               </div>

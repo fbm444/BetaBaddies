@@ -168,8 +168,8 @@ export const navigationGroups: NavigationGroup[] = [
     ],
   },
   {
-    id: "resumes",
-    label: "Resumes",
+    id: "documents",
+    label: "Documents",
     icon: "mingcute:file-line",
     items: [
       {
@@ -178,13 +178,6 @@ export const navigationGroups: NavigationGroup[] = [
         icon: "mingcute:file-line",
         path: ROUTES.RESUMES,
       },
-    ],
-  },
-  {
-    id: "coverletters",
-    label: "Cover Letters",
-    icon: "mingcute:mail-line",
-    items: [
       {
         id: "coverletters",
         label: "Cover Letters",

@@ -174,7 +174,7 @@ export function InterviewPredictionTab({
               handleCompare();
             }}
             disabled={isLoading || isCalculating}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
+            className="px-4 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors"
           >
             {isLoading ? (
               <>
@@ -182,10 +182,7 @@ export function InterviewPredictionTab({
                 Comparing...
               </>
             ) : (
-              <>
-                <Icon icon="mingcute:chart-line" width={20} />
-                Compare All
-              </>
+              <>Compare All</>
             )}
           </button>
         )}
@@ -298,7 +295,7 @@ export function InterviewPredictionTab({
               <button
                 onClick={() => calculatePrediction(selectedJobId)}
                 disabled={isCalculating}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2 mx-auto"
+                className="px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-full hover:from-pink-600 hover:to-purple-700 disabled:opacity-50 flex items-center gap-2 mx-auto transition-all"
               >
                 {isCalculating ? (
                   <>
@@ -310,10 +307,7 @@ export function InterviewPredictionTab({
                     Calculating...
                   </>
                 ) : (
-                  <>
-                    <Icon icon="mingcute:calculator-line" width={20} />
-                    Calculate Prediction
-                  </>
+                  <>Calculate Prediction</>
                 )}
               </button>
             </div>

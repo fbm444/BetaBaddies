@@ -1,7 +1,13 @@
 import { useState, useEffect } from "react";
 import { Icon } from "@iconify/react";
 import { api } from "../../services/api";
-import type { ApplicationSuccessAnalysis, DateRange } from "../../types/analytics.types";
+import type { ApplicationSuccessAnalysis, DateRange, PatternRecognitionAnalysis } from "../../types/analytics.types";
+import { SuccessPatternsCard } from "./SuccessPatternsCard";
+import { AIPreparationCard } from "./AIPreparationCard";
+import { TimingPatternsCard } from "./TimingPatternsCard";
+import { PredictiveScoresCard } from "./PredictiveScoresCard";
+import { PatternRecommendationsCard } from "./PatternRecommendationsCard";
+import { formatApplicationSource, formatApplicationMethod } from "../../utils/formatLabels";
 
 interface ApplicationSuccessAnalysisProps {
   dateRange?: DateRange;
@@ -9,7 +15,10 @@ interface ApplicationSuccessAnalysisProps {
 
 export function ApplicationSuccessAnalysis({ dateRange }: ApplicationSuccessAnalysisProps) {
   const [data, setData] = useState<ApplicationSuccessAnalysis | null>(null);
+  const [patternData, setPatternData] = useState<PatternRecognitionAnalysis | null>(null);
+  const [showPatterns, setShowPatterns] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isPatternsLoading, setIsPatternsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -34,6 +43,26 @@ export function ApplicationSuccessAnalysis({ dateRange }: ApplicationSuccessAnal
     fetchData();
   }, [dateRange]);
 
+  useEffect(() => {
+    const fetchPatternData = async () => {
+      if (!showPatterns) return;
+      
+      try {
+        setIsPatternsLoading(true);
+        const response = await api.getPatternRecognitionAnalysis(dateRange);
+        if (response.ok && response.data?.analysis) {
+          setPatternData(response.data.analysis);
+        }
+      } catch (err) {
+        console.error('Failed to fetch pattern data:', err);
+      } finally {
+        setIsPatternsLoading(false);
+      }
+    };
+
+    fetchPatternData();
+  }, [showPatterns, dateRange]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -55,7 +84,6 @@ export function ApplicationSuccessAnalysis({ dateRange }: ApplicationSuccessAnal
       </div>
     );
   }
-
   return (
     <div className="space-y-6">
       {/* Success by Industry */}
@@ -103,7 +131,7 @@ export function ApplicationSuccessAnalysis({ dateRange }: ApplicationSuccessAnal
               >
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-semibold text-[#0F1D3A]">
-                    {item.source.replace(/_/g, " ")}
+                    {formatApplicationSource(item.source)}
                   </span>
                   <span className="text-xs text-[#6D7A99]">{item.total} total</span>
                 </div>
@@ -132,7 +160,7 @@ export function ApplicationSuccessAnalysis({ dateRange }: ApplicationSuccessAnal
               <div key={index} className="flex items-center justify-between p-3 rounded-xl border border-[#E8EBF8] bg-[#FDFDFF]">
                 <div>
                   <p className="text-sm font-medium text-[#0F1D3A]">
-                    {item.method.replace(/_/g, " ")}
+                    {formatApplicationMethod(item.method)}
                   </p>
                   <p className="text-xs text-[#6D7A99]">
                     {item.applied} applied • {item.interviews} interviews • {item.offers} offers
@@ -290,7 +318,80 @@ export function ApplicationSuccessAnalysis({ dateRange }: ApplicationSuccessAnal
             </p>
           </div>
         )}
+
+      {/* Pattern Recognition Section */}
+      <div className="mt-8">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-2xl font-semibold text-[#0F1D3A]">
+              Advanced Pattern Recognition
+            </h2>
+            <p className="text-sm text-[#6D7A99] mt-1">
+              AI-powered insights and predictive analytics based on your data
+            </p>
+          </div>
+          <button
+            onClick={() => setShowPatterns(!showPatterns)}
+            className="flex items-center gap-2 px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2741dd] transition-colors"
+          >
+            <Icon 
+              icon={showPatterns ? "mingcute:eye-close-line" : "mingcute:ai-line"} 
+              width={20} 
+            />
+            {showPatterns ? 'Hide AI Insights' : 'Show AI Insights'}
+          </button>
+        </div>
+
+        {showPatterns && (
+          <>
+            {isPatternsLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-center">
+                  <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-[#3351FD]" />
+                  <p className="text-sm text-[#6D7A99]">Loading pattern analysis...</p>
+                </div>
+              </div>
+            ) : patternData ? (
+              <>
+                {/* Success Patterns */}
+                {patternData.successPatterns && patternData.successPatterns.length > 0 && (
+                  <SuccessPatternsCard patterns={patternData.successPatterns} />
+                )}
+                
+                {/* AI Preparation Analysis (replaces old statistical version) */}
+                <AIPreparationCard dateRange={dateRange} />
+                
+                {/* Timing Patterns */}
+                {patternData.timingPatterns && patternData.timingPatterns.length > 0 && (
+                  <TimingPatternsCard patterns={patternData.timingPatterns} />
+                )}
+                
+                {/* Predictive Scores */}
+                {patternData.predictiveScores && patternData.predictiveScores.length > 0 && (
+                  <PredictiveScoresCard scores={patternData.predictiveScores} />
+                )}
+
+                {/* Empty state for patterns */}
+                {(!patternData.successPatterns || patternData.successPatterns.length === 0) &&
+                 (!patternData.timingPatterns || patternData.timingPatterns.length === 0) &&
+                 (!patternData.predictiveScores || patternData.predictiveScores.length === 0) && (
+                  <div className="rounded-2xl border border-dashed border-[#E4E8F5] bg-[#F8F8F8] p-10 text-center">
+                    <Icon icon="mingcute:ai-line" className="mx-auto mb-3 text-[#6D7A99]" width={48} />
+                    <p className="text-sm text-[#6D7A99]">
+                      Not enough data yet for pattern recognition. Continue applying to jobs to unlock AI insights.
+                    </p>
+                    <p className="text-xs text-[#6D7A99] mt-2">
+                      Tip: You need at least 5 completed applications to see meaningful patterns
+                    </p>
+                  </div>
+                )}
+              </>
+            ) : null}
+          </>
+        )}
+      </div>
     </div>
   );
 }
+
 

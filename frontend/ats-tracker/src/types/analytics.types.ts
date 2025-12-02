@@ -327,3 +327,99 @@ export interface ProductivityAnalytics {
   };
 }
 
+// ============================================
+// Pattern Recognition Analysis
+// ============================================
+export interface PatternRecognitionAnalysis {
+  successPatterns: SuccessPattern[];
+  preparationCorrelation: PreparationCorrelation;
+  timingPatterns: TimingPattern[];
+  strategyEvolution: StrategyEvolution;
+  predictiveScores: PredictiveScore[];
+  recommendations: PatternRecommendation[];
+}
+
+export interface SuccessPattern {
+  pattern: string; // "Technology • referral • 5+ hours prep"
+  successRate: number; // 85
+  sampleSize: number; // 12
+  factors: {
+    industry?: string;
+    source?: string;
+    hasReferral?: boolean;
+    prepCategory?: string;
+  };
+  confidence: 'high' | 'medium' | 'low';
+}
+
+export interface PreparationCorrelation {
+  byActivityType: Array<{
+    activityType: string;
+    avgHours: number;
+    successRate: number;
+    jobCount: number;
+    correlation: number; // 0-1
+  }>;
+  optimalPrepTime: {
+    hours: number;
+    successRate: number;
+  };
+  insights: string[];
+}
+
+export interface TimingPattern {
+  type: 'day_of_week' | 'time_of_day' | 'month' | 'season';
+  value: string;
+  successRate: number;
+  sampleSize: number;
+  isOptimal: boolean;
+}
+
+export interface StrategyEvolution {
+  timeline: Array<{
+    period: string; // "2025-Q1"
+    topIndustry: string;
+    topSource: string;
+    successRate: number;
+    applications: number;
+    adaptations: string[];
+  }>;
+  trends: {
+    improving: string[];
+    declining: string[];
+    stable: string[];
+  };
+}
+
+export interface PredictiveScore {
+  jobOpportunityId: string;
+  jobTitle: string;
+  company: string;
+  status?: string;
+  successProbability: number;
+  confidence: 'high' | 'medium' | 'low' | 'very_low';
+  breakdown: {
+    industryBenchmark: number;
+    sourceBenchmark: number;
+    methodBenchmark: number;
+    userHistoricalRate: number;
+    weightOnUserData: number;
+    weightOnBenchmark: number;
+  };
+  insights: Array<{
+    type: string;
+    message: string;
+  }>;
+  recommendedActions: string[];
+  sampleSize: number;
+}
+
+export interface PatternRecommendation {
+  type: 'strategy' | 'timing' | 'preparation' | 'focus';
+  priority: 'high' | 'medium' | 'low';
+  title: string;
+  message: string;
+  actionable: string;
+  impact: string;
+}
+

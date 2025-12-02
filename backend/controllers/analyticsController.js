@@ -1,4 +1,5 @@
 import analyticsService from "../services/analyticsService.js";
+import bayesianPredictionService from "../services/bayesianPredictionService.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 
 class AnalyticsController {
@@ -123,6 +124,77 @@ class AnalyticsController {
     res.status(200).json({
       ok: true,
       data: { analytics },
+    });
+  });
+
+  // Pattern Recognition Analysis
+  getPatternRecognition = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { startDate, endDate } = req.query;
+
+    const dateRange = {
+      startDate: startDate || null,
+      endDate: endDate || null,
+    };
+
+    const analysis = await analyticsService.getPatternRecognitionAnalysis(
+      userId,
+      dateRange
+    );
+
+    res.status(200).json({
+      ok: true,
+      data: { analysis },
+    });
+  });
+
+  // Predict Success for a Specific Opportunity
+  predictSuccess = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const opportunityData = req.body;
+
+    const prediction = await bayesianPredictionService.predictSuccess(
+      userId,
+      opportunityData
+    );
+
+    res.status(200).json({
+      ok: true,
+      data: { prediction },
+    });
+  });
+
+  // Get Preparation Correlation Data
+  getPreparationCorrelation = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { startDate, endDate } = req.query;
+
+    const data = await analyticsService.analyzePreparationCorrelation(
+      userId,
+      startDate,
+      endDate
+    );
+
+    res.status(200).json({
+      ok: true,
+      data,
+    });
+  });
+
+  // Get Timing Patterns
+  getTimingPatterns = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { startDate, endDate } = req.query;
+
+    const patterns = await analyticsService.getTimingPatterns(
+      userId,
+      startDate,
+      endDate
+    );
+
+    res.status(200).json({
+      ok: true,
+      data: { patterns },
     });
   });
 }

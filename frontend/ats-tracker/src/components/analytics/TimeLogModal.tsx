@@ -10,6 +10,13 @@ interface TimeLogModalProps {
   prefilledJobId?: string;
 }
 
+interface JobOpportunity {
+  id: string;
+  title: string;
+  company: string;
+  status: string;
+}
+
 export function TimeLogModal({ isOpen, onClose, onLogSuccess, prefilledJobId }: TimeLogModalProps) {
   const [formData, setFormData] = useState<TimeLogInput>({
     activityType: 'application',
@@ -20,6 +27,41 @@ export function TimeLogModal({ isOpen, onClose, onLogSuccess, prefilledJobId }: 
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [jobOpportunities, setJobOpportunities] = useState<JobOpportunity[]>([]);
+  const [loadingJobs, setLoadingJobs] = useState(false);
+
+  // Fetch job opportunities when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchJobOpportunities();
+    }
+  }, [isOpen]);
+
+  const fetchJobOpportunities = async () => {
+    try {
+      setLoadingJobs(true);
+      const response = await api.getJobOpportunities();
+      
+      // Extract jobOpportunities array from response.data
+      const jobs = response.data?.jobOpportunities || [];
+      
+      // Sort by most recent
+      const sortedJobs = jobs
+        .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .map((job: any) => ({
+          id: job.id,
+          title: job.title,
+          company: job.company,
+          status: job.status,
+        }));
+      
+      setJobOpportunities(sortedJobs);
+    } catch (err) {
+      console.error('Failed to fetch job opportunities:', err);
+    } finally {
+      setLoadingJobs(false);
+    }
+  };
 
   // Reset form when modal opens or prefilledJobId changes
   useEffect(() => {
@@ -83,6 +125,38 @@ export function TimeLogModal({ isOpen, onClose, onLogSuccess, prefilledJobId }: 
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {/* Job Opportunity (Optional) */}
+          <div>
+            <label className="block text-sm font-medium text-[#0F1D3A] mb-2">
+              Related Job Opportunity (Optional)
+            </label>
+            {loadingJobs ? (
+              <div className="w-full px-4 py-2 border border-[#E4E8F5] rounded-lg bg-[#F8F9FF] text-[#6D7A99] flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-[#3351FD] border-t-transparent rounded-full animate-spin" />
+                Loading jobs...
+              </div>
+            ) : (
+              <select
+                value={formData.jobOpportunityId || ''}
+                onChange={(e) => setFormData({ ...formData, jobOpportunityId: e.target.value || undefined })}
+                className="w-full px-4 py-2 border border-[#E4E8F5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]/20"
+                disabled={!!prefilledJobId}
+              >
+                <option value="">General job search activity</option>
+                {jobOpportunities.map((job) => (
+                  <option key={job.id} value={job.id}>
+                    {job.title} - {job.company} ({job.status})
+                  </option>
+                ))}
+              </select>
+            )}
+            {prefilledJobId && (
+              <p className="text-xs text-[#6D7A99] mt-1">
+                Pre-selected for a specific job opportunity
+              </p>
+            )}
+          </div>
+
           {/* Activity Type */}
           <div>
             <label className="block text-sm font-medium text-[#0F1D3A] mb-2">

@@ -792,6 +792,19 @@ class AnalyticsService {
   generateSuccessRecommendations(data) {
     const recommendations = [];
 
+    // Helper to format source names
+    const formatSource = (source) => {
+      const sourceMap = {
+        'company_website': 'Company Website',
+        'job_board': 'Job Board',
+        'referral': 'Referral',
+        'recruiter': 'Recruiter',
+        'networking': 'Networking Event',
+        'social_media': 'Social Media',
+      };
+      return sourceMap[source] || source.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    };
+
     // Find best performing source
     if (data.bySource && data.bySource.length > 0) {
       const bestSource = data.bySource.reduce((best, current) =>
@@ -801,7 +814,7 @@ class AnalyticsService {
         recommendations.push({
           type: "source",
           priority: "high",
-          message: `Your highest success rate (${bestSource.offerRate}%) comes from ${bestSource.source}. Focus more applications here.`,
+          message: `Your highest success rate (${bestSource.offerRate}%) comes from ${formatSource(bestSource.source)}. Focus more applications here.`,
         });
       }
     }
@@ -1969,6 +1982,581 @@ class AnalyticsService {
       message: 'Most job seekers have best results applying Monday-Wednesday mornings.',
       actionable: 'Try scheduling your application time for 9-11 AM on Mondays through Wednesdays.'
     });
+
+    return recommendations;
+  }
+
+  // ============================================
+  // Pattern Recognition Analysis (UC-XXX)
+  // ============================================
+
+  /**
+   * Get comprehensive pattern recognition analysis
+   */
+  async getPatternRecognitionAnalysis(userId, dateRange = {}) {
+    try {
+      const { startDate, endDate } = this.parseDateRange(dateRange);
+      
+      const [
+        successPatterns,
+        preparationCorrelation,
+        timingPatterns,
+        strategyEvolution,
+        predictiveScores,
+      ] = await Promise.all([
+        this.identifySuccessPatterns(userId, startDate, endDate),
+        this.analyzePreparationCorrelation(userId, startDate, endDate),
+        this.getTimingPatterns(userId, startDate, endDate),
+        this.getStrategyEvolution(userId, startDate, endDate),
+        this.getPredictiveScores(userId),
+      ]);
+
+      const recommendations = this.generatePatternRecommendations({
+        successPatterns,
+        preparationCorrelation,
+        timingPatterns,
+        strategyEvolution,
+      });
+
+      return {
+        successPatterns,
+        preparationCorrelation,
+        timingPatterns,
+        strategyEvolution,
+        predictiveScores,
+        recommendations,
+      };
+    } catch (error) {
+      console.error('❌ Error getting pattern recognition analysis:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Identify success patterns across multiple variables
+   */
+  async identifySuccessPatterns(userId, startDate, endDate) {
+    try {
+      let dateFilter = "";
+      const params = [userId];
+      if (startDate) {
+        dateFilter += " AND jo.created_at >= $" + (params.length + 1);
+        params.push(startDate);
+      }
+      if (endDate) {
+        dateFilter += " AND jo.created_at <= $" + (params.length + 1);
+        params.push(endDate + " 23:59:59");
+      }
+
+      // Multi-variable pattern analysis
+      const query = `
+        WITH pattern_data AS (
+          SELECT 
+            jo.industry,
+            jo.application_source,
+            jo.application_method,
+            CASE WHEN jo.referral_contact_name IS NOT NULL THEN true ELSE false END as has_referral,
+            COALESCE(SUM(tl.hours_spent), 0) as prep_hours,
+            CASE WHEN jo.status = 'Offer' THEN 1 ELSE 0 END as got_offer,
+            CASE WHEN jo.status IN ('Phone Screen', 'Interview', 'Offer') THEN 1 ELSE 0 END as got_interview
+          FROM job_opportunities jo
+          LEFT JOIN time_logs tl ON tl.job_opportunity_id = jo.id
+          WHERE jo.user_id = $1
+            AND jo.status IN ('Offer', 'Rejected', 'Withdrawn')
+            ${dateFilter}
+          GROUP BY jo.id, jo.industry, jo.application_source, jo.application_method, 
+                   jo.referral_contact_name, jo.status
+        )
+        SELECT 
+          industry,
+          application_source,
+          has_referral,
+          CASE 
+            WHEN prep_hours >= 5 THEN '5+ hours'
+            WHEN prep_hours >= 2 THEN '2-5 hours'
+            ELSE 'under 2 hours'
+          END as prep_category,
+          COUNT(*) as sample_size,
+          ROUND(AVG(got_offer) * 100) as success_rate,
+          ROUND(AVG(got_interview) * 100) as interview_rate
+        FROM pattern_data
+        GROUP BY industry, application_source, has_referral, prep_category
+        HAVING COUNT(*) >= 2
+        ORDER BY success_rate DESC, sample_size DESC
+        LIMIT 10
+      `;
+
+      const result = await database.query(query, params);
+      
+      return result.rows.map(row => {
+        const factors = [];
+        if (row.industry) factors.push(row.industry);
+        if (row.application_source) factors.push(row.application_source.replace(/_/g, ' '));
+        if (row.has_referral) factors.push('with referral');
+        if (row.prep_category) factors.push(row.prep_category + ' prep');
+        
+        return {
+          pattern: factors.join(' • '),
+          successRate: parseInt(row.success_rate) || 0,
+          sampleSize: parseInt(row.sample_size) || 0,
+          factors: {
+            industry: row.industry,
+            source: row.application_source,
+            hasReferral: row.has_referral,
+            prepCategory: row.prep_category,
+          },
+          confidence: parseInt(row.sample_size) >= 8 ? 'high' : 
+                      parseInt(row.sample_size) >= 4 ? 'medium' : 'low',
+        };
+      });
+    } catch (error) {
+      console.error('❌ Error identifying success patterns:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Analyze correlation between preparation activities and outcomes
+   */
+  async analyzePreparationCorrelation(userId, startDate, endDate) {
+    try {
+      let dateFilter = "";
+      const params = [userId];
+      if (startDate) {
+        dateFilter += " AND jo.created_at >= $" + (params.length + 1);
+        params.push(startDate);
+      }
+      if (endDate) {
+        dateFilter += " AND jo.created_at <= $" + (params.length + 1);
+        params.push(endDate + " 23:59:59");
+      }
+
+      // Check if time_logs table has data
+      const hasTimeLogs = await this.columnExists('time_logs', 'id');
+      
+      if (!hasTimeLogs) {
+        return {
+          byActivityType: [],
+          optimalPrepTime: { hours: 5, successRate: 0 },
+          insights: ['Start tracking your preparation time to see correlations with success'],
+        };
+      }
+
+      // Correlation by activity type
+      const activityQuery = `
+        SELECT 
+          tl.activity_type,
+          ROUND(AVG(tl.hours_spent), 1) as avg_hours,
+          COUNT(DISTINCT tl.job_opportunity_id) as job_count,
+          ROUND(AVG(CASE WHEN jo.status = 'Offer' THEN 100 ELSE 0 END)) as success_rate,
+          ROUND(AVG(CASE WHEN jo.status IN ('Phone Screen', 'Interview', 'Offer') THEN 100 ELSE 0 END)) as interview_rate
+        FROM time_logs tl
+        JOIN job_opportunities jo ON jo.id = tl.job_opportunity_id
+        WHERE tl.user_id = $1
+          AND jo.status IN ('Offer', 'Rejected', 'Withdrawn')
+          ${dateFilter}
+        GROUP BY tl.activity_type
+        HAVING COUNT(DISTINCT tl.job_opportunity_id) >= 2
+        ORDER BY success_rate DESC
+      `;
+
+      const activityResult = await database.query(activityQuery, params);
+      
+      const byActivityType = activityResult.rows.map(row => {
+        const successRate = parseFloat(row.success_rate) || 0;
+        const interviewRate = parseFloat(row.interview_rate) || 0;
+        
+        // Simple correlation score (0-1)
+        const correlation = successRate / 100;
+        
+        return {
+          activityType: row.activity_type,
+          avgHours: parseFloat(row.avg_hours) || 0,
+          successRate: Math.round(successRate),
+          jobCount: parseInt(row.job_count) || 0,
+          correlation: Math.round(correlation * 100) / 100,
+        };
+      });
+
+      // Find optimal prep time
+      const optimalQuery = `
+        WITH prep_buckets AS (
+          SELECT 
+            jo.id,
+            COALESCE(SUM(tl.hours_spent), 0) as total_prep_hours,
+            CASE WHEN jo.status = 'Offer' THEN 1 ELSE 0 END as got_offer
+          FROM job_opportunities jo
+          LEFT JOIN time_logs tl ON tl.job_opportunity_id = jo.id
+          WHERE jo.user_id = $1
+            AND jo.status IN ('Offer', 'Rejected', 'Withdrawn')
+            ${dateFilter}
+          GROUP BY jo.id, jo.status
+        )
+        SELECT 
+          CASE 
+            WHEN total_prep_hours >= 8 THEN 8
+            WHEN total_prep_hours >= 6 THEN 6
+            WHEN total_prep_hours >= 4 THEN 4
+            WHEN total_prep_hours >= 2 THEN 2
+            ELSE 0
+          END as prep_hours_bucket,
+          COUNT(*) as sample_size,
+          ROUND(AVG(got_offer) * 100) as success_rate
+        FROM prep_buckets
+        GROUP BY prep_hours_bucket
+        ORDER BY success_rate DESC
+        LIMIT 1
+      `;
+
+      const optimalResult = await database.query(optimalQuery, params);
+      const optimalData = optimalResult.rows[0] || { prep_hours_bucket: 5, success_rate: 0 };
+
+      // Generate insights
+      const insights = [];
+      if (byActivityType.length > 0) {
+        const topActivity = byActivityType[0];
+        insights.push(
+          `${topActivity.activityType.replace(/_/g, ' ')} shows the highest correlation with success (${topActivity.successRate}% success rate)`
+        );
+      }
+      
+      if (parseInt(optimalData.success_rate) > 0) {
+        insights.push(
+          `Spending ${optimalData.prep_hours_bucket}+ hours on preparation correlates with ${optimalData.success_rate}% success rate`
+        );
+      }
+
+      return {
+        byActivityType,
+        optimalPrepTime: {
+          hours: parseInt(optimalData.prep_hours_bucket) || 5,
+          successRate: parseInt(optimalData.success_rate) || 0,
+        },
+        insights,
+      };
+    } catch (error) {
+      console.error('❌ Error analyzing preparation correlation:', error);
+      return {
+        byActivityType: [],
+        optimalPrepTime: { hours: 5, successRate: 0 },
+        insights: [],
+      };
+    }
+  }
+
+  /**
+   * Get timing patterns for optimal application submission
+   */
+  async getTimingPatterns(userId, startDate, endDate) {
+    try {
+      let dateFilter = "";
+      const params = [userId];
+      if (startDate) {
+        dateFilter += " AND created_at >= $" + (params.length + 1);
+        params.push(startDate);
+      }
+      if (endDate) {
+        dateFilter += " AND created_at <= $" + (params.length + 1);
+        params.push(endDate + " 23:59:59");
+      }
+
+      // Check if we have application_submitted_at column
+      const hasSubmittedAt = await this.columnExists('job_opportunities', 'application_submitted_at');
+      const dateColumn = hasSubmittedAt ? 'application_submitted_at' : 'created_at';
+
+      // Day of week patterns
+      const dayOfWeekQuery = `
+        SELECT 
+          TO_CHAR(${dateColumn}, 'Day') as day_name,
+          EXTRACT(DOW FROM ${dateColumn}) as day_num,
+          COUNT(*) as sample_size,
+          ROUND(AVG(CASE WHEN status = 'Offer' THEN 100 ELSE 0 END)) as success_rate,
+          ROUND(AVG(CASE WHEN status IN ('Phone Screen', 'Interview', 'Offer') THEN 100 ELSE 0 END)) as interview_rate
+        FROM job_opportunities
+        WHERE user_id = $1
+          AND status IN ('Offer', 'Rejected', 'Withdrawn')
+          AND ${dateColumn} IS NOT NULL
+          ${dateFilter}
+        GROUP BY day_name, day_num
+        HAVING COUNT(*) >= 2
+        ORDER BY day_num
+      `;
+
+      const dayResult = await database.query(dayOfWeekQuery, params);
+      
+      const dayPatterns = dayResult.rows.map(row => ({
+        type: 'day_of_week',
+        value: row.day_name.trim(),
+        successRate: parseInt(row.success_rate) || 0,
+        sampleSize: parseInt(row.sample_size) || 0,
+        isOptimal: false,
+      }));
+
+      // Mark optimal days
+      if (dayPatterns.length > 0) {
+        const maxSuccessRate = Math.max(...dayPatterns.map(p => p.successRate));
+        dayPatterns.forEach(p => {
+          if (p.successRate === maxSuccessRate) p.isOptimal = true;
+        });
+      }
+
+      // Time of day patterns (if we have timestamp)
+      const timePatterns = [];
+      if (hasSubmittedAt) {
+        const timeOfDayQuery = `
+          SELECT 
+            CASE 
+              WHEN EXTRACT(HOUR FROM ${dateColumn}) BETWEEN 6 AND 11 THEN 'Morning (6am-12pm)'
+              WHEN EXTRACT(HOUR FROM ${dateColumn}) BETWEEN 12 AND 16 THEN 'Afternoon (12pm-5pm)'
+              WHEN EXTRACT(HOUR FROM ${dateColumn}) BETWEEN 17 AND 20 THEN 'Evening (5pm-9pm)'
+              ELSE 'Night (9pm-6am)'
+            END as time_period,
+            COUNT(*) as sample_size,
+            ROUND(AVG(CASE WHEN status = 'Offer' THEN 100 ELSE 0 END)) as success_rate
+          FROM job_opportunities
+          WHERE user_id = $1
+            AND status IN ('Offer', 'Rejected', 'Withdrawn')
+            AND ${dateColumn} IS NOT NULL
+            ${dateFilter}
+          GROUP BY time_period
+          HAVING COUNT(*) >= 2
+          ORDER BY success_rate DESC
+        `;
+
+        const timeResult = await database.query(timeOfDayQuery, params);
+        
+        const maxTimeSuccessRate = timeResult.rows.length > 0 
+          ? Math.max(...timeResult.rows.map(r => parseInt(r.success_rate) || 0))
+          : 0;
+
+        timeResult.rows.forEach(row => {
+          const successRate = parseInt(row.success_rate) || 0;
+          timePatterns.push({
+            type: 'time_of_day',
+            value: row.time_period,
+            successRate,
+            sampleSize: parseInt(row.sample_size) || 0,
+            isOptimal: successRate === maxTimeSuccessRate,
+          });
+        });
+      }
+
+      return [...dayPatterns, ...timePatterns];
+    } catch (error) {
+      console.error('❌ Error getting timing patterns:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Track strategy evolution over time
+   */
+  async getStrategyEvolution(userId, startDate, endDate) {
+    try {
+      let dateFilter = "";
+      const params = [userId];
+      if (startDate) {
+        dateFilter += " AND created_at >= $" + (params.length + 1);
+        params.push(startDate);
+      }
+      if (endDate) {
+        dateFilter += " AND created_at <= $" + (params.length + 1);
+        params.push(endDate + " 23:59:59");
+      }
+
+      const query = `
+        WITH quarterly_data AS (
+          SELECT 
+            TO_CHAR(created_at, 'YYYY-Q"Q"') as period,
+            industry,
+            application_source,
+            COUNT(*) as applications,
+            ROUND(AVG(CASE WHEN status = 'Offer' THEN 100 ELSE 0 END)) as success_rate
+          FROM job_opportunities
+          WHERE user_id = $1
+            AND status IN ('Offer', 'Rejected', 'Withdrawn')
+            ${dateFilter}
+          GROUP BY period, industry, application_source
+        ),
+        period_summary AS (
+          SELECT 
+            period,
+            industry,
+            application_source,
+            applications,
+            success_rate,
+            ROW_NUMBER() OVER (PARTITION BY period ORDER BY applications DESC) as industry_rank,
+            ROW_NUMBER() OVER (PARTITION BY period ORDER BY success_rate DESC) as source_rank
+          FROM quarterly_data
+        )
+        SELECT 
+          period,
+          MAX(CASE WHEN industry_rank = 1 THEN industry END) as top_industry,
+          MAX(CASE WHEN source_rank = 1 THEN application_source END) as top_source,
+          ROUND(AVG(success_rate)) as avg_success_rate,
+          SUM(applications) as total_applications
+        FROM period_summary
+        GROUP BY period
+        ORDER BY period DESC
+        LIMIT 8
+      `;
+
+      const result = await database.query(query, params);
+      
+      const timeline = result.rows.map(row => ({
+        period: row.period,
+        topIndustry: row.top_industry || 'Various',
+        topSource: row.top_source || 'Various',
+        successRate: parseInt(row.avg_success_rate) || 0,
+        applications: parseInt(row.total_applications) || 0,
+        adaptations: [],
+      }));
+
+      // Identify trends
+      const trends = {
+        improving: [],
+        declining: [],
+        stable: [],
+      };
+
+      if (timeline.length >= 2) {
+        const recent = timeline[0];
+        const previous = timeline[1];
+        
+        if (recent.successRate > previous.successRate + 5) {
+          trends.improving.push('Overall success rate improving');
+        } else if (recent.successRate < previous.successRate - 5) {
+          trends.declining.push('Overall success rate declining');
+        } else {
+          trends.stable.push('Success rate stable');
+        }
+
+        if (recent.topIndustry !== previous.topIndustry) {
+          timeline[0].adaptations.push(`Shifted focus to ${recent.topIndustry}`);
+        }
+
+        if (recent.topSource !== previous.topSource) {
+          timeline[0].adaptations.push(`Changed primary source to ${recent.topSource}`);
+        }
+      }
+
+      return {
+        timeline,
+        trends,
+      };
+    } catch (error) {
+      console.error('❌ Error getting strategy evolution:', error);
+      return {
+        timeline: [],
+        trends: { improving: [], declining: [], stable: [] },
+      };
+    }
+  }
+
+  /**
+   * Get predictive scores for active opportunities
+   */
+  async getPredictiveScores(userId) {
+    try {
+      console.log('🎯 Getting predictive scores for user:', userId);
+      // Import bayesian service
+      const bayesianPrediction = await import('./bayesianPredictionService.js');
+      const scores = await bayesianPrediction.default.predictActiveOpportunities(userId);
+      console.log('✅ Predictive scores returned:', scores.length, 'predictions');
+      return scores;
+    } catch (error) {
+      console.error('❌ Error getting predictive scores:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Generate pattern-based recommendations
+   */
+  generatePatternRecommendations(data) {
+    const recommendations = [];
+
+    // Success pattern recommendations
+    if (data.successPatterns && data.successPatterns.length > 0) {
+      const topPattern = data.successPatterns[0];
+      if (topPattern.successRate >= 50) {
+        recommendations.push({
+          type: 'strategy',
+          priority: 'high',
+          title: 'Leverage Your Success Pattern',
+          message: `Your highest success pattern is: ${topPattern.pattern}`,
+          actionable: `Focus on opportunities matching this pattern to maximize your ${topPattern.successRate}% success rate`,
+          impact: `Based on ${topPattern.sampleSize} applications`,
+        });
+      }
+    }
+
+    // Preparation recommendations
+    if (data.preparationCorrelation && data.preparationCorrelation.optimalPrepTime.successRate > 0) {
+      const optimal = data.preparationCorrelation.optimalPrepTime;
+      recommendations.push({
+        type: 'preparation',
+        priority: 'high',
+        title: 'Optimal Preparation Time',
+        message: `Spending ${optimal.hours} hours on preparation correlates with ${optimal.successRate}% success rate`,
+        actionable: `Allocate ${optimal.hours} hours for each high-priority application`,
+        impact: `Could improve success rate significantly`,
+      });
+    }
+
+    // Timing recommendations
+    if (data.timingPatterns && data.timingPatterns.length > 0) {
+      const optimalTiming = data.timingPatterns.filter(p => p.isOptimal);
+      if (optimalTiming.length > 0) {
+        const dayTiming = optimalTiming.find(p => p.type === 'day_of_week');
+        const timeTiming = optimalTiming.find(p => p.type === 'time_of_day');
+        
+        let message = 'Your best application timing: ';
+        if (dayTiming && timeTiming) {
+          message += `${dayTiming.value} ${timeTiming.value}`;
+        } else if (dayTiming) {
+          message += dayTiming.value;
+        } else if (timeTiming) {
+          message += timeTiming.value;
+        }
+        
+        recommendations.push({
+          type: 'timing',
+          priority: 'medium',
+          title: 'Optimal Application Timing',
+          message,
+          actionable: 'Schedule your applications during these optimal times',
+          impact: 'Small but consistent improvement in response rates',
+        });
+      }
+    }
+
+    // Strategy evolution recommendations
+    if (data.strategyEvolution && data.strategyEvolution.trends) {
+      const { improving, declining } = data.strategyEvolution.trends;
+      
+      if (improving.length > 0) {
+        recommendations.push({
+          type: 'strategy',
+          priority: 'low',
+          title: 'Strategy Improving',
+          message: improving.join(', '),
+          actionable: 'Continue with current approach',
+          impact: 'Maintain momentum',
+        });
+      }
+      
+      if (declining.length > 0) {
+        recommendations.push({
+          type: 'strategy',
+          priority: 'high',
+          title: 'Strategy Needs Adjustment',
+          message: declining.join(', '),
+          actionable: 'Review and adjust your application strategy',
+          impact: 'Reverse negative trend',
+        });
+      }
+    }
 
     return recommendations;
   }

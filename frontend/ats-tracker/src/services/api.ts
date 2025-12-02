@@ -1288,6 +1288,59 @@ class ApiService {
   async getCompetitiveAnalysis() {
     return this.request<ApiResponse<{ analysis: any }>>("/competitive-analysis");
   }
+
+  // Pattern Recognition Analytics
+  async getPatternRecognitionAnalysis(dateRange?: DateRange) {
+    const params = new URLSearchParams();
+    if (dateRange?.startDate) params.append("startDate", dateRange.startDate);
+    if (dateRange?.endDate) params.append("endDate", dateRange.endDate);
+
+    const queryString = params.toString();
+    return this.request<ApiResponse<{ analysis: any }>>(
+      `/analytics/pattern-recognition${queryString ? `?${queryString}` : ""}`
+    );
+  }
+
+  async predictJobSuccess(opportunityData: any) {
+    return this.request<ApiResponse<{ prediction: any }>>("/analytics/predict-success", {
+      method: "POST",
+      body: JSON.stringify(opportunityData),
+    });
+  }
+
+  async getPreparationCorrelation(dateRange?: DateRange) {
+    const params = new URLSearchParams();
+    if (dateRange?.startDate) params.append("startDate", dateRange.startDate);
+    if (dateRange?.endDate) params.append("endDate", dateRange.endDate);
+
+    const queryString = params.toString();
+    return this.request<ApiResponse<any>>(
+      `/analytics/preparation-correlation${queryString ? `?${queryString}` : ""}`
+    );
+  }
+
+  async getTimingPatterns(dateRange?: DateRange) {
+    const params = new URLSearchParams();
+    if (dateRange?.startDate) params.append("startDate", dateRange.startDate);
+    if (dateRange?.endDate) params.append("endDate", dateRange.endDate);
+
+    const queryString = params.toString();
+    return this.request<ApiResponse<{ patterns: any[] }>>(
+      `/analytics/timing-patterns${queryString ? `?${queryString}` : ""}`
+    );
+  }
+
+  // AI Preparation Analysis (replaces flawed statistical version)
+  async getAIPreparationAnalysis(dateRange?: DateRange) {
+    const params = new URLSearchParams();
+    if (dateRange?.startDate) params.append("startDate", dateRange.startDate);
+    if (dateRange?.endDate) params.append("endDate", dateRange.endDate);
+
+    const queryString = params.toString();
+    return this.request<any>(
+      `/analytics/ai-preparation-analysis${queryString ? `?${queryString}` : ""}`
+    );
+  }
 }
 
 export const api = new ApiService();

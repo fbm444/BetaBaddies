@@ -116,7 +116,9 @@ export function NetworkROI({ dateRange }: NetworkROIProps) {
         <div className="rounded-3xl bg-white p-6 border border-[#E4E8F5]">
           <h3 className="text-[25px] font-normal text-[#0F1D3A] mb-4">Activities by Type</h3>
           <div className="space-y-3">
-            {data.byType.map((item, index) => {
+            {data.byType
+              .filter((item) => item.type != null) // Filter out null/undefined types
+              .map((item, index) => {
               const referralPercent =
                 item.count > 0 ? Math.round((item.referrals / item.count) * 100 * 10) / 10 : 0;
               const opportunityPercent =

@@ -129,7 +129,7 @@ export function GoalTracking({ dateRange }: GoalTrackingProps) {
                   <div className="flex items-center gap-4 text-xs text-[#6D7A99]">
                     <span className="capitalize">{goal.category}</span>
                     <span>•</span>
-                    <span className="capitalize">{goal.goalType.replace("_", " ")}</span>
+                    <span className="capitalize">{goal.goalType ? goal.goalType.replace("_", " ") : "Unknown"}</span>
                     {goal.targetDate && (
                       <>
                         <span>•</span>

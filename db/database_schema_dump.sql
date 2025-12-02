@@ -3215,7 +3215,8 @@ CREATE TABLE public.professional_contacts (
     last_interaction_date date,
     next_reminder_date date,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    contact_user_id uuid
 );
 
 
@@ -4561,7 +4562,12 @@ CREATE TABLE public.users (
     google_calendar_token_expiry timestamp with time zone,
     google_calendar_sync_enabled boolean DEFAULT false,
     google_calendar_id character varying(255),
-    team_id uuid
+    team_id uuid,
+    google_contacts_access_token text,
+    google_contacts_refresh_token text,
+    google_contacts_token_expiry timestamp with time zone,
+    google_contacts_sync_enabled boolean DEFAULT false,
+    google_contacts_last_sync_at timestamp with time zone
 );
 
 
@@ -7420,6 +7426,13 @@ CREATE INDEX idx_productivity_analysis_user_id ON public.productivity_analysis U
 
 
 --
+-- Name: idx_professional_contacts_contact_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_professional_contacts_contact_user_id ON public.professional_contacts USING btree (contact_user_id);
+
+
+--
 -- Name: idx_professional_contacts_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -9939,6 +9952,14 @@ ALTER TABLE ONLY public.preparation_tasks
 
 ALTER TABLE ONLY public.productivity_analysis
     ADD CONSTRAINT productivity_analysis_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: professional_contacts professional_contacts_contact_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.professional_contacts
+    ADD CONSTRAINT professional_contacts_contact_user_id_fkey FOREIGN KEY (contact_user_id) REFERENCES public.users(u_id) ON DELETE SET NULL;
 
 
 --

@@ -287,11 +287,12 @@ class GoalService {
   async getGoalAnalytics(userId) {
     try {
       // Get overall totals first (not grouped)
+      // Normalize status values: treat NULL, empty string, or 'active' as active
       const totalsQuery = `
         SELECT 
           COUNT(*) as total_goals,
-          COUNT(CASE WHEN status = 'active' THEN 1 END) as active_goals,
-          COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_goals
+          COUNT(CASE WHEN COALESCE(status, 'active') = 'active' THEN 1 END) as active_goals,
+          COUNT(CASE WHEN COALESCE(status, '') = 'completed' THEN 1 END) as completed_goals
         FROM career_goals
         WHERE user_id = $1
       `;
@@ -303,12 +304,13 @@ class GoalService {
       const achievementRate = totalGoals > 0 ? Math.round((completedGoals / totalGoals) * 100 * 10) / 10 : 0;
 
       // Get breakdown by category
+      // Normalize status values for accurate counting
       const categoryQuery = `
         SELECT 
           goal_category,
           COUNT(*) as category_total,
-          COUNT(CASE WHEN status = 'completed' THEN 1 END) as category_completed,
-          COUNT(CASE WHEN status = 'active' THEN 1 END) as category_active
+          COUNT(CASE WHEN COALESCE(status, '') = 'completed' THEN 1 END) as category_completed,
+          COUNT(CASE WHEN COALESCE(status, 'active') = 'active' THEN 1 END) as category_active
         FROM career_goals
         WHERE user_id = $1
         GROUP BY goal_category
@@ -324,10 +326,13 @@ class GoalService {
       }));
 
       // Get recent progress (active goals with progress)
+      // Normalize status to include NULL as active
       const progressQuery = `
         SELECT id, goal_description, current_value, target_value, progress_percentage, updated_at
         FROM career_goals
-        WHERE user_id = $1 AND status = 'active' AND target_value IS NOT NULL
+        WHERE user_id = $1 
+          AND COALESCE(status, 'active') = 'active' 
+          AND target_value IS NOT NULL
         ORDER BY updated_at DESC, created_at DESC
         LIMIT 5
       `;

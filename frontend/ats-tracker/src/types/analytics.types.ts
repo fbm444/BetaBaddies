@@ -170,6 +170,22 @@ export interface SalaryProgression {
     vsLocation?: number | null; // Percentage above/below location average
     negotiationStatus?: string | null;
   }>;
+  ongoingNegotiations?: Array<{
+    id: string;
+    title: string;
+    company: string;
+    location: string | null;
+    industry: string | null;
+    salaryMin: number | null;
+    salaryMax: number | null;
+    negotiationStatus: string;
+    notes: string | null;
+    bonus: number | null;
+    equity: number | null;
+    overtime: string | null;
+    month: string;
+    createdAt: string;
+  }>;
 }
 
 // ============================================

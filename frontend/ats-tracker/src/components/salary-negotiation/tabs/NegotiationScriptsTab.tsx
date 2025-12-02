@@ -212,7 +212,7 @@ export function NegotiationScriptsTab({
           <button
             onClick={() => handleGenerateScript(selectedScenario, false)}
             disabled={isLoading}
-            className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            className="px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-full hover:from-pink-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-all"
           >
             {isLoading ? "Generating..." : "Generate Script"}
           </button>

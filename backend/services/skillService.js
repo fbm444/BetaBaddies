@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import database from "./database.js";
+import { teamService } from "./collaboration/index.js";
 
 class SkillService {
   // Create a new skill
@@ -34,7 +35,36 @@ class SkillService {
         skillBadge || null,
       ]);
 
-      return this.mapRowToSkill(result.rows[0]);
+      const skill = this.mapRowToSkill(result.rows[0]);
+
+      // Log activity to all teams user is a member of
+      try {
+        const userTeams = await database.query(
+          `SELECT team_id, role FROM team_members WHERE user_id = $1 AND active = true`,
+          [userId]
+        );
+        console.log(`[SkillService] Found ${userTeams.rows.length} teams for user ${userId}`);
+        for (const team of userTeams.rows) {
+          console.log(`[SkillService] Logging skill_added activity to team ${team.team_id}`);
+          await teamService.logActivity(
+            team.team_id,
+            userId,
+            team.role || "candidate",
+            "skill_added",
+            {
+              skill_id: skillId,
+              skill_name: skillName,
+              proficiency: proficiency,
+              category: category
+            }
+          );
+        }
+      } catch (error) {
+        console.error("[SkillService] Error logging skill activity:", error);
+        // Don't fail skill creation if activity logging fails
+      }
+
+      return skill;
     } catch (error) {
       console.error("❌ Error creating skill:", error);
       throw error;

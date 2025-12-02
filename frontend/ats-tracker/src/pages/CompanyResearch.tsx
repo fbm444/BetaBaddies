@@ -527,206 +527,23 @@ export function CompanyResearch() {
                 </div>
               )}
 
-              {/* Interview Insights */}
+              {/* Interview Insights moved to Interviews page */}
               <div className="border-t border-slate-200 pt-6">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <Icon icon="mingcute:microphone-line" width={20} height={20} className="text-[#3351FD]" />
-                    <h3 className="text-lg font-semibold text-slate-900">Interview Insights</h3>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                    {insightsMetadata?.fromCache && (
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-600">Cached</span>
-                    )}
-                    {insightsMetadata?.generatedAt && (
-                      <span>Updated {formatDateTime(insightsMetadata.generatedAt)}</span>
-                    )}
-                    {insightsMetadata?.expiresAt && (
-                      <span>Expires {formatDateTime(insightsMetadata.expiresAt)}</span>
-                    )}
-                    <button
-                      onClick={handleRefreshInsights}
-                      disabled={
-                        !selectedCompany ||
-                        isRefreshingInsights ||
-                        isLoadingInsights
-                      }
-                      className="flex items-center gap-2 rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {isRefreshingInsights ? (
-                        <>
-                          <Icon icon="mingcute:loading-line" width={16} height={16} className="animate-spin" />
-                          Refreshing
-                        </>
-                      ) : (
-                        <>
-                          <Icon icon="mingcute:refresh-line" width={16} height={16} />
-                          Refresh Insights
-                        </>
-                      )}
-                    </button>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <Icon icon="mingcute:info-line" width={20} className="text-blue-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-blue-900 font-medium mb-1">Interview Insights Moved</p>
+                      <p className="text-blue-800 text-sm">
+                        Interview tips, preparation guides, and insights have been moved to the{" "}
+                        <a href="/interviews?tab=preparation" className="font-semibold underline">
+                          Interviews → Preparation
+                        </a>{" "}
+                        tab for better organization.
+                      </p>
+                    </div>
                   </div>
                 </div>
-                {insightsMetadata?.lastError && (
-                  <div className="mb-3 rounded-md border border-yellow-200 bg-yellow-50 p-3 text-xs text-yellow-700">
-                    Last attempt: {insightsMetadata.lastError}
-                  </div>
-                )}
-
-                {isLoadingInsights && !interviewInsights && !insightsError ? (
-                  <div className="flex items-center gap-2 text-slate-600">
-                    <Icon icon="mingcute:loading-line" width={20} height={20} className="animate-spin" />
-                    <span className="text-sm">Fetching interview insights...</span>
-                  </div>
-                ) : insightsError ? (
-                  <div className="rounded-md border border-red-200 bg-red-50 p-4">
-                    <p className="mb-3 text-sm text-red-600">{insightsError}</p>
-                    <button
-                      onClick={() => selectedCompany && loadInterviewInsights(selectedCompany.jobId)}
-                      className="rounded-md bg-red-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-600 transition-colors"
-                    >
-                      Try Again
-                    </button>
-                  </div>
-                ) : interviewInsights ? (
-                  <div className="space-y-5">
-                    {interviewInsights.process_overview && (
-                      <div>
-                        <h4 className="font-medium text-slate-900 mb-2">Process Overview</h4>
-                        <p className="text-sm text-slate-600">{interviewInsights.process_overview}</p>
-                      </div>
-                    )}
-
-                    {interviewInsights.timeline_expectations && (
-                      <div>
-                        <h4 className="font-medium text-slate-900 mb-2">Timeline Expectations</h4>
-                        <p className="text-sm text-slate-600">
-                          {interviewInsights.timeline_expectations}
-                        </p>
-                      </div>
-                    )}
-
-                    {interviewInsights.stages.length > 0 && (
-                      <div>
-                        <h4 className="font-medium text-slate-900 mb-2">Typical Stages</h4>
-                        <div className="space-y-3">
-                          {interviewInsights.stages.map((stage, index) => (
-                            <div
-                              key={`${stage.stage}-${index}`}
-                              className="rounded-lg border border-slate-200 bg-slate-50 p-4"
-                            >
-                              <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                                <p className="text-sm font-medium text-slate-900">{stage.stage}</p>
-                                {stage.duration && (
-                                  <span className="text-xs text-slate-500">{stage.duration}</span>
-                                )}
-                              </div>
-                              <p className="text-sm text-slate-600">{stage.what_to_expect}</p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {interviewInsights.interview_formats.length > 0 && (
-                      <div>
-                        <h4 className="font-medium text-slate-900 mb-2">Interview Formats</h4>
-                        <div className="flex flex-wrap gap-2">
-                          {interviewInsights.interview_formats.map((format, index) => (
-                            <span
-                              key={`${format}-${index}`}
-                              className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700"
-                            >
-                              {format}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {interviewInsights.common_questions.length > 0 && (
-                      <div>
-                        <h4 className="font-medium text-slate-900 mb-2">Common Questions</h4>
-                        <div className="space-y-3">
-                          {interviewInsights.common_questions.map((item, index) => (
-                            <div key={`${item.question}-${index}`} className="rounded-md border border-slate-200 p-4">
-                              <p className="text-sm font-medium text-slate-900 mb-1">“{item.question}”</p>
-                              <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 mb-2">
-                                <span className="rounded-full bg-slate-100 px-2 py-1 uppercase tracking-wide">
-                                  {item.category.replace("_", " ")}
-                                </span>
-                                <span>{item.why_asked}</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {interviewInsights.interviewer_profiles.length > 0 && (
-                      <div>
-                        <h4 className="font-medium text-slate-900 mb-2">Who You May Meet</h4>
-                        <div className="space-y-3">
-                          {interviewInsights.interviewer_profiles.map((profile, index) => (
-                            <div key={`${profile.role}-${index}`} className="rounded-lg border border-slate-200 p-4">
-                              <p className="text-sm font-medium text-slate-900 mb-1">{profile.role}</p>
-                              <p className="text-sm text-slate-600 mb-2">{profile.focus}</p>
-                              <p className="text-xs text-slate-500">{profile.tips}</p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {interviewInsights.preparation_recommendations.length > 0 && (
-                      <div>
-                        <h4 className="font-medium text-slate-900 mb-2">Preparation Recommendations</h4>
-                        <ul className="list-disc list-inside space-y-2 text-sm text-slate-600">
-                          {interviewInsights.preparation_recommendations.map((recommendation, index) => (
-                            <li key={`${recommendation}-${index}`}>{recommendation}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {interviewInsights.success_tips.length > 0 && (
-                      <div>
-                        <h4 className="font-medium text-slate-900 mb-2">Success Tips</h4>
-                        <ul className="list-disc list-inside space-y-2 text-sm text-slate-600">
-                          {interviewInsights.success_tips.map((tip, index) => (
-                            <li key={`${tip}-${index}`}>{tip}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {interviewInsights.checklist.length > 0 && (
-                      <div>
-                        <h4 className="font-medium text-slate-900 mb-2">Interview Checklist</h4>
-                        <ul className="list-disc list-inside space-y-2 text-sm text-slate-600">
-                          {interviewInsights.checklist.map((item, index) => (
-                            <li key={`${item}-${index}`}>{item}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {interviewInsights.additional_resources.length > 0 && (
-                      <div>
-                        <h4 className="font-medium text-slate-900 mb-2">Additional Resources</h4>
-                        <ul className="list-disc list-inside space-y-2 text-sm text-slate-600">
-                          {interviewInsights.additional_resources.map((resource, index) => (
-                            <li key={`${resource}-${index}`}>{resource}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-sm text-slate-600">
-                    No interview insights are available yet. Use refresh to request guidance for this company.
-                  </p>
-                )}
               </div>
 
               {/* News */}

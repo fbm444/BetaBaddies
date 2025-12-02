@@ -21,6 +21,7 @@ import prospectiveJobRoutes from "./routes/prospectiveJobRoutes.js";
 import coverLetterRoutes from "./routes/coverletters/index.js";
 import companyResearchRoutes from "./routes/companyResearchRoutes.js";
 import interviewRoutes from "./routes/interviewRoutes.js";
+import interviewPrepRoutes from "./routes/interviewPrepRoutes.js";
 import googleCalendarRoutes from "./routes/googleCalendarRoutes.js";
 import analyticsRoutes from "./routes/analyticsRoutes.js";
 import goalRoutes from "./routes/goalRoutes.js";
@@ -28,6 +29,19 @@ import marketIntelligenceRoutes from "./routes/marketIntelligenceRoutes.js";
 import timeLogRoutes from "./routes/timeLogRoutes.js";
 import competitiveAnalysisRoutes from "./routes/competitiveAnalysisRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
+import teamRoutes from "./routes/teamRoutes.js";
+import collaborationRoutes from "./routes/collaborationRoutes.js";
+import chatRoutes from "./routes/chatRoutes.js";
+import followUpRoutes from "./routes/followUpRoutes.js";
+import salaryNegotiationRoutes from "./routes/salaryNegotiationRoutes.js";
+import writingPracticeRoutes from "./routes/writingPracticeRoutes.js";
+import interviewPredictionRoutes from "./routes/interviewPredictionRoutes.js";
+import googleContactsRoutes from "./routes/googleContactsRoutes.js";
+import networkDiscoveryRoutes from "./routes/networkDiscoveryRoutes.js";
+import professionalContactRoutes from "./routes/professionalContactRoutes.js";
+import networkingEventRoutes from "./routes/networkingEventRoutes.js";
+import referralRequestRoutes from "./routes/referralRequestRoutes.js";
+import networkingGoalRoutes from "./routes/networkingGoalRoutes.js";
 
 // Import middleware
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
@@ -133,6 +147,7 @@ app.use("/api/v1/prospective-jobs", prospectiveJobRoutes);
 app.use("/api/v1/coverletter", coverLetterRoutes);
 app.use("/api/v1/company-research", companyResearchRoutes);
 app.use("/api/v1/interviews", interviewRoutes);
+app.use("/api/v1/interview-prep", interviewPrepRoutes);
 app.use("/api/v1/calendar", googleCalendarRoutes);
 app.use("/api/v1/analytics", analyticsRoutes);
 app.use("/api/v1/goals", goalRoutes);
@@ -140,6 +155,19 @@ app.use("/api/v1/market-intelligence", marketIntelligenceRoutes);
 app.use("/api/v1/time-logs", timeLogRoutes);
 app.use("/api/v1/competitive-analysis", competitiveAnalysisRoutes);
 app.use("/api/v1/reports", reportRoutes);
+app.use("/api/v1/teams", teamRoutes);
+app.use("/api/v1/collaboration", collaborationRoutes);
+app.use("/api/v1/chat", chatRoutes);
+app.use("/api/v1", followUpRoutes); // For /api/v1/follow-ups/pending
+app.use("/api/v1/salary-negotiations", salaryNegotiationRoutes);
+app.use("/api/v1/writing-practice", writingPracticeRoutes);
+app.use("/api/v1/interview-predictions", interviewPredictionRoutes);
+app.use("/api/v1/network/google-contacts", googleContactsRoutes);
+app.use("/api/v1/network/explore", networkDiscoveryRoutes);
+app.use("/api/v1/network/contacts", professionalContactRoutes);
+app.use("/api/v1/network/events", networkingEventRoutes);
+app.use("/api/v1/network/referrals", referralRequestRoutes);
+app.use("/api/v1/network/goals", networkingGoalRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

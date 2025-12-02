@@ -1,4 +1,5 @@
 import { useState, useEffect, FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import { Icon } from "@iconify/react";
 import type {
   JobOpportunityData,
@@ -22,6 +23,7 @@ import { JobSkillGapPanel } from "./skill-gaps/SkillGapPanel";
 import { JobMaterialsSection } from "./JobMaterialsSection";
 import { JobMatchScore } from "./JobMatchScore";
 import { api } from "../services/api";
+import { ROUTES } from "../config/routes";
 
 interface JobOpportunityDetailModalProps {
   opportunity: JobOpportunityData;
@@ -30,6 +32,7 @@ interface JobOpportunityDetailModalProps {
   onDelete: () => void;
   onArchive?: (archiveReason?: string) => void;
   onUnarchive?: () => void;
+  readOnly?: boolean; // If true, hides edit/delete/archive buttons
 }
 
 export function JobOpportunityDetailModal({
@@ -39,12 +42,24 @@ export function JobOpportunityDetailModal({
   onDelete,
   onArchive,
   onUnarchive,
+  readOnly = false,
 }: JobOpportunityDetailModalProps) {
+  const navigate = useNavigate();
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showCompanyInfo, setShowCompanyInfo] = useState(false);
   const [isSendingReminder, setIsSendingReminder] = useState(false);
   const [reminderMessage, setReminderMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [teams, setTeams] = useState<any[]>([]);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+  const [isSharing, setIsSharing] = useState(false);
+  const [sharedTeams, setSharedTeams] = useState<string[]>([]);
+
+  const handleScheduleInterview = () => {
+    navigate(`${ROUTES.INTERVIEW_SCHEDULING}?jobOpportunityId=${opportunity.id}`);
+    onClose(); // Close the modal when navigating
+  };
   const [formData, setFormData] = useState<JobOpportunityInput>({
     title: opportunity.title,
     company: opportunity.company,
@@ -107,7 +122,65 @@ export function JobOpportunityDetailModal({
       applicationHistory: opportunity.applicationHistory || [],
     });
     setIsEditMode(false);
+    fetchTeams();
+    checkSharedTeams();
   }, [opportunity]);
+
+  const fetchTeams = async () => {
+    try {
+      const response = await api.getUserTeams();
+      if (response.ok && response.data) {
+        setTeams(response.data.teams || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch teams:", error);
+    }
+  };
+
+  const checkSharedTeams = async () => {
+    try {
+      const response = await api.getUserTeams();
+      if (response.ok && response.data) {
+        const userTeams = response.data.teams || [];
+        const shared: string[] = [];
+        for (const team of userTeams) {
+          const sharedJobsResponse = await api.getSharedJobs(team.id);
+          if (sharedJobsResponse.ok && sharedJobsResponse.data) {
+            const isShared = sharedJobsResponse.data.jobs?.some(
+              (job: any) => job.id === opportunity.id
+            );
+            if (isShared) {
+              shared.push(team.id);
+            }
+          }
+        }
+        setSharedTeams(shared);
+      }
+    } catch (error) {
+      console.error("Failed to check shared teams:", error);
+    }
+  };
+
+  const handleShareJob = async () => {
+    if (!selectedTeamId || isSharing) return;
+
+    try {
+      setIsSharing(true);
+      const response = await api.shareJobWithTeam(opportunity.id, selectedTeamId);
+      if (response.ok) {
+        setSharedTeams([...sharedTeams, selectedTeamId]);
+        setShowShareModal(false);
+        setSelectedTeamId(null);
+      } else {
+        alert(response.error || "Failed to share job");
+      }
+    } catch (error) {
+      console.error("Failed to share job:", error);
+      alert("Failed to share job. Please try again.");
+    } finally {
+      setIsSharing(false);
+    }
+  };
 
   const extendDeadline = (days: number) => {
     if (!opportunity.applicationDeadline) return;
@@ -467,6 +540,15 @@ export function JobOpportunityDetailModal({
           <div className="flex gap-2 flex-wrap justify-end">
             {!isEditMode && (
               <>
+                {!opportunity.archived && (
+                  <button
+                    onClick={handleScheduleInterview}
+                    className="px-2.5 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors flex items-center gap-1 text-xs font-medium"
+                  >
+                    <Icon icon="mingcute:calendar-line" width={14} />
+                    Schedule Interview
+                  </button>
+                )}
                 {opportunity.jobPostingUrl && (
                   <button
                     onClick={() => setShowCompanyInfo(true)}
@@ -474,6 +556,20 @@ export function JobOpportunityDetailModal({
                   >
                     <Icon icon="mingcute:building-line" width={14} />
                     Company Info
+                  </button>
+                )}
+                {teams.length > 0 && (
+                  <button
+                    onClick={() => setShowShareModal(true)}
+                    className="px-2.5 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors flex items-center gap-1 text-xs font-medium"
+                  >
+                    <Icon icon="lucide:share-2" width={14} />
+                    Share
+                    {sharedTeams.length > 0 && (
+                      <span className="ml-1 bg-white/20 rounded-full px-1.5 text-xs">
+                        {sharedTeams.length}
+                      </span>
+                    )}
                   </button>
                 )}
                 {!opportunity.archived && (
@@ -1266,6 +1362,113 @@ export function JobOpportunityDetailModal({
           industry={opportunity.industry}
           onClose={() => setShowCompanyInfo(false)}
         />
+      )}
+
+      {/* Share Job Modal */}
+      {showShareModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[120] p-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-slate-900">Share Job with Team</h3>
+              <button
+                onClick={() => {
+                  setShowShareModal(false);
+                  setSelectedTeamId(null);
+                }}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <Icon icon="mingcute:close-line" width={24} />
+              </button>
+            </div>
+            <p className="text-sm text-slate-600 mb-4">
+              Share "{opportunity.title}" at {opportunity.company} with your team members for collaborative feedback.
+            </p>
+            {teams.length === 0 ? (
+              <div className="text-center py-8">
+                <Icon icon="mingcute:user-group-line" width={48} className="mx-auto text-slate-300 mb-2" />
+                <p className="text-slate-600 mb-4">You don't have any teams yet.</p>
+                <button
+                  onClick={() => {
+                    setShowShareModal(false);
+                    window.location.href = "/collaboration/teams";
+                  }}
+                  className="text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  Create a team
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {teams.map((team) => {
+                  const isShared = sharedTeams.includes(team.id);
+                  return (
+                    <button
+                      key={team.id}
+                      onClick={() => !isShared && setSelectedTeamId(team.id)}
+                      disabled={isShared || isSharing}
+                      className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
+                        isShared
+                          ? "bg-green-50 border-green-300 cursor-not-allowed"
+                          : selectedTeamId === team.id
+                          ? "bg-blue-50 border-blue-500"
+                          : "bg-white border-slate-200 hover:border-blue-300"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-semibold text-slate-900">{team.teamName}</div>
+                          <div className="text-sm text-slate-600">
+                            {team.activeMembers} members
+                          </div>
+                        </div>
+                        {isShared ? (
+                          <span className="flex items-center gap-1 text-green-600 text-sm font-medium">
+                            <Icon icon="mingcute:check-circle-line" width={18} />
+                            Shared
+                          </span>
+                        ) : (
+                          <Icon
+                            icon="mingcute:arrow-right-line"
+                            width={20}
+                            className="text-slate-400"
+                          />
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+                <div className="flex gap-3 mt-4">
+                  <button
+                    onClick={() => {
+                      setShowShareModal(false);
+                      setSelectedTeamId(null);
+                    }}
+                    className="flex-1 px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleShareJob}
+                    disabled={!selectedTeamId || isSharing}
+                    className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-2"
+                  >
+                    {isSharing ? (
+                      <>
+                        <Icon icon="mingcute:loading-line" width={18} className="animate-spin" />
+                        Sharing...
+                      </>
+                    ) : (
+                      <>
+                        <Icon icon="lucide:share-2" width={18} />
+                        Share
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

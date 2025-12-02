@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import database from "./database.js";
+import { teamService } from "./collaboration/index.js";
 
 class CertificationService {
   // Create a new certification
@@ -42,7 +43,36 @@ class CertificationService {
         neverExpires || false,
       ]);
 
-      return this.formatCertification(result.rows[0]);
+      const certification = this.formatCertification(result.rows[0]);
+
+      // Log activity to all teams user is a member of
+      try {
+        const userTeams = await database.query(
+          `SELECT team_id, role FROM team_members WHERE user_id = $1 AND active = true`,
+          [userId]
+        );
+        console.log(`[CertificationService] Found ${userTeams.rows.length} teams for user ${userId}`);
+        for (const team of userTeams.rows) {
+          console.log(`[CertificationService] Logging certification_earned activity to team ${team.team_id}`);
+          await teamService.logActivity(
+            team.team_id,
+            userId,
+            team.role || "candidate",
+            "certification_earned",
+            {
+              certification_id: certificationId,
+              certification_name: name,
+              org_name: orgName,
+              date_earned: dateEarned
+            }
+          );
+        }
+      } catch (error) {
+        console.error("[CertificationService] Error logging certification activity:", error);
+        // Don't fail certification creation if activity logging fails
+      }
+
+      return certification;
     } catch (error) {
       console.error("❌ Error creating certification:", error);
       throw error;

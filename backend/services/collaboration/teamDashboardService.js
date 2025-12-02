@@ -1,0 +1,606 @@
+import database from "../database.js";
+import { teamService } from "./index.js";
+import OpenAI from "openai";
+
+/**
+ * Service for Team Dashboard with Aggregate Statistics (UC-108)
+ * Provides team-wide analytics and collaboration metrics
+ */
+class TeamDashboardService {
+  constructor() {
+    this.openaiApiKey = process.env.OPENAI_API_KEY;
+    this.openaiApiUrl = process.env.OPENAI_API_URL;
+    if (this.openaiApiKey) {
+      this.openai = new OpenAI({
+        apiKey: this.openaiApiKey,
+        ...(this.openaiApiUrl && { baseURL: this.openaiApiUrl }),
+      });
+    }
+  }
+  /**
+   * Get team dashboard with aggregate statistics
+   */
+  async getTeamDashboard(teamId, userId) {
+    try {
+      // Verify user is team member
+      const member = await database.query(
+        `SELECT role, permissions FROM team_members 
+         WHERE team_id = $1 AND user_id = $2 AND active = true`,
+        [teamId, userId]
+      );
+
+      if (member.rows.length === 0) {
+        throw new Error("You are not a member of this team");
+      }
+
+      const permissions = typeof member.rows[0].permissions === "string"
+        ? JSON.parse(member.rows[0].permissions)
+        : member.rows[0].permissions;
+
+      // Get team info
+      const teamResult = await database.query(
+        `SELECT * FROM teams WHERE id = $1`,
+        [teamId]
+      );
+      const team = teamResult.rows[0];
+
+      // Get team members count by role
+      const membersByRole = await database.query(
+        `SELECT 
+          role,
+          COUNT(*) as count
+         FROM team_members
+         WHERE team_id = $1 AND active = true
+         GROUP BY role`,
+        [teamId]
+      );
+
+      // Get aggregate job search statistics
+      const jobStats = await database.query(
+        `SELECT 
+          COUNT(DISTINCT jo.id) as total_jobs,
+          COUNT(DISTINCT jo.id) FILTER (WHERE jo.status = 'Interested') as interested_count,
+          COUNT(DISTINCT jo.id) FILTER (WHERE jo.status = 'Applied') as applied_count,
+          COUNT(DISTINCT jo.id) FILTER (WHERE jo.status = 'Phone Screen') as phone_screen_count,
+          COUNT(DISTINCT jo.id) FILTER (WHERE jo.status = 'Interview') as interview_count,
+          COUNT(DISTINCT jo.id) FILTER (WHERE jo.status = 'Offer') as offer_count,
+          COUNT(DISTINCT jo.id) FILTER (WHERE jo.status = 'Rejected') as rejected_count,
+          COUNT(DISTINCT tm.user_id) as active_candidates
+         FROM team_members tm
+         LEFT JOIN job_opportunities jo ON tm.user_id = jo.user_id AND jo.archived = false
+         WHERE tm.team_id = $1 AND tm.active = true
+           AND (tm.role = 'candidate' OR tm.role = 'peer')`,
+        [teamId]
+      );
+
+      // Get shared jobs count
+      const sharedJobsCount = await database.query(
+        `SELECT COUNT(DISTINCT job_id) as count
+         FROM shared_jobs
+         WHERE team_id = $1`,
+        [teamId]
+      );
+
+      // Get active tasks
+      const tasksStats = await database.query(
+        `SELECT 
+          COUNT(*) FILTER (WHERE status = 'pending') as pending_tasks,
+          COUNT(*) FILTER (WHERE status = 'in_progress') as in_progress_tasks,
+          COUNT(*) FILTER (WHERE status = 'completed') as completed_tasks,
+          COUNT(*) as total_tasks
+         FROM preparation_tasks
+         WHERE team_id = $1`,
+        [teamId]
+      );
+
+      // Get recent milestones with milestone_data for reactions/comments
+      const recentMilestones = await database.query(
+        `SELECT 
+          m.*,
+          u.email as user_email,
+          p.first_name,
+          p.last_name,
+          p.pfp_link as user_profile_picture
+         FROM milestones m
+         JOIN users u ON m.user_id = u.u_id
+         LEFT JOIN profiles p ON u.u_id = p.user_id
+         WHERE m.team_id = $1 AND m.shared_with_team = true
+         ORDER BY m.achieved_at DESC
+         LIMIT 10`,
+        [teamId]
+      );
+
+      // Get collaboration metrics (comments, feedback, etc.)
+      const collaborationMetrics = await database.query(
+        `SELECT 
+          (SELECT COUNT(*) FROM job_comments WHERE team_id = $1) as job_comments_count,
+          (SELECT COUNT(*) FROM mentor_feedback mf
+           JOIN mentor_relationships mr ON mf.relationship_id = mr.id
+           JOIN team_members tm ON mr.mentor_id = tm.user_id OR mr.mentee_id = tm.user_id
+           WHERE tm.team_id = $1) as feedback_count,
+          (SELECT COUNT(*) FROM chat_messages cm
+           JOIN chat_conversations cc ON cm.conversation_id = cc.id
+           WHERE cc.team_id = $1 AND cm.created_at >= NOW() - INTERVAL '7 days' AND (cm.is_deleted IS NULL OR cm.is_deleted = false)) as messages_last_week`,
+        [teamId]
+      );
+
+      // Get activity feed (last 20 milestone-related activities only)
+      // Focus on: interviews scheduled, skills/certifications added, experience added, milestones achieved
+      // For milestone_achieved activities, join with milestones table to get full milestone data
+      const activityFeed = await database.query(
+        `SELECT 
+          al.*,
+          u.email as user_email,
+          p.first_name,
+          p.last_name,
+          p.pfp_link as user_profile_picture,
+          m.id as milestone_id,
+          m.milestone_title,
+          m.milestone_description,
+          m.milestone_data,
+          m.achieved_at as milestone_achieved_at
+         FROM activity_logs al
+         JOIN users u ON al.user_id = u.u_id
+         LEFT JOIN profiles p ON u.u_id = p.user_id
+         LEFT JOIN milestones m ON al.activity_type = 'milestone_achieved' 
+           AND (
+             (al.activity_data->>'milestone_id')::uuid = m.id
+             OR (
+               al.activity_data->>'milestone_title' = m.milestone_title
+               AND al.user_id = m.user_id
+               AND m.team_id = $1
+               AND ABS(EXTRACT(EPOCH FROM (al.created_at - m.achieved_at))) < 60
+             )
+           )
+         WHERE al.team_id = $1
+           AND al.activity_type IN (
+             'interview_scheduled',
+             'interview_created',
+             'skill_added',
+             'certification_earned',
+             'certification_added',
+             'experience_added',
+             'job_added',
+             'milestone_achieved'
+           )
+         ORDER BY al.created_at DESC
+         LIMIT 20`,
+        [teamId]
+      );
+
+      // Calculate engagement score (based on recent activity)
+      const engagementScore = await database.query(
+        `SELECT COUNT(*) as activity_count
+         FROM activity_logs
+         WHERE team_id = $1 AND created_at >= NOW() - INTERVAL '7 days'`,
+        [teamId]
+      );
+
+      return {
+        team: {
+          id: team.id,
+          teamName: team.team_name,
+          teamType: team.team_type,
+          activeMembers: parseInt(team.active_members),
+          maxMembers: team.max_members
+        },
+        membersByRole: membersByRole.rows.reduce((acc, row) => {
+          acc[row.role] = parseInt(row.count);
+          return acc;
+        }, {}),
+        jobSearch: {
+          ...jobStats.rows[0],
+          sharedJobs: parseInt(sharedJobsCount.rows[0]?.count || 0)
+        },
+        tasks: tasksStats.rows[0],
+        milestones: recentMilestones.rows.map(row => ({
+          id: row.id,
+          milestoneType: row.milestone_type,
+          milestoneTitle: row.milestone_title,
+          milestoneDescription: row.milestone_description,
+          milestoneData: typeof row.milestone_data === "string"
+            ? JSON.parse(row.milestone_data)
+            : row.milestone_data || {},
+          achievedAt: row.achieved_at,
+          userEmail: row.user_email,
+          userName: row.first_name && row.last_name
+            ? `${row.first_name} ${row.last_name}`.trim()
+            : row.user_email,
+          userProfilePicture: row.user_profile_picture
+        })),
+        collaboration: {
+          ...collaborationMetrics.rows[0],
+          engagementScore: Math.min(100, (engagementScore.rows[0]?.activity_count || 0) * 2)
+        },
+        activityFeed: activityFeed.rows.map(row => ({
+          id: row.id,
+          activityType: row.activity_type,
+          activityData: typeof row.activity_data === "string"
+            ? JSON.parse(row.activity_data)
+            : row.activity_data,
+          createdAt: row.created_at,
+          userEmail: row.user_email,
+          userName: row.first_name && row.last_name
+            ? `${row.first_name} ${row.last_name}`.trim()
+            : row.user_email,
+          userProfilePicture: row.user_profile_picture,
+          // Include milestone data if this is a milestone_achieved activity
+          milestone: row.milestone_id ? {
+            id: row.milestone_id,
+            milestoneTitle: row.milestone_title,
+            milestoneDescription: row.milestone_description,
+            milestoneData: typeof row.milestone_data === "string"
+              ? JSON.parse(row.milestone_data)
+              : row.milestone_data || {},
+            achievedAt: row.milestone_achieved_at,
+            userName: row.first_name && row.last_name
+              ? `${row.first_name} ${row.last_name}`.trim()
+              : row.user_email,
+            userProfilePicture: row.user_profile_picture
+          } : null
+        })),
+        userRole: member.rows[0].role,
+        userPermissions: permissions
+      };
+    } catch (error) {
+      console.error("[TeamDashboardService] Error getting team dashboard:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get team performance comparison (anonymized benchmarking)
+   */
+  async getTeamPerformanceComparison(teamId, userId) {
+    try {
+      // Verify user is a team member
+      // Since data is anonymized, all team members can view it
+      const member = await database.query(
+        `SELECT role, permissions FROM team_members 
+         WHERE team_id = $1 AND user_id = $2 AND active = true`,
+        [teamId, userId]
+      );
+
+      if (member.rows.length === 0) {
+        throw new Error("You are not a member of this team");
+      }
+
+      // Get anonymized member statistics
+      // Include all active team members (not just candidates/peers) to show performance data for everyone
+      const memberStats = await database.query(
+        `SELECT 
+          tm.user_id,
+          tm.role,
+          COUNT(DISTINCT jo.id) FILTER (WHERE jo.status = 'Applied') as applications_count,
+          COUNT(DISTINCT jo.id) FILTER (WHERE jo.status = 'Interview') as interviews_count,
+          COUNT(DISTINCT jo.id) FILTER (WHERE jo.status = 'Offer') as offers_count,
+          COUNT(DISTINCT pt.id) FILTER (WHERE pt.status = 'completed') as tasks_completed,
+          COUNT(DISTINCT m.id) as milestones_achieved,
+          MAX(jo.status_updated_at) as last_activity
+         FROM team_members tm
+         LEFT JOIN job_opportunities jo ON tm.user_id = jo.user_id AND jo.archived = false
+         LEFT JOIN preparation_tasks pt ON tm.user_id = pt.assigned_to
+         LEFT JOIN milestones m ON tm.user_id = m.user_id AND m.team_id = $1
+         WHERE tm.team_id = $1 AND tm.active = true
+         GROUP BY tm.user_id, tm.role`,
+        [teamId]
+      );
+
+      // Calculate averages and percentiles
+      const stats = memberStats.rows.map(row => ({
+        applicationsCount: parseInt(row.applications_count || 0),
+        interviewsCount: parseInt(row.interviews_count || 0),
+        offersCount: parseInt(row.offers_count || 0),
+        tasksCompleted: parseInt(row.tasks_completed || 0),
+        milestonesAchieved: parseInt(row.milestones_achieved || 0),
+        lastActivity: row.last_activity
+      }));
+
+      const totalMembers = stats.length;
+      if (totalMembers === 0) {
+        return {
+          totalMembers: 0,
+          averages: {
+            applications: 0,
+            interviews: 0,
+            offers: 0,
+            tasksCompleted: 0,
+            milestones: 0
+          },
+          percentiles: {
+            applications: { p25: 0, p50: 0, p75: 0 },
+            interviews: { p25: 0, p50: 0, p75: 0 },
+            offers: { p25: 0, p50: 0, p75: 0 }
+          },
+          anonymizedMembers: []
+        };
+      }
+
+      // Calculate averages
+      const averages = {
+        applications: stats.reduce((sum, s) => sum + s.applicationsCount, 0) / totalMembers,
+        interviews: stats.reduce((sum, s) => sum + s.interviewsCount, 0) / totalMembers,
+        offers: stats.reduce((sum, s) => sum + s.offersCount, 0) / totalMembers,
+        tasksCompleted: stats.reduce((sum, s) => sum + s.tasksCompleted, 0) / totalMembers,
+        milestones: stats.reduce((sum, s) => sum + s.milestonesAchieved, 0) / totalMembers
+      };
+
+      // Calculate percentiles
+      const sortedApplications = [...stats].sort((a, b) => a.applicationsCount - b.applicationsCount);
+      const sortedInterviews = [...stats].sort((a, b) => a.interviewsCount - b.interviewsCount);
+      const sortedOffers = [...stats].sort((a, b) => a.offersCount - b.offersCount);
+
+      const percentiles = {
+        applications: {
+          p25: sortedApplications[Math.floor(totalMembers * 0.25)]?.applicationsCount ?? 0,
+          p50: sortedApplications[Math.floor(totalMembers * 0.5)]?.applicationsCount ?? 0,
+          p75: sortedApplications[Math.floor(totalMembers * 0.75)]?.applicationsCount ?? 0
+        },
+        interviews: {
+          p25: sortedInterviews[Math.floor(totalMembers * 0.25)]?.interviewsCount ?? 0,
+          p50: sortedInterviews[Math.floor(totalMembers * 0.5)]?.interviewsCount ?? 0,
+          p75: sortedInterviews[Math.floor(totalMembers * 0.75)]?.interviewsCount ?? 0
+        },
+        offers: {
+          p25: sortedOffers[Math.floor(totalMembers * 0.25)]?.offersCount ?? 0,
+          p50: sortedOffers[Math.floor(totalMembers * 0.5)]?.offersCount ?? 0,
+          p75: sortedOffers[Math.floor(totalMembers * 0.75)]?.offersCount ?? 0
+        }
+      };
+
+      // Return anonymized member data (no user_id, just performance metrics)
+      const anonymizedMembers = stats.map((stat, index) => ({
+        memberId: `member_${index + 1}`, // Anonymized ID
+        applicationsCount: stat.applicationsCount,
+        interviewsCount: stat.interviewsCount,
+        offersCount: stat.offersCount,
+        tasksCompleted: stat.tasksCompleted,
+        milestonesAchieved: stat.milestonesAchieved,
+        performanceTier: this._calculatePerformanceTier(stat, averages)
+      }));
+
+      return {
+        totalMembers,
+        averages,
+        percentiles,
+        anonymizedMembers,
+        generatedAt: new Date()
+      };
+    } catch (error) {
+      console.error("[TeamDashboardService] Error getting team performance comparison:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Calculate performance tier for a member
+   */
+  _calculatePerformanceTier(stat, averages) {
+    const score = (
+      (stat.applicationsCount / Math.max(averages.applications, 1)) * 0.3 +
+      (stat.interviewsCount / Math.max(averages.interviews, 1)) * 0.3 +
+      (stat.offersCount / Math.max(averages.offers, 1)) * 0.2 +
+      (stat.tasksCompleted / Math.max(averages.tasksCompleted, 1)) * 0.1 +
+      (stat.milestonesAchieved / Math.max(averages.milestones, 1)) * 0.1
+    );
+
+    if (score >= 1.2) return "high";
+    if (score >= 0.8) return "medium";
+    return "low";
+  }
+
+  /**
+   * Generate AI insights for team performance comparison
+   * Uses anonymized data to generate aggregate statistics and trends
+   */
+  async generateTeamAIInsights(teamId, userId) {
+    try {
+      // Verify user is a team member
+      const member = await database.query(
+        `SELECT role, permissions FROM team_members 
+         WHERE team_id = $1 AND user_id = $2 AND active = true`,
+        [teamId, userId]
+      );
+
+      if (member.rows.length === 0) {
+        throw new Error("You are not a member of this team");
+      }
+
+      if (!this.openai) {
+        return {
+          insights: [],
+          message: "AI insights are not available. OpenAI API key is not configured.",
+        };
+      }
+
+      // Get comprehensive team member data (anonymized)
+      const memberData = await database.query(
+        `SELECT 
+          tm.user_id,
+          tm.role,
+          COUNT(DISTINCT jo.id) FILTER (WHERE jo.status = 'Applied') as applications_count,
+          COUNT(DISTINCT jo.id) FILTER (WHERE jo.status = 'Interview') as interviews_count,
+          COUNT(DISTINCT jo.id) FILTER (WHERE jo.status = 'Offer') as offers_count,
+          COUNT(DISTINCT pt.id) FILTER (WHERE pt.status = 'completed') as tasks_completed,
+          COUNT(DISTINCT m.id) as milestones_achieved,
+          COUNT(DISTINCT i.id) as interviews_scheduled,
+          COUNT(DISTINCT cm.id) FILTER (WHERE cm.created_at >= NOW() - INTERVAL '7 days') as messages_last_week,
+          MAX(jo.status_updated_at) as last_job_activity,
+          AVG(CASE WHEN jo.status = 'Offer' THEN 1 ELSE 0 END) as offer_rate
+         FROM team_members tm
+         LEFT JOIN job_opportunities jo ON tm.user_id = jo.user_id AND jo.archived = false
+         LEFT JOIN preparation_tasks pt ON tm.user_id = pt.assigned_to
+         LEFT JOIN milestones m ON tm.user_id = m.user_id AND m.team_id = $1
+         LEFT JOIN interviews i ON tm.user_id = i.user_id
+         LEFT JOIN chat_messages cm ON tm.user_id = cm.sender_id
+         WHERE tm.team_id = $1 AND tm.active = true
+         GROUP BY tm.user_id, tm.role`,
+        [teamId]
+      );
+
+      // Get team aggregate statistics
+      const teamStats = await database.query(
+        `SELECT 
+          COUNT(DISTINCT tm.user_id) as total_members,
+          COUNT(DISTINCT jo.id) as total_jobs,
+          COUNT(DISTINCT jo.id) FILTER (WHERE jo.status = 'Applied') as total_applications,
+          COUNT(DISTINCT jo.id) FILTER (WHERE jo.status = 'Interview') as total_interviews,
+          COUNT(DISTINCT jo.id) FILTER (WHERE jo.status = 'Offer') as total_offers,
+          COUNT(DISTINCT pt.id) FILTER (WHERE pt.status = 'completed') as total_tasks_completed,
+          COUNT(DISTINCT m.id) as total_milestones,
+          COUNT(DISTINCT cm.id) FILTER (WHERE cm.created_at >= NOW() - INTERVAL '7 days') as messages_last_week,
+          AVG(CASE WHEN jo.status = 'Offer' THEN 1.0 ELSE 0.0 END) as overall_offer_rate
+         FROM team_members tm
+         LEFT JOIN job_opportunities jo ON tm.user_id = jo.user_id AND jo.archived = false
+         LEFT JOIN preparation_tasks pt ON tm.user_id = pt.assigned_to
+         LEFT JOIN milestones m ON tm.user_id = m.user_id AND m.team_id = $1
+         LEFT JOIN chat_messages cm ON tm.user_id = cm.sender_id
+         WHERE tm.team_id = $1 AND tm.active = true`,
+        [teamId]
+      );
+
+      // Get role distribution
+      const roleDistribution = await database.query(
+        `SELECT role, COUNT(*) as count
+         FROM team_members
+         WHERE team_id = $1 AND active = true
+         GROUP BY role`,
+        [teamId]
+      );
+
+      // Prepare anonymized member data for AI
+      const anonymizedMembers = memberData.rows.map((row, index) => ({
+        memberId: `Member_${index + 1}`,
+        role: row.role,
+        applicationsCount: parseInt(row.applications_count || 0),
+        interviewsCount: parseInt(row.interviews_count || 0),
+        offersCount: parseInt(row.offers_count || 0),
+        tasksCompleted: parseInt(row.tasks_completed || 0),
+        milestonesAchieved: parseInt(row.milestones_achieved || 0),
+        interviewsScheduled: parseInt(row.interviews_scheduled || 0),
+        messagesLastWeek: parseInt(row.messages_last_week || 0),
+        offerRate: parseFloat(row.offer_rate || 0),
+        lastActivity: row.last_job_activity,
+      }));
+
+      const stats = teamStats.rows[0];
+      const roles = roleDistribution.rows.reduce((acc, row) => {
+        acc[row.role] = parseInt(row.count);
+        return acc;
+      }, {});
+
+      // Calculate averages and percentiles
+      const totalMembers = anonymizedMembers.length;
+      const averages = {
+        applications: anonymizedMembers.reduce((sum, m) => sum + m.applicationsCount, 0) / Math.max(totalMembers, 1),
+        interviews: anonymizedMembers.reduce((sum, m) => sum + m.interviewsCount, 0) / Math.max(totalMembers, 1),
+        offers: anonymizedMembers.reduce((sum, m) => sum + m.offersCount, 0) / Math.max(totalMembers, 1),
+        tasksCompleted: anonymizedMembers.reduce((sum, m) => sum + m.tasksCompleted, 0) / Math.max(totalMembers, 1),
+        milestones: anonymizedMembers.reduce((sum, m) => sum + m.milestonesAchieved, 0) / Math.max(totalMembers, 1),
+      };
+
+      // Prepare prompt for AI
+      const prompt = `You are an expert career coach analyzing team performance data. Generate insightful, actionable, and motivating insights about a job search team.
+
+Team Overview:
+- Total Members: ${stats.total_members}
+- Role Distribution: ${JSON.stringify(roles)}
+- Total Jobs Tracked: ${stats.total_jobs}
+- Total Applications: ${stats.total_applications}
+- Total Interviews: ${stats.total_interviews}
+- Total Offers: ${stats.total_offers}
+- Total Tasks Completed: ${stats.total_tasks_completed}
+- Total Milestones Achieved: ${stats.total_milestones}
+- Messages Last Week: ${stats.messages_last_week}
+- Overall Offer Rate: ${(parseFloat(stats.overall_offer_rate || 0) * 100).toFixed(1)}%
+
+Team Averages:
+- Applications per member: ${averages.applications.toFixed(1)}
+- Interviews per member: ${averages.interviews.toFixed(1)}
+- Offers per member: ${averages.offers.toFixed(1)}
+- Tasks completed per member: ${averages.tasksCompleted.toFixed(1)}
+- Milestones per member: ${averages.milestones.toFixed(1)}
+
+Anonymized Member Performance (for benchmarking):
+${JSON.stringify(anonymizedMembers, null, 2)}
+
+Generate 3-5 key insights in JSON format. Each insight should have:
+- title: A short, engaging title
+- type: One of "success_pattern", "improvement_opportunity", "collaboration_insight", "trend_analysis", "best_practice"
+- description: A detailed explanation (2-3 sentences)
+- actionableAdvice: Specific, actionable recommendations
+- impact: "high", "medium", or "low"
+- category: One of "applications", "interviews", "offers", "collaboration", "engagement", "overall"
+
+Focus on:
+1. Success patterns that can be replicated
+2. Areas for improvement with specific recommendations
+3. Collaboration effectiveness and team dynamics
+4. Trends and benchmarking insights
+5. Best practices identified from top performers
+
+Return ONLY a valid JSON array of insights, no markdown, no code blocks, just the JSON array.`;
+
+      const response = await this.openai.chat.completions.create({
+        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert career coach and data analyst. Generate insightful, actionable, and motivating team performance insights. Always return valid JSON arrays.",
+          },
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+        temperature: 0.7,
+        max_tokens: 2000,
+      });
+
+      const content = response.choices[0]?.message?.content;
+      if (!content) {
+        throw new Error("No content returned from OpenAI");
+      }
+
+      // Parse JSON from response (handle markdown code blocks)
+      let insights;
+      try {
+        const cleanedContent = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+        insights = JSON.parse(cleanedContent);
+      } catch (parseError) {
+        console.error("[TeamDashboardService] Error parsing AI insights:", parseError);
+        // Fallback: create a simple insight
+        insights = [
+          {
+            title: "Team Performance Analysis",
+            type: "trend_analysis",
+            description: "AI insights generation encountered an error. Please try again.",
+            actionableAdvice: "Refresh the insights to get updated analysis.",
+            impact: "low",
+            category: "overall",
+          },
+        ];
+      }
+
+      return {
+        insights: Array.isArray(insights) ? insights : [insights],
+        generatedAt: new Date(),
+        teamStats: {
+          totalMembers: stats.total_members,
+          totalJobs: stats.total_jobs,
+          totalApplications: stats.total_applications,
+          totalInterviews: stats.total_interviews,
+          totalOffers: stats.total_offers,
+          overallOfferRate: (parseFloat(stats.overall_offer_rate || 0) * 100).toFixed(1),
+        },
+        averages,
+      };
+    } catch (error) {
+      console.error("[TeamDashboardService] Error generating AI insights:", error);
+      throw error;
+    }
+  }
+}
+
+export default new TeamDashboardService();
+

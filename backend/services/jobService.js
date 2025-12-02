@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import database from "./database.js";
+import { teamService } from "./collaboration/index.js";
 
 class JobService {
   constructor() {
@@ -61,7 +62,7 @@ class JobService {
         description || null,
       ]);
 
-      return {
+      const job = {
         id: jobResult.rows[0].id,
         title: jobResult.rows[0].title,
         company: jobResult.rows[0].company,
@@ -72,6 +73,36 @@ class JobService {
         isCurrent: jobResult.rows[0].is_current,
         description: jobResult.rows[0].description,
       };
+
+      // Log activity to all teams user is a member of
+      try {
+        const userTeams = await database.query(
+          `SELECT team_id, role FROM team_members WHERE user_id = $1 AND active = true`,
+          [userId]
+        );
+        console.log(`[JobService] Found ${userTeams.rows.length} teams for user ${userId}`);
+        for (const team of userTeams.rows) {
+          console.log(`[JobService] Logging experience_added activity to team ${team.team_id}`);
+          await teamService.logActivity(
+            team.team_id,
+            userId,
+            team.role || "candidate",
+            "experience_added",
+            {
+              job_id: jobId,
+              job_title: title,
+              company: company,
+              location: location,
+              is_current: isCurrent
+            }
+          );
+        }
+      } catch (error) {
+        console.error("[JobService] Error logging experience activity:", error);
+        // Don't fail job creation if activity logging fails
+      }
+
+      return job;
     } catch (error) {
       console.error("❌ Error creating job:", error);
       throw error;

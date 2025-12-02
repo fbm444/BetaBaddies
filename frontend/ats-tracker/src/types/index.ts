@@ -15,3 +15,7 @@ export * from './skillGap.types';
 export * from './coverLetter.types';
 export * from './interview.types';
 export * from './analytics.types';
+export * from './interviewAnalytics.types';
+export * from './interviewPrediction.types';
+export * from './salaryNegotiation.types';
+export * from './writingPractice.types';

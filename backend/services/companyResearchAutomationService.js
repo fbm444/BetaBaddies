@@ -214,6 +214,16 @@ If you cannot find specific information, provide reasonable inferences based on 
         website: companyInfo.website,
         description: companyInfo.description,
         companyLogo: companyInfo.companyLogo,
+        mission: companyInfo.mission,
+        culture: companyInfo.culture,
+        values: companyInfo.values,
+        recentDevelopments: companyInfo.recentDevelopments,
+        products: companyInfo.products,
+        competitors: companyInfo.competitors,
+        whyWorkHere: companyInfo.whyWorkHere,
+        interviewTips: companyInfo.interviewTips,
+        foundedYear: companyInfo.foundedYear,
+        enrichedData: companyInfo.enrichedData || null,
       }
     );
 

@@ -1595,14 +1595,9 @@ export function Interviews() {
                               ]);
                               return updated;
                             });
-                            setActiveFollowUpDraft({
-                              id: followUpId,
-                              interviewId: completedInterview.id,
-                              subject: draft.subject,
-                              body: draft.body,
-                              generatedBy: draft.generatedBy,
-                            });
-                            showMessage("Follow-up email draft generated successfully!", "success");
+                            // Cache the draft but don't open modal - stay in current tab
+                            // The draft will be available to view in the cached drafts section
+                            showMessage("Follow-up email draft generated successfully! View it in 'Cached Drafts' below.", "success");
                           } else {
                             showMessage("Failed to generate email draft. Please try again.", "error");
                           }
@@ -1729,14 +1724,9 @@ export function Interviews() {
                               ]);
                               return updated;
                             });
-                            setActiveFollowUpDraft({
-                              id: followUpId,
-                              interviewId: rejectedInterview.id,
-                              subject: draft.subject,
-                              body: draft.body,
-                              generatedBy: draft.generatedBy,
-                            });
-                            showMessage("Follow-up email draft generated successfully!", "success");
+                            // Cache the draft but don't open modal - stay in current tab
+                            // The draft will be available to view in the cached drafts section
+                            showMessage("Follow-up email draft generated successfully! View it in 'Cached Drafts' below.", "success");
                           } else {
                             showMessage("Failed to generate email draft. Please try again.", "error");
                           }
@@ -1793,6 +1783,137 @@ export function Interviews() {
                     )}
                   </div>
                 </div>
+
+                {/* Cached Follow-up Drafts Section */}
+                {storedFollowUpDrafts.size > 0 && (
+                  <div className="mt-10">
+                    <h3 className="text-xl font-semibold text-slate-900 mb-3">
+                      Cached Follow-up Drafts
+                    </h3>
+                    <p className="text-slate-600 text-sm mb-4">
+                      Your generated follow-up email drafts are saved here. Click to view or regenerate.
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {Array.from(storedFollowUpDrafts.entries()).map(([followUpId, drafts]) => {
+                        if (!drafts || drafts.length === 0) return null;
+                        const latestDraft = drafts[0];
+                        const followUp = pendingFollowUps.find(fu => fu.id === followUpId) || 
+                                       completedFollowUps.find(fu => fu.id === followUpId);
+                        const interview = followUp ? interviews.find(i => i.id === (followUp.interviewId || followUp.interview_id)) : null;
+                        const actionType = followUp?.actionType || followUp?.action_type || "follow-up";
+                        
+                        return (
+                          <div
+                            key={followUpId}
+                            className="bg-white border border-slate-200 rounded-xl p-6 hover:shadow-lg transition-all"
+                          >
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <Icon 
+                                    icon={
+                                      actionType === "status_inquiry" ? "mingcute:question-line" :
+                                      actionType === "other" ? "mingcute:feedback-line" :
+                                      "mingcute:mail-line"
+                                    } 
+                                    width={18} 
+                                    className={
+                                      actionType === "status_inquiry" ? "text-orange-500" :
+                                      actionType === "other" ? "text-purple-500" :
+                                      "text-blue-500"
+                                    }
+                                  />
+                                  <p className="text-xs font-semibold uppercase text-slate-600 tracking-wide">
+                                    {actionType.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}
+                                  </p>
+                                </div>
+                                {interview && (
+                                  <p className="text-sm font-medium text-slate-900">
+                                    {interview.title || interview.position} at {interview.company}
+                                  </p>
+                                )}
+                                <p className="text-xs text-slate-500 mt-1">
+                                  {latestDraft.createdAt && new Date(latestDraft.createdAt).toLocaleDateString()}
+                                </p>
+                              </div>
+                              {drafts.length > 1 && (
+                                <span className="px-2 py-1 rounded-full text-[10px] bg-blue-50 text-blue-700">
+                                  {drafts.length} drafts
+                                </span>
+                              )}
+                            </div>
+                            
+                            <div className="mb-3">
+                              <p className="text-xs font-semibold text-slate-700 mb-1 truncate">
+                                {latestDraft.subject || "No subject"}
+                              </p>
+                              <p className="text-xs text-slate-600 line-clamp-2">
+                                {latestDraft.body?.substring(0, 100)}...
+                              </p>
+                            </div>
+
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => {
+                                  setActiveFollowUpDraft({
+                                    id: followUpId,
+                                    interviewId: interview?.id || "",
+                                    subject: latestDraft.subject,
+                                    body: latestDraft.body,
+                                    generatedBy: latestDraft.generatedBy,
+                                  });
+                                }}
+                                className="flex-1 px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-xs font-medium transition-colors"
+                              >
+                                View Draft
+                              </button>
+                              {drafts.length > 1 && (
+                                <button
+                                  onClick={() => {
+                                    const showAll = showAllFollowUpDrafts.get(followUpId) || false;
+                                    setShowAllFollowUpDrafts(prev => {
+                                      const updated = new Map(prev);
+                                      updated.set(followUpId, !showAll);
+                                      return updated;
+                                    });
+                                  }}
+                                  className="px-3 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 text-xs font-medium transition-colors"
+                                >
+                                  {showAllFollowUpDrafts.get(followUpId) ? "Less" : "More"}
+                                </button>
+                              )}
+                            </div>
+
+                            {showAllFollowUpDrafts.get(followUpId) && drafts.length > 1 && (
+                              <div className="mt-3 pt-3 border-t border-slate-200 space-y-2 max-h-40 overflow-y-auto">
+                                {drafts.slice(1).map((draft, idx) => (
+                                  <button
+                                    key={idx}
+                                    onClick={() => {
+                                      setActiveFollowUpDraft({
+                                        id: followUpId,
+                                        interviewId: interview?.id || "",
+                                        subject: draft.subject,
+                                        body: draft.body,
+                                        generatedBy: draft.generatedBy,
+                                      });
+                                    }}
+                                    className="w-full text-left px-2 py-1 rounded border border-slate-200 hover:border-blue-300 hover:bg-blue-50 transition-colors"
+                                  >
+                                    <p className="text-xs font-medium text-slate-700 truncate">{draft.subject}</p>
+                                    <p className="text-[10px] text-slate-500">
+                                      {new Date(draft.createdAt).toLocaleDateString()}
+                                    </p>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

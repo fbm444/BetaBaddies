@@ -66,15 +66,21 @@ export function GoalTracking({ dateRange }: GoalTrackingProps) {
 
   return (
     <div className="space-y-6">
-      {/* Create Goal Button */}
-      <div className="flex justify-end">
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="inline-flex items-center gap-2 rounded-full bg-blue-500 px-6 py-3 text-sm font-medium text-white hover:bg-blue-600 transition-colors"
-        >
-          <Icon icon="mingcute:add-line" width={20} />
-          Create Goal
-        </button>
+      {/* Header */}
+      <div>
+        <h2 className="text-2xl font-bold text-slate-900 mb-4 font-poppins">Goal Setting</h2>
+        <div className="flex items-center justify-between mb-6">
+          <p className="text-slate-600 font-poppins">
+            Create and track SMART goals to stay focused and measure your progress throughout your job search journey.
+          </p>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="inline-flex items-center gap-2 rounded-full bg-blue-500 px-6 py-3 text-sm font-medium text-white hover:bg-blue-600 transition-colors"
+          >
+            <Icon icon="mingcute:add-line" width={20} />
+            Create Goal
+          </button>
+        </div>
       </div>
 
       {/* Analytics Summary */}

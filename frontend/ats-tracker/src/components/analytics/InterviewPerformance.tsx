@@ -58,6 +58,14 @@ export function InterviewPerformance({ dateRange }: InterviewPerformanceProps) {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h2 className="text-2xl font-bold text-slate-900 mb-4 font-poppins">Interview Performance</h2>
+        <p className="text-slate-600 mb-6 font-poppins">
+          Track your interview outcomes, performance trends, and success rates across different interview types.
+        </p>
+      </div>
+
       {/* Two Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left Column: Total Interviews, Interview to Offer, Performance Trends */}

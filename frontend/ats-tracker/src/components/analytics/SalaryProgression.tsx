@@ -202,6 +202,14 @@ export function SalaryProgression({ dateRange }: SalaryProgressionProps) {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h2 className="text-2xl font-bold text-slate-900 mb-4 font-poppins">Salary Progression</h2>
+        <p className="text-slate-600 mb-6 font-poppins">
+          Track your salary history, ongoing negotiations, and market research to understand your earning potential.
+        </p>
+      </div>
+
       {/* Tabs */}
       <div className="flex gap-2 border-b border-[#E4E8F5]">
         <button

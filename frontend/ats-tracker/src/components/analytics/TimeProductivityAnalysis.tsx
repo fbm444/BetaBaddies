@@ -77,78 +77,93 @@ export function TimeProductivityAnalysis({ dateRange }: TimeProductivityAnalysis
 
   return (
     <div className="space-y-6">
-      {/* Time Investment & Productivity Analysis */}
-      <div className="rounded-3xl bg-gradient-to-br from-[#F8F9FF] to-white p-6 border-2 border-[#3351FD]/20">
-        <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
-          <div className="flex items-center gap-3">
-            <Icon icon="mingcute:time-line" width={28} className="text-[#3351FD]" />
-            <h3 className="text-[28px] font-semibold text-[#0F1D3A]">
-              Time Investment & Productivity Analysis
-            </h3>
-          </div>
-          
-          {/* Interactive Toggle & Actions */}
+      {/* Header */}
+      <div>
+        <h2 className="text-2xl font-bold text-slate-900 mb-4 font-poppins">Time Investment & Productivity Analysis</h2>
+        <div className="flex items-center justify-between mb-6">
+          <p className="text-slate-600 font-poppins">
+            Track your time investment, productivity patterns, and work-life balance metrics.
+          </p>
           <div className="flex items-center gap-2">
             {/* Mode Toggle */}
             <button
               onClick={() => setViewMode(viewMode === 'manual' ? 'estimated' : 'manual')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all ${
+              className={`px-4 py-2 rounded-full border transition-all text-sm font-medium ${
                 viewMode === 'manual'
-                  ? 'border-green-500 bg-green-50 hover:bg-green-100'
-                  : 'border-blue-500 bg-blue-50 hover:bg-blue-100'
+                  ? 'border-green-500 bg-green-50 hover:bg-green-100 text-green-700'
+                  : 'border-blue-500 bg-blue-50 hover:bg-blue-100 text-blue-700'
               }`}
               title="Click to toggle between manual and estimated data"
             >
-              <Icon 
-                icon={viewMode === 'manual' ? 'mingcute:check-circle-fill' : 'mingcute:chart-line-fill'} 
-                width={18} 
-                className={viewMode === 'manual' ? 'text-green-500' : 'text-blue-500'}
-              />
-              <span className="text-sm font-medium text-[#0F1D3A]">
-                {viewMode === 'manual' ? '✅ Your Logged Time' : '📊 Estimated'}
-              </span>
+              {viewMode === 'manual' ? 'Your Logged Time' : 'Use Estimated Time'}
             </button>
             
             {/* Log Time Button */}
             <button
               onClick={() => setShowTimeLogModal(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#3351FD] text-white hover:bg-[#2941DD] transition-colors"
+              className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#3351FD] text-white hover:bg-[#2941DD] transition-colors text-sm font-medium"
               title="Log your time spent on job search activities"
             >
-              <Icon icon="mingcute:add-circle-line" width={18} />
-              <span className="text-sm font-medium">Log Time</span>
+              <Icon icon="mingcute:add-line" width={18} />
+              Log Time
             </button>
           </div>
         </div>
+      </div>
 
-        {/* Time Investment Overview Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="rounded-xl bg-white p-4 border border-[#E4E8F5] shadow-sm">
-            <div className="flex items-center gap-2 mb-2">
-              <Icon icon="mingcute:hourglass-line" width={18} className="text-[#3351FD]" />
-              <span className="text-xs font-medium text-[#6D7A99]">Total Hours Invested</span>
-            </div>
-            <p className="text-3xl font-bold text-[#0F1D3A]">
-              {productivityData.timeInvestment.totalHoursInvested}
-              <span className="text-sm font-normal text-[#6D7A99] ml-1">hrs</span>
-            </p>
-          </div>
-
-          <div className="rounded-xl bg-white p-4 border border-[#E4E8F5] shadow-sm">
-            <div className="flex items-center gap-2 mb-2">
-              <Icon icon="mingcute:calendar-2-line" width={18} className="text-[#3351FD]" />
-              <span className="text-xs font-medium text-[#6D7A99]">Avg. Hours/Week</span>
-            </div>
-            <p className="text-3xl font-bold text-[#0F1D3A]">
-              {productivityData.timeInvestment.avgHoursPerWeek}
-              <span className="text-sm font-normal text-[#6D7A99] ml-1">hrs</span>
-            </p>
-          </div>
-
+      {/* Time Investment Overview Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-4">
+        <div className="flex flex-col justify-between rounded-2xl bg-gradient-to-b from-[#1E3097] to-[#3351FD] p-6 text-white min-h-[180px] lg:col-span-2">
+          <p className="text-[22px] font-normal">Total Hours Invested</p>
+          <p className="text-6xl font-medium leading-none text-[#E7EFFF]">
+            {productivityData.timeInvestment.totalHoursInvested}
+            <span className="text-sm font-normal text-white ml-1">hrs</span>
+          </p>
         </div>
 
-        {/* Activity Breakdown & Efficiency Side by Side */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div className="flex flex-col justify-between rounded-2xl bg-white p-6 border border-[#E4E8F5] min-h-[180px] lg:col-span-2">
+          <div className="flex items-start justify-between mb-2">
+            <p className="text-[18px] font-normal text-[#0F1D3A]">Avg. Hours/Week</p>
+          </div>
+          <div className="flex items-end gap-3">
+            <p className="text-5xl font-extralight text-[#5A87E6]">
+              {productivityData.timeInvestment.avgHoursPerWeek}
+            </p>
+            <p className="text-xs text-[#6D7A99] mb-1">hrs</p>
+          </div>
+        </div>
+
+        {/* Task Completion Metrics */}
+        <div className="rounded-2xl bg-white p-4 border border-[#E4E8F5] min-h-[180px] flex flex-col lg:col-span-3">
+          <h4 className="text-xs font-semibold text-[#0F1D3A] mb-2 flex items-center gap-1.5">
+            <Icon icon="mingcute:checkbox-line" width={14} className="text-[#3351FD]" />
+            Task Completion
+          </h4>
+          <div className="grid grid-cols-3 gap-2 flex-1 items-center">
+            <div className="text-center p-2.5 rounded-lg bg-[#F8F9FF] flex flex-col justify-center">
+              <p className="text-xs text-[#6D7A99] mb-1">Total</p>
+              <p className="text-2xl font-bold text-[#0F1D3A]">
+                {productivityData.taskMetrics.totalTasks}
+              </p>
+            </div>
+            <div className="text-center p-2.5 rounded-lg bg-[#F8F9FF] flex flex-col justify-center">
+              <p className="text-xs text-[#6D7A99] mb-1">Done</p>
+              <p className="text-2xl font-bold text-[#3351FD]">
+                {productivityData.taskMetrics.completedTasks}
+              </p>
+            </div>
+            <div className="text-center p-2.5 rounded-lg bg-[#F8F9FF] flex flex-col justify-center">
+              <p className="text-xs text-[#6D7A99] mb-1">Rate</p>
+              <p className="text-2xl font-bold text-[#3351FD]">
+                {productivityData.taskMetrics.completionRate}%
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Activity Breakdown & Efficiency Side by Side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Activity Breakdown */}
           <div className="rounded-2xl bg-white p-5 border border-[#E4E8F5]">
             <h4 className="text-lg font-semibold text-[#0F1D3A] mb-4 flex items-center gap-2">
@@ -219,9 +234,9 @@ export function TimeProductivityAnalysis({ dateRange }: TimeProductivityAnalysis
           </div>
         </div>
 
-        {/* Productivity Patterns */}
-        {productivityData.productivityPatterns.byDayOfWeek.length > 0 && (
-          <div className="rounded-2xl bg-white p-5 border border-[#E4E8F5] mb-6">
+      {/* Productivity Patterns */}
+      {productivityData.productivityPatterns.byDayOfWeek.length > 0 && (
+        <div className="rounded-2xl bg-white p-5 border border-[#E4E8F5]">
             <h4 className="text-lg font-semibold text-[#0F1D3A] mb-4 flex items-center gap-2">
               <Icon icon="mingcute:chart-bar-line" width={20} className="text-[#3351FD]" />
               Productivity by Day of Week
@@ -255,90 +270,79 @@ export function TimeProductivityAnalysis({ dateRange }: TimeProductivityAnalysis
           </div>
         )}
 
-        {/* Task Completion Metrics */}
-        <div className="rounded-2xl bg-white p-5 border border-[#E4E8F5] mb-6">
-          <h4 className="text-lg font-semibold text-[#0F1D3A] mb-4 flex items-center gap-2">
-            <Icon icon="mingcute:checkbox-line" width={20} className="text-[#3351FD]" />
-            Task Completion Metrics
-          </h4>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="text-center p-4 rounded-xl bg-[#F8F9FF]">
-              <p className="text-xs text-[#6D7A99] mb-1">Total Tasks</p>
-              <p className="text-3xl font-bold text-[#0F1D3A]">
-                {productivityData.taskMetrics.totalTasks}
-              </p>
-            </div>
-            <div className="text-center p-4 rounded-xl bg-[#F8F9FF]">
-              <p className="text-xs text-[#6D7A99] mb-1">Completed</p>
-              <p className="text-3xl font-bold text-[#3351FD]">
-                {productivityData.taskMetrics.completedTasks}
-              </p>
-            </div>
-            <div className="text-center p-4 rounded-xl bg-[#F8F9FF]">
-              <p className="text-xs text-[#6D7A99] mb-1">Completion Rate</p>
-              <p className="text-3xl font-bold text-[#3351FD]">
-                {productivityData.taskMetrics.completionRate}%
-              </p>
-            </div>
-          </div>
-        </div>
 
+      {/* Recommendations & Wellness */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recommendations */}
         {productivityData.recommendations.length > 0 && (
-          <div className="rounded-2xl bg-white p-5 border border-[#E4E8F5] mb-6">
-            <h4 className="text-lg font-semibold text-[#0F1D3A] mb-4 flex items-center gap-2">
-              <Icon icon="mingcute:bulb-line" width={20} className="text-[#3351FD]" />
-              Productivity Recommendations
-            </h4>
-            <div className="space-y-3">
-              {productivityData.recommendations.map((rec, index) => (
-                <div
-                  key={index}
-                  className={`p-4 rounded-lg border-l-4 ${
-                    rec.priority === 'high'
-                      ? 'border-red-500 bg-red-50'
-                      : rec.priority === 'medium'
-                      ? 'border-yellow-500 bg-yellow-50'
-                      : 'border-blue-500 bg-blue-50'
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <Icon
-                      icon={
-                        rec.priority === 'high'
-                          ? 'mingcute:alert-line'
+          <div className="rounded-2xl bg-white p-5 border border-[#E4E8F5]">
+              <h4 className="text-lg font-semibold text-[#0F1D3A] mb-4 flex items-center gap-2">
+                <Icon icon="mingcute:bulb-line" width={20} className="text-[#3351FD]" />
+                Productivity Recommendations
+              </h4>
+              <div className="space-y-3">
+                {productivityData.recommendations.map((rec, index) => {
+                  // Check if it's a positive/success message
+                  const isPositive = rec.type === 'success' || 
+                                    rec.message.toLowerCase().includes('excellent') ||
+                                    rec.message.toLowerCase().includes('great') ||
+                                    rec.message.toLowerCase().includes('well done');
+                  
+                  return (
+                    <div
+                      key={index}
+                      className={`p-4 rounded-lg border-l-4 ${
+                        isPositive
+                          ? 'border-green-500 bg-green-50'
+                          : rec.priority === 'high'
+                          ? 'border-red-500 bg-red-50'
                           : rec.priority === 'medium'
-                          ? 'mingcute:warning-line'
-                          : 'mingcute:information-line'
-                      }
-                      width={20}
-                      className={
-                        rec.priority === 'high'
-                          ? 'text-red-600'
-                          : rec.priority === 'medium'
-                          ? 'text-yellow-600'
-                          : 'text-blue-600'
-                      }
-                    />
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold text-[#0F1D3A] mb-1">{rec.message}</p>
-                      <p className="text-xs text-[#6D7A99]">💡 {rec.actionable}</p>
+                          ? 'border-yellow-500 bg-yellow-50'
+                          : 'border-blue-500 bg-blue-50'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <Icon
+                          icon={
+                            isPositive
+                              ? 'mingcute:check-circle-line'
+                              : rec.priority === 'high'
+                              ? 'mingcute:alert-line'
+                              : rec.priority === 'medium'
+                              ? 'mingcute:warning-line'
+                              : 'mingcute:information-line'
+                          }
+                          width={20}
+                          className={
+                            isPositive
+                              ? 'text-green-600'
+                              : rec.priority === 'high'
+                              ? 'text-red-600'
+                              : rec.priority === 'medium'
+                              ? 'text-yellow-600'
+                              : 'text-blue-600'
+                          }
+                        />
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-[#0F1D3A] mb-1">{rec.message}</p>
+                          <p className="text-xs text-[#6D7A99]">💡 {rec.actionable}</p>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              ))}
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
         {/* Wellness & Burnout Indicators */}
-        <div className="rounded-2xl bg-gradient-to-r from-purple-50 to-pink-50 p-5 border border-purple-200">
+        <div className="rounded-2xl bg-white p-5 border border-[#E4E8F5]">
           <h4 className="text-lg font-semibold text-[#0F1D3A] mb-4 flex items-center gap-2">
-            <Icon icon="mingcute:heart-line" width={20} className="text-purple-600" />
+            <Icon icon="mingcute:heart-line" width={20} className="text-[#3351FD]" />
             Work-Life Balance & Wellness
           </h4>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-            <div className="bg-white rounded-xl p-4 shadow-sm">
+          <div className="space-y-4 mb-4">
+            <div className="bg-white rounded-xl p-4 border border-[#E4E8F5]">
               <p className="text-xs text-[#6D7A99] mb-2">Burnout Risk</p>
               <div className="flex items-center gap-2">
                 <div
@@ -354,7 +358,7 @@ export function TimeProductivityAnalysis({ dateRange }: TimeProductivityAnalysis
                 </div>
               </div>
             </div>
-            <div className="bg-white rounded-xl p-4 shadow-sm">
+            <div className="bg-white rounded-xl p-4 border border-[#E4E8F5]">
               <p className="text-xs text-[#6D7A99] mb-2">Work-Life Balance Score</p>
               <div className="flex items-center gap-2">
                 <div className="flex-1 h-3 bg-gray-200 rounded-full overflow-hidden">
@@ -382,7 +386,7 @@ export function TimeProductivityAnalysis({ dateRange }: TimeProductivityAnalysis
               {productivityData.wellnessIndicators.overworkWarnings.map((warning, index) => (
                 <div
                   key={index}
-                  className="flex items-start gap-2 p-3 bg-white rounded-lg border border-orange-200"
+                  className="flex items-start gap-2 p-3 bg-white rounded-lg border border-[#E4E8F5]"
                 >
                   <Icon icon="mingcute:alert-line" width={16} className="text-orange-600 mt-0.5" />
                   <p className="text-xs text-[#0F1D3A]">{warning}</p>

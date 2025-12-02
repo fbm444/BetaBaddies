@@ -79,6 +79,13 @@ export function NetworkROI({ dateRange }: NetworkROIProps) {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h2 className="text-2xl font-bold text-slate-900 mb-4 font-poppins">Network ROI</h2>
+        <p className="text-slate-600 mb-6 font-poppins">
+          Measure the return on investment from your networking activities, including referrals, opportunities, and connections generated.
+        </p>
+      </div>
       {/* Overall Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="rounded-2xl bg-gradient-to-b from-[#1E3097] to-[#3351FD] p-6 text-white min-h-[160px] flex flex-col justify-between">

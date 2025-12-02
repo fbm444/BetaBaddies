@@ -28,6 +28,9 @@ import { InterviewPreparation } from "./pages/InterviewPreparation";
 import { InterviewAnalytics } from "./pages/InterviewAnalytics";
 import { SalaryNegotiation } from "./pages/SalaryNegotiation";
 import { WritingPractice } from "./pages/WritingPractice";
+import { NetworkContacts } from "./pages/NetworkContacts";
+import { NetworkEvents } from "./pages/NetworkEvents";
+import { NetworkReferrals } from "./pages/NetworkReferrals";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ROUTES } from "./config/routes";
@@ -187,6 +190,10 @@ function App() {
               path={ROUTES.COVER_LETTER_TEMPLATES}
               element={<CoverLetterTemplates />}
             />
+            {/* Network */}
+            <Route path={ROUTES.NETWORK_CONTACTS} element={<NetworkContacts />} />
+            <Route path={ROUTES.NETWORK_EVENTS} element={<NetworkEvents />} />
+            <Route path={ROUTES.NETWORK_REFERRALS} element={<NetworkReferrals />} />
             {/* Collaboration */}
             <Route path={ROUTES.TEAMS} element={<Teams />} />
             <Route path={ROUTES.TEAM_DETAIL} element={<Teams />} />

@@ -70,6 +70,31 @@ import {
   PredictionComparison,
   PredictionAccuracyMetrics,
 } from "../types";
+import {
+  ProfessionalContact,
+  ContactInput,
+  ContactInteraction,
+  ContactInteractionInput,
+  DiscoveredContact,
+  GoogleContactsStatus,
+  GoogleContactsImportSummary,
+  NetworkingEvent,
+  NetworkingEventInput,
+  EventConnection,
+  EventConnectionInput,
+  EventAttendee,
+  EventGoals,
+  EventGoalsInput,
+  ReferralRequest,
+  ReferralRequestInput,
+  ReferralTemplate,
+  DiscoveredEvent,
+  NetworkingGoal,
+  NetworkingGoalInput,
+  EventAttendee,
+  EventGoals,
+  EventGoalsInput,
+} from "../types/network.types";
 
 // In development, use proxy (relative path). In production, use env variable or full URL
 const API_BASE = import.meta.env.VITE_API_URL || "/api/v1";
@@ -148,6 +173,17 @@ class ApiService {
       const error = await response.json().catch(() => ({
         error: { message: "Request failed" },
       }));
+
+      // Check for validation errors (422)
+      if (response.status === 422 && error.error?.fields) {
+        // Preserve the fields structure for validation errors
+        throw new ApiError(
+          error.error?.message || "Validation failed",
+          response.status,
+          error.error?.code || "VALIDATION_ERROR",
+          JSON.stringify(error.error?.fields || {})
+        );
+      }
 
       // Check for duplicate/conflict errors (409)
       if (response.status === 409) {
@@ -2360,6 +2396,115 @@ class ApiService {
     );
   }
 
+  // Google Contacts import endpoints
+  async getGoogleContactsStatus() {
+    return this.request<
+      ApiResponse<{
+        status: GoogleContactsStatus;
+      }>
+    >("/network/google-contacts/status");
+  }
+
+  async getGoogleContactsAuthUrl() {
+    return this.request<ApiResponse<{ authUrl: string }>>("/network/google-contacts/auth/url");
+  }
+
+  async importGoogleContacts(options: { maxResults?: number } = {}) {
+    return this.request<
+      ApiResponse<{
+        summary: GoogleContactsImportSummary;
+        message: string;
+      }>
+    >("/network/google-contacts/import", {
+      method: "POST",
+      body: JSON.stringify(options),
+    });
+  }
+
+  async disconnectGoogleContacts() {
+    return this.request<ApiResponse<{ message: string }>>("/network/google-contacts/disconnect", {
+      method: "POST",
+    });
+  }
+
+  async getExploreNetworkContacts(filters?: { degree?: "2nd" | "3rd"; search?: string }) {
+    const params = new URLSearchParams();
+    if (filters?.degree) params.append("degree", filters.degree);
+    if (filters?.search) params.append("search", filters.search);
+    const query = params.toString();
+
+    return this.request<
+      ApiResponse<{
+        suggestions: DiscoveredContact[];
+      }>
+    >(`/network/explore${query ? `?${query}` : ""}`);
+  }
+
+  async getPeopleWhoHaveYou(filters?: { search?: string }) {
+    const params = new URLSearchParams();
+    if (filters?.search) params.append("search", filters.search);
+    const query = params.toString();
+
+    return this.request<
+      ApiResponse<{
+        contacts: DiscoveredContact[];
+      }>
+    >(`/network/explore/who-have-you${query ? `?${query}` : ""}`);
+  }
+
+  async getPeopleInYourIndustry(filters?: { search?: string }) {
+    const params = new URLSearchParams();
+    if (filters?.search) params.append("search", filters.search);
+    const query = params.toString();
+
+    return this.request<
+      ApiResponse<{
+        contacts: DiscoveredContact[];
+      }>
+    >(`/network/explore/same-industry${query ? `?${query}` : ""}`);
+  }
+
+  // Network Contacts endpoints
+  async getContacts(filters?: {
+    industry?: string;
+    relationshipType?: string;
+    company?: string;
+    search?: string;
+  }) {
+    const queryParams = new URLSearchParams();
+    if (filters?.industry) queryParams.append("industry", filters.industry);
+    if (filters?.relationshipType) queryParams.append("relationshipType", filters.relationshipType);
+    if (filters?.company) queryParams.append("company", filters.company);
+    if (filters?.search) queryParams.append("search", filters.search);
+
+    const query = queryParams.toString();
+    return this.request<ApiResponse<{ contacts: ProfessionalContact[] }>>(
+      `/network/contacts${query ? `?${query}` : ""}`
+    );
+  }
+
+  async getContact(id: string) {
+    return this.request<ApiResponse<{ contact: ProfessionalContact }>>(
+      `/network/contacts/${id}`
+    );
+  }
+
+  async getContactNetwork(id: string) {
+    return this.request<ApiResponse<{ network: ContactNetworkItem[] }>>(
+      `/network/contacts/${id}/network`
+    );
+  }
+
+  async createContact(contactData: ContactInput) {
+    return this.request<ApiResponse<{ contact: ProfessionalContact; message: string }>>(
+      "/network/contacts",
+      {
+        method: "POST",
+        body: JSON.stringify(contactData),
+      }
+    );
+  }
+
   async leaveSupportGroup(groupId: string) {
     return this.request<ApiResponse<{ success: boolean }>>(
       `/collaboration/support-groups/${groupId}/leave`,
@@ -2598,6 +2743,16 @@ class ApiService {
     );
   }
 
+  async updateContact(id: string, contactData: Partial<ContactInput>) {
+    return this.request<ApiResponse<{ contact: ProfessionalContact; message: string }>>(
+      `/network/contacts/${id}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(contactData),
+      }
+    );
+  }
+
   async sendThankYouNote(interviewId: string, noteId: string) {
     return this.request<ApiResponse<{ message: string }>>(
       `/interviews/${interviewId}/thank-you-notes/${noteId}/send`,
@@ -2829,6 +2984,12 @@ class ApiService {
     });
   }
 
+  async deleteContact(id: string) {
+    return this.request<ApiResponse<{ message: string }>>(`/network/contacts/${id}`, {
+      method: "DELETE",
+    });
+  }
+
   // ============================================
   // Writing Practice API Methods
   // ============================================
@@ -2887,6 +3048,127 @@ class ApiService {
       `/writing-practice/sessions/${id}`,
       {
         method: "DELETE",
+      }
+    );
+  }
+
+  async getContactsNeedingReminder() {
+    return this.request<ApiResponse<{ contacts: ProfessionalContact[] }>>(
+      "/network/contacts/reminders"
+    );
+  }
+
+  async checkContactByEmail(email: string) {
+    return this.request<ApiResponse<{ exists: boolean; contact: ProfessionalContact | null }>>(
+      `/network/contacts/check-email?email=${encodeURIComponent(email)}`
+    );
+  }
+
+  async getContactInteractions(contactId: string) {
+    return this.request<ApiResponse<{ interactions: ContactInteraction[] }>>(
+      `/network/contacts/${contactId}/interactions`
+    );
+  }
+
+  async addContactInteraction(contactId: string, interactionData: ContactInteractionInput) {
+    return this.request<ApiResponse<{ interaction: ContactInteraction; message: string }>>(
+      `/network/contacts/${contactId}/interactions`,
+      {
+        method: "POST",
+        body: JSON.stringify(interactionData),
+      }
+    );
+  }
+
+  // Networking Events endpoints
+  async getNetworkingEvents(filters?: {
+    industry?: string;
+    attended?: boolean;
+    startDate?: string;
+    endDate?: string;
+    search?: string;
+  }) {
+    const queryParams = new URLSearchParams();
+    if (filters?.industry) queryParams.append("industry", filters.industry);
+    if (filters?.attended !== undefined) queryParams.append("attended", String(filters.attended));
+    if (filters?.startDate) queryParams.append("startDate", filters.startDate);
+    if (filters?.endDate) queryParams.append("endDate", filters.endDate);
+    if (filters?.search) queryParams.append("search", filters.search);
+
+    const query = queryParams.toString();
+    return this.request<ApiResponse<{ events: NetworkingEvent[] }>>(
+      `/network/events${query ? `?${query}` : ""}`
+    );
+  }
+
+  async getNetworkingEvent(id: string) {
+    return this.request<ApiResponse<{ event: NetworkingEvent }>>(
+      `/network/events/${id}`
+    );
+  }
+
+  async createNetworkingEvent(eventData: NetworkingEventInput) {
+    return this.request<ApiResponse<{ event: NetworkingEvent; message: string }>>(
+      "/network/events",
+      {
+        method: "POST",
+        body: JSON.stringify(eventData),
+      }
+    );
+  }
+
+  async updateNetworkingEvent(id: string, eventData: Partial<NetworkingEventInput>) {
+    return this.request<ApiResponse<{ event: NetworkingEvent; message: string }>>(
+      `/network/events/${id}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(eventData),
+      }
+    );
+  }
+
+  async deleteNetworkingEvent(id: string) {
+    return this.request<ApiResponse<{ message: string }>>(`/network/events/${id}`, {
+      method: "DELETE",
+    });
+  }
+
+  async registerForEvent(eventId: string) {
+    return this.request<ApiResponse<{ registration: any; message: string; alreadyRegistered?: boolean }>>(
+      `/network/events/${eventId}/register`,
+      {
+        method: "POST",
+      }
+    );
+  }
+
+  async unregisterFromEvent(eventId: string) {
+    return this.request<ApiResponse<{ message: string }>>(
+      `/network/events/${eventId}/register`,
+      {
+        method: "DELETE",
+      }
+    );
+  }
+
+  async getEventAttendees(eventId: string) {
+    return this.request<ApiResponse<{ attendees: EventAttendee[] }>>(
+      `/network/events/${eventId}/attendees`
+    );
+  }
+
+  async getEventGoals(eventId: string) {
+    return this.request<ApiResponse<{ goals: EventGoals | null }>>(
+      `/network/events/${eventId}/goals`
+    );
+  }
+
+  async upsertEventGoals(eventId: string, goalsData: EventGoalsInput) {
+    return this.request<ApiResponse<{ goals: EventGoals; message: string }>>(
+      `/network/events/${eventId}/goals`,
+      {
+        method: "POST",
+        body: JSON.stringify(goalsData),
       }
     );
   }
@@ -3090,6 +3372,286 @@ class ApiService {
     >("/interview-predictions/recalculate-all", {
       method: "POST",
     });
+  }
+
+  async getUpcomingEvents() {
+    return this.request<ApiResponse<{ events: NetworkingEvent[] }>>(
+      "/network/events/upcoming"
+    );
+  }
+
+  async getEventConnections(eventId: string) {
+    return this.request<ApiResponse<{ connections: EventConnection[] }>>(
+      `/network/events/${eventId}/connections`
+    );
+  }
+
+  async addEventConnection(eventId: string, connectionData: EventConnectionInput) {
+    return this.request<ApiResponse<{ connection: EventConnection; message: string }>>(
+      `/network/events/${eventId}/connections`,
+      {
+        method: "POST",
+        body: JSON.stringify(connectionData),
+      }
+    );
+  }
+
+  // Referral Requests endpoints
+  async getReferralRequests(filters?: {
+    status?: string;
+    contactId?: string;
+    jobId?: string;
+    followupRequired?: boolean;
+  }) {
+    const queryParams = new URLSearchParams();
+    if (filters?.status) queryParams.append("status", filters.status);
+    if (filters?.contactId) queryParams.append("contactId", filters.contactId);
+    if (filters?.jobId) queryParams.append("jobId", filters.jobId);
+    if (filters?.followupRequired !== undefined)
+      queryParams.append("followupRequired", String(filters.followupRequired));
+
+    const query = queryParams.toString();
+    return this.request<ApiResponse<{ referrals: ReferralRequest[] }>>(
+      `/network/referrals${query ? `?${query}` : ""}`
+    );
+  }
+
+  async getReferralRequest(id: string) {
+    return this.request<ApiResponse<{ referral: ReferralRequest }>>(
+      `/network/referrals/${id}`
+    );
+  }
+
+  async createReferralRequest(referralData: ReferralRequestInput) {
+    return this.request<ApiResponse<{ referral: ReferralRequest; message: string }>>(
+      "/network/referrals",
+      {
+        method: "POST",
+        body: JSON.stringify(referralData),
+      }
+    );
+  }
+
+  async updateReferralRequest(id: string, referralData: Partial<ReferralRequestInput>) {
+    return this.request<ApiResponse<{ referral: ReferralRequest; message: string }>>(
+      `/network/referrals/${id}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(referralData),
+      }
+    );
+  }
+
+  async deleteReferralRequest(id: string) {
+    return this.request<ApiResponse<{ message: string }>>(`/network/referrals/${id}`, {
+      method: "DELETE",
+    });
+  }
+
+  async getReferralRequestsNeedingFollowup() {
+    return this.request<ApiResponse<{ referrals: ReferralRequest[] }>>(
+      "/network/referrals/followup"
+    );
+  }
+
+  async getReferralTemplates() {
+    return this.request<ApiResponse<{ templates: ReferralTemplate[] }>>(
+      "/network/referrals/templates"
+    );
+  }
+
+  async getReferralRecommendationTemplates() {
+    return this.request<ApiResponse<{ templates: ReferralTemplate[] }>>(
+      "/network/referrals/templates/recommendations"
+    );
+  }
+
+  // Create referral request template with AI (for "Ask for Referrals" tab)
+  async createReferralRequestTemplateWithAI(options?: {
+    templateName?: string;
+    tone?: string;
+    length?: string;
+    jobId?: string;
+    jobTitle?: string;
+    jobCompany?: string;
+    jobLocation?: string;
+    jobIndustry?: string;
+  }) {
+    return this.request<ApiResponse<{ template: ReferralTemplate; message: string }>>(
+      "/network/referrals/templates/ai",
+      {
+        method: "POST",
+        body: JSON.stringify(options || {}),
+      }
+    );
+  }
+
+  // Create referral recommendation template with AI (for "Write Referrals" tab)
+  async createReferralTemplateWithAI(options?: {
+    templateName?: string;
+    tone?: string;
+    length?: string;
+  }) {
+    return this.request<ApiResponse<{ template: ReferralTemplate; message: string }>>(
+      "/network/referrals/templates/recommendations/ai",
+      {
+        method: "POST",
+        body: JSON.stringify(options || {}),
+      }
+    );
+  }
+
+  async createReferralTemplate(templateData: {
+    templateName?: string;
+    templateBody?: string;
+    etiquetteGuidance?: string;
+    timingGuidance?: string;
+  }) {
+    return this.request<ApiResponse<{ template: ReferralTemplate; message: string }>>(
+      "/network/referrals/templates",
+      {
+        method: "POST",
+        body: JSON.stringify(templateData),
+      }
+    );
+  }
+
+  async deleteReferralTemplate(id: string) {
+    return this.request<ApiResponse<{ message: string }>>(
+      `/network/referrals/templates/${id}`,
+      {
+        method: "DELETE",
+      }
+    );
+  }
+
+  async generateReferralMessage(payload: {
+    contactId: string;
+    jobId: string;
+    templateBody?: string | null;
+    templateId?: string;
+    tone?: string;
+  }) {
+    return this.request<ApiResponse<{ message: string }>>(
+      "/network/referrals/personalize",
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }
+    );
+  }
+
+  async generateReferralLetter(payload: {
+    templateId: string;
+    referralRequestId: string;
+  }) {
+    return this.request<ApiResponse<{ message: string }>>(
+      "/network/referrals/generate-letter",
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }
+    );
+  }
+
+  async saveDraftReferralLetter(payload: {
+    referralRequestId: string;
+    letterContent: string;
+  }) {
+    return this.request<ApiResponse<{ referral: ReferralRequest; message: string }>>(
+      "/network/referrals/save-draft-letter",
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }
+    );
+  }
+
+  async submitReferralLetter(payload: {
+    referralRequestId: string;
+    letterContent?: string;
+  }) {
+    return this.request<ApiResponse<{ referral: ReferralRequest; message: string }>>(
+      "/network/referrals/submit-letter",
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }
+    );
+  }
+
+  async getReferralRequestsToWrite() {
+    return this.request<ApiResponse<{ referrals: ReferralRequest[] }>>(
+      "/network/referrals/to-write"
+    );
+  }
+
+  async getReferralTemplatePreview(templateId: string) {
+    return this.request<ApiResponse<{ template: ReferralTemplate }>>(
+      `/network/referrals/templates/${templateId}/preview`
+    );
+  }
+
+  // Discover networking events from external APIs
+  async discoverNetworkingEvents(filters?: {
+    location?: string;
+    industry?: string;
+    query?: string;
+    startDate?: string;
+    endDate?: string;
+    limit?: number;
+  }) {
+    const queryParams = new URLSearchParams();
+    if (filters?.location) queryParams.append("location", filters.location);
+    if (filters?.industry) queryParams.append("industry", filters.industry);
+    if (filters?.query) queryParams.append("query", filters.query);
+    if (filters?.startDate) queryParams.append("startDate", filters.startDate);
+    if (filters?.endDate) queryParams.append("endDate", filters.endDate);
+    if (filters?.limit) queryParams.append("limit", String(filters.limit));
+
+    const query = queryParams.toString();
+    return this.request<ApiResponse<{ events: DiscoveredEvent[]; pagination?: any; message?: string }>>(
+      `/network/events/discover${query ? `?${query}` : ""}`
+    );
+  }
+
+  // Networking Goals
+  async getNetworkingGoals() {
+    return this.request<ApiResponse<{ goals: NetworkingGoal[] }>>("/network/goals");
+  }
+
+  async createNetworkingGoal(goalData: NetworkingGoalInput) {
+    return this.request<ApiResponse<{ goal: NetworkingGoal; message: string }>>("/network/goals", {
+      method: "POST",
+      body: JSON.stringify(goalData),
+    });
+  }
+
+  async getNetworkingGoal(id: string) {
+    return this.request<ApiResponse<{ goal: NetworkingGoal }>>(`/network/goals/${id}`);
+  }
+
+  async updateNetworkingGoal(id: string, goalData: Partial<NetworkingGoalInput>) {
+    return this.request<ApiResponse<{ goal: NetworkingGoal; message: string }>>(`/network/goals/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(goalData),
+    });
+  }
+
+  async deleteNetworkingGoal(id: string) {
+    return this.request<ApiResponse<{ message: string }>>(`/network/goals/${id}`, {
+      method: "DELETE",
+    });
+  }
+
+  async incrementGoalProgress(id: string, increment: number = 1) {
+    return this.request<ApiResponse<{ goal: NetworkingGoal; message: string }>>(
+      `/network/goals/${id}/increment`,
+      {
+        method: "POST",
+        body: JSON.stringify({ increment }),
+      }
+    );
   }
 }
 

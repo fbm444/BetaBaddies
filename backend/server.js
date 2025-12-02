@@ -30,6 +30,12 @@ import followUpRoutes from "./routes/followUpRoutes.js";
 import salaryNegotiationRoutes from "./routes/salaryNegotiationRoutes.js";
 import writingPracticeRoutes from "./routes/writingPracticeRoutes.js";
 import interviewPredictionRoutes from "./routes/interviewPredictionRoutes.js";
+import googleContactsRoutes from "./routes/googleContactsRoutes.js";
+import networkDiscoveryRoutes from "./routes/networkDiscoveryRoutes.js";
+import professionalContactRoutes from "./routes/professionalContactRoutes.js";
+import networkingEventRoutes from "./routes/networkingEventRoutes.js";
+import referralRequestRoutes from "./routes/referralRequestRoutes.js";
+import networkingGoalRoutes from "./routes/networkingGoalRoutes.js";
 
 // Import middleware
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
@@ -144,6 +150,12 @@ app.use("/api/v1", followUpRoutes); // For /api/v1/follow-ups/pending
 app.use("/api/v1/salary-negotiations", salaryNegotiationRoutes);
 app.use("/api/v1/writing-practice", writingPracticeRoutes);
 app.use("/api/v1/interview-predictions", interviewPredictionRoutes);
+app.use("/api/v1/network/google-contacts", googleContactsRoutes);
+app.use("/api/v1/network/explore", networkDiscoveryRoutes);
+app.use("/api/v1/network/contacts", professionalContactRoutes);
+app.use("/api/v1/network/events", networkingEventRoutes);
+app.use("/api/v1/network/referrals", referralRequestRoutes);
+app.use("/api/v1/network/goals", networkingGoalRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

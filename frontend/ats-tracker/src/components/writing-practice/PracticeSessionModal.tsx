@@ -308,6 +308,15 @@ export function PracticeSessionModal({
                 Start
               </button>
             )}
+            {!isTimerRunning && timeSpent > 0 && (
+              <button
+                onClick={startTimer}
+                className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm font-medium flex items-center gap-2"
+              >
+                <Icon icon="mingcute:play-line" width={16} />
+                Resume
+              </button>
+            )}
             {isTimerRunning && (
               <button
                 onClick={pauseTimer}
@@ -371,7 +380,7 @@ export function PracticeSessionModal({
             <button
               onClick={handleSubmit}
               disabled={isSubmitting || !response.trim()}
-              className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-6 py-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-full hover:from-pink-600 hover:to-purple-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {isSubmitting ? (
                 <>

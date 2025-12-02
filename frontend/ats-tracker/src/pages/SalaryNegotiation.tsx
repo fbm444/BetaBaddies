@@ -733,32 +733,29 @@ export function SalaryNegotiation() {
           {activeTab === "progression" && (
           <div className="space-y-8">
             {/* Header Section */}
-            <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl p-8 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-3xl font-bold mb-2">Salary Progression</h2>
-                  <p className="text-blue-100 text-lg">
-                    Track your compensation growth and career trajectory
-                  </p>
-                </div>
-                <button
-                  onClick={() => setShowAddProgressionModal(true)}
-                  className="px-6 py-3 bg-white text-blue-600 rounded-full hover:bg-blue-50 text-sm font-semibold flex items-center gap-2 shadow-lg transition-all"
-                >
-                  <Icon icon="mingcute:add-line" width={18} />
-                  Add Entry
-                </button>
+            <div className="mb-8 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <h2 className="text-4xl font-bold text-[#0F1D3A]" style={{ fontFamily: "Poppins" }}>Salary Progression</h2>
+                <p className="mt-2 text-sm text-[#6D7A99]">
+                  Track your compensation growth and career trajectory
+                </p>
               </div>
+              <button
+                onClick={() => setShowAddProgressionModal(true)}
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-[#3351FD] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#3351FD1A] transition-transform hover:-translate-y-0.5 hover:bg-[#1E3097]"
+              >
+                <Icon icon="mingcute:add-line" width={20} />
+                Add Entry
+              </button>
             </div>
 
+            <div className="flex flex-col gap-5">
             {loadingProgression ? (
-              <div className="bg-white rounded-xl p-16 text-center border border-slate-200 shadow-sm">
-                <Icon
-                  icon="mingcute:loading-line"
-                  className="w-16 h-16 animate-spin mx-auto text-blue-500 mb-6"
-                />
-                <p className="text-slate-600 text-lg font-medium">Loading progression data...</p>
-                <p className="text-slate-500 text-sm mt-2">Fetching your salary history</p>
+              <div className="flex min-h-[260px] items-center justify-center">
+                <div className="text-center">
+                  <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-blue-500" />
+                  <p className="text-sm text-[#6D7A99]">Loading salary progression...</p>
+                </div>
               </div>
             ) : (() => {
               // Combine progression entries and employment jobs
@@ -823,37 +820,9 @@ export function SalaryNegotiation() {
 
               if (combinedData.length === 0) {
                 return (
-                  <div className="bg-white rounded-xl p-16 text-center border border-slate-200 shadow-sm">
-                    <div className="max-w-md mx-auto">
-                      <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <Icon icon="mingcute:chart-line" width={48} className="text-blue-500" />
-                      </div>
-                      <h3 className="text-2xl font-bold text-slate-900 mb-3">No Salary Data Yet</h3>
-                      <p className="text-slate-600 mb-6 leading-relaxed">
-                        Start tracking your salary progression by adding salary information to your employment history or creating manual entries.
-                      </p>
-                      <div className="space-y-3 mb-8 text-left max-w-sm mx-auto">
-                        <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
-                          <Icon icon="mingcute:check-circle-line" width={20} className="text-green-500 mt-0.5 flex-shrink-0" />
-                          <p className="text-sm text-slate-700">
-                            Add salary to your employment entries in the <strong>Employment</strong> page
-                          </p>
-                        </div>
-                        <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
-                          <Icon icon="mingcute:check-circle-line" width={20} className="text-green-500 mt-0.5 flex-shrink-0" />
-                          <p className="text-sm text-slate-700">
-                            Or manually add progression entries using the button above
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setShowAddProgressionModal(true)}
-                        className="px-8 py-3 bg-blue-500 text-white rounded-full hover:bg-blue-600 font-semibold shadow-md hover:shadow-lg transition-all"
-                      >
-                        <Icon icon="mingcute:add-line" width={18} className="inline mr-2" />
-                        Add First Entry
-                      </button>
-                    </div>
+                  <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-[#6D7A99] text-center">
+                    <Icon icon="mingcute:chart-line" width={48} className="text-slate-400 mx-auto mb-4" />
+                    <p>Start tracking your salary progression by adding salary information to your employment history or creating manual entries.</p>
                   </div>
                 );
               }
@@ -884,92 +853,109 @@ export function SalaryNegotiation() {
               return (
                 <>
                   {/* Statistics Cards */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-6 border border-green-200 shadow-sm hover:shadow-md transition-shadow">
-                      <div className="flex items-center justify-between mb-3">
-                        <p className="text-sm font-medium text-green-700">Current Salary</p>
-                        <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
-                          <Icon icon="mingcute:dollar-line" width={24} className="text-white" />
-                        </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="flex flex-col justify-between rounded-2xl bg-gradient-to-b from-[#1E3097] to-[#3351FD] p-5 text-white">
+                      <div className="flex items-start justify-between">
+                        <p className="text-[22px] font-normal" style={{ fontFamily: "Poppins" }}>
+                          Current Salary
+                        </p>
+                        <Icon icon="mingcute:dollar-line" width={24} height={24} className="text-white" />
                       </div>
-                      <p className="text-4xl font-bold text-green-900 mb-1">
+                      <p
+                        className="text-4xl font-medium leading-none text-[#E7EFFF]"
+                        style={{ fontFamily: "Poppins" }}
+                      >
                         ${lastEntry.salary.toLocaleString()}
                       </p>
-                      <p className="text-xs text-green-700 font-medium">
-                        {lastEntry.roleTitle} @ {lastEntry.company}
-                      </p>
                     </div>
 
-                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6 border border-blue-200 shadow-sm hover:shadow-md transition-shadow">
-                      <div className="flex items-center justify-between mb-3">
-                        <p className="text-sm font-medium text-blue-700">Total Increase</p>
-                        <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
-                          <Icon icon="mingcute:trending-up-line" width={24} className="text-white" />
-                        </div>
+                    <div className="flex flex-col justify-between rounded-2xl bg-white p-5">
+                      <div className="flex items-start justify-between">
+                        <p
+                          className="text-[22px] font-normal text-[#0F1D3A]"
+                          style={{ fontFamily: "Poppins" }}
+                        >
+                          Total Increase
+                        </p>
+                        <Icon icon="mingcute:trending-up-line" width={20} height={20} className="text-[#09244B]" />
                       </div>
-                      <p className="text-4xl font-bold text-blue-900 mb-1">
+                      <p
+                        className="text-3xl font-extralight text-[#5A87E6]"
+                        style={{ fontFamily: "Poppins", fontWeight: 200 }}
+                      >
                         ${totalIncrease.toLocaleString()}
                       </p>
-                      <p className="text-xs text-blue-700 font-medium">
-                        {percentIncrease > 0 ? `+${percentIncrease.toFixed(1)}%` : `${percentIncrease.toFixed(1)}%`} growth
-                      </p>
                     </div>
 
-                    <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-6 border border-purple-200 shadow-sm hover:shadow-md transition-shadow">
-                      <div className="flex items-center justify-between mb-3">
-                        <p className="text-sm font-medium text-purple-700">Avg. Per Move</p>
-                        <div className="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center">
-                          <Icon icon="mingcute:arrow-up-line" width={24} className="text-white" />
-                        </div>
+                    <div className="flex flex-col justify-between rounded-2xl bg-white p-5">
+                      <div className="flex items-start justify-between">
+                        <p
+                          className="text-[22px] font-normal text-[#0F1D3A]"
+                          style={{ fontFamily: "Poppins" }}
+                        >
+                          Avg. Per Move
+                        </p>
+                        <Icon icon="mingcute:arrow-up-line" width={24} height={24} className="text-[#0F2B5C]" />
                       </div>
-                      <p className="text-4xl font-bold text-purple-900 mb-1">
+                      <p
+                        className="text-3xl font-extralight text-[#5A87E6]"
+                        style={{ fontFamily: "Poppins", fontWeight: 200 }}
+                      >
                         ${avgIncrease > 0 ? `+${Math.round(avgIncrease).toLocaleString()}` : Math.round(avgIncrease).toLocaleString()}
                       </p>
-                      <p className="text-xs text-purple-700 font-medium">
-                        {combinedData.length - 1} career moves
-                      </p>
                     </div>
 
-                    <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-6 border border-orange-200 shadow-sm hover:shadow-md transition-shadow">
-                      <div className="flex items-center justify-between mb-3">
-                        <p className="text-sm font-medium text-orange-700">Data Points</p>
-                        <div className="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center">
-                          <Icon icon="mingcute:file-list-line" width={24} className="text-white" />
-                        </div>
+                    <div className="flex flex-col justify-between rounded-2xl bg-white p-5">
+                      <div className="flex items-start justify-between">
+                        <p
+                          className="text-[22px] font-normal text-[#0F1D3A]"
+                          style={{ fontFamily: "Poppins" }}
+                        >
+                          Data Points
+                        </p>
+                        <Icon icon="mingcute:file-line" width={24} height={24} className="text-[#0F2B5C] flex-shrink-0" style={{ display: 'inline-block' }} />
                       </div>
-                      <p className="text-4xl font-bold text-orange-900 mb-1">
+                      <p
+                        className="text-3xl font-extralight text-[#5A87E6]"
+                        style={{ fontFamily: "Poppins", fontWeight: 200 }}
+                      >
                         {combinedData.length}
                       </p>
-                      <p className="text-xs text-orange-700 font-medium">
-                        {progressionEntries.length} negotiation{progressionEntries.length !== 1 ? 's' : ''}, {employmentJobs.length} job{employmentJobs.length !== 1 ? 's' : ''}
-                      </p>
                     </div>
                   </div>
 
-                  {/* Chart Section */}
-                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-                    <div className="flex items-center justify-between mb-6">
-                      <div>
-                        <h3 className="text-2xl font-bold text-slate-900">Compensation Over Time</h3>
-                        <p className="text-slate-600 text-sm mt-1">Visual representation of your salary growth</p>
+                  {/* Chart and Timeline Section - Side by Side */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Chart Section */}
+                    <div className="rounded-3xl bg-white p-5 flex flex-col h-full">
+                      <div className="mb-6 flex items-center justify-between">
+                        <h3
+                          className="text-[25px] font-normal text-[#0F1D3A]"
+                          style={{ fontFamily: "Poppins" }}
+                        >
+                          Compensation Over Time
+                        </h3>
                       </div>
+                      {chartEntries.length > 0 ? (
+                        <div className="mt-2">
+                          <SalaryProgressionChart entries={chartEntries} />
+                        </div>
+                      ) : (
+                        <div className="h-[400px] flex items-center justify-center bg-slate-50 rounded-lg border border-slate-200">
+                          <p className="text-sm text-[#6D7A99]">No chart data available</p>
+                        </div>
+                      )}
                     </div>
-                    {chartEntries.length > 0 ? (
-                      <SalaryProgressionChart entries={chartEntries} />
-                    ) : (
-                      <div className="h-[400px] flex items-center justify-center bg-slate-50 rounded-lg border border-slate-200">
-                        <p className="text-slate-500">No chart data available</p>
-                      </div>
-                    )}
-                  </div>
 
-                  {/* Detailed Timeline */}
-                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-                    <div className="flex items-center justify-between mb-6">
-                      <div>
-                        <h3 className="text-2xl font-bold text-slate-900">Career Timeline</h3>
-                        <p className="text-slate-600 text-sm mt-1">Detailed breakdown of each position and compensation</p>
-                      </div>
+                    {/* Detailed Timeline */}
+                    <div className="rounded-3xl bg-white p-5 overflow-y-auto" style={{ maxHeight: '600px' }}>
+                    <div className="mb-3 flex items-center justify-between">
+                      <h3
+                        className="text-[25px] font-normal text-[#0F1D3A]"
+                        style={{ fontFamily: "Poppins" }}
+                      >
+                        Career Timeline
+                      </h3>
                     </div>
                     <div className="space-y-4">
                       {combinedData
@@ -987,8 +973,8 @@ export function SalaryNegotiation() {
                               key={item.id} 
                               className={`relative flex items-start gap-4 p-5 rounded-xl border-2 transition-all ${
                                 isLatest 
-                                  ? "bg-gradient-to-r from-blue-50 to-blue-100 border-blue-300 shadow-md" 
-                                  : "bg-slate-50 border-slate-200 hover:bg-slate-100 hover:shadow-sm"
+                                  ? "bg-transparent border-blue-300" 
+                                  : "bg-transparent border-slate-200 hover:border-slate-300"
                               }`}
                             >
                               {/* Timeline connector */}
@@ -1096,12 +1082,14 @@ export function SalaryNegotiation() {
                               </div>
                             </div>
                           );
-                        })}
+                        })} 
+                    </div>
                     </div>
                   </div>
                 </>
               );
             })()}
+            </div>
           </div>
           )}
         </div>

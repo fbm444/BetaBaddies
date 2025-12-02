@@ -12,14 +12,14 @@ const exerciseTypes = [
     id: "role_play",
     title: "Role-Play Scenarios",
     description: "Practice negotiation conversations with different scenarios",
-    icon: "mingcute:user-line",
+    icon: "mingcute:user-2-line",
     color: "blue",
   },
   {
     id: "script_practice",
     title: "Script Practice",
     description: "Practice delivering your negotiation scripts",
-    icon: "mingcute:file-text-line",
+    icon: "mingcute:play-line",
     color: "green",
   },
   {
@@ -164,7 +164,7 @@ export function ConfidenceExercisesTab({
             className={`bg-white rounded-xl p-6 border-2 ${getColorClasses(exercise.color)}`}
           >
             <div className="flex items-start justify-between mb-4">
-              <Icon icon={exercise.icon} width={32} className="text-current" />
+              <Icon icon={exercise.icon} width={32} height={32} className="text-current flex-shrink-0" style={{ display: 'inline-block' }} />
             </div>
             <h4 className="text-lg font-semibold mb-2">{exercise.title}</h4>
             <p className="text-sm mb-4 opacity-80">{exercise.description}</p>

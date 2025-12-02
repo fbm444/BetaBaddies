@@ -77,12 +77,12 @@ export function NegotiationDetailModal({
 
   if (!negotiation) return null;
 
-  const tabs: { id: DetailTabType; label: string; icon: string }[] = [
+  const tabs: { id: DetailTabType; label: string; icon?: string }[] = [
     { id: "overview", label: "Overview", icon: "mingcute:file-list-line" },
     { id: "market-research", label: "Market Research", icon: "mingcute:chart-line" },
     { id: "talking-points", label: "Talking Points", icon: "mingcute:message-line" },
     { id: "scripts", label: "Scripts", icon: "mingcute:file-text-line" },
-    { id: "timing", label: "Timing Strategy", icon: "mingcute:time-line" },
+    { id: "timing", label: "Timing Strategy" },
     { id: "counteroffer", label: "Counteroffer", icon: "mingcute:exchange-line" },
     { id: "exercises", label: "Exercises", icon: "mingcute:lightbulb-line" },
   ];
@@ -109,7 +109,7 @@ export function NegotiationDetailModal({
         </div>
 
         {/* Tabs */}
-        <div className="border-b border-slate-200 overflow-x-auto flex-shrink-0">
+        <div className="overflow-x-auto flex-shrink-0">
           <nav className="flex gap-1 overflow-x-auto scrollbar-hide">
             {tabs.map((tab) => (
               <button
@@ -136,7 +136,9 @@ export function NegotiationDetailModal({
                   e.currentTarget.style.backgroundColor = 'transparent';
                 }}
               >
-                <Icon icon={tab.icon} width={18} height={18} className="flex-shrink-0" style={{ minWidth: '18px', minHeight: '18px' }} />
+                {tab.icon && (
+                  <Icon icon={tab.icon} width={18} height={18} className="flex-shrink-0" style={{ minWidth: '18px', minHeight: '18px' }} />
+                )}
                 <span className="flex-shrink-0">{tab.label}</span>
               </button>
             ))}

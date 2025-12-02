@@ -31,6 +31,9 @@ const TEST_USER_PASSWORD = "Test123!";
 async function createTestUser() {
   try {
     console.log("🚀 Creating Interview Analytics Test User\n");
+    
+    // Get current date for use throughout the script
+    const now = new Date();
 
     // Step 1: Create or get test user
     console.log("📝 Step 1: Creating test user...");
@@ -468,7 +471,6 @@ async function createTestUser() {
     console.log("\n📝 Step 9: Creating interviews...");
     
     // Calculate dates - spread interviews over the past 12 months and future dates
-    const now = new Date();
     
     // First create some practice interviews
     const practiceInterviewsData = [
@@ -1812,7 +1814,7 @@ Sarah Chen`,
 
     // Step 16: Create career goals
     console.log("\n📝 Step 16: Creating career goals...");
-    const now = new Date();
+    // Reuse 'now' from Step 9
     const goalsData = [
       {
         goalType: "Application",

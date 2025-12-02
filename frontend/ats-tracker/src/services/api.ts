@@ -1177,7 +1177,6 @@ class ApiService {
     });
   }
 
-<<<<<<< HEAD
   // ============================================================================
   // Interview Preparation Suite (UC-074 to UC-078)
   // ============================================================================
@@ -1319,7 +1318,6 @@ class ApiService {
     });
   }
 
-<<<<<<< HEAD
   // ============================================================================
   // UC-108, UC-109, UC-110, UC-111: Collaboration & Social Features
   // ============================================================================
@@ -2987,7 +2985,6 @@ class ApiService {
     return this.request<
       ApiResponse<{ checklist: PreparationChecklist }>
     >(`/writing-practice/nerves/checklist/${jobId}`);
->>>>>>> origin/development
   }
 }
 

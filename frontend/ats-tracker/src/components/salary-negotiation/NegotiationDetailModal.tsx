@@ -88,10 +88,10 @@ export function NegotiationDetailModal({
   ];
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-6xl max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[110] p-4 overflow-y-auto">
+      <div className="bg-white rounded-2xl w-full max-w-6xl my-auto flex flex-col max-h-[calc(100vh-2rem)] min-h-0">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-200">
+        <div className="flex items-center justify-between p-6 border-b border-slate-200 flex-shrink-0">
           <div className="flex-1">
             <h2 className="text-2xl font-bold text-slate-900">
               {negotiation.jobTitle || "Position"} @ {negotiation.company || "Company"}
@@ -109,27 +109,42 @@ export function NegotiationDetailModal({
         </div>
 
         {/* Tabs */}
-        <div className="border-b border-slate-200 overflow-x-auto">
-          <nav className="flex space-x-1 px-4">
+        <div className="border-b border-slate-200 overflow-x-auto flex-shrink-0">
+          <nav className="flex gap-1 overflow-x-auto scrollbar-hide">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 py-4 px-4 border-b-2 font-medium text-sm whitespace-nowrap transition-colors ${
+                className={`px-6 py-3 font-medium text-sm whitespace-nowrap flex items-center gap-2 flex-shrink-0 min-w-fit bg-transparent hover:bg-transparent focus:bg-transparent ${
                   activeTab === tab.id
-                    ? "border-blue-500 text-blue-600"
-                    : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+                    ? "text-blue-500 border-b-2 border-blue-500"
+                    : "text-slate-600"
                 }`}
+                style={{
+                  outline: 'none',
+                  boxShadow: 'none',
+                  borderTop: 'none',
+                  borderLeft: 'none',
+                  borderRight: 'none',
+                  borderRadius: '0'
+                }}
+                onFocus={(e) => e.target.blur()}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
               >
-                <Icon icon={tab.icon} width={18} />
-                {tab.label}
+                <Icon icon={tab.icon} width={18} height={18} className="flex-shrink-0" style={{ minWidth: '18px', minHeight: '18px' }} />
+                <span className="flex-shrink-0">{tab.label}</span>
               </button>
             ))}
           </nav>
         </div>
 
         {/* Tab Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-6 min-h-0">
           {isLoading ? (
             <div className="flex items-center justify-center h-64">
               <Icon

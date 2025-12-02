@@ -77,6 +77,12 @@ export function Interviews() {
     >
   >(new Map());
   const [showAllFollowUpDrafts, setShowAllFollowUpDrafts] = useState<Map<string, boolean>>(new Map());
+  // Track which drafts are expanded inline in the cards
+  const [expandedDraftCards, setExpandedDraftCards] = useState<Map<string, boolean>>(new Map());
+  // Track which drafts are being edited (key: followUpId-index)
+  const [editingDrafts, setEditingDrafts] = useState<Map<string, boolean>>(new Map());
+  // Track edited draft content (key: followUpId-index)
+  const [editedDraftContent, setEditedDraftContent] = useState<Map<string, { subject: string; body: string }>>(new Map());
 
   // Thank-you notes modal state
   const [activeThankYouInterview, setActiveThankYouInterview] = useState<InterviewData | null>(null);
@@ -1556,15 +1562,15 @@ export function Interviews() {
                               notes: "Follow-up on interview status and hiring timeline",
                             });
 
-                            if (createResponse.ok && (createResponse.data?.followUp || createResponse.data?.action)) {
-                              statusFollowUp = createResponse.data?.followUp || createResponse.data?.action;
+                            if (createResponse.ok && createResponse.data?.followUp) {
+                              statusFollowUp = createResponse.data.followUp;
                               // Add to pending follow-ups list
                               setPendingFollowUps(prev => [...prev, statusFollowUp]);
                               // Reload follow-ups to get updated list
                               fetchPendingFollowUps();
                             } else {
                               console.error("Failed to create follow-up action - Response:", createResponse);
-                              const errorMsg = createResponse.error?.message || createResponse.data?.message || "Failed to create follow-up action. Please try again.";
+                              const errorMsg = createResponse.error?.message || "Failed to create follow-up action. Please try again.";
                               showMessage(errorMsg, "error");
                               setDraftLoadingId(null);
                               return;
@@ -1597,7 +1603,7 @@ export function Interviews() {
                             });
                             // Cache the draft but don't open modal - stay in current tab
                             // The draft will be available to view in the cached drafts section
-                            showMessage("Follow-up email draft generated successfully! View it in 'Cached Drafts' below.", "success");
+                            showMessage("Follow-up email draft generated successfully! View it in 'Cached Follow-up Drafts' below.", "success");
                           } else {
                             showMessage("Failed to generate email draft. Please try again.", "error");
                           }
@@ -1685,15 +1691,15 @@ export function Interviews() {
                               notes: "Request feedback on interview performance to improve for future opportunities",
                             });
 
-                            if (createResponse.ok && (createResponse.data?.followUp || createResponse.data?.action)) {
-                              feedbackFollowUp = createResponse.data?.followUp || createResponse.data?.action;
+                            if (createResponse.ok && createResponse.data?.followUp) {
+                              feedbackFollowUp = createResponse.data.followUp;
                               // Add to pending follow-ups list
                               setPendingFollowUps(prev => [...prev, feedbackFollowUp]);
                               // Reload follow-ups to get updated list
                               fetchPendingFollowUps();
                             } else {
                               console.error("Failed to create follow-up action - Response:", createResponse);
-                              const errorMsg = createResponse.error?.message || createResponse.data?.message || "Failed to create follow-up action. Please try again.";
+                              const errorMsg = createResponse.error?.message || "Failed to create follow-up action. Please try again.";
                               showMessage(errorMsg, "error");
                               setDraftLoadingId(null);
                               return;
@@ -1726,7 +1732,7 @@ export function Interviews() {
                             });
                             // Cache the draft but don't open modal - stay in current tab
                             // The draft will be available to view in the cached drafts section
-                            showMessage("Follow-up email draft generated successfully! View it in 'Cached Drafts' below.", "success");
+                            showMessage("Follow-up email draft generated successfully! View it in 'Cached Follow-up Drafts' below.", "success");
                           } else {
                             showMessage("Failed to generate email draft. Please try again.", "error");
                           }
@@ -1784,8 +1790,248 @@ export function Interviews() {
                   </div>
                 </div>
 
-                {/* Cached Follow-up Drafts Section */}
-                {storedFollowUpDrafts.size > 0 && (
+                {/* Cached Follow-up Drafts Section - Show all drafts individually */}
+                {storedFollowUpDrafts.size > 0 && (() => {
+                  // Flatten all drafts into a single list with metadata
+                  const allDrafts: Array<{
+                    followUpId: string;
+                    draftIndex: number;
+                    draft: { subject: string; body: string; generatedBy?: string; createdAt: string };
+                    interview: any;
+                    actionType: string;
+                  }> = [];
+                  
+                  Array.from(storedFollowUpDrafts.entries()).forEach(([followUpId, drafts]) => {
+                    const followUp = pendingFollowUps.find(fu => fu.id === followUpId) || 
+                                   completedFollowUps.find(fu => fu.id === followUpId);
+                    const interview = followUp ? interviews.find(i => i.id === (followUp.interviewId || followUp.interview_id)) : null;
+                    const actionType = followUp?.actionType || followUp?.action_type || "follow-up";
+                    
+                    drafts.forEach((draft, index) => {
+                      allDrafts.push({ followUpId, draftIndex: index, draft, interview, actionType });
+                    });
+                  });
+                  
+                  return allDrafts.length > 0 ? (
+                    <div className="mt-10">
+                      <h3 className="text-xl font-semibold text-slate-900 mb-3">
+                        All Cached Follow-up Drafts ({allDrafts.length})
+                      </h3>
+                      <p className="text-slate-600 text-sm mb-4">
+                        View and edit all your generated follow-up email drafts. Each draft is saved individually.
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {allDrafts.map(({ followUpId, draftIndex, draft, interview, actionType }) => {
+                          const draftKey = `${followUpId}-${draftIndex}`;
+                          const isExpanded = expandedDraftCards.get(draftKey) || false;
+                          const isEditing = editingDrafts.get(draftKey) || false;
+                          const editedContent = editedDraftContent.get(draftKey) || { subject: draft.subject, body: draft.body };
+                          
+                          return (
+                            <div
+                              key={draftKey}
+                              className="bg-white border border-slate-200 rounded-xl p-6 hover:shadow-lg transition-all"
+                            >
+                              <div className="flex items-start justify-between mb-3">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <Icon 
+                                      icon={
+                                        actionType === "status_inquiry" ? "mingcute:question-line" :
+                                        actionType === "other" ? "mingcute:feedback-line" :
+                                        "mingcute:mail-line"
+                                      } 
+                                      width={18} 
+                                      className={
+                                        actionType === "status_inquiry" ? "text-orange-500" :
+                                        actionType === "other" ? "text-purple-500" :
+                                        "text-blue-500"
+                                      }
+                                    />
+                                    <p className="text-xs font-semibold uppercase text-slate-600 tracking-wide">
+                                      {actionType.replace(/_/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                                    </p>
+                                  </div>
+                                  {interview && (
+                                    <p className="text-sm font-medium text-slate-900">
+                                      {interview.title} at {interview.company}
+                                    </p>
+                                  )}
+                                  <p className="text-xs text-slate-500 mt-1">
+                                    {draft.createdAt && new Date(draft.createdAt).toLocaleDateString()}
+                                  </p>
+                                </div>
+                              </div>
+                              
+                              <div className="mb-3">
+                                {!isExpanded && (
+                                  <p className="text-xs font-semibold text-slate-700 mb-1 truncate">
+                                    {draft.subject || "No subject"}
+                                  </p>
+                                )}
+                                {!isExpanded && (
+                                  <p className="text-xs text-slate-600 line-clamp-2">
+                                    {draft.body?.substring(0, 100)}...
+                                  </p>
+                                )}
+                              </div>
+
+                              {/* Expanded/Edit view */}
+                              {isExpanded && (
+                                <div className="mb-4 p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-3">
+                                  <div>
+                                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                                      Subject
+                                    </label>
+                                    {isEditing ? (
+                                      <input
+                                        type="text"
+                                        value={editedContent.subject}
+                                        onChange={(e) => {
+                                          setEditedDraftContent(prev => {
+                                            const updated = new Map(prev);
+                                            updated.set(draftKey, { ...editedContent, subject: e.target.value });
+                                            return updated;
+                                          });
+                                        }}
+                                        className="w-full text-sm font-medium text-slate-900 px-2 py-1 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                      />
+                                    ) : (
+                                      <p className="text-sm font-medium text-slate-900">
+                                        {editedContent.subject || "No subject"}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                                      Email Body
+                                    </label>
+                                    {isEditing ? (
+                                      <textarea
+                                        value={editedContent.body}
+                                        onChange={(e) => {
+                                          setEditedDraftContent(prev => {
+                                            const updated = new Map(prev);
+                                            updated.set(draftKey, { ...editedContent, body: e.target.value });
+                                            return updated;
+                                          });
+                                        }}
+                                        rows={8}
+                                        className="w-full text-sm text-slate-700 whitespace-pre-wrap font-mono bg-white p-3 rounded border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                      />
+                                    ) : (
+                                      <div className="text-sm text-slate-700 whitespace-pre-wrap font-mono bg-white p-3 rounded border border-slate-200 max-h-96 overflow-y-auto">
+                                        {editedContent.body || "No content"}
+                                      </div>
+                                    )}
+                                  </div>
+                                  {isEditing ? (
+                                    <div className="flex gap-2">
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          // Save edited content
+                                          setStoredFollowUpDrafts(prev => {
+                                            const updated = new Map(prev);
+                                            const drafts = updated.get(followUpId) || [];
+                                            const newDrafts = [...drafts];
+                                            newDrafts[draftIndex] = {
+                                              ...newDrafts[draftIndex],
+                                              subject: editedContent.subject,
+                                              body: editedContent.body,
+                                              createdAt: newDrafts[draftIndex].createdAt,
+                                              generatedBy: newDrafts[draftIndex].generatedBy,
+                                            };
+                                            updated.set(followUpId, newDrafts);
+                                            return updated;
+                                          });
+                                          setEditingDrafts(prev => {
+                                            const updated = new Map(prev);
+                                            updated.set(draftKey, false);
+                                            return updated;
+                                          });
+                                          showMessage("Draft saved!", "success");
+                                        }}
+                                        className="flex-1 px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-xs font-medium transition-colors"
+                                      >
+                                        Save Changes
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          // Cancel editing - revert to original
+                                          setEditedDraftContent(prev => {
+                                            const updated = new Map(prev);
+                                            updated.set(draftKey, { subject: draft.subject, body: draft.body });
+                                            return updated;
+                                          });
+                                          setEditingDrafts(prev => {
+                                            const updated = new Map(prev);
+                                            updated.set(draftKey, false);
+                                            return updated;
+                                          });
+                                        }}
+                                        className="px-3 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 text-xs font-medium transition-colors"
+                                      >
+                                        Cancel
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div className="flex gap-2">
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          navigator.clipboard.writeText(editedContent.body || "");
+                                          showMessage("Draft copied to clipboard!", "success");
+                                        }}
+                                        className="flex-1 px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-xs font-medium transition-colors"
+                                      >
+                                        Copy to Clipboard
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setEditingDrafts(prev => {
+                                            const updated = new Map(prev);
+                                            updated.set(draftKey, true);
+                                            return updated;
+                                          });
+                                        }}
+                                        className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-xs font-medium transition-colors"
+                                      >
+                                        Edit
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const newExpanded = !isExpanded;
+                                    setExpandedDraftCards(prev => {
+                                      const updated = new Map(prev);
+                                      updated.set(draftKey, newExpanded);
+                                      return updated;
+                                    });
+                                  }}
+                                  className="flex-1 px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-xs font-medium transition-colors"
+                                >
+                                  {isExpanded ? "Hide Draft" : "View Draft"}
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null;
+                })()}
+                
+                {/* Old grouped view - keeping for reference but replacing with above */}
+                {false && storedFollowUpDrafts.size > 0 && (
                   <div className="mt-10">
                     <h3 className="text-xl font-semibold text-slate-900 mb-3">
                       Cached Follow-up Drafts
@@ -1802,6 +2048,7 @@ export function Interviews() {
                         const interview = followUp ? interviews.find(i => i.id === (followUp.interviewId || followUp.interview_id)) : null;
                         const actionType = followUp?.actionType || followUp?.action_type || "follow-up";
                         
+                        const isExpanded = expandedDraftCards.get(followUpId) || false;
                         return (
                           <div
                             key={followUpId}
@@ -1824,12 +2071,12 @@ export function Interviews() {
                                     }
                                   />
                                   <p className="text-xs font-semibold uppercase text-slate-600 tracking-wide">
-                                    {actionType.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}
+                                    {actionType.replace(/_/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase())}
                                   </p>
                                 </div>
                                 {interview && (
                                   <p className="text-sm font-medium text-slate-900">
-                                    {interview.title || interview.position} at {interview.company}
+                                    {interview.title} at {interview.company}
                                   </p>
                                 )}
                                 <p className="text-xs text-slate-500 mt-1">
@@ -1847,29 +2094,64 @@ export function Interviews() {
                               <p className="text-xs font-semibold text-slate-700 mb-1 truncate">
                                 {latestDraft.subject || "No subject"}
                               </p>
-                              <p className="text-xs text-slate-600 line-clamp-2">
-                                {latestDraft.body?.substring(0, 100)}...
-                              </p>
+                              {!isExpanded && (
+                                <p className="text-xs text-slate-600 line-clamp-2">
+                                  {latestDraft.body?.substring(0, 100)}...
+                                </p>
+                              )}
                             </div>
+
+                            {/* Expanded view */}
+                            {isExpanded && (
+                              <div className="mb-4 p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-3">
+                                <div>
+                                  <label className="block text-xs font-medium text-slate-600 mb-1">
+                                    Subject
+                                  </label>
+                                  <p className="text-sm font-medium text-slate-900">
+                                    {latestDraft.subject || "No subject"}
+                                  </p>
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-medium text-slate-600 mb-1">
+                                    Email Body
+                                  </label>
+                                  <div className="text-sm text-slate-700 whitespace-pre-wrap font-mono bg-white p-3 rounded border border-slate-200 max-h-96 overflow-y-auto">
+                                    {latestDraft.body || "No content"}
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigator.clipboard.writeText(latestDraft.body || "");
+                                    showMessage("Draft copied to clipboard!", "success");
+                                  }}
+                                  className="w-full px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-xs font-medium transition-colors"
+                                >
+                                  Copy to Clipboard
+                                </button>
+                              </div>
+                            )}
 
                             <div className="flex gap-2">
                               <button
-                                onClick={() => {
-                                  setActiveFollowUpDraft({
-                                    id: followUpId,
-                                    interviewId: interview?.id || "",
-                                    subject: latestDraft.subject,
-                                    body: latestDraft.body,
-                                    generatedBy: latestDraft.generatedBy,
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const newExpanded = !isExpanded;
+                                  setExpandedDraftCards(prev => {
+                                    const updated = new Map(prev);
+                                    updated.set(followUpId, newExpanded);
+                                    return updated;
                                   });
                                 }}
                                 className="flex-1 px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-xs font-medium transition-colors"
                               >
-                                View Draft
+                                {isExpanded ? "Hide Draft" : "View Draft"}
                               </button>
                               {drafts.length > 1 && (
                                 <button
-                                  onClick={() => {
+                                  onClick={(e) => {
+                                    e.stopPropagation();
                                     const showAll = showAllFollowUpDrafts.get(followUpId) || false;
                                     setShowAllFollowUpDrafts(prev => {
                                       const updated = new Map(prev);
@@ -1889,7 +2171,8 @@ export function Interviews() {
                                 {drafts.slice(1).map((draft, idx) => (
                                   <button
                                     key={idx}
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                      e.stopPropagation();
                                       setActiveFollowUpDraft({
                                         id: followUpId,
                                         interviewId: interview?.id || "",

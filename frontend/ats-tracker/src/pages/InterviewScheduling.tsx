@@ -21,6 +21,7 @@ import {
   INTERVIEW_OUTCOME_LABELS,
   INTERVIEW_OUTCOME_COLORS,
 } from "../types/interview.types";
+import { BackButton } from "../components/common/BackButton";
 
 export function InterviewScheduling() {
   const navigate = useNavigate();
@@ -175,9 +176,12 @@ export function InterviewScheduling() {
     <div className="min-h-screen bg-white font-poppins">
       <main className="max-w-[1400px] mx-auto px-6 lg:px-10 py-10">
         <div className="flex flex-wrap items-center justify-between gap-4 mb-10">
-          <h1 className="text-4xl md:text-5xl font-bold text-slate-900">
-            Interview Scheduling
-          </h1>
+          <div className="flex items-center gap-4">
+            <BackButton />
+            <h1 className="text-4xl md:text-5xl font-bold text-slate-900">
+              Interview Scheduling
+            </h1>
+          </div>
         </div>
 
         {/* Success/Error Messages */}
@@ -591,6 +595,18 @@ END:VCALENDAR`;
                         minute: "2-digit",
                       })}
                     </div>
+                    {interview.jobOpportunityId && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          window.location.href = `/job-opportunities?jobId=${interview.jobOpportunityId}`;
+                        }}
+                        className="mt-1 text-xs text-blue-600 hover:text-blue-700 underline"
+                      >
+                        View linked job application
+                      </button>
+                    )}
                   </div>
                   <span
                     className="px-2 py-1 rounded text-xs font-medium text-white"
@@ -1418,6 +1434,17 @@ function InterviewDetailModal({
               <p className="text-lg font-medium text-slate-700 mb-4">
                 {interview.company}
               </p>
+              {interview.jobOpportunityId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.location.href = `/job-opportunities?jobId=${interview.jobOpportunityId}`;
+                  }}
+                  className="text-sm text-blue-600 hover:text-blue-700 underline mb-2"
+                >
+                  View linked job application
+                </button>
+              )}
               <div className="flex items-center gap-3">
                 <span
                   className="px-3 py-1 rounded-full text-sm font-medium text-white"
@@ -1551,11 +1578,30 @@ function InterviewDetailModal({
             )}
 
             {/* Preparation Tasks */}
-            {interview.preparationTasks && interview.preparationTasks.length > 0 && (
-              <div>
-                <div className="text-sm font-medium text-slate-700 mb-3">
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-sm font-medium text-slate-700">
                   Preparation Tasks
                 </div>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await api.generatePreparationTasks(interview.id);
+                      await onRefresh();
+                    } catch (err) {
+                      console.error("Failed to generate preparation tasks:", err);
+                    }
+                  }}
+                  className="text-xs font-medium text-blue-600 hover:text-blue-700"
+                >
+                  {interview.preparationTasks && interview.preparationTasks.length > 0
+                    ? "Regenerate checklist"
+                    : "Generate checklist"}
+                </button>
+              </div>
+
+              {interview.preparationTasks && interview.preparationTasks.length > 0 ? (
                 <div className="space-y-2">
                   {interview.preparationTasks.map((task: any) => (
                     <div
@@ -1578,8 +1624,14 @@ function InterviewDetailModal({
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+              ) : (
+                <p className="text-sm text-slate-500">
+                  No preparation checklist yet. Click{" "}
+                  <span className="font-medium text-blue-600">Generate checklist</span> to
+                  create a tailored list of tasks for this role and company.
+                </p>
+              )}
+            </div>
 
             {/* Outcome */}
             {interview.status === "completed" && (

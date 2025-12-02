@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo, useRef, FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import { Icon } from "@iconify/react";
 import { api } from "../services/api";
+import { ROUTES } from "../config/routes";
 import type { JobOpportunityData, JobOpportunityInput, JobStatus } from "../types";
 import { INDUSTRIES, JOB_TYPES, JOB_STATUSES, STATUS_COLORS, STATUS_BG_COLORS } from "../types";
 import { isValidUrl, getUrlErrorMessage } from "../utils/urlValidation";
@@ -24,6 +26,7 @@ import { JobStatisticsSection } from "../components/JobStatisticsSection";
 import { JobImportModal } from "../components/JobImportModal";
 
 export function JobOpportunities() {
+  const navigate = useNavigate();
   const statisticsRef = useRef<HTMLDivElement>(null);
   const [opportunities, setOpportunities] = useState<JobOpportunityData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -393,6 +396,10 @@ export function JobOpportunities() {
   const openDeleteModal = (opportunity: JobOpportunityData) => {
     setSelectedOpportunity(opportunity);
     setShowDeleteModal(true);
+  };
+
+  const handleScheduleInterview = (opportunity: JobOpportunityData) => {
+    navigate(`${ROUTES.INTERVIEW_SCHEDULING}?jobOpportunityId=${opportunity.id}`);
   };
 
   const openDetailModal = (opportunity: JobOpportunityData) => {
@@ -964,6 +971,7 @@ export function JobOpportunities() {
                   onView={openDetailModal}
                   onArchive={openArchiveModal}
                   onUnarchive={handleUnarchive}
+                  onScheduleInterview={handleScheduleInterview}
                   isSelected={selectedIds.has(opportunity.id)}
                   onToggleSelect={() => toggleSelection(opportunity.id)}
                   showCheckbox={true}
@@ -1087,6 +1095,7 @@ function OpportunityCard({
   onView,
   onArchive,
   onUnarchive,
+  onScheduleInterview,
   isSelected = false,
   onToggleSelect,
   showCheckbox = false,
@@ -1100,6 +1109,7 @@ function OpportunityCard({
   onView?: (opportunity: JobOpportunityData) => void;
   onArchive?: (opportunity: JobOpportunityData) => void;
   onUnarchive?: (opportunityId: string) => void;
+  onScheduleInterview?: (opportunity: JobOpportunityData) => void;
   isSelected?: boolean;
   onToggleSelect?: () => void;
   showCheckbox?: boolean;
@@ -1180,6 +1190,15 @@ function OpportunityCard({
               title="Restore"
             >
               <Icon icon="mingcute:refresh-line" width={18} />
+            </button>
+          )}
+          {!showArchived && onScheduleInterview && (
+            <button
+              onClick={() => onScheduleInterview(opportunity)}
+              className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+              title="Schedule Interview"
+            >
+              <Icon icon="mingcute:calendar-line" width={18} />
             </button>
           )}
           {!showArchived && (
@@ -1301,11 +1320,24 @@ function OpportunityCard({
           href={opportunity.jobPostingUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm font-medium"
+          className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm font-medium mb-3"
         >
           <Icon icon="mingcute:external-link-line" width={16} />
           View Job Posting
         </a>
+      )}
+
+      {/* Schedule Interview Button */}
+      {!showArchived && onScheduleInterview && (
+        <div className="mt-3 pt-3 border-t border-slate-200">
+          <button
+            onClick={() => onScheduleInterview(opportunity)}
+            className="w-full px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center justify-center gap-2 text-sm font-medium"
+          >
+            <Icon icon="mingcute:calendar-line" width={16} />
+            Schedule Interview
+          </button>
+        </div>
       )}
     </div>
   );

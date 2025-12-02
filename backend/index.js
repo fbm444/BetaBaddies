@@ -2,6 +2,7 @@ import app from "./server.js";
 import dotenv from "dotenv";
 import database from "./services/database.js";
 import { setupUploadDirectories, createGitkeepFiles } from "./utils/setupDirectories.js";
+import scheduler from "./services/scheduler.js";
 
 async function main() {
   dotenv.config();
@@ -16,6 +17,14 @@ async function main() {
     await database.query("SELECT NOW()");
     console.log("✅ Success: Connected to PostgreSQL database");
 
+    // Start scheduler service for reminders
+    try {
+      scheduler.start();
+    } catch (error) {
+      console.error("⚠️ Warning: Failed to start scheduler:", error.message);
+      console.log("   Reminder emails will not be sent automatically");
+    }
+
     // Start server
     app.listen(port, () => {
       console.log(`🚀 Server is running on port ${port}`);
@@ -29,12 +38,14 @@ async function main() {
     // Graceful shutdown
     process.on("SIGINT", async () => {
       console.log("Received SIGINT. Graceful shutdown...");
+      scheduler.stop();
       await database.close();
       process.exit(0);
     });
 
     process.on("SIGTERM", async () => {
       console.log("Received SIGTERM. Graceful shutdown...");
+      scheduler.stop();
       await database.close();
       process.exit(0);
     });

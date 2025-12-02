@@ -22,8 +22,12 @@ import { CoverLetters } from './pages/CoverLetters'
 import { CoverLetterTemplates } from './pages/CoverLetterTemplates'
 import { CoverLetterBuilder } from './pages/CoverLetterBuilder'
 import { CompanyResearch } from './pages/CompanyResearch'
+import { Interviews } from './pages/Interviews'
 import { InterviewScheduling } from './pages/InterviewScheduling'
 import { InterviewPreparation } from './pages/InterviewPreparation'
+import { InterviewAnalytics } from './pages/InterviewAnalytics'
+import { SalaryNegotiation } from './pages/SalaryNegotiation'
+import { WritingPractice } from './pages/WritingPractice'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { ROUTES } from './config/routes'
@@ -124,9 +128,13 @@ function App() {
 		  <Route path={ROUTES.JOB_OPPORTUNITIES} element={<JobOpportunities />} />
 		  <Route path={ROUTES.JOB_STATISTICS} element={<JobStatistics />} />
 		  <Route path={ROUTES.COMPANY_RESEARCH} element={<CompanyResearch />} />
+		  <Route path={ROUTES.INTERVIEWS} element={<Interviews />} />
 		  <Route path={ROUTES.INTERVIEW_SCHEDULING} element={<InterviewScheduling />} />
 		  <Route path={ROUTES.INTERVIEW_PREPARATION} element={<InterviewPreparation />} />
 		  <Route path={ROUTES.INTERVIEW_PREPARATION_WITH_ID} element={<InterviewPreparation />} />
+		  <Route path={ROUTES.INTERVIEW_ANALYTICS} element={<InterviewAnalytics />} />
+		  <Route path={ROUTES.SALARY_NEGOTIATION} element={<SalaryNegotiation />} />
+		  <Route path={ROUTES.WRITING_PRACTICE} element={<WritingPractice />} />
 		  <Route path={ROUTES.SKILLS} element={<Skills />} />
 		  <Route path={ROUTES.EDUCATION} element={<Education />} />
 		  <Route path={ROUTES.PROJECTS} element={<Projects />} />

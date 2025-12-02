@@ -26,6 +26,9 @@ import googleCalendarRoutes from "./routes/googleCalendarRoutes.js";
 import teamRoutes from "./routes/teamRoutes.js";
 import collaborationRoutes from "./routes/collaborationRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
+import followUpRoutes from "./routes/followUpRoutes.js";
+import salaryNegotiationRoutes from "./routes/salaryNegotiationRoutes.js";
+import writingPracticeRoutes from "./routes/writingPracticeRoutes.js";
 
 // Import middleware
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
@@ -136,6 +139,9 @@ app.use("/api/v1/calendar", googleCalendarRoutes);
 app.use("/api/v1/teams", teamRoutes);
 app.use("/api/v1/collaboration", collaborationRoutes);
 app.use("/api/v1/chat", chatRoutes);
+app.use("/api/v1", followUpRoutes); // For /api/v1/follow-ups/pending
+app.use("/api/v1/salary-negotiations", salaryNegotiationRoutes);
+app.use("/api/v1/writing-practice", writingPracticeRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

@@ -25,6 +25,10 @@ export function Navbar() {
 
   // Check if any item in a group is active
   const isGroupActive = (group: typeof navigationGroups[0]) => {
+    // Special case: interview-analytics should be considered part of the Career group (interviews)
+    if (group.id === "career" && location.pathname === ROUTES.INTERVIEW_ANALYTICS) {
+      return true
+    }
     return group.items.some(item => location.pathname === item.path)
   }
 
@@ -251,7 +255,9 @@ export function Navbar() {
                           }}
                         >
                           {group.items.map((item) => {
-                            const itemIsActive = location.pathname === item.path
+                            // Special case: interview-analytics should highlight the Interviews item
+                            const itemIsActive = location.pathname === item.path || 
+                              (item.id === "interviews" && location.pathname === ROUTES.INTERVIEW_ANALYTICS)
                             return (
                               <button
                                 key={item.id}
@@ -508,7 +514,9 @@ export function Navbar() {
                     {isGroupExpanded && group.items.length > 1 && (
                       <div className="ml-4 mt-1 flex flex-col gap-1 border-l-2 border-slate-200 pl-4">
                         {group.items.map((item) => {
-                          const itemIsActive = location.pathname === item.path
+                          // Special case: interview-analytics should highlight the Interviews item
+                          const itemIsActive = location.pathname === item.path || 
+                            (item.id === "interviews" && location.pathname === ROUTES.INTERVIEW_ANALYTICS)
                 return (
                   <button
                     key={item.id}

@@ -1,4 +1,5 @@
 import { useState, useEffect, FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import { Icon } from "@iconify/react";
 import type {
   JobOpportunityData,
@@ -22,6 +23,7 @@ import { JobSkillGapPanel } from "./skill-gaps/SkillGapPanel";
 import { JobMaterialsSection } from "./JobMaterialsSection";
 import { JobMatchScore } from "./JobMatchScore";
 import { api } from "../services/api";
+import { ROUTES } from "../config/routes";
 
 interface JobOpportunityDetailModalProps {
   opportunity: JobOpportunityData;
@@ -42,6 +44,7 @@ export function JobOpportunityDetailModal({
   onUnarchive,
   readOnly = false,
 }: JobOpportunityDetailModalProps) {
+  const navigate = useNavigate();
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showCompanyInfo, setShowCompanyInfo] = useState(false);
@@ -52,6 +55,11 @@ export function JobOpportunityDetailModal({
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [isSharing, setIsSharing] = useState(false);
   const [sharedTeams, setSharedTeams] = useState<string[]>([]);
+
+  const handleScheduleInterview = () => {
+    navigate(`${ROUTES.INTERVIEW_SCHEDULING}?jobOpportunityId=${opportunity.id}`);
+    onClose(); // Close the modal when navigating
+  };
   const [formData, setFormData] = useState<JobOpportunityInput>({
     title: opportunity.title,
     company: opportunity.company,
@@ -532,6 +540,15 @@ export function JobOpportunityDetailModal({
           <div className="flex gap-2 flex-wrap justify-end">
             {!isEditMode && (
               <>
+                {!opportunity.archived && (
+                  <button
+                    onClick={handleScheduleInterview}
+                    className="px-2.5 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors flex items-center gap-1 text-xs font-medium"
+                  >
+                    <Icon icon="mingcute:calendar-line" width={14} />
+                    Schedule Interview
+                  </button>
+                )}
                 {opportunity.jobPostingUrl && (
                   <button
                     onClick={() => setShowCompanyInfo(true)}

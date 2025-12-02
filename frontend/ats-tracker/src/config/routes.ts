@@ -11,9 +11,11 @@ export const ROUTES = {
   JOB_OPPORTUNITIES: "/job-opportunities",
   JOB_STATISTICS: "/job-opportunities/statistics",
   COMPANY_RESEARCH: "/company-research",
+  INTERVIEWS: "/interviews",
   INTERVIEW_SCHEDULING: "/interview-scheduling",
   INTERVIEW_PREPARATION: "/interview-preparation",
   INTERVIEW_PREPARATION_WITH_ID: "/interview-preparation/:interviewId",
+  INTERVIEW_ANALYTICS: "/interview-analytics",
   SKILLS: "/skills",
   EDUCATION: "/education",
   PROJECTS: "/projects",
@@ -37,6 +39,8 @@ export const ROUTES = {
   PROGRESS_SHARING: "/collaboration/progress",
   SUPPORT_GROUPS: "/collaboration/groups",
   TEAM_INVITE_ACCEPT: "/collaboration/teams/accept-invite",
+  SALARY_NEGOTIATION: "/salary-negotiation",
+  WRITING_PRACTICE: "/writing-practice",
 } as const;
 
 // Navigation item type
@@ -107,10 +111,22 @@ export const navigationGroups: NavigationGroup[] = [
     icon: "mingcute:calendar-line",
     items: [
       {
-        id: "interview-scheduling",
-        label: "Interview Scheduling",
+        id: "interviews",
+        label: "Interviews",
         icon: "mingcute:calendar-line",
-        path: ROUTES.INTERVIEW_SCHEDULING,
+        path: ROUTES.INTERVIEWS,
+      },
+      {
+        id: "salary-negotiation",
+        label: "Salary Negotiation",
+        icon: "mdi:currency-usd",
+        path: ROUTES.SALARY_NEGOTIATION,
+      },
+      {
+        id: "writing-practice",
+        label: "Writing Practice",
+        icon: "mingcute:edit-line",
+        path: ROUTES.WRITING_PRACTICE,
       },
       {
         id: "interview-preparation",

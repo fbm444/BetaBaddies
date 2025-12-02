@@ -3343,7 +3343,20 @@ class ApiService {
   async compareInterviewPredictions(jobOpportunityIds: string[]) {
     const opportunities = jobOpportunityIds.join(",");
     return this.request<
-      ApiResponse<{ predictions: PredictionComparison[] }>
+      ApiResponse<{ 
+        predictions: PredictionComparison[];
+        insights?: {
+          insights: Array<{
+            type: string;
+            title: string;
+            prompt: string;
+            priority: "high" | "medium" | "low";
+          }>;
+          summary: string;
+          generatedAt?: string;
+          generatedBy?: string;
+        } | null;
+      }>
     >(`/interview-predictions/compare?opportunities=${opportunities}`);
   }
 

@@ -121,14 +121,15 @@ class SalaryNegotiationAIService {
         try {
           const talkingPoints = await this.generateTalkingPointsWithAI(context);
           if (talkingPoints && talkingPoints.length > 0) {
-            // Save to negotiation
+            // Save to negotiation immediately - CACHE IT!
             await salaryNegotiationService.updateNegotiation(
               negotiationId,
               userId,
               {
-                talkingPoints: JSON.stringify(talkingPoints),
+                talkingPoints: talkingPoints, // Service will handle JSON.stringify
               }
             );
+            console.log(`✅ Cached ${talkingPoints.length} talking points for negotiation ${negotiationId}`);
             return talkingPoints;
           }
         } catch (error) {
@@ -139,8 +140,17 @@ class SalaryNegotiationAIService {
         }
       }
 
-      // Fallback
-      return this.generateTalkingPointsFallback(context);
+      // Fallback - also cache fallback
+      const fallbackPoints = this.generateTalkingPointsFallback(context);
+      await salaryNegotiationService.updateNegotiation(
+        negotiationId,
+        userId,
+        {
+          talkingPoints: fallbackPoints, // Cache fallback too
+        }
+      );
+      console.log(`✅ Cached fallback talking points for negotiation ${negotiationId}`);
+      return fallbackPoints;
     } catch (error) {
       console.error("❌ Error generating talking points:", error);
       throw error;
@@ -272,7 +282,7 @@ Return as JSON array:
         try {
           const script = await this.generateScriptWithAI(context, scenario);
           if (script) {
-            // Save to negotiation
+            // Save to negotiation immediately - CACHE IT!
             const negotiation = await salaryNegotiationService.getNegotiationById(
               negotiationId,
               userId
@@ -281,9 +291,10 @@ Return as JSON array:
             existingScripts[scenario] = script;
 
             await salaryNegotiationService.updateNegotiation(negotiationId, userId, {
-              scripts: JSON.stringify(existingScripts),
+              scripts: existingScripts, // Service will handle JSON.stringify
             });
 
+            console.log(`✅ Cached script for scenario ${scenario} in negotiation ${negotiationId}`);
             return script;
           }
         } catch (error) {
@@ -294,7 +305,20 @@ Return as JSON array:
         }
       }
 
-      return this.generateScriptFallback(context, scenario);
+      // Fallback - also cache fallback
+      const fallbackScript = this.generateScriptFallback(context, scenario);
+      const negotiation = await salaryNegotiationService.getNegotiationById(
+        negotiationId,
+        userId
+      );
+      const existingScripts = negotiation?.scripts || {};
+      existingScripts[scenario] = fallbackScript;
+
+      await salaryNegotiationService.updateNegotiation(negotiationId, userId, {
+        scripts: existingScripts, // Cache fallback too
+      });
+      console.log(`✅ Cached fallback script for scenario ${scenario} in negotiation ${negotiationId}`);
+      return fallbackScript;
     } catch (error) {
       console.error("❌ Error generating negotiation script:", error);
       throw error;
@@ -558,14 +582,15 @@ Thank you for your consideration, and I look forward to continuing the conversat
         "Be respectful of their timeline while advocating for yourself",
       ];
 
-      // Cache the timing strategy in negotiation
+      // Cache the timing strategy in negotiation immediately - CACHE IT!
       const existingStrategy = negotiation.negotiationStrategy || {};
       existingStrategy.timingStrategy = strategy;
 
       await salaryNegotiationService.updateNegotiation(negotiationId, userId, {
-        negotiationStrategy: JSON.stringify(existingStrategy),
+        negotiationStrategy: existingStrategy, // Service will handle JSON.stringify
       });
 
+      console.log(`✅ Cached timing strategy for negotiation ${negotiationId}`);
       return strategy;
     } catch (error) {
       console.error("❌ Error generating timing strategy:", error);

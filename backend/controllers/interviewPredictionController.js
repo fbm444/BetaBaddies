@@ -96,14 +96,21 @@ class InterviewPredictionController {
       });
     }
 
-    const predictions = await interviewPredictionService.comparePredictions(
+    const result = await interviewPredictionService.comparePredictions(
       userId,
       opportunityIds
     );
 
+    // Handle both old format (array) and new format (object with predictions and insights)
+    const predictions = Array.isArray(result) ? result : (result.predictions || result);
+    const insights = Array.isArray(result) ? null : (result.insights || null);
+
     res.status(200).json({
       ok: true,
-      data: { predictions },
+      data: { 
+        predictions,
+        insights: insights || null,
+      },
     });
   });
 

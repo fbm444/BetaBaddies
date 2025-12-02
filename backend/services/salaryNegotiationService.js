@@ -1,6 +1,19 @@
 import { v4 as uuidv4 } from "uuid";
 import database from "./database.js";
 
+/**
+ * SalaryNegotiationService
+ * 
+ * CACHING: All AI-generated content is cached in the database:
+ * - talking_points: JSON array of generated talking points
+ * - scripts: JSON object with scenario-based negotiation scripts
+ * - market_salary_data: JSON object with market research data
+ * - negotiation_strategy: JSON object containing timing strategy and other strategies
+ * - market_research_notes: Text notes from market research
+ * 
+ * All cached content is automatically loaded when fetching a negotiation via getNegotiationById.
+ * AI services check for cached content before generating new content.
+ */
 class SalaryNegotiationService {
   constructor() {
     this.validStatuses = ["draft", "active", "completed", "archived"];
@@ -223,6 +236,9 @@ class SalaryNegotiationService {
         "target_benefits_value",
         "target_total_compensation",
         "negotiation_strategy",
+        "talking_points",
+        "scripts",
+        "market_salary_data",
         "market_research_notes",
         "status",
       ];
@@ -269,6 +285,33 @@ class SalaryNegotiationService {
           typeof updates.negotiationStrategy === "string"
             ? updates.negotiationStrategy
             : JSON.stringify(updates.negotiationStrategy)
+        );
+      }
+
+      if (updates.talkingPoints !== undefined) {
+        updateFields.push(`talking_points = $${paramIndex++}`);
+        updateValues.push(
+          typeof updates.talkingPoints === "string"
+            ? updates.talkingPoints
+            : JSON.stringify(updates.talkingPoints)
+        );
+      }
+
+      if (updates.scripts !== undefined) {
+        updateFields.push(`scripts = $${paramIndex++}`);
+        updateValues.push(
+          typeof updates.scripts === "string"
+            ? updates.scripts
+            : JSON.stringify(updates.scripts)
+        );
+      }
+
+      if (updates.marketSalaryData !== undefined) {
+        updateFields.push(`market_salary_data = $${paramIndex++}`);
+        updateValues.push(
+          typeof updates.marketSalaryData === "string"
+            ? updates.marketSalaryData
+            : JSON.stringify(updates.marketSalaryData)
         );
       }
 

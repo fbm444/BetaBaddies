@@ -23,6 +23,7 @@ export function InterviewPredictionTab({
   const [isCalculating, setIsCalculating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [comparisonPredictions, setComparisonPredictions] = useState<any[]>([]);
+  const [comparisonInsights, setComparisonInsights] = useState<any>(null);
   const [showComparison, setShowComparison] = useState(false);
 
   // Get active job opportunities (with interviews or in interview stage)
@@ -48,13 +49,42 @@ export function InterviewPredictionTab({
     try {
       const response = await api.getInterviewPrediction(jobId);
       if (response.ok && response.data?.prediction) {
-        setPrediction(response.data.prediction);
+        const prediction = response.data.prediction;
+        console.log("✅ Loaded prediction:", {
+          probability: prediction.predictedSuccessProbability,
+          confidence: prediction.confidenceScore,
+          hasFactorsBreakdown: !!prediction.factorsBreakdown,
+          factorsCount: prediction.factorsBreakdown ? Object.keys(prediction.factorsBreakdown).length : 0,
+          hasRecommendations: !!prediction.recommendations,
+          recommendationsCount: prediction.recommendations ? prediction.recommendations.length : 0,
+        });
+        
+        // Ensure factorsBreakdown exists and has proper structure
+        if (!prediction.factorsBreakdown || typeof prediction.factorsBreakdown !== 'object') {
+          console.warn("⚠️ Missing or invalid factorsBreakdown, initializing default");
+          prediction.factorsBreakdown = {
+            preparation: { score: prediction.preparationScore || 0, weight: 0.30 },
+            roleMatch: { score: prediction.roleMatchScore || 0, weight: 0.25 },
+            companyResearch: { score: prediction.companyResearchScore || 0, weight: 0.20 },
+            practiceHours: { score: prediction.practiceHoursScore || 0, weight: 0.15 },
+            historical: { score: prediction.historicalPerformanceScore || 0, weight: 0.10 },
+          };
+        }
+        
+        // Ensure recommendations is an array
+        if (!Array.isArray(prediction.recommendations)) {
+          console.warn("⚠️ Recommendations is not an array, initializing empty array");
+          prediction.recommendations = [];
+        }
+        
+        setPrediction(prediction);
       } else {
         // Prediction doesn't exist yet, user needs to calculate
+        console.log("No prediction found for job:", jobId);
         setPrediction(null);
       }
     } catch (err: any) {
-      console.error("Failed to load prediction:", err);
+      console.error("❌ Failed to load prediction:", err);
       // 404 means prediction doesn't exist yet, which is fine
       if (err.status === 404 || err.message?.includes("not found")) {
         setPrediction(null);
@@ -73,15 +103,45 @@ export function InterviewPredictionTab({
     setIsCalculating(true);
     setError(null);
     try {
+      console.log("🔄 Calculating prediction for job:", jobId);
       const response = await api.calculateInterviewPrediction(jobId);
       if (response.ok && response.data?.prediction) {
-        setPrediction(response.data.prediction);
+        const prediction = response.data.prediction;
+        console.log("✅ Prediction calculated:", {
+          probability: prediction.predictedSuccessProbability,
+          confidence: prediction.confidenceScore,
+          hasFactorsBreakdown: !!prediction.factorsBreakdown,
+          factorsCount: prediction.factorsBreakdown ? Object.keys(prediction.factorsBreakdown).length : 0,
+          hasRecommendations: !!prediction.recommendations,
+          recommendationsCount: prediction.recommendations ? prediction.recommendations.length : 0,
+        });
+        
+        // Ensure factorsBreakdown exists and has proper structure
+        if (!prediction.factorsBreakdown || typeof prediction.factorsBreakdown !== 'object') {
+          console.warn("⚠️ Missing or invalid factorsBreakdown, initializing default");
+          prediction.factorsBreakdown = {
+            preparation: { score: prediction.preparationScore || 0, weight: 0.30 },
+            roleMatch: { score: prediction.roleMatchScore || 0, weight: 0.25 },
+            companyResearch: { score: prediction.companyResearchScore || 0, weight: 0.20 },
+            practiceHours: { score: prediction.practiceHoursScore || 0, weight: 0.15 },
+            historical: { score: prediction.historicalPerformanceScore || 0, weight: 0.10 },
+          };
+        }
+        
+        // Ensure recommendations is an array
+        if (!Array.isArray(prediction.recommendations)) {
+          console.warn("⚠️ Recommendations is not an array, initializing empty array");
+          prediction.recommendations = [];
+        }
+        
+        setPrediction(prediction);
       } else {
         const errorMsg = response.error?.message || response.error?.detail || "Failed to calculate prediction";
         setError(errorMsg);
+        console.error("❌ Calculation failed:", response.error);
       }
     } catch (err: any) {
-      console.error("Failed to calculate prediction:", err);
+      console.error("❌ Failed to calculate prediction:", err);
       const errorMsg = err.message || err.detail || err.error?.message || "Failed to calculate prediction";
       setError(errorMsg);
     } finally {
@@ -145,13 +205,17 @@ export function InterviewPredictionTab({
       // Step 3: Now compare all predictions
       setError(null);
       const response = await api.compareInterviewPredictions(jobIds);
-      if (response.ok && response.data?.predictions) {
-        const predictions = response.data.predictions;
-        if (predictions.length === 0) {
+      if (response.ok && response.data) {
+        // Handle both old format (just predictions array) and new format (object with predictions and insights)
+        const predictions = response.data.predictions || response.data;
+        const insights = response.data.insights || null;
+        
+        if (!Array.isArray(predictions) || predictions.length === 0) {
           setError(`No predictions found after calculation. Please try again.`);
           setShowComparison(false);
         } else {
-          setComparisonPredictions(predictions);
+          setComparisonPredictions(Array.isArray(predictions) ? predictions : []);
+          setComparisonInsights(insights);
           setShowComparison(true);
           // Clear any error messages if we successfully got all predictions
           if (predictions.length === jobOpportunities.length) {
@@ -208,7 +272,8 @@ export function InterviewPredictionTab({
     }
   };
 
-  const selectedJob = activeJobs.find((job) => job.id === selectedJobId);
+  // Find selected job from ALL job opportunities, not just active ones
+  const selectedJob = jobOpportunities.find((job) => job.id === selectedJobId);
 
   return (
     <div className="space-y-6">
@@ -304,61 +369,123 @@ export function InterviewPredictionTab({
 
       {/* Comparison View */}
       {showComparison && comparisonPredictions.length > 0 && (
-        <div className="bg-white rounded-lg border border-slate-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-xl font-bold text-slate-900">Prediction Comparison</h3>
-              <p className="text-sm text-slate-600 mt-1">
-                Comparing {comparisonPredictions.length} of {jobOpportunities.length} job{jobOpportunities.length !== 1 ? 's' : ''}
-                {comparisonPredictions.length < jobOpportunities.length && (
-                  <span className="text-amber-600 ml-1">
-                    ({jobOpportunities.length - comparisonPredictions.length} without predictions)
-                  </span>
-                )}
-              </p>
+        <div className="space-y-6">
+          <div className="bg-white rounded-lg border border-slate-200 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">Prediction Comparison</h3>
+                <p className="text-sm text-slate-600 mt-1">
+                  Comparing {comparisonPredictions.length} of {jobOpportunities.length} job{jobOpportunities.length !== 1 ? 's' : ''}
+                  {comparisonPredictions.length < jobOpportunities.length && (
+                    <span className="text-amber-600 ml-1">
+                      ({jobOpportunities.length - comparisonPredictions.length} without predictions)
+                    </span>
+                  )}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowComparison(false);
+                  setComparisonPredictions([]);
+                  setComparisonInsights(null);
+                  setError(null);
+                }}
+                className="text-slate-600 hover:text-slate-900"
+              >
+                <Icon icon="mingcute:close-line" width={20} />
+              </button>
             </div>
-            <button
-              onClick={() => {
-                setShowComparison(false);
-                setComparisonPredictions([]);
-                setError(null);
-              }}
-              className="text-slate-600 hover:text-slate-900"
-            >
-              <Icon icon="mingcute:close-line" width={20} />
-            </button>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {comparisonPredictions.map((comp) => {
-              const prediction = comp.prediction || comp;
-              const probability = prediction.predictedSuccessProbability ?? prediction.predictedSuccessProbability ?? 0;
-              const confidence = prediction.confidenceScore ?? prediction.confidenceScore ?? 0;
-              
-              return (
-                <div
-                  key={comp.jobOpportunityId || comp.id}
-                  className="border border-slate-200 rounded-lg p-4 hover:shadow-md transition"
-                >
-                  <h4 className="font-semibold text-slate-900 mb-1">
-                    {comp.jobTitle || "Unknown Position"}
-                  </h4>
-                  <p className="text-sm text-slate-600 mb-3">
-                    {comp.company || "Unknown Company"}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <div
-                      className={`text-3xl font-bold ${getProbabilityColor(probability)}`}
-                    >
-                      {Math.round(probability)}%
-                    </div>
-                    <div className="text-xs text-slate-600">
-                      Confidence: {Math.round(confidence)}%
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {comparisonPredictions.map((comp) => {
+                const prediction = comp.prediction || comp;
+                const probability = prediction.predictedSuccessProbability ?? prediction.predictedSuccessProbability ?? 0;
+                const confidence = prediction.confidenceScore ?? prediction.confidenceScore ?? 0;
+                
+                // Get job details - try multiple sources
+                const jobTitle = comp.jobTitle || comp.prediction?.jobTitle || "Unknown Position";
+                const company = comp.company || comp.prediction?.company || "Unknown Company";
+                
+                // Also try to get from jobOpportunities if available
+                const jobFromList = jobOpportunities.find(j => j.id === comp.jobOpportunityId);
+                const finalJobTitle = jobTitle !== "Unknown Position" ? jobTitle : (jobFromList?.title || jobFromList?.position || "Unknown Position");
+                const finalCompany = company !== "Unknown Company" ? company : (jobFromList?.company || "Unknown Company");
+                
+                return (
+                  <div
+                    key={comp.jobOpportunityId || comp.id}
+                    className="border border-slate-200 rounded-lg p-4 hover:shadow-md transition"
+                  >
+                    <h4 className="font-semibold text-slate-900 mb-1">
+                      {finalJobTitle}
+                    </h4>
+                    <p className="text-sm text-slate-600 mb-3">
+                      {finalCompany}
+                    </p>
+                    {finalJobTitle !== "Unknown Position" && finalCompany !== "Unknown Company" && (
+                      <p className="text-xs text-slate-500 mb-2">
+                        {finalJobTitle} at {finalCompany}
+                      </p>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <div
+                        className={`text-3xl font-bold ${getProbabilityColor(probability)}`}
+                      >
+                        {Math.round(probability)}%
+                      </div>
+                      <div className="text-xs text-slate-600">
+                        Confidence: {Math.round(confidence)}%
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
+
+          {/* AI-Generated Comparison Insights */}
+          {comparisonInsights && comparisonInsights.insights && comparisonInsights.insights.length > 0 && (
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-200 p-6">
+              <div className="flex items-start gap-3 mb-4">
+                <Icon icon="mingcute:lightbulb-line" className="text-blue-600 flex-shrink-0 mt-0.5" width={24} />
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">AI-Powered Insights</h3>
+                  {comparisonInsights.summary && (
+                    <p className="text-sm text-slate-700 mt-1">{comparisonInsights.summary}</p>
+                  )}
+                </div>
+              </div>
+              <div className="space-y-3">
+                {comparisonInsights.insights.map((insight: any, idx: number) => (
+                  <div
+                    key={idx}
+                    className={`bg-white rounded-lg p-4 border ${
+                      insight.priority === "high"
+                        ? "border-red-200 bg-red-50"
+                        : insight.priority === "medium"
+                        ? "border-yellow-200 bg-yellow-50"
+                        : "border-blue-200 bg-blue-50"
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={`px-2 py-1 rounded text-xs font-medium ${
+                        insight.priority === "high"
+                          ? "bg-red-100 text-red-700"
+                          : insight.priority === "medium"
+                          ? "bg-yellow-100 text-yellow-700"
+                          : "bg-blue-100 text-blue-700"
+                      }`}>
+                        {insight.type?.replace('_', ' ').toUpperCase() || 'INSIGHT'}
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-slate-900 mb-1">{insight.title || "Insight"}</h4>
+                        <p className="text-sm text-slate-700">{insight.prompt || insight.insight || ""}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -409,7 +536,7 @@ export function InterviewPredictionTab({
                 <div className="flex items-start justify-between mb-4">
                   <div>
                     <h3 className="text-lg font-semibold text-slate-900 mb-1">
-                      {selectedJob?.title} at {selectedJob?.company}
+                      {selectedJob?.title || selectedJob?.position || "Position"} at {selectedJob?.company || "Company"}
                     </h3>
                     <p className="text-sm text-slate-600">Interview Success Probability</p>
                   </div>
@@ -454,38 +581,79 @@ export function InterviewPredictionTab({
               <div className="bg-white rounded-lg border border-slate-200 p-6">
                 <h3 className="text-lg font-semibold text-slate-900 mb-4">Factor Breakdown</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                  {Object.entries(prediction.factorsBreakdown).map(([key, factor]) => (
-                    <div
-                      key={key}
-                      className={`p-4 rounded-lg border ${getScoreBgColor(factor.score)}`}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-medium text-slate-700 capitalize">
-                          {key.replace(/([A-Z])/g, " $1").trim()}
-                        </span>
-                        <span
-                          className={`text-lg font-bold ${getScoreColor(factor.score)}`}
-                        >
-                          {Math.round(factor.score)}%
-                        </span>
+                  {Object.entries(prediction.factorsBreakdown).map(([key, factor]) => {
+                    const hasBreakdown = factor.breakdown && typeof factor.breakdown === 'object' && Object.keys(factor.breakdown).length > 0;
+                    return (
+                      <div
+                        key={key}
+                        className={`p-4 rounded-lg border ${getScoreBgColor(factor.score)}`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-medium text-slate-700 capitalize">
+                            {key.replace(/([A-Z])/g, " $1").trim()}
+                          </span>
+                          <span
+                            className={`text-lg font-bold ${getScoreColor(factor.score)}`}
+                          >
+                            {Math.round(factor.score)}%
+                          </span>
+                        </div>
+                        <div className="w-full bg-white/50 rounded-full h-1.5 mb-1">
+                          <div
+                            className={`h-1.5 rounded-full ${
+                              factor.score >= 80
+                                ? "bg-green-600"
+                                : factor.score >= 60
+                                ? "bg-yellow-600"
+                                : "bg-red-600"
+                            }`}
+                            style={{ width: `${factor.score}%` }}
+                          />
+                        </div>
+                        <p className="text-xs text-slate-600 mb-2">
+                          Weight: {Math.round((factor.weight || 0) * 100)}%
+                        </p>
+                        {hasBreakdown && (
+                          <details className="mt-2">
+                            <summary className="text-xs text-slate-500 cursor-pointer hover:text-slate-700">
+                              View Details
+                            </summary>
+                            <div className="mt-2 space-y-1 text-xs">
+                              {Object.entries(factor.breakdown).map(([subKey, subValue]: [string, any]) => {
+                                if (typeof subValue === 'object' && subValue !== null) {
+                                  const subScore = subValue.score !== undefined ? subValue.score : null;
+                                  const subStatus = subValue.status || '';
+                                  return (
+                                    <div key={subKey} className="pl-2 border-l-2 border-slate-200">
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-slate-600 capitalize">
+                                          {subKey.replace(/([A-Z])/g, " $1").trim()}
+                                        </span>
+                                        {subScore !== null && (
+                                          <span className="font-medium text-slate-700">
+                                            {Math.round(subScore)}%
+                                          </span>
+                                        )}
+                                      </div>
+                                      {subStatus && (
+                                        <span className="text-slate-500 text-xs">{subStatus}</span>
+                                      )}
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              })}
+                            </div>
+                          </details>
+                        )}
+                        {factor.status && (
+                          <p className="text-xs text-slate-500 mt-1 capitalize">
+                            Status: {factor.status}
+                          </p>
+                        )}
                       </div>
-                      <div className="w-full bg-white/50 rounded-full h-1.5 mb-1">
-                        <div
-                          className={`h-1.5 rounded-full ${
-                            factor.score >= 80
-                              ? "bg-green-600"
-                              : factor.score >= 60
-                              ? "bg-yellow-600"
-                              : "bg-red-600"
-                          }`}
-                          style={{ width: `${factor.score}%` }}
-                        />
-                      </div>
-                      <p className="text-xs text-slate-600">
-                        Weight: {Math.round(factor.weight * 100)}%
-                      </p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 

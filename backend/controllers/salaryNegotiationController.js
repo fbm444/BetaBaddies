@@ -217,10 +217,11 @@ class SalaryNegotiationController {
       industry
     );
 
-    // Save to negotiation
+    // Save to negotiation immediately - CACHE IT!
     await salaryNegotiationService.updateNegotiation(id, userId, {
-      marketSalaryData: JSON.stringify(marketData),
+      marketSalaryData: marketData, // Service will handle JSON.stringify
     });
+    console.log(`✅ Cached market salary data for negotiation ${id}`);
 
     res.status(200).json({
       ok: true,
@@ -250,10 +251,11 @@ class SalaryNegotiationController {
       industry
     );
 
-    // Save to negotiation
+    // Save to negotiation immediately - CACHE IT!
     await salaryNegotiationService.updateNegotiation(id, userId, {
-      marketSalaryData: JSON.stringify(marketData),
+      marketSalaryData: marketData, // Service will handle JSON.stringify
     });
+    console.log(`✅ Cached market salary data for negotiation ${id}`);
 
     res.status(200).json({
       ok: true,

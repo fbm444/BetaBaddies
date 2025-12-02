@@ -205,9 +205,9 @@ export function Interviews() {
         }
       }
 
-      // Sort by scheduled_at
+      // Sort by scheduledAt
       allReminders.sort((a, b) => 
-        new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()
+        new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
       );
       setUpcomingReminders(allReminders);
     } catch (err: any) {
@@ -1366,12 +1366,12 @@ export function Interviews() {
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
                             <Icon
-                              icon={reminder.reminder_type === "24_hours" ? "mingcute:time-line" : "mingcute:alarm-line"}
+                              icon={reminder.reminderType === "24_hours" ? "mingcute:time-line" : "mingcute:alarm-line"}
                               width={20}
                               className="text-blue-500"
                             />
                             <h3 className="font-semibold text-slate-900">
-                              {reminder.reminder_type === "24_hours" ? "24 Hours Before" : "2 Hours Before"}
+                              {reminder.reminderType === "24_hours" ? "24 Hours Before" : "2 Hours Before"}
                             </h3>
                             <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">
                               {reminder.status}
@@ -1384,7 +1384,7 @@ export function Interviews() {
                             <strong>Company:</strong> {reminder.interview?.company || "N/A"}
                           </p>
                           <p className="text-slate-600">
-                            <strong>Reminder Time:</strong> {formatDateTime(reminder.scheduled_at)}
+                            <strong>Reminder Time:</strong> {formatDateTime(reminder.scheduledAt)}
                           </p>
                         </div>
                       </div>

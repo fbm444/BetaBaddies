@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Icon } from "@iconify/react";
 import { api } from "../services/api";
@@ -141,16 +141,8 @@ export function Interviews() {
   useEffect(() => {
     if (activeTab === "reminders") {
       // Always fetch reminders when reminders tab becomes active
-      // If interviews aren't loaded yet, fetch them first
-      if (interviews.length === 0 && !isLoading) {
-        fetchInterviews().then(() => {
-          // After interviews are loaded, fetch reminders
-          fetchUpcomingReminders();
-        });
-      } else if (interviews.length > 0) {
-        // Interviews are already loaded, fetch reminders directly
-        fetchUpcomingReminders();
-      }
+      // fetchUpcomingReminders will handle fetching interviews if needed
+      fetchUpcomingReminders();
     }
     if (activeTab === "follow-ups") {
       fetchPendingFollowUps();
@@ -161,7 +153,7 @@ export function Interviews() {
     if (activeTab === "analytics") {
       fetchAnalytics();
     }
-  }, [activeTab, interviews.length]);
+  }, [activeTab, fetchUpcomingReminders]);
 
   const fetchInterviews = async () => {
     try {
@@ -190,14 +182,24 @@ export function Interviews() {
     }
   };
 
-  const fetchUpcomingReminders = async () => {
+  const fetchUpcomingReminders = useCallback(async () => {
     setLoadingReminders(true);
     try {
-      console.log("🔔 Fetching reminders. Total interviews:", interviews.length);
+      // Get the latest interviews - fetch if needed
+      let currentInterviews = interviews;
+      if (currentInterviews.length === 0) {
+        const response = await api.getInterviews();
+        if (response.ok && response.data) {
+          currentInterviews = response.data.interviews || [];
+          setInterviews(currentInterviews);
+        }
+      }
+      
+      console.log("🔔 Fetching reminders. Total interviews:", currentInterviews.length);
       
       // Fetch reminders for all upcoming interviews
       // Also include interviews that might have reminders even if past (to show sent reminders)
-      const upcomingInterviews = interviews.filter((interview) => {
+      const upcomingInterviews = currentInterviews.filter((interview) => {
         if (!interview.scheduledAt) {
           console.log(`⏭️ Skipping interview ${interview.id}: no scheduledAt`);
           return false;
@@ -260,7 +262,7 @@ export function Interviews() {
     } finally {
       setLoadingReminders(false);
     }
-  };
+  }, [interviews]);
 
   const fetchPendingFollowUps = async () => {
     setLoadingFollowUps(true);

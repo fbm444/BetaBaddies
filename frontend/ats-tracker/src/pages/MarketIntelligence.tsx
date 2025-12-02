@@ -180,40 +180,43 @@ export function MarketIntelligence() {
   const highPriorityInsights = insights.filter(i => i.priority === 'high');
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-7xl mx-auto space-y-8">
+    <div className="min-h-screen bg-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-              <Icon icon="mingcute:chart-line-line" className="w-8 h-8 text-blue-500" />
-              Market Intelligence
-            </h1>
-            <p className="text-gray-600 mt-2">
-              Data-driven insights to guide your career decisions
-            </p>
-            <div className="mt-2 text-sm text-gray-500">
-              <strong>Your Profile:</strong> {overview.profile.jobTitle} • {overview.profile.industry} • {overview.profile.location || 'Remote'}
+        <div className="mb-8">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <h2 className="text-2xl font-bold text-slate-900 mb-4 font-poppins">Market Intelligence</h2>
+              <p className="text-slate-600 font-poppins">
+                Data-driven insights to guide your career decisions
+              </p>
             </div>
+            <button
+              onClick={handleRefreshCache}
+              disabled={refreshingCache}
+              className="flex items-center gap-2 text-blue-500 hover:text-blue-600 disabled:text-blue-300 disabled:cursor-not-allowed transition-colors bg-transparent"
+              title="Refresh market data from Adzuna"
+            >
+              <Icon 
+                icon="mingcute:refresh-2-line" 
+                width={20}
+                className={refreshingCache ? 'animate-spin' : ''} 
+              />
+              <span>{refreshingCache ? 'Refreshing...' : 'Refresh Data'}</span>
+            </button>
           </div>
-          <button
-            onClick={handleRefreshCache}
-            disabled={refreshingCache}
-            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:bg-gray-50 disabled:cursor-not-allowed flex items-center gap-2 border border-gray-300"
-            title="Refresh market data from Adzuna"
-          >
-            <Icon 
-              icon="mingcute:refresh-line" 
-              className={`w-5 h-5 ${refreshingCache ? 'animate-spin' : ''}`} 
-            />
-            {refreshingCache ? 'Refreshing...' : 'Refresh Data'}
-          </button>
+          <div className="text-sm text-slate-500">
+            <strong>Your Profile:</strong> {overview.profile.jobTitle} • {overview.profile.industry} • {overview.profile.location || 'Remote'}
+          </div>
         </div>
 
-        {/* Key Metrics Grid */}
+        {/* Content with gray background */}
+        <div className="bg-slate-50 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-10">
+          <div className="space-y-8">
+            {/* Key Metrics Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Your Market Salary */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="bg-white rounded-lg border border-slate-300 p-6">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-gray-600">Your Market Salary</span>
               <Icon icon="mingcute:currency-dollar-line" className="w-6 h-6 text-green-500" />
@@ -233,7 +236,7 @@ export function MarketIntelligence() {
           </div>
 
           {/* Industry Growth */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="bg-white rounded-lg border border-slate-300 p-6">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-gray-600">Industry Growth</span>
               <Icon icon="mingcute:chart-up-line" className="w-6 h-6 text-blue-500" />
@@ -248,7 +251,7 @@ export function MarketIntelligence() {
           </div>
 
           {/* Hiring Velocity */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="bg-white rounded-lg border border-slate-300 p-6">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-gray-600">Hiring Velocity</span>
               <Icon icon="mingcute:time-line" className="w-6 h-6 text-purple-500" />
@@ -262,7 +265,7 @@ export function MarketIntelligence() {
           </div>
 
           {/* National Benchmark */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="bg-white rounded-lg border border-slate-300 p-6">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-gray-600">National Median</span>
               <Icon icon="mingcute:bank-line" className="w-6 h-6 text-yellow-500" />
@@ -278,7 +281,7 @@ export function MarketIntelligence() {
 
         {/* High Priority Insights */}
         {highPriorityInsights.length > 0 && (
-          <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="bg-white rounded-lg border border-slate-300 p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
               <Icon icon="mingcute:alert-line" className="w-6 h-6 text-red-500" />
               High Priority Actions
@@ -322,7 +325,7 @@ export function MarketIntelligence() {
         )}
 
         {/* Salary Intelligence */}
-        <div className="bg-white rounded-lg shadow-sm p-6">
+        <div className="bg-white rounded-lg border border-slate-300 p-6">
           <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
             <Icon icon="mingcute:currency-dollar-line" className="w-6 h-6 text-green-500" />
             Salary Intelligence
@@ -378,7 +381,7 @@ export function MarketIntelligence() {
         {/* Top Hiring Companies & Skills Side by Side */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Top Hiring Companies */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="bg-white rounded-lg border border-slate-300 p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <Icon icon="mingcute:building-line" className="w-5 h-5 text-blue-500" />
               Top Hiring Companies
@@ -402,7 +405,7 @@ export function MarketIntelligence() {
           </div>
 
           {/* Top Skills */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="bg-white rounded-lg border border-slate-300 p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <Icon icon="mingcute:star-line" className="w-5 h-5 text-yellow-500" />
               Most In-Demand Skills
@@ -425,11 +428,10 @@ export function MarketIntelligence() {
         </div>
 
         {/* All Insights */}
-        <div className="bg-white rounded-lg shadow-sm p-6">
+        <div className="bg-white rounded-lg border border-slate-300 p-6">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                <Icon icon="mingcute:lightbulb-line" className="w-6 h-6 text-yellow-500" />
+              <h2 className="text-xl font-bold text-gray-900">
                 Personalized Insights
               </h2>
               <p className="text-sm text-gray-600 mt-1">AI-powered recommendations for your career</p>
@@ -437,7 +439,7 @@ export function MarketIntelligence() {
             <button
               onClick={handleGenerateInsights}
               disabled={generatingInsights}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-4 py-2 bg-gradient-to-r from-[#845BFF] to-[#F551A2] text-white rounded-full hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {generatingInsights ? (
                 <>
@@ -446,7 +448,7 @@ export function MarketIntelligence() {
                 </>
               ) : (
                 <>
-                  <Icon icon="mingcute:magic-line" className="w-5 h-5" />
+                  <Icon icon="mingcute:sparkles-line" className="w-5 h-5" />
                   Generate Insights
                 </>
               )}
@@ -552,7 +554,7 @@ export function MarketIntelligence() {
             <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Peer Benchmarking */}
-            <div className="bg-white rounded-lg p-5 shadow-sm">
+            <div className="bg-white rounded-lg p-5 border border-slate-300">
               <div className="flex items-center gap-2 mb-3">
                 <Icon icon="mingcute:group-line" className="w-5 h-5 text-blue-600" />
                 <h3 className="font-semibold text-gray-900">Peer Benchmarking</h3>
@@ -582,7 +584,7 @@ export function MarketIntelligence() {
             </div>
 
             {/* Skill Gap vs Top Performers */}
-            <div className="bg-white rounded-lg p-5 shadow-sm">
+            <div className="bg-white rounded-lg p-5 border border-slate-300">
               <div className="flex items-center gap-2 mb-3">
                 <Icon icon="mingcute:chart-bar-line" className="w-5 h-5 text-purple-600" />
                 <h3 className="font-semibold text-gray-900">Skill Gap Analysis</h3>
@@ -612,7 +614,7 @@ export function MarketIntelligence() {
             </div>
 
             {/* Market Positioning */}
-            <div className="bg-white rounded-lg p-5 shadow-sm">
+            <div className="bg-white rounded-lg p-5 border border-slate-300">
               <div className="flex items-center gap-2 mb-3">
                 <Icon icon="mingcute:target-line" className="w-5 h-5 text-green-600" />
                 <h3 className="font-semibold text-gray-900">Competitive Position</h3>
@@ -653,7 +655,7 @@ export function MarketIntelligence() {
             </div>
 
             {/* Differentiation Strategy */}
-            <div className="bg-white rounded-lg p-5 shadow-sm">
+            <div className="bg-white rounded-lg p-5 border border-slate-300">
               <div className="flex items-center gap-2 mb-3">
                 <Icon icon="mingcute:star-line" className="w-5 h-5 text-amber-600" />
                 <h3 className="font-semibold text-gray-900">Differentiation Strategy</h3>
@@ -677,7 +679,7 @@ export function MarketIntelligence() {
             </div>
           </div>
 
-          <div className="mt-6 bg-white rounded-lg p-5 shadow-sm">
+          <div className="mt-6 bg-white rounded-lg p-5 border border-slate-300">
             <div className="flex items-center gap-2 mb-4">
               <Icon icon="mingcute:magic-line" className="w-5 h-5 text-purple-600" />
               <h3 className="font-semibold text-gray-900">AI-Powered Recommendations</h3>
@@ -751,6 +753,8 @@ export function MarketIntelligence() {
           </div>
           </>
           )}
+        </div>
+          </div>
         </div>
       </div>
     </div>

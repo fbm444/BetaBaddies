@@ -254,7 +254,7 @@ export function SalaryProgression({ dateRange }: SalaryProgressionProps) {
         <div className="space-y-6">
           {/* Chart Section */}
           {chartData.length > 0 && (
-            <div className="rounded-3xl bg-white p-6 border border-[#E4E8F5]">
+            <div className="rounded-3xl bg-white p-6 border border-slate-300">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-[25px] font-normal text-[#0F1D3A]">Salary Progression Chart</h3>
                 <div className="flex items-center gap-4 text-sm text-[#6D7A99]">
@@ -369,7 +369,7 @@ export function SalaryProgression({ dateRange }: SalaryProgressionProps) {
 
           {/* Detailed List */}
           {safeData.progression.length > 0 && (
-            <div className="rounded-3xl bg-white p-6 border border-[#E4E8F5]">
+            <div className="rounded-3xl bg-white p-6 border border-slate-300">
               <h3 className="text-[25px] font-normal text-[#0F1D3A] mb-4">Salary History</h3>
               <div className="space-y-4">
                 {[...safeData.progression].reverse().map((item, index) => {
@@ -440,7 +440,7 @@ export function SalaryProgression({ dateRange }: SalaryProgressionProps) {
       {activeTab === "negotiations" && (
         <div className="space-y-6">
           {ongoingNegotiations.length > 0 ? (
-            <div className="rounded-3xl bg-white p-6 border border-[#E4E8F5]">
+            <div className="rounded-3xl bg-white p-6 border border-slate-300">
               <h3 className="text-[25px] font-normal text-[#0F1D3A] mb-4">Ongoing Salary Negotiations</h3>
               <div className="space-y-4">
                 {ongoingNegotiations.map((item) => (
@@ -530,7 +530,7 @@ export function SalaryProgression({ dateRange }: SalaryProgressionProps) {
         <div className="space-y-6">
           {/* By Industry */}
           {marketResearchData.byIndustry && marketResearchData.byIndustry.length > 0 && (
-            <div className="rounded-3xl bg-white p-6 border border-[#E4E8F5]">
+            <div className="rounded-3xl bg-white p-6 border border-slate-300">
               <h3 className="text-[25px] font-normal text-[#0F1D3A] mb-4">Market Research by Industry</h3>
               <div className="space-y-3">
                 {marketResearchData.byIndustry.map((item, index) => (
@@ -584,7 +584,7 @@ export function SalaryProgression({ dateRange }: SalaryProgressionProps) {
 
           {/* By Location */}
           {marketResearchData.byLocation && marketResearchData.byLocation.length > 0 && (
-            <div className="rounded-3xl bg-white p-6 border border-[#E4E8F5]">
+            <div className="rounded-3xl bg-white p-6 border border-slate-300">
               <h3 className="text-[25px] font-normal text-[#0F1D3A] mb-4">Market Research by Location</h3>
               <div className="space-y-3">
                 {marketResearchData.byLocation.map((item, index) => (

@@ -163,7 +163,7 @@ export function ApplicationSuccessAnalysis({ dateRange }: ApplicationSuccessAnal
 
       {/* Success by Industry */}
       {data.byIndustry.length > 0 && (
-        <div className="rounded-3xl bg-white p-6 border border-[#E4E8F5]">
+        <div className="rounded-3xl bg-white p-6 border border-slate-300">
           <h3 className="text-[25px] font-normal text-[#0F1D3A] mb-4">Success by Industry</h3>
           <div className="space-y-3">
             {data.byIndustry.map((item, index) => (
@@ -196,7 +196,7 @@ export function ApplicationSuccessAnalysis({ dateRange }: ApplicationSuccessAnal
 
       {/* Success by Source */}
       {data.bySource.length > 0 && (
-        <div className="rounded-3xl bg-white p-6 border border-[#E4E8F5]">
+        <div className="rounded-3xl bg-white p-6 border border-slate-300">
           <h3 className="text-[25px] font-normal text-[#0F1D3A] mb-4">Success by Application Source</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {data.bySource.map((item, index) => (
@@ -228,7 +228,7 @@ export function ApplicationSuccessAnalysis({ dateRange }: ApplicationSuccessAnal
 
       {/* Success by Method */}
       {data.byMethod.length > 0 && (
-        <div className="rounded-3xl bg-white p-6 border border-[#E4E8F5]">
+        <div className="rounded-3xl bg-white p-6 border border-slate-300">
           <h3 className="text-[25px] font-normal text-[#0F1D3A] mb-4">Success by Application Method</h3>
           <div className="space-y-3">
             {data.byMethod.map((item, index) => (
@@ -253,7 +253,7 @@ export function ApplicationSuccessAnalysis({ dateRange }: ApplicationSuccessAnal
 
       {/* Success by Resume */}
       {data.byResume && data.byResume.length > 0 && (
-        <div className="rounded-3xl bg-white p-6 border border-[#E4E8F5]">
+        <div className="rounded-3xl bg-white p-6 border border-slate-300">
           <h3 className="text-[25px] font-normal text-[#0F1D3A] mb-4">Success by Resume</h3>
           <p className="text-sm text-[#6D7A99] mb-4">
             Track which resumes perform best in your job applications
@@ -299,7 +299,7 @@ export function ApplicationSuccessAnalysis({ dateRange }: ApplicationSuccessAnal
 
       {/* Success by Cover Letter */}
       {data.byCoverLetter && data.byCoverLetter.length > 0 && (
-        <div className="rounded-3xl bg-white p-6 border border-[#E4E8F5]">
+        <div className="rounded-3xl bg-white p-6 border border-slate-300">
           <h3 className="text-[25px] font-normal text-[#0F1D3A] mb-4">Success by Cover Letter</h3>
           <p className="text-sm text-[#6D7A99] mb-4">
             Track which cover letters perform best in your job applications
@@ -345,7 +345,7 @@ export function ApplicationSuccessAnalysis({ dateRange }: ApplicationSuccessAnal
 
       {/* Recommendations */}
       {data.recommendations.length > 0 && (
-        <div className="rounded-3xl bg-gradient-to-br from-[#F8F9FF] to-[#EEF0FB] p-6 border border-[#E4E8F5]">
+        <div className="rounded-3xl bg-gradient-to-br from-[#F8F9FF] to-[#EEF0FB] p-6 border border-slate-300">
           <div className="flex items-center gap-2 mb-4">
             <Icon icon="mingcute:lightbulb-line" className="text-[#3351FD]" width={24} />
             <h3 className="text-[25px] font-normal text-[#0F1D3A]">Recommendations</h3>

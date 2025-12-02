@@ -7,7 +7,7 @@ interface SuccessPatternsCardProps {
 
 export function SuccessPatternsCard({ patterns }: SuccessPatternsCardProps) {
   return (
-    <div className="rounded-3xl bg-white p-6 border border-[#E4E8F5] mb-6">
+    <div className="rounded-3xl bg-white p-6 border border-slate-300 mb-6">
       <div className="flex items-center gap-2 mb-4">
         <Icon icon="mingcute:chart-bar-line" className="text-[#3351FD]" width={24} />
         <h3 className="text-[25px] font-normal text-[#0F1D3A]">

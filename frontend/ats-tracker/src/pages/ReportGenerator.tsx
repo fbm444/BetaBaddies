@@ -127,7 +127,7 @@ export function ReportGenerator() {
 
           <div className="space-y-6">
           {/* Generate Card */}
-          <div className="bg-white border border-slate-200 rounded-xl p-8">
+          <div className="bg-white border border-slate-300 rounded-xl p-8">
             {/* Note */}
             <div className="mb-6 bg-blue-50 border border-blue-100 rounded-lg p-4">
               <div className="flex items-start gap-2">
@@ -206,7 +206,7 @@ export function ReportGenerator() {
 
           {/* Download Card */}
           {(pdfGenerated || excelGenerated) && (
-            <div className="bg-white border border-slate-200 rounded-xl p-8">
+            <div className="bg-white border border-slate-300 rounded-xl p-8">
               <div className="mb-6 text-center">
                 <h2 className="text-xl font-semibold text-slate-900 font-poppins mb-2">Download Report</h2>
                 <p className="text-slate-600 font-poppins">
@@ -263,7 +263,7 @@ export function ReportGenerator() {
           )}
 
           {/* What's Included Card */}
-          <div className="bg-white border border-slate-200 rounded-xl p-6">
+          <div className="bg-white border border-slate-300 rounded-xl p-6">
             <div className="mb-6">
               <h3 className="text-lg font-semibold text-slate-900 font-poppins">What's Included</h3>
             </div>

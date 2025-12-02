@@ -102,7 +102,7 @@ export function NetworkROI({ dateRange }: NetworkROIProps) {
           </p>
         </div>
 
-        <div className="rounded-2xl bg-white p-6 border border-[#E4E8F5] min-h-[160px] flex flex-col justify-between">
+        <div className="rounded-2xl bg-white p-6 border border-slate-300 min-h-[160px] flex flex-col justify-between">
           <div className="flex items-start justify-between mb-2">
             <p className="text-[18px] font-normal text-[#0F1D3A]">
               Referrals Generated
@@ -123,7 +123,7 @@ export function NetworkROI({ dateRange }: NetworkROIProps) {
           </div>
         </div>
 
-        <div className="rounded-2xl bg-white p-6 border border-[#E4E8F5] min-h-[160px] flex flex-col justify-between">
+        <div className="rounded-2xl bg-white p-6 border border-slate-300 min-h-[160px] flex flex-col justify-between">
           <div className="flex items-start justify-between mb-2">
             <p className="text-[18px] font-normal text-[#0F1D3A]">
               Opportunities
@@ -144,7 +144,7 @@ export function NetworkROI({ dateRange }: NetworkROIProps) {
           </div>
         </div>
 
-        <div className="rounded-2xl bg-white p-6 border border-[#E4E8F5] min-h-[160px] flex flex-col justify-between">
+        <div className="rounded-2xl bg-white p-6 border border-slate-300 min-h-[160px] flex flex-col justify-between">
           <div className="flex items-start justify-between mb-2">
             <p className="text-[18px] font-normal text-[#0F1D3A]">
               Unique Contacts
@@ -163,7 +163,7 @@ export function NetworkROI({ dateRange }: NetworkROIProps) {
 
       {/* Activities by Type */}
       {data.byType.length > 0 && (
-        <div className="rounded-3xl bg-white p-6 border border-[#E4E8F5]">
+        <div className="rounded-3xl bg-white p-6 border border-slate-300">
           <h3 className="text-[25px] font-normal text-[#0F1D3A] mb-4">
             Activities by Type
           </h3>

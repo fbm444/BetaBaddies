@@ -13,7 +13,7 @@ export function PatternRecommendationsCard({ recommendations }: PatternRecommend
   );
 
   return (
-    <div className="rounded-3xl bg-gradient-to-br from-[#F8F9FF] to-[#EEF0FB] p-6 border border-[#E4E8F5]">
+    <div className="rounded-3xl bg-gradient-to-br from-[#F8F9FF] to-[#EEF0FB] p-6 border border-slate-300">
       <div className="flex items-center gap-2 mb-4">
         <Icon icon="mingcute:lightbulb-line" className="text-[#3351FD]" width={24} />
         <h3 className="text-[25px] font-normal text-[#0F1D3A]">

@@ -84,7 +84,7 @@ export function InterviewPerformance({ dateRange }: InterviewPerformanceProps) {
             </div>
 
             {/* Interview to Offer */}
-            <div className="rounded-2xl bg-white p-6 border border-[#E4E8F5] min-h-[160px] flex flex-col justify-between">
+            <div className="rounded-2xl bg-white p-6 border border-slate-300 min-h-[160px] flex flex-col justify-between">
               <div className="flex items-start justify-between mb-2">
                 <p className="text-[18px] font-normal text-[#0F1D3A]">Interview to Offer</p>
                 <Icon icon="mingcute:target-line" width={20} className="text-[#09244B]" />
@@ -100,7 +100,7 @@ export function InterviewPerformance({ dateRange }: InterviewPerformanceProps) {
 
           {/* Performance Trends - Full Width Under Both */}
           {data.trends.length > 0 && (
-            <div className="rounded-3xl bg-white p-6 border border-[#E4E8F5]">
+            <div className="rounded-3xl bg-white p-6 border border-slate-300">
               <h3 className="text-[25px] font-normal text-[#0F1D3A] mb-4">Performance Trends</h3>
               <div className="space-y-3">
                 {data.trends.map((trend, index) => {
@@ -133,7 +133,7 @@ export function InterviewPerformance({ dateRange }: InterviewPerformanceProps) {
 
         {/* Right Column: Performance by Interview Type - Full Height */}
         {data.byType.length > 0 && (
-          <div className="rounded-3xl bg-white p-6 border border-[#E4E8F5]">
+          <div className="rounded-3xl bg-white p-6 border border-slate-300">
             <h3 className="text-[25px] font-normal text-[#0F1D3A] mb-4">Performance by Interview Type</h3>
             <div className="space-y-3">
               {data.byType
@@ -176,7 +176,7 @@ export function InterviewPerformance({ dateRange }: InterviewPerformanceProps) {
       {(data.overall.avgConfidence !== null || data.overall.avgDifficulty !== null) && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {data.overall.avgConfidence !== null && (
-            <div className="rounded-2xl bg-white p-5 border border-[#E4E8F5]">
+            <div className="rounded-2xl bg-white p-5 border border-slate-300">
               <div className="flex items-start justify-between mb-2">
                 <p className="text-[18px] font-normal text-[#0F1D3A]">Avg. Confidence</p>
                 <Icon icon="mingcute:star-line" width={20} className="text-[#09244B]" />
@@ -188,7 +188,7 @@ export function InterviewPerformance({ dateRange }: InterviewPerformanceProps) {
           )}
 
           {data.overall.avgDifficulty !== null && (
-            <div className="rounded-2xl bg-white p-5 border border-[#E4E8F5]">
+            <div className="rounded-2xl bg-white p-5 border border-slate-300">
               <div className="flex items-start justify-between mb-2">
                 <p className="text-[18px] font-normal text-[#0F1D3A]">Avg. Difficulty</p>
                 <Icon icon="mingcute:alert-line" width={20} className="text-[#09244B]" />

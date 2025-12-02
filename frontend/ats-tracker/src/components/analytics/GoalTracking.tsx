@@ -100,7 +100,7 @@ export function GoalTracking({ dateRange }: GoalTrackingProps) {
             </p>
           </div>
 
-          <div className="rounded-2xl bg-white p-6 border border-[#E4E8F5] min-h-[160px] flex flex-col justify-between">
+          <div className="rounded-2xl bg-white p-6 border border-slate-300 min-h-[160px] flex flex-col justify-between">
             <div className="flex items-start justify-between mb-2">
               <p className="text-[18px] font-normal text-[#0F1D3A]">
                 Active Goals
@@ -118,7 +118,7 @@ export function GoalTracking({ dateRange }: GoalTrackingProps) {
             </div>
           </div>
 
-          <div className="rounded-2xl bg-white p-6 border border-[#E4E8F5] min-h-[160px] flex flex-col justify-between">
+          <div className="rounded-2xl bg-white p-6 border border-slate-300 min-h-[160px] flex flex-col justify-between">
             <div className="flex items-start justify-between mb-2">
               <p className="text-[18px] font-normal text-[#0F1D3A]">
                 Completed
@@ -136,7 +136,7 @@ export function GoalTracking({ dateRange }: GoalTrackingProps) {
             </div>
           </div>
 
-          <div className="rounded-2xl bg-white p-6 border border-[#E4E8F5] min-h-[160px] flex flex-col justify-between">
+          <div className="rounded-2xl bg-white p-6 border border-slate-300 min-h-[160px] flex flex-col justify-between">
             <div className="flex items-start justify-between mb-2">
               <p className="text-[18px] font-normal text-[#0F1D3A]">
                 Achievement Rate
@@ -162,7 +162,7 @@ export function GoalTracking({ dateRange }: GoalTrackingProps) {
           {goals.map((goal) => (
             <div
               key={goal.id}
-              className="rounded-2xl bg-white p-6 border border-[#E4E8F5]"
+              className="rounded-2xl bg-white p-6 border border-slate-300"
             >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
@@ -465,7 +465,7 @@ function GoalFormModal({
                 setFormData({ ...formData, title: e.target.value })
               }
               placeholder="e.g., Send 20 applications this month"
-              className="w-full px-4 py-2 border border-[#E4E8F5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]"
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]"
             />
           </div>
 
@@ -481,7 +481,7 @@ function GoalFormModal({
               }
               placeholder="Additional details about this goal..."
               rows={3}
-              className="w-full px-4 py-2 border border-[#E4E8F5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]"
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]"
             />
           </div>
 
@@ -497,7 +497,7 @@ function GoalFormModal({
                 onChange={(e) =>
                   setFormData({ ...formData, category: e.target.value as any })
                 }
-                className="w-full px-4 py-2 border border-[#E4E8F5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]"
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]"
               >
                 <option value="job_search">Job Search</option>
                 <option value="career">Career</option>
@@ -517,7 +517,7 @@ function GoalFormModal({
                 onChange={(e) =>
                   setFormData({ ...formData, goalType: e.target.value as any })
                 }
-                className="w-full px-4 py-2 border border-[#E4E8F5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]"
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]"
               >
                 <option value="short_term">Short Term</option>
                 <option value="long_term">Long Term</option>
@@ -540,7 +540,7 @@ function GoalFormModal({
                   setFormData({ ...formData, targetValue: e.target.value })
                 }
                 placeholder="20"
-                className="w-full px-4 py-2 border border-[#E4E8F5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]"
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]"
               />
             </div>
 
@@ -557,7 +557,7 @@ function GoalFormModal({
                   setFormData({ ...formData, currentValue: e.target.value })
                 }
                 placeholder="0"
-                className="w-full px-4 py-2 border border-[#E4E8F5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]"
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]"
               />
             </div>
           </div>
@@ -575,7 +575,7 @@ function GoalFormModal({
                   setFormData({ ...formData, unit: e.target.value })
                 }
                 placeholder="e.g., applications, interviews"
-                className="w-full px-4 py-2 border border-[#E4E8F5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]"
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]"
               />
             </div>
 
@@ -589,7 +589,7 @@ function GoalFormModal({
                 onChange={(e) =>
                   setFormData({ ...formData, targetDate: e.target.value })
                 }
-                className="w-full px-4 py-2 border border-[#E4E8F5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]"
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]"
               />
             </div>
           </div>
@@ -604,7 +604,7 @@ function GoalFormModal({
               onChange={(e) =>
                 setFormData({ ...formData, priority: e.target.value as any })
               }
-              className="w-full px-4 py-2 border border-[#E4E8F5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]"
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]"
             >
               <option value="low">Low</option>
               <option value="medium">Medium</option>

@@ -84,7 +84,7 @@ export function JobSearchPerformance({ dateRange }: JobSearchPerformanceProps) {
           </p>
         </div>
 
-        <div className="flex flex-col justify-between rounded-2xl bg-white p-6 border border-[#E4E8F5] min-h-[160px]">
+        <div className="flex flex-col justify-between rounded-2xl bg-white p-6 border border-slate-300 min-h-[160px]">
           <div className="flex items-start justify-between">
             <p className="text-[22px] font-normal text-[#0F1D3A]">Interviews Scheduled</p>
             <Icon icon="mingcute:calendar-line" width={20} className="text-[#09244B]" />
@@ -94,7 +94,7 @@ export function JobSearchPerformance({ dateRange }: JobSearchPerformanceProps) {
           </p>
         </div>
 
-        <div className="flex flex-col justify-between rounded-2xl bg-white p-6 border border-[#E4E8F5] min-h-[160px]">
+        <div className="flex flex-col justify-between rounded-2xl bg-white p-6 border border-slate-300 min-h-[160px]">
           <div className="flex items-start justify-between">
             <p className="text-[22px] font-normal text-[#0F1D3A]">Offers Received</p>
             <Icon icon="mingcute:check-circle-line" width={20} className="text-[#09244B]" />
@@ -102,7 +102,7 @@ export function JobSearchPerformance({ dateRange }: JobSearchPerformanceProps) {
           <p className="text-3xl font-extralight text-[#5A87E6]">{keyMetrics.offersReceived}</p>
         </div>
 
-        <div className="flex flex-col justify-between rounded-2xl bg-white p-6 border border-[#E4E8F5] min-h-[160px]">
+        <div className="flex flex-col justify-between rounded-2xl bg-white p-6 border border-slate-300 min-h-[160px]">
           <div className="flex items-start justify-between">
             <p className="text-[22px] font-normal text-[#0F1D3A]">Overall Success Rate</p>
             <Icon icon="mingcute:target-line" width={20} className="text-[#09244B]" />
@@ -116,7 +116,7 @@ export function JobSearchPerformance({ dateRange }: JobSearchPerformanceProps) {
       {/* Conversion Funnel and Monthly Volume - Side by Side */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Conversion Funnel */}
-        <div className="rounded-3xl bg-white p-6 border border-[#E4E8F5]">
+        <div className="rounded-3xl bg-white p-6 border border-slate-300">
           <h3 className="text-[25px] font-normal text-[#0F1D3A] mb-6 font-poppins">Conversion Funnel</h3>
           <div className="space-y-4">
             {/* Applications (starting point) */}
@@ -174,7 +174,7 @@ export function JobSearchPerformance({ dateRange }: JobSearchPerformanceProps) {
         </div>
 
         {/* Monthly Volume */}
-        <div className="rounded-3xl bg-white p-6 border border-[#E4E8F5]">
+        <div className="rounded-3xl bg-white p-6 border border-slate-300">
           <h3 className="text-[25px] font-normal text-[#0F1D3A] mb-4">Monthly Application Volume</h3>
           {monthlyVolume.length > 0 ? (
             <div className="space-y-2">
@@ -210,7 +210,7 @@ export function JobSearchPerformance({ dateRange }: JobSearchPerformanceProps) {
 
       {/* Benchmark Comparison */}
       {benchmarks && (
-        <div className="rounded-3xl bg-white p-6 border border-[#E4E8F5]">
+        <div className="rounded-3xl bg-white p-6 border border-slate-300">
           <h3 className="text-[25px] font-normal text-[#0F1D3A] mb-4">Industry Benchmarks</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="text-center p-4 rounded-xl bg-[#F8F9FF]">

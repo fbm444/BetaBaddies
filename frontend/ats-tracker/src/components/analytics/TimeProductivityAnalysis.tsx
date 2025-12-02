@@ -121,7 +121,7 @@ export function TimeProductivityAnalysis({ dateRange }: TimeProductivityAnalysis
           </p>
         </div>
 
-        <div className="flex flex-col justify-between rounded-2xl bg-white p-6 border border-[#E4E8F5] min-h-[180px] lg:col-span-2">
+        <div className="flex flex-col justify-between rounded-2xl bg-white p-6 border border-slate-300 min-h-[180px] lg:col-span-2">
           <div className="flex items-start justify-between mb-2">
             <p className="text-[18px] font-normal text-[#0F1D3A]">Avg. Hours/Week</p>
           </div>
@@ -134,7 +134,7 @@ export function TimeProductivityAnalysis({ dateRange }: TimeProductivityAnalysis
         </div>
 
         {/* Task Completion Metrics */}
-        <div className="rounded-2xl bg-white p-4 border border-[#E4E8F5] min-h-[180px] flex flex-col lg:col-span-3">
+        <div className="rounded-2xl bg-white p-4 border border-slate-300 min-h-[180px] flex flex-col lg:col-span-3">
           <h4 className="text-xs font-semibold text-[#0F1D3A] mb-2 flex items-center gap-1.5">
             <Icon icon="mingcute:checkbox-line" width={14} className="text-[#3351FD]" />
             Task Completion
@@ -165,7 +165,7 @@ export function TimeProductivityAnalysis({ dateRange }: TimeProductivityAnalysis
       {/* Activity Breakdown & Efficiency Side by Side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Activity Breakdown */}
-          <div className="rounded-2xl bg-white p-5 border border-[#E4E8F5]">
+          <div className="rounded-2xl bg-white p-5 border border-slate-300">
             <h4 className="text-lg font-semibold text-[#0F1D3A] mb-4 flex items-center gap-2">
               <Icon icon="mingcute:chart-pie-line" width={20} className="text-[#3351FD]" />
               Time by Activity Type
@@ -198,7 +198,7 @@ export function TimeProductivityAnalysis({ dateRange }: TimeProductivityAnalysis
           </div>
 
           {/* Efficiency Metrics */}
-          <div className="rounded-2xl bg-white p-5 border border-[#E4E8F5]">
+          <div className="rounded-2xl bg-white p-5 border border-slate-300">
             <h4 className="text-lg font-semibold text-[#0F1D3A] mb-4 flex items-center gap-2">
               <Icon icon="mingcute:rocket-line" width={20} className="text-[#3351FD]" />
               Efficiency Metrics
@@ -236,7 +236,7 @@ export function TimeProductivityAnalysis({ dateRange }: TimeProductivityAnalysis
 
       {/* Productivity Patterns */}
       {productivityData.productivityPatterns.byDayOfWeek.length > 0 && (
-        <div className="rounded-2xl bg-white p-5 border border-[#E4E8F5]">
+        <div className="rounded-2xl bg-white p-5 border border-slate-300">
             <h4 className="text-lg font-semibold text-[#0F1D3A] mb-4 flex items-center gap-2">
               <Icon icon="mingcute:chart-bar-line" width={20} className="text-[#3351FD]" />
               Productivity by Day of Week
@@ -245,7 +245,7 @@ export function TimeProductivityAnalysis({ dateRange }: TimeProductivityAnalysis
               {productivityData.productivityPatterns.byDayOfWeek.map((day, index) => (
                 <div
                   key={index}
-                  className="text-center p-3 rounded-lg border border-[#E4E8F5] hover:bg-[#F8F9FF] transition-colors"
+                  className="text-center p-3 rounded-lg border border-slate-300 hover:bg-[#F8F9FF] transition-colors"
                 >
                   <p className="text-xs font-semibold text-[#0F1D3A] mb-1">{day.day}</p>
                   <p className="text-lg font-bold text-[#3351FD]">{day.tasksCompleted}</p>
@@ -275,7 +275,7 @@ export function TimeProductivityAnalysis({ dateRange }: TimeProductivityAnalysis
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recommendations */}
         {productivityData.recommendations.length > 0 && (
-          <div className="rounded-2xl bg-white p-5 border border-[#E4E8F5]">
+          <div className="rounded-2xl bg-white p-5 border border-slate-300">
               <h4 className="text-lg font-semibold text-[#0F1D3A] mb-4 flex items-center gap-2">
                 <Icon icon="mingcute:bulb-line" width={20} className="text-[#3351FD]" />
                 Productivity Recommendations
@@ -336,13 +336,13 @@ export function TimeProductivityAnalysis({ dateRange }: TimeProductivityAnalysis
           )}
 
         {/* Wellness & Burnout Indicators */}
-        <div className="rounded-2xl bg-white p-5 border border-[#E4E8F5]">
+        <div className="rounded-2xl bg-white p-5 border border-slate-300">
           <h4 className="text-lg font-semibold text-[#0F1D3A] mb-4 flex items-center gap-2">
             <Icon icon="mingcute:heart-line" width={20} className="text-[#3351FD]" />
             Work-Life Balance & Wellness
           </h4>
           <div className="space-y-4 mb-4">
-            <div className="bg-white rounded-xl p-4 border border-[#E4E8F5]">
+            <div className="bg-white rounded-xl p-4 border border-slate-300">
               <p className="text-xs text-[#6D7A99] mb-2">Burnout Risk</p>
               <div className="flex items-center gap-2">
                 <div
@@ -358,7 +358,7 @@ export function TimeProductivityAnalysis({ dateRange }: TimeProductivityAnalysis
                 </div>
               </div>
             </div>
-            <div className="bg-white rounded-xl p-4 border border-[#E4E8F5]">
+            <div className="bg-white rounded-xl p-4 border border-slate-300">
               <p className="text-xs text-[#6D7A99] mb-2">Work-Life Balance Score</p>
               <div className="flex items-center gap-2">
                 <div className="flex-1 h-3 bg-gray-200 rounded-full overflow-hidden">
@@ -386,7 +386,7 @@ export function TimeProductivityAnalysis({ dateRange }: TimeProductivityAnalysis
               {productivityData.wellnessIndicators.overworkWarnings.map((warning, index) => (
                 <div
                   key={index}
-                  className="flex items-start gap-2 p-3 bg-white rounded-lg border border-[#E4E8F5]"
+                  className="flex items-start gap-2 p-3 bg-white rounded-lg border border-slate-300"
                 >
                   <Icon icon="mingcute:alert-line" width={16} className="text-orange-600 mt-0.5" />
                   <p className="text-xs text-[#0F1D3A]">{warning}</p>

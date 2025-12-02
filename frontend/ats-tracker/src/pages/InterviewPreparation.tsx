@@ -148,7 +148,7 @@ export function InterviewPreparation() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Interview Selection */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <div className="bg-white rounded-xl border border-slate-300 p-6">
               <h2 className="text-xl font-semibold text-slate-900 mb-4">
                 Select an Interview
               </h2>
@@ -178,7 +178,7 @@ export function InterviewPreparation() {
                     <button
                       key={int.id}
                       onClick={() => handleSelectInterview(int)}
-                      className="w-full text-left p-4 border border-slate-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition"
+                      className="w-full text-left p-4 border border-slate-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition"
                     >
                       <div className="flex items-center justify-between">
                         <div>
@@ -207,7 +207,7 @@ export function InterviewPreparation() {
             </div>
 
             {/* General Preparation Tools */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <div className="bg-white rounded-xl border border-slate-300 p-6">
               <h2 className="text-xl font-semibold text-slate-900 mb-4">
                 Preparation Tools
               </h2>
@@ -218,7 +218,7 @@ export function InterviewPreparation() {
               <div className="space-y-3">
                 <button
                   onClick={() => handleGeneralPrepClick("questions")}
-                  className="w-full text-left p-4 border border-slate-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition"
+                  className="w-full text-left p-4 border border-slate-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition"
                 >
                   <div className="flex items-center gap-3">
                     <Icon
@@ -238,7 +238,7 @@ export function InterviewPreparation() {
                 </button>
                 <button
                   onClick={() => handleGeneralPrepClick("mock")}
-                  className="w-full text-left p-4 border border-slate-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition"
+                  className="w-full text-left p-4 border border-slate-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition"
                 >
                   <div className="flex items-center gap-3">
                     <Icon
@@ -258,7 +258,7 @@ export function InterviewPreparation() {
                 </button>
                 <button
                   onClick={() => handleGeneralPrepClick("technical")}
-                  className="w-full text-left p-4 border border-slate-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition"
+                  className="w-full text-left p-4 border border-slate-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition"
                 >
                   <div className="flex items-center gap-3">
                     <Icon
@@ -288,7 +288,7 @@ export function InterviewPreparation() {
   if (showInterviewModal) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 z-[110] flex items-center justify-center p-4">
-        <div className="bg-white rounded-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto shadow-2xl">
+        <div className="bg-white rounded-xl border border-slate-300 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
           <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
             <h2 className="text-2xl font-bold text-slate-900">
               Select an Interview
@@ -345,7 +345,7 @@ export function InterviewPreparation() {
                         setActiveTab(pendingTab);
                       }
                     }}
-                    className="w-full text-left p-4 border border-slate-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition"
+                    className="w-full text-left p-4 border border-slate-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition"
                   >
                     <div className="flex items-center justify-between">
                       <div>
@@ -378,7 +378,7 @@ export function InterviewPreparation() {
   if (error && interviewId) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-xl p-8 max-w-md text-center shadow-sm border border-slate-200">
+        <div className="bg-white rounded-xl p-8 max-w-md text-center border border-slate-300">
           <Icon
             icon="mingcute:alert-circle-line"
             width={64}
@@ -526,7 +526,7 @@ export function InterviewPreparation() {
 
         {/* Tab Content */}
         <div className="mt-8 bg-slate-50 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-10 rounded-t-2xl">
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+          <div className="bg-white rounded-xl border border-slate-300 p-6">
           {!interview &&
           (activeTab === "research" ||
             activeTab === "questions" ||
@@ -1307,7 +1307,7 @@ function CompanyResearchTab({
       </div>
 
       {/* Action Bar */}
-      <div className="flex items-center justify-between bg-white border border-slate-200 rounded-lg p-4">
+      <div className="flex items-center justify-between bg-white border border-slate-300 rounded-lg p-4">
         <div className="flex items-center gap-4">
           <div>
             <h3 className="text-lg font-semibold text-slate-900">
@@ -1347,7 +1347,7 @@ function CompanyResearchTab({
 
       {/* Company Overview */}
       {research.companyInfo && (
-        <div className="border border-slate-200 rounded-lg p-6 bg-white">
+        <div className="border border-slate-300 rounded-lg p-6 bg-white">
           <div className="flex items-center gap-2 mb-4">
             <Icon
               icon="mingcute:building-2-line"
@@ -1412,7 +1412,7 @@ function CompanyResearchTab({
       {/* Leadership Team & Potential Interviewers */}
       {research.interviewInsights?.interviewerProfiles &&
         research.interviewInsights.interviewerProfiles.length > 0 && (
-          <div className="border border-slate-200 rounded-lg p-6 bg-white">
+          <div className="border border-slate-300 rounded-lg p-6 bg-white">
             <div className="flex items-center gap-2 mb-4">
               <Icon
                 icon="mingcute:user-3-line"
@@ -1428,7 +1428,7 @@ function CompanyResearchTab({
                 (profile: any, idx: number) => (
                   <div
                     key={idx}
-                    className="border border-slate-200 rounded-lg p-4 hover:shadow-md transition"
+                    className="border border-slate-300 rounded-lg p-4 hover:shadow-md transition"
                   >
                     {profile.name && (
                       <h4 className="font-semibold text-slate-900 mb-1">
@@ -1463,7 +1463,7 @@ function CompanyResearchTab({
         )}
 
       {/* Competitive Landscape & Market Position */}
-      <div className="border border-slate-200 rounded-lg p-6 bg-white">
+      <div className="border border-slate-300 rounded-lg p-6 bg-white">
         <div className="flex items-center gap-2 mb-4">
           <Icon
             icon="mingcute:chart-line"
@@ -1687,7 +1687,7 @@ function CompanyResearchTab({
       </div>
 
       {/* Recent News, Funding & Strategic Initiatives */}
-      <div className="border border-slate-200 rounded-lg p-6 bg-white">
+      <div className="border border-slate-300 rounded-lg p-6 bg-white">
         <div className="flex items-center gap-2 mb-4">
           <Icon
             icon="mingcute:news-line"
@@ -1780,7 +1780,7 @@ function CompanyResearchTab({
 
       {/* Interview Insights */}
       {research.interviewInsights && (
-        <div className="border border-slate-200 rounded-lg p-6 bg-white">
+        <div className="border border-slate-300 rounded-lg p-6 bg-white">
           <div className="flex items-center gap-2 mb-4">
             <Icon
               icon="mingcute:lightbulb-line"
@@ -1813,7 +1813,7 @@ function CompanyResearchTab({
                     .map((q: any, idx: number) => (
                       <div
                         key={idx}
-                        className="p-3 bg-slate-50 rounded-lg border border-slate-200"
+                        className="p-3 bg-slate-50 rounded-lg border border-slate-300"
                       >
                         <p className="text-slate-700 text-sm">
                           {q.question || q}
@@ -1854,7 +1854,7 @@ function CompanyResearchTab({
       )}
 
       {/* Talking Points */}
-      <div className="border border-slate-200 rounded-lg p-6 bg-gradient-to-br from-green-50 to-emerald-50">
+      <div className="border border-slate-300 rounded-lg p-6 bg-gradient-to-br from-green-50 to-emerald-50">
         <div className="flex items-center gap-2 mb-4">
           <Icon
             icon="mingcute:chat-3-line"
@@ -1911,7 +1911,7 @@ function CompanyResearchTab({
       </div>
 
       {/* Questions to Ask */}
-      <div className="border border-slate-200 rounded-lg p-6 bg-gradient-to-br from-blue-50 to-indigo-50">
+      <div className="border border-slate-300 rounded-lg p-6 bg-gradient-to-br from-blue-50 to-indigo-50">
         <div className="flex items-center gap-2 mb-4">
           <Icon
             icon="mingcute:question-answer-line"
@@ -2450,7 +2450,7 @@ function QuestionBankTab({
 
       {/* Questions List */}
       {filteredQuestions.length === 0 ? (
-        <div className="text-center py-12 border border-slate-200 rounded-lg">
+        <div className="text-center py-12 border border-slate-300 rounded-lg">
           <Icon
             icon="mingcute:question-line"
             width={64}
@@ -2744,7 +2744,7 @@ function QuestionBankTab({
                       </h4>
 
                       {feedback.scores && (
-                        <div className="border border-slate-200 rounded-lg p-4">
+                        <div className="border border-slate-300 rounded-lg p-4">
                           <h5 className="font-semibold text-slate-900 mb-3">
                             Scores
                           </h5>
@@ -2774,7 +2774,7 @@ function QuestionBankTab({
                       )}
 
                       {feedback.aiFeedback && (
-                        <div className="border border-slate-200 rounded-lg p-4">
+                        <div className="border border-slate-300 rounded-lg p-4">
                           <h5 className="font-semibold text-slate-900 mb-3">
                             Detailed Feedback
                           </h5>
@@ -3016,7 +3016,7 @@ function QuestionBankTab({
 
                   {/* Job Description Reference */}
                   {jobOpportunity?.jobDescription && (
-                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                    <div className="bg-slate-50 border border-slate-300 rounded-lg p-4">
                       <h5 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
                         <Icon icon="mingcute:file-text-line" width={18} />
                         Job Description Reference
@@ -3081,7 +3081,7 @@ function QuestionBankTab({
                               <p className="text-xs font-medium text-slate-600 mb-1">
                                 Your Response:
                               </p>
-                              <p className="text-sm text-slate-700 bg-slate-50 p-2 rounded border border-slate-200">
+                              <p className="text-sm text-slate-700 bg-slate-50 p-2 rounded border border-slate-300">
                                 {response.originalResponse ||
                                   response.original_response}
                               </p>
@@ -3285,7 +3285,7 @@ function ResponseCoachingTab({
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-300px)] max-h-[800px] bg-white border border-slate-200 rounded-xl overflow-hidden">
+    <div className="flex flex-col h-[calc(100vh-300px)] max-h-[800px] bg-white border border-slate-300 rounded-xl overflow-hidden">
       {/* Header */}
       <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-green-200 px-6 py-4">
         <div className="flex items-center gap-3">
@@ -3316,7 +3316,7 @@ function ResponseCoachingTab({
               className={`max-w-[80%] rounded-lg p-4 ${
                 message.role === "user"
                   ? "bg-blue-500 text-white"
-                  : "bg-white border border-slate-200 text-slate-900"
+                  : "bg-white border border-slate-300 text-slate-900"
               }`}
             >
               <div className="flex items-start gap-3">
@@ -3369,7 +3369,7 @@ function ResponseCoachingTab({
         ))}
         {isLoading && (
           <div className="flex justify-start">
-            <div className="bg-white border border-slate-200 rounded-lg p-4">
+            <div className="bg-white border border-slate-300 rounded-lg p-4">
               <div className="flex items-center gap-2">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-500"></div>
                 <span className="text-slate-600 text-sm">Thinking...</span>
@@ -3665,7 +3665,7 @@ function MockInterviewTab({
   if (!session) {
     return (
       <div className="space-y-6">
-        <div className="text-center py-12 border border-slate-200 rounded-lg">
+        <div className="text-center py-12 border border-slate-300 rounded-lg">
           <Icon
             icon="mingcute:chat-3-line"
             width={64}
@@ -3720,7 +3720,7 @@ function MockInterviewTab({
                 (s) => (
                   <div
                     key={s.id}
-                    className="border border-slate-200 rounded-lg p-4 hover:shadow-md transition cursor-pointer"
+                    className="border border-slate-300 rounded-lg p-4 hover:shadow-md transition cursor-pointer"
                     onClick={() => handleLoadSession(s.id)}
                   >
                     <div className="flex items-center justify-between">
@@ -3762,7 +3762,7 @@ function MockInterviewTab({
   const isCompleted = session.status === "completed";
 
   return (
-    <div className="flex flex-col h-[calc(100vh-300px)] border border-slate-200 rounded-lg bg-white">
+    <div className="flex flex-col h-[calc(100vh-300px)] border border-slate-300 rounded-lg bg-white">
       {/* Chat Header */}
       <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50">
         <div>
@@ -3895,7 +3895,7 @@ function MockInterviewTab({
       {/* Performance Summary Modal */}
       {showPerformanceModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[110] p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="bg-white rounded-xl border border-slate-300 max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             {/* Modal Header */}
             <div className="flex items-center justify-between p-6 border-b border-slate-200">
               <h2 className="text-2xl font-bold text-slate-900">
@@ -3960,7 +3960,7 @@ function MockInterviewTab({
 
                   {/* Overall Assessment */}
                   {performanceSummary.summary?.overall && (
-                    <div className="border border-slate-200 rounded-lg p-6">
+                    <div className="border border-slate-300 rounded-lg p-6">
                       <h3 className="text-lg font-semibold text-slate-900 mb-3">
                         Overall Assessment
                       </h3>
@@ -4038,7 +4038,7 @@ function MockInterviewTab({
 
                   {/* Improvement Areas */}
                   {performanceSummary.improvementAreas?.length > 0 && (
-                    <div className="border border-slate-200 rounded-lg p-6">
+                    <div className="border border-slate-300 rounded-lg p-6">
                       <h3 className="text-lg font-semibold text-slate-900 mb-4">
                         Recommended Focus Areas
                       </h3>
@@ -4083,7 +4083,7 @@ function MockInterviewTab({
 
                   {/* STAR Framework */}
                   {performanceSummary.starFrameworkAdherence && (
-                    <div className="border border-slate-200 rounded-lg p-6">
+                    <div className="border border-slate-300 rounded-lg p-6">
                       <h3 className="text-lg font-semibold text-slate-900 mb-3">
                         STAR Framework Assessment
                       </h3>
@@ -4095,7 +4095,7 @@ function MockInterviewTab({
 
                   {/* Response Quality Scores */}
                   {performanceSummary.responseQuality && (
-                    <div className="border border-slate-200 rounded-lg p-6">
+                    <div className="border border-slate-300 rounded-lg p-6">
                       <h3 className="text-lg font-semibold text-slate-900 mb-4">
                         Response Quality Scores
                       </h3>
@@ -4187,7 +4187,7 @@ function MockInterviewTab({
 
                   {/* Full Summary (Markdown) */}
                   {performanceSummary.formattedText && (
-                    <div className="border border-slate-200 rounded-lg p-6 bg-slate-50">
+                    <div className="border border-slate-300 rounded-lg p-6 bg-slate-50">
                       <h3 className="text-lg font-semibold text-slate-900 mb-4">
                         Detailed Summary
                       </h3>
@@ -4994,7 +4994,7 @@ def solve(nums):
       <div className="space-y-6">
         {/* Progress Overview */}
         {progress && (
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+          <div className="bg-white rounded-xl border border-slate-300 p-6">
             <h3 className="text-lg font-semibold text-slate-900 mb-4">
               Your Progress
             </h3>
@@ -5060,7 +5060,7 @@ def solve(nums):
         </div>
 
         {challenges.length === 0 ? (
-          <div className="text-center py-12 border border-slate-200 rounded-lg">
+          <div className="text-center py-12 border border-slate-300 rounded-lg">
             <Icon
               icon="mingcute:code-line"
               width={64}
@@ -5080,7 +5080,7 @@ def solve(nums):
               <div
                 key={challenge.id}
                 onClick={() => handleOpenChallenge(challenge)}
-                className="border border-slate-200 rounded-lg p-4 cursor-pointer hover:border-blue-500 hover:shadow-md transition-all bg-white"
+                className="border border-slate-300 rounded-lg p-4 cursor-pointer hover:border-blue-500 hover:shadow-md transition-all bg-white"
               >
                 <div className="flex items-center gap-2 mb-3">
                   <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded">
@@ -5113,7 +5113,7 @@ def solve(nums):
           onClick={handleCloseModal}
         >
           <div
-            className="bg-white rounded-xl w-full max-w-7xl h-[90vh] flex flex-col shadow-2xl"
+            className="bg-white rounded-xl border border-slate-300 w-full max-w-7xl h-[90vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -5153,7 +5153,7 @@ def solve(nums):
                     <h3 className="text-lg font-semibold text-slate-900 mb-3">
                       Problem Statement
                     </h3>
-                    <div className="bg-white rounded-lg p-4 border border-slate-200">
+                    <div className="bg-white rounded-lg p-4 border border-slate-300">
                       <p className="text-slate-700 whitespace-pre-wrap leading-relaxed">
                         {selectedChallenge.questionText}
                       </p>
@@ -5180,7 +5180,7 @@ def solve(nums):
                       <h3 className="text-lg font-semibold text-slate-900 mb-3">
                         Best Practices
                       </h3>
-                      <div className="bg-white rounded-lg p-4 border border-slate-200">
+                      <div className="bg-white rounded-lg p-4 border border-slate-300">
                         <p className="text-slate-700 text-sm whitespace-pre-wrap leading-relaxed">
                           {selectedChallenge.bestPractices}
                         </p>
@@ -5194,7 +5194,7 @@ def solve(nums):
                       <h3 className="text-lg font-semibold text-slate-900 mb-3">
                         Real-World Context
                       </h3>
-                      <div className="bg-white rounded-lg p-4 border border-slate-200">
+                      <div className="bg-white rounded-lg p-4 border border-slate-300">
                         <p className="text-slate-700 text-sm whitespace-pre-wrap leading-relaxed">
                           {selectedChallenge.realWorldScenario}
                         </p>
@@ -5226,7 +5226,7 @@ def solve(nums):
                           <Icon icon="mingcute:chart-line" width={20} />
                           Performance Metrics
                         </h3>
-                        <div className="bg-white rounded-lg p-4 border border-slate-200">
+                        <div className="bg-white rounded-lg p-4 border border-slate-300">
                           <div className="grid grid-cols-2 gap-4">
                             {selectedChallenge.performanceMetrics
                               .timeComplexity && (
@@ -5347,7 +5347,7 @@ def solve(nums):
                         />
                       </div>
                     ) : attemptHistory.length === 0 ? (
-                      <div className="bg-white rounded-lg p-4 border border-slate-200 text-center">
+                      <div className="bg-white rounded-lg p-4 border border-slate-300 text-center">
                         <p className="text-slate-600 text-sm">
                           No previous attempts. Submit a solution to track your
                           progress!
@@ -5364,7 +5364,7 @@ def solve(nums):
                           return (
                             <div
                               key={attemptId}
-                              className="bg-white rounded-lg border border-slate-200 hover:border-blue-300 transition"
+                              className="bg-white rounded-lg border border-slate-300 hover:border-blue-300 transition"
                             >
                               <div className="p-4">
                                 <div className="flex items-center justify-between mb-2">
@@ -5968,7 +5968,7 @@ def solve(nums):
                         style={{ width: `${feedback.score}%` }}
                       />
                     </div>
-                    <div className="bg-white rounded-lg p-4 border border-slate-200">
+                    <div className="bg-white rounded-lg p-4 border border-slate-300">
                       <div className="prose prose-sm max-w-none prose-slate prose-headings:text-slate-900 prose-headings:text-base prose-headings:font-semibold prose-headings:mt-4 prose-headings:mb-2 prose-h1:text-lg prose-h2:text-base prose-h3:text-sm prose-p:text-slate-700 prose-p:text-sm prose-p:leading-relaxed prose-p:my-2 prose-strong:text-slate-900 prose-strong:font-semibold prose-code:text-xs prose-code:bg-slate-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:text-xs prose-pre:bg-slate-900 prose-pre:text-slate-100 prose-ul:text-sm prose-ul:my-2 prose-ul:space-y-1 prose-ol:text-sm prose-ol:my-2 prose-ol:space-y-1 prose-li:text-slate-700 prose-li:my-1 prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-blockquote:border-l-4 prose-blockquote:border-slate-300 prose-blockquote:pl-4 prose-blockquote:italic prose-hr:border-slate-200 prose-hr:my-4">
                         <ReactMarkdown remarkPlugins={[remarkGfm]}>
                           {feedback.feedback || ""}

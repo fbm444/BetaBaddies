@@ -37,7 +37,7 @@ export function AIPreparationCard({ dateRange }: AIPreparationCardProps) {
 
   if (loading) {
     return (
-      <div className="rounded-3xl bg-white p-6 border border-[#E4E8F5] mb-6">
+      <div className="rounded-3xl bg-white p-6 border border-slate-300 mb-6">
         <div className="flex items-center justify-center py-8">
           <Icon icon="mingcute:loading-line" className="animate-spin text-[#3351FD]" width={32} />
         </div>
@@ -47,7 +47,7 @@ export function AIPreparationCard({ dateRange }: AIPreparationCardProps) {
 
   if (error) {
     return (
-      <div className="rounded-3xl bg-white p-6 border border-[#E4E8F5] mb-6">
+      <div className="rounded-3xl bg-white p-6 border border-slate-300 mb-6">
         <div className="rounded-xl bg-red-50 border border-red-200 p-4">
           <div className="flex items-start gap-3">
             <Icon icon="mingcute:alert-line" className="text-red-600 mt-0.5" width={20} />
@@ -60,7 +60,7 @@ export function AIPreparationCard({ dateRange }: AIPreparationCardProps) {
 
   if (!data || !data.hasData) {
     return (
-      <div className="rounded-3xl bg-white p-6 border border-[#E4E8F5] mb-6">
+      <div className="rounded-3xl bg-white p-6 border border-slate-300 mb-6">
         <div className="flex items-center gap-2 mb-4">
           <Icon icon="mingcute:sparkles-line" className="text-[#3351FD]" width={24} />
           <h3 className="text-[25px] font-normal text-[#0F1D3A]">
@@ -80,7 +80,7 @@ export function AIPreparationCard({ dateRange }: AIPreparationCardProps) {
   const content = showingAIAnalysis ? data : data.generalAdvice;
 
   return (
-    <div className="rounded-3xl bg-white p-6 border border-[#E4E8F5] mb-6">
+    <div className="rounded-3xl bg-white p-6 border border-slate-300 mb-6">
       <div className="flex items-center gap-2 mb-4">
         <Icon icon="mingcute:sparkles-line" className="text-[#3351FD]" width={24} />
         <h3 className="text-[25px] font-normal text-[#0F1D3A]">

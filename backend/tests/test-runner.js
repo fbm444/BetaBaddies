@@ -57,13 +57,13 @@ function runTest(testFile) {
     child.stdout.on("data", (data) => {
       const output = data.toString();
       stdout += output;
-      process.stdout.write(output);
+      // Suppress output - only capture for summary extraction
     });
 
     child.stderr.on("data", (data) => {
       const output = data.toString();
       stderr += output;
-      process.stderr.write(output);
+      // Suppress error output - only capture for summary extraction
     });
 
     child.on("close", (code) => {
@@ -207,22 +207,26 @@ function runTest(testFile) {
 
 async function runAllTests() {
   console.log("🚀 Starting Comprehensive Test Suite");
-  console.log("=".repeat(60));
   console.log(`📦 Running ${testFiles.length} test suites...\n`);
 
   const startTime = Date.now();
 
   for (let i = 0; i < testFiles.length; i++) {
     const testFile = testFiles[i];
-    console.log(`\n${"=".repeat(60)}`);
-    console.log(`[${i + 1}/${testFiles.length}] Running: ${testFile.name}`);
-    console.log(`${"=".repeat(60)}\n`);
+    process.stdout.write(`[${i + 1}/${testFiles.length}] Running ${testFile.name}... `);
 
     const result = await runTest(testFile);
     testResults.push(result);
 
+    // Show quick status
+    if (result.success) {
+      process.stdout.write(`✅ PASSED (${result.passed}/${result.total})\n`);
+    } else {
+      process.stdout.write(`❌ FAILED (${result.failed}/${result.total} failed)\n`);
+    }
+
     // Small delay between tests
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 100));
   }
 
   const endTime = Date.now();

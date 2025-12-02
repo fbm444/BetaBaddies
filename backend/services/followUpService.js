@@ -322,6 +322,12 @@ class FollowUpService {
     try {
       const { actionType, dueDate, notes } = actionData;
 
+      // Validate actionType - must be one of the allowed values
+      const allowedActionTypes = ['thank_you_note', 'follow_up_email', 'status_inquiry', 'references_sent', 'portfolio_sent', 'other'];
+      if (!allowedActionTypes.includes(actionType)) {
+        throw new Error(`Invalid action type: ${actionType}. Allowed types: ${allowedActionTypes.join(', ')}`);
+      }
+
       // Verify interview belongs to user
       const verifyQuery = `
         SELECT id FROM interviews WHERE id = $1 AND user_id = $2
@@ -332,24 +338,44 @@ class FollowUpService {
         throw new Error("Interview not found");
       }
 
+      // Parse dueDate if it's a string
+      let parsedDueDate = dueDate;
+      if (dueDate && typeof dueDate === 'string') {
+        parsedDueDate = new Date(dueDate);
+        if (isNaN(parsedDueDate.getTime())) {
+          throw new Error("Invalid due date format");
+        }
+      }
+
       const actionId = uuidv4();
-      await database.query(
+      const result = await database.query(
         `INSERT INTO interview_follow_ups (
           id, interview_id, action_type, due_date, notes, completed, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, false, NOW(), NOW())`,
-        [actionId, interviewId, actionType, dueDate || null, notes || null]
+        ) VALUES ($1, $2, $3, $4, $5, false, NOW(), NOW())
+        RETURNING *`,
+        [actionId, interviewId, actionType, parsedDueDate || null, notes || null]
       );
 
+      const created = result.rows[0];
+
       return {
-        id: actionId,
-        interviewId,
-        actionType,
-        dueDate,
-        notes,
-        completed: false,
+        id: created.id,
+        interviewId: created.interview_id,
+        actionType: created.action_type,
+        action_type: created.action_type, // Include both for compatibility
+        dueDate: created.due_date,
+        notes: created.notes,
+        completed: created.completed,
+        createdAt: created.created_at,
+        updatedAt: created.updated_at,
       };
     } catch (error) {
       console.error("❌ Error creating follow-up action:", error);
+      console.error("   Interview ID:", interviewId);
+      console.error("   User ID:", userId);
+      console.error("   Action Data:", actionData);
+      console.error("   Error message:", error.message);
+      console.error("   Error stack:", error.stack);
       throw error;
     }
   }

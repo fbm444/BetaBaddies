@@ -47,6 +47,7 @@ async function createTestUser() {
       console.log("   🗑️  Clearing existing data to start fresh...");
       
       // Delete all user data in correct order (respecting foreign keys)
+      await database.query("DELETE FROM writing_practice_sessions WHERE user_id = $1", [userId]);
       await database.query("DELETE FROM negotiation_confidence_exercises WHERE user_id = $1", [userId]);
       await database.query("DELETE FROM salary_progression_history WHERE user_id = $1", [userId]);
       await database.query("DELETE FROM salary_negotiations WHERE user_id = $1", [userId]);
@@ -1292,6 +1293,191 @@ async function createTestUser() {
     console.log(`     - 1 completed negotiation (Apple - accepted)`);
     console.log(`     - All include market research data`);
 
+    // Step 14: Create writing practice sessions from the last month for trends
+    console.log("\n📝 Step 14: Creating writing practice sessions (last month)...");
+    
+    const currentDate = new Date();
+    const oneMonthAgo = new Date(currentDate);
+    oneMonthAgo.setDate(oneMonthAgo.getDate() - 30);
+    
+    // Sample prompts for different session types
+    const prompts = {
+      interview_response: [
+        "Tell me about yourself.",
+        "Why are you interested in this position?",
+        "Describe a time when you had to work with a difficult team member.",
+        "Tell me about a challenging project you worked on.",
+        "What are your strengths and weaknesses?",
+        "How do you handle tight deadlines?",
+        "Describe a situation where you had to learn something new quickly.",
+        "Tell me about a time you made a mistake and how you handled it.",
+        "What motivates you in your work?",
+        "Describe your approach to problem-solving.",
+      ],
+      thank_you_note: [
+        "Thank you for taking the time to speak with me about the Senior Software Engineer position.",
+        "I wanted to express my appreciation for our discussion about the Software Development Engineer II role.",
+        "Thank you for the opportunity to interview for the Senior Backend Engineer position.",
+      ],
+      follow_up: [
+        "I wanted to follow up regarding the status of my application for the Senior Software Engineer position.",
+        "I hope this email finds you well. I wanted to check on the timeline for the hiring decision.",
+        "I wanted to follow up on my interview and express my continued interest in the role.",
+      ],
+    };
+    
+    // Create sessions spread across the last 30 days (about 3-4 per day on average)
+    const writingSessionsData = [];
+    const sessionTypes = ["interview_response", "interview_response", "interview_response", "thank_you_note", "follow_up"];
+    
+    // Generate sessions over the last month with improving trends
+    for (let dayOffset = 29; dayOffset >= 0; dayOffset--) {
+      const sessionDate = new Date(currentDate);
+      sessionDate.setDate(sessionDate.getDate() - dayOffset);
+      
+      // Vary number of sessions per day (0-5 sessions, more frequent in recent days)
+      const sessionsPerDay = Math.floor(Math.random() * (dayOffset < 10 ? 6 : 4));
+      
+      for (let i = 0; i < sessionsPerDay; i++) {
+        const sessionType = sessionTypes[Math.floor(Math.random() * sessionTypes.length)];
+        const promptsForType = prompts[sessionType] || prompts.interview_response;
+        const prompt = promptsForType[Math.floor(Math.random() * promptsForType.length)];
+        
+        // Calculate scores - improve over time (later days have better scores)
+        const progressFactor = (30 - dayOffset) / 30; // 0 to 1
+        const baseScore = 60 + (progressFactor * 30); // 60 to 90
+        
+        const clarityScore = Math.floor(baseScore + (Math.random() - 0.5) * 10);
+        const professionalismScore = Math.floor(baseScore + (Math.random() - 0.5) * 10);
+        const structureScore = Math.floor(baseScore + (Math.random() - 0.5) * 10);
+        const storytellingScore = Math.floor(baseScore + (Math.random() - 0.5) * 10);
+        
+        // Realistic word counts based on session type
+        let wordCount;
+        if (sessionType === "thank_you_note") {
+          wordCount = 150 + Math.floor(Math.random() * 100);
+        } else if (sessionType === "follow_up") {
+          wordCount = 200 + Math.floor(Math.random() * 150);
+        } else {
+          wordCount = 250 + Math.floor(Math.random() * 300);
+        }
+        
+        // Time spent (in seconds) - roughly 1 word per 2-3 seconds
+        const timeSpent = Math.floor(wordCount * (2 + Math.random() * 1.5));
+        
+        // Generate sample response text based on session type and prompt
+        let responseText;
+        if (sessionType === "thank_you_note") {
+          responseText = `Dear Interviewer,\n\nThank you for taking the time to speak with me about the position. ` +
+            `I truly appreciated our conversation and the opportunity to learn more about the role and your team. ` +
+            `Our discussion about the projects and challenges was particularly insightful. I'm very excited about ` +
+            `the possibility of contributing to your team and bringing my skills and experience to help achieve ` +
+            `your goals. I look forward to hearing from you soon.\n\nBest regards,\nSarah Chen`;
+        } else if (sessionType === "follow_up") {
+          responseText = `Dear Interviewer,\n\nI hope this email finds you well. I wanted to follow up regarding ` +
+            `the status of my application for the position. I remain very interested in the opportunity and ` +
+            `would appreciate any updates you might have regarding the hiring timeline. If you need any ` +
+            `additional information from me, please don't hesitate to reach out.\n\nThank you for your time ` +
+            `and consideration.\n\nBest regards,\nSarah Chen`;
+        } else {
+          // Interview response - more detailed
+          const examples = [
+            `In my previous role at TechCorp, I had the opportunity to work on several challenging projects. ` +
+            `One example that comes to mind is when I led the development of a distributed system that needed ` +
+            `to handle millions of requests per day. I collaborated closely with cross-functional teams, ` +
+            `including product managers, designers, and other engineers, to understand requirements and ` +
+            `design a scalable architecture.`,
+            `I'm particularly interested in this position because it aligns perfectly with my career goals ` +
+            `and my passion for building innovative solutions. The company's focus on technology and ` +
+            `innovation really resonates with me, and I believe I can contribute meaningfully to your team.`,
+            `One of my key strengths is my ability to communicate effectively with both technical and ` +
+            `non-technical stakeholders. I make it a point to translate complex technical concepts into ` +
+            `clear, actionable insights that help drive decision-making.`
+          ];
+          responseText = examples[Math.floor(Math.random() * examples.length)] + `\n\n` +
+            `This experience taught me the importance of thorough planning, clear communication, and ` +
+            `iterative development. I believe these skills would be valuable in this role, and I'm ` +
+            `excited about the opportunity to bring my expertise to your team.`;
+        }
+        
+        // Adjust response length to match target word count
+        const currentWords = responseText.split(/\s+/).length;
+        if (currentWords < wordCount) {
+          // Add more content to reach target word count
+          const additionalWords = wordCount - currentWords;
+          const filler = `This demonstrates my experience and ability to effectively communicate my ideas. ` +
+            `I believe this highlights my relevant skills and qualifications for this role. ` +
+            `My background in software engineering has prepared me well for this type of challenge. ` +
+            `I'm confident that I can bring value to your team through my technical expertise and problem-solving abilities. ` +
+            `I look forward to the opportunity to contribute to your organization's success.`;
+          const fillerWords = filler.split(/\s+/);
+          const repetitions = Math.ceil(additionalWords / fillerWords.length);
+          responseText += `\n\n` + fillerWords.join(' ').repeat(repetitions).split(/\s+/).slice(0, additionalWords).join(' ');
+        } else if (currentWords > wordCount) {
+          // Trim to target word count
+          const words = responseText.split(/\s+/);
+          responseText = words.slice(0, wordCount).join(' ');
+        }
+        
+        // Set time within the day (9 AM to 9 PM)
+        const hours = 9 + Math.floor(Math.random() * 12);
+        const minutes = Math.floor(Math.random() * 60);
+        sessionDate.setHours(hours, minutes, Math.floor(Math.random() * 60), 0);
+        
+        writingSessionsData.push({
+          sessionType,
+          prompt,
+          response: responseText,
+          wordCount,
+          timeSpentSeconds: timeSpent,
+          clarityScore: Math.max(40, Math.min(100, clarityScore)),
+          professionalismScore: Math.max(40, Math.min(100, professionalismScore)),
+          structureScore: Math.max(40, Math.min(100, structureScore)),
+          storytellingScore: Math.max(40, Math.min(100, storytellingScore)),
+          sessionDate: sessionDate.toISOString(),
+          isCompleted: true,
+        });
+      }
+    }
+    
+    // Insert writing practice sessions
+    for (const session of writingSessionsData) {
+      const avgScore = Math.round(
+        (session.clarityScore + session.professionalismScore + 
+         session.structureScore + session.storytellingScore) / 4
+      );
+      
+      await database.query(
+        `INSERT INTO writing_practice_sessions (
+          id, user_id, session_type, prompt, response, response_text, word_count, 
+          time_spent_seconds, clarity_score, professionalism_score,
+          structure_score, storytelling_score, session_date, is_completed,
+          created_at, updated_at
+        ) VALUES (
+          gen_random_uuid(), $1, $2, $3, $4, $4, $5, $6, $7, $8, $9, $10, $11, $12, $11, $11
+        )`,
+        [
+          userId,
+          session.sessionType,
+          session.prompt,
+          session.response,
+          session.wordCount,
+          session.timeSpentSeconds,
+          session.clarityScore,
+          session.professionalismScore,
+          session.structureScore,
+          session.storytellingScore,
+          session.sessionDate,
+          session.isCompleted,
+        ]
+      );
+    }
+    
+    console.log(`   ✓ Created ${writingSessionsData.length} writing practice sessions over the last 30 days`);
+    console.log(`     - Sessions show improving trend (scores increase over time)`);
+    console.log(`     - Mix of interview responses, thank-you notes, and follow-ups`);
+    console.log(`     - Realistic word counts and time spent per session`);
+
     // Summary
     console.log("\n" + "=".repeat(60));
     console.log("✅ SUCCESS! Test user created with complete data");
@@ -1316,9 +1502,13 @@ async function createTestUser() {
     console.log(`   ✓ ${salaryNegotiationsData.length} Salary Negotiations:`);
     console.log(`     - 2 active negotiations (Meta, Amazon)`);
     console.log(`     - 1 completed negotiation (Apple - accepted)`);
+    console.log(`   ✓ ${writingSessionsData.length} Writing Practice Sessions (last 30 days)`);
+    console.log(`     - Shows improving trends over time`);
+    console.log(`     - Mix of interview responses, thank-you notes, and follow-ups`);
     console.log("\n🎯 This user is ready to test:");
     console.log("   - Interview Analytics (navigate to Interview Analytics page)");
-    console.log("   - Salary Negotiation (navigate to Salary Negotiation page)\n");
+    console.log("   - Salary Negotiation (navigate to Salary Negotiation page)");
+    console.log("   - Writing Practice with trends and charts (last month of data)\n");
 
     process.exit(0);
   } catch (error) {

@@ -1,7 +1,24 @@
 --
 -- PostgreSQL database dump
 --
-
+-- This file contains the complete database schema for the ATS Tracker application.
+-- It can be used to recreate the database structure on any PostgreSQL 14+ server.
+--
+-- Usage:
+--   1. Create a new database: CREATE DATABASE ats_tracker;
+--   2. Run this file: psql -U your_user -d ats_tracker -f database_schema_dump.sql
+--
+-- Requirements:
+--   - PostgreSQL 14 or higher
+--   - Superuser privileges (to create extensions) OR pre-installed extensions:
+--     * pgcrypto (for gen_random_uuid())
+--     * uuid-ossp (for UUID generation functions)
+--
+-- Note: This dump does not include:
+--   - Data (rows) - only schema (structure)
+--   - Owner information - uses default ownership
+--   - Privileges/ACLs - grants must be set separately if needed
+--
 -- Dumped from database version 14.17 (Homebrew)
 -- Dumped by pg_dump version 14.17 (Homebrew)
 
@@ -15,6 +32,20 @@ SET check_function_bodies = false;
 SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
+
+--
+-- Name: pgcrypto; Type: EXTENSION; Schema: -; Owner: -
+--
+
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public;
+
+
+--
+-- Name: EXTENSION pgcrypto; Type: COMMENT; Schema: -; Owner: -
+--
+
+COMMENT ON EXTENSION pgcrypto IS 'cryptographic functions';
+
 
 --
 -- Name: uuid-ossp; Type: EXTENSION; Schema: -; Owner: -
@@ -544,8 +575,6 @@ BEGIN
 END;
 $$;
 
-
-SET default_tablespace = '';
 
 SET default_table_access_method = heap;
 

@@ -1080,9 +1080,9 @@ class ApiService {
   }
 
   async getInterviewRecommendations() {
-    return this.request<
-      ApiResponse<{ recommendations: string[] }>
-    >("/interviews/analytics/recommendations");
+    return this.request<ApiResponse<{ recommendations: string[] }>>(
+      "/interviews/analytics/recommendations"
+    );
   }
 
   async updatePreparationTask(
@@ -1100,11 +1100,12 @@ class ApiService {
   }
 
   async generatePreparationTasks(interviewId: string) {
-    return this.request<
-      ApiResponse<{ tasks: any[]; message: string }>
-    >(`/interviews/${interviewId}/preparation/generate`, {
-      method: "POST",
-    });
+    return this.request<ApiResponse<{ tasks: any[]; message: string }>>(
+      `/interviews/${interviewId}/preparation/generate`,
+      {
+        method: "POST",
+      }
+    );
   }
 
   async deleteInterview(id: string) {
@@ -1290,16 +1291,16 @@ class ApiService {
 
   // Reminder endpoints
   async getRemindersForInterview(interviewId: string) {
-    return this.request<
-      ApiResponse<{ reminders: any[] }>
-    >(`/interviews/${interviewId}/reminders`);
+    return this.request<ApiResponse<{ reminders: any[] }>>(
+      `/interviews/${interviewId}/reminders`
+    );
   }
 
   // Thank-you note endpoints
   async getThankYouNotes(interviewId: string) {
-    return this.request<
-      ApiResponse<{ notes: any[] }>
-    >(`/interviews/${interviewId}/thank-you-notes`);
+    return this.request<ApiResponse<{ notes: any[] }>>(
+      `/interviews/${interviewId}/thank-you-notes`
+    );
   }
 
   async generateThankYouNote(
@@ -1307,15 +1308,16 @@ class ApiService {
     templateStyle?: string,
     options?: { regenerate?: boolean }
   ) {
-    return this.request<
-      ApiResponse<{ note: any }>
-    >(`/interviews/${interviewId}/thank-you-notes/generate`, {
-      method: "POST",
-      body: JSON.stringify({
-        ...(templateStyle ? { templateStyle } : {}),
-        ...(options?.regenerate ? { regenerate: true } : {}),
-      }),
-    });
+    return this.request<ApiResponse<{ note: any }>>(
+      `/interviews/${interviewId}/thank-you-notes/generate`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          ...(templateStyle ? { templateStyle } : {}),
+          ...(options?.regenerate ? { regenerate: true } : {}),
+        }),
+      }
+    );
   }
 
   // ============================================================================
@@ -2579,63 +2581,74 @@ class ApiService {
     );
   }
 
-  async updateThankYouNote(interviewId: string, noteId: string, data: { subject?: string; body?: string }) {
-    return this.request<
-      ApiResponse<{ note: any }>
-    >(`/interviews/${interviewId}/thank-you-notes/${noteId}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
+  async updateThankYouNote(
+    interviewId: string,
+    noteId: string,
+    data: { subject?: string; body?: string }
+  ) {
+    return this.request<ApiResponse<{ note: any }>>(
+      `/interviews/${interviewId}/thank-you-notes/${noteId}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }
+    );
   }
 
   async sendThankYouNote(interviewId: string, noteId: string) {
-    return this.request<
-      ApiResponse<{ message: string }>
-    >(`/interviews/${interviewId}/thank-you-notes/${noteId}/send`, {
-      method: "POST",
-    });
+    return this.request<ApiResponse<{ message: string }>>(
+      `/interviews/${interviewId}/thank-you-notes/${noteId}/send`,
+      {
+        method: "POST",
+      }
+    );
   }
 
   // Follow-up endpoints
   async getFollowUpActions(interviewId: string) {
-    return this.request<
-      ApiResponse<{ followUps: any[] }>
-    >(`/interviews/${interviewId}/follow-ups`);
+    return this.request<ApiResponse<{ followUps: any[] }>>(
+      `/interviews/${interviewId}/follow-ups`
+    );
   }
 
   async getPendingFollowUps() {
-    return this.request<
-      ApiResponse<{ followUps: any[] }>
-    >("/follow-ups/pending");
+    return this.request<ApiResponse<{ followUps: any[] }>>(
+      "/follow-ups/pending"
+    );
   }
 
   async getAllFollowUps() {
-    return this.request<
-      ApiResponse<{ followUps: any[] }>
-    >("/follow-ups/all");
+    return this.request<ApiResponse<{ followUps: any[] }>>("/follow-ups/all");
   }
 
   async getFollowUpEmailDraft(interviewId: string, actionId: string) {
     return this.request<
-      ApiResponse<{ draft: { subject: string; body: string; generatedBy?: string } }>
+      ApiResponse<{
+        draft: { subject: string; body: string; generatedBy?: string };
+      }>
     >(`/interviews/${interviewId}/follow-ups/${actionId}/draft`);
   }
 
   async completeFollowUpAction(interviewId: string, actionId: string) {
-    return this.request<
-      ApiResponse<{ message: string }>
-    >(`/interviews/${interviewId}/follow-ups/${actionId}/complete`, {
-      method: "POST",
-    });
+    return this.request<ApiResponse<{ message: string }>>(
+      `/interviews/${interviewId}/follow-ups/${actionId}/complete`,
+      {
+        method: "POST",
+      }
+    );
   }
 
-  async createFollowUpAction(interviewId: string, data: { actionType: string; dueDate?: string; notes?: string }) {
-    return this.request<
-      ApiResponse<{ followUp: any }>
-    >(`/interviews/${interviewId}/follow-ups`, {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
+  async createFollowUpAction(
+    interviewId: string,
+    data: { actionType: string; dueDate?: string; notes?: string }
+  ) {
+    return this.request<ApiResponse<{ followUp: any }>>(
+      `/interviews/${interviewId}/follow-ups`,
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      }
+    );
   }
 
   // ========== Salary Negotiation Methods ==========
@@ -2659,24 +2672,25 @@ class ApiService {
     if (filters?.status) queryParams.append("status", filters.status);
     if (filters?.outcome) queryParams.append("outcome", filters.outcome);
     if (filters?.limit) queryParams.append("limit", filters.limit.toString());
-    if (filters?.offset) queryParams.append("offset", filters.offset.toString());
+    if (filters?.offset)
+      queryParams.append("offset", filters.offset.toString());
 
     const query = queryParams.toString();
-    return this.request<
-      ApiResponse<{ negotiations: SalaryNegotiation[] }>
-    >(`/salary-negotiations${query ? `?${query}` : ""}`);
+    return this.request<ApiResponse<{ negotiations: SalaryNegotiation[] }>>(
+      `/salary-negotiations${query ? `?${query}` : ""}`
+    );
   }
 
   async getSalaryNegotiation(id: string) {
-    return this.request<
-      ApiResponse<{ negotiation: SalaryNegotiation }>
-    >(`/salary-negotiations/${id}`);
+    return this.request<ApiResponse<{ negotiation: SalaryNegotiation }>>(
+      `/salary-negotiations/${id}`
+    );
   }
 
   async getSalaryNegotiationByJob(jobOpportunityId: string) {
-    return this.request<
-      ApiResponse<{ negotiation: SalaryNegotiation | null }>
-    >(`/salary-negotiations/job/${jobOpportunityId}`);
+    return this.request<ApiResponse<{ negotiation: SalaryNegotiation | null }>>(
+      `/salary-negotiations/job/${jobOpportunityId}`
+    );
   }
 
   async updateSalaryNegotiation(id: string, updates: SalaryNegotiationUpdate) {
@@ -2706,17 +2720,26 @@ class ApiService {
     });
   }
 
-  async getMarketResearch(id: string, params?: { role?: string; location?: string; experienceLevel?: number; industry?: string }) {
+  async getMarketResearch(
+    id: string,
+    params?: {
+      role?: string;
+      location?: string;
+      experienceLevel?: number;
+      industry?: string;
+    }
+  ) {
     const queryParams = new URLSearchParams();
     if (params?.role) queryParams.append("role", params.role);
     if (params?.location) queryParams.append("location", params.location);
-    if (params?.experienceLevel) queryParams.append("experienceLevel", params.experienceLevel.toString());
+    if (params?.experienceLevel)
+      queryParams.append("experienceLevel", params.experienceLevel.toString());
     if (params?.industry) queryParams.append("industry", params.industry);
 
     const query = queryParams.toString();
-    return this.request<
-      ApiResponse<{ marketData: MarketSalaryData }>
-    >(`/salary-negotiations/${id}/market-research${query ? `?${query}` : ""}`);
+    return this.request<ApiResponse<{ marketData: MarketSalaryData }>>(
+      `/salary-negotiations/${id}/market-research${query ? `?${query}` : ""}`
+    );
   }
 
   async triggerMarketResearch(id: string, data: MarketResearchInput) {
@@ -2729,9 +2752,9 @@ class ApiService {
   }
 
   async getTalkingPoints(id: string) {
-    return this.request<
-      ApiResponse<{ talkingPoints: TalkingPoint[] }>
-    >(`/salary-negotiations/${id}/talking-points`);
+    return this.request<ApiResponse<{ talkingPoints: TalkingPoint[] }>>(
+      `/salary-negotiations/${id}/talking-points`
+    );
   }
 
   async generateTalkingPoints(id: string, regenerate?: boolean) {
@@ -2744,12 +2767,16 @@ class ApiService {
   }
 
   async getNegotiationScript(id: string, scenario: string) {
-    return this.request<
-      ApiResponse<{ script: NegotiationScript }>
-    >(`/salary-negotiations/${id}/scripts/${scenario}`);
+    return this.request<ApiResponse<{ script: NegotiationScript }>>(
+      `/salary-negotiations/${id}/scripts/${scenario}`
+    );
   }
 
-  async generateNegotiationScript(id: string, scenario: string, regenerate?: boolean) {
+  async generateNegotiationScript(
+    id: string,
+    scenario: string,
+    regenerate?: boolean
+  ) {
     return this.request<
       ApiResponse<{ script: NegotiationScript; message: string }>
     >(`/salary-negotiations/${id}/scripts/${scenario}`, {
@@ -2759,27 +2786,30 @@ class ApiService {
   }
 
   async evaluateCounteroffer(id: string, counterofferData: CounterofferInput) {
-    return this.request<
-      ApiResponse<{ evaluation: CounterofferEvaluation }>
-    >(`/salary-negotiations/${id}/evaluate-counteroffer`, {
-      method: "POST",
-      body: JSON.stringify(counterofferData),
-    });
+    return this.request<ApiResponse<{ evaluation: CounterofferEvaluation }>>(
+      `/salary-negotiations/${id}/evaluate-counteroffer`,
+      {
+        method: "POST",
+        body: JSON.stringify(counterofferData),
+      }
+    );
   }
 
   async getTimingStrategy(id: string) {
-    return this.request<
-      ApiResponse<{ strategy: TimingStrategy }>
-    >(`/salary-negotiations/${id}/timing-strategy`);
+    return this.request<ApiResponse<{ strategy: TimingStrategy }>>(
+      `/salary-negotiations/${id}/timing-strategy`
+    );
   }
 
   async getSalaryProgression() {
-    return this.request<
-      ApiResponse<{ progression: SalaryProgressionEntry[] }>
-    >("/salary-negotiations/progression/history");
+    return this.request<ApiResponse<{ progression: SalaryProgressionEntry[] }>>(
+      "/salary-negotiations/progression/history"
+    );
   }
 
-  async addSalaryProgressionEntry(data: Omit<SalaryProgressionEntry, "id" | "createdAt">) {
+  async addSalaryProgressionEntry(
+    data: Omit<SalaryProgressionEntry, "id" | "createdAt">
+  ) {
     return this.request<
       ApiResponse<{ entry: SalaryProgressionEntry; message: string }>
     >("/salary-negotiations/progression/entry", {
@@ -2812,22 +2842,24 @@ class ApiService {
   }) {
     const params = new URLSearchParams();
     if (filters?.sessionType) params.append("sessionType", filters.sessionType);
-    if (filters?.isCompleted !== undefined) params.append("isCompleted", filters.isCompleted.toString());
+    if (filters?.isCompleted !== undefined)
+      params.append("isCompleted", filters.isCompleted.toString());
     if (filters?.limit) params.append("limit", filters.limit.toString());
     if (filters?.offset) params.append("offset", filters.offset.toString());
     if (filters?.orderBy) params.append("orderBy", filters.orderBy);
-    if (filters?.orderDirection) params.append("orderDirection", filters.orderDirection);
+    if (filters?.orderDirection)
+      params.append("orderDirection", filters.orderDirection);
 
     const query = params.toString() ? `?${params.toString()}` : "";
-    return this.request<
-      ApiResponse<{ sessions: WritingPracticeSession[] }>
-    >(`/writing-practice/sessions${query}`);
+    return this.request<ApiResponse<{ sessions: WritingPracticeSession[] }>>(
+      `/writing-practice/sessions${query}`
+    );
   }
 
   async getWritingSessionById(id: string) {
-    return this.request<
-      ApiResponse<{ session: WritingPracticeSession }>
-    >(`/writing-practice/sessions/${id}`);
+    return this.request<ApiResponse<{ session: WritingPracticeSession }>>(
+      `/writing-practice/sessions/${id}`
+    );
   }
 
   async updateWritingSession(id: string, data: WritingPracticeSessionUpdate) {
@@ -2840,21 +2872,25 @@ class ApiService {
   }
 
   async deleteWritingSession(id: string) {
-    return this.request<
-      ApiResponse<{ message: string }>
-    >(`/writing-practice/sessions/${id}`, {
-      method: "DELETE",
-    });
+    return this.request<ApiResponse<{ message: string }>>(
+      `/writing-practice/sessions/${id}`,
+      {
+        method: "DELETE",
+      }
+    );
   }
 
-  async getWritingSessionStats(id: string, dateRange?: { startDate?: string; endDate?: string }) {
+  async getWritingSessionStats(
+    id: string,
+    dateRange?: { startDate?: string; endDate?: string }
+  ) {
     const params = new URLSearchParams();
     if (dateRange?.startDate) params.append("startDate", dateRange.startDate);
     if (dateRange?.endDate) params.append("endDate", dateRange.endDate);
     const query = params.toString() ? `?${params.toString()}` : "";
-    return this.request<
-      ApiResponse<{ stats: SessionStats }>
-    >(`/writing-practice/sessions/${id}/stats${query}`);
+    return this.request<ApiResponse<{ stats: SessionStats }>>(
+      `/writing-practice/sessions/${id}/stats${query}`
+    );
   }
 
   // Feedback
@@ -2868,24 +2904,29 @@ class ApiService {
   }
 
   async getWritingFeedback(id: string) {
-    return this.request<
-      ApiResponse<{ feedback: WritingFeedback }>
-    >(`/writing-practice/sessions/${id}/feedback`);
+    return this.request<ApiResponse<{ feedback: WritingFeedback }>>(
+      `/writing-practice/sessions/${id}/feedback`
+    );
   }
 
   async compareWritingSessions(sessionId1: string, sessionId2: string) {
-    return this.request<
-      ApiResponse<{ comparison: SessionComparison }>
-    >("/writing-practice/compare", {
-      method: "POST",
-      body: JSON.stringify({ sessionId1, sessionId2 }),
-    });
+    return this.request<ApiResponse<{ comparison: SessionComparison }>>(
+      "/writing-practice/compare",
+      {
+        method: "POST",
+        body: JSON.stringify({ sessionId1, sessionId2 }),
+      }
+    );
   }
 
   async getWritingFeedbackHistory(limit?: number) {
     const params = limit ? `?limit=${limit}` : "";
     return this.request<
-      ApiResponse<{ history: Array<WritingFeedback & { prompt: string; sessionType: string }> }>
+      ApiResponse<{
+        history: Array<
+          WritingFeedback & { prompt: string; sessionType: string }
+        >;
+      }>
     >(`/writing-practice/feedback/history${params}`);
   }
 
@@ -2898,11 +2939,12 @@ class ApiService {
     const params = new URLSearchParams();
     if (filters?.category) params.append("category", filters.category);
     if (filters?.difficulty) params.append("difficulty", filters.difficulty);
-    if (filters?.isActive !== undefined) params.append("isActive", filters.isActive.toString());
+    if (filters?.isActive !== undefined)
+      params.append("isActive", filters.isActive.toString());
     const query = params.toString() ? `?${params.toString()}` : "";
-    return this.request<
-      ApiResponse<{ prompts: WritingPrompt[] }>
-    >(`/writing-practice/prompts${query}`);
+    return this.request<ApiResponse<{ prompts: WritingPrompt[] }>>(
+      `/writing-practice/prompts${query}`
+    );
   }
 
   async getRandomWritingPrompt(category?: string, difficulty?: string) {
@@ -2910,15 +2952,15 @@ class ApiService {
     if (category) params.append("category", category);
     if (difficulty) params.append("difficulty", difficulty);
     const query = params.toString() ? `?${params.toString()}` : "";
-    return this.request<
-      ApiResponse<{ prompt: WritingPrompt }>
-    >(`/writing-practice/prompts/random${query}`);
+    return this.request<ApiResponse<{ prompt: WritingPrompt }>>(
+      `/writing-practice/prompts/random${query}`
+    );
   }
 
   async getWritingPromptsForInterview(jobId: string) {
-    return this.request<
-      ApiResponse<{ prompts: WritingPrompt[] }>
-    >(`/writing-practice/prompts/interview/${jobId}`);
+    return this.request<ApiResponse<{ prompts: WritingPrompt[] }>>(
+      `/writing-practice/prompts/interview/${jobId}`
+    );
   }
 
   async createCustomPrompt(data: CustomPromptInput) {
@@ -2931,14 +2973,17 @@ class ApiService {
   }
 
   // Progress
-  async getWritingProgress(dateRange?: { startDate?: string; endDate?: string }) {
+  async getWritingProgress(dateRange?: {
+    startDate?: string;
+    endDate?: string;
+  }) {
     const params = new URLSearchParams();
     if (dateRange?.startDate) params.append("startDate", dateRange.startDate);
     if (dateRange?.endDate) params.append("endDate", dateRange.endDate);
     const query = params.toString() ? `?${params.toString()}` : "";
-    return this.request<
-      ApiResponse<{ metrics: ProgressMetrics }>
-    >(`/writing-practice/progress${query}`);
+    return this.request<ApiResponse<{ metrics: ProgressMetrics }>>(
+      `/writing-practice/progress${query}`
+    );
   }
 
   async getWritingProgressTrend(metric?: string, period?: string) {
@@ -2946,23 +2991,23 @@ class ApiService {
     if (metric) params.append("metric", metric);
     if (period) params.append("period", period);
     const query = params.toString() ? `?${params.toString()}` : "";
-    return this.request<
-      ApiResponse<{ trend: ProgressTrend[] }>
-    >(`/writing-practice/progress/trend${query}`);
+    return this.request<ApiResponse<{ trend: ProgressTrend[] }>>(
+      `/writing-practice/progress/trend${query}`
+    );
   }
 
   async getWritingProgressInsights() {
-    return this.request<
-      ApiResponse<{ insights: ProgressInsights }>
-    >("/writing-practice/progress/insights");
+    return this.request<ApiResponse<{ insights: ProgressInsights }>>(
+      "/writing-practice/progress/insights"
+    );
   }
 
   // Nerves Management
   async getNervesExercises(sessionId?: string) {
     const params = sessionId ? `?sessionId=${sessionId}` : "";
-    return this.request<
-      ApiResponse<{ exercises: NervesExercise[] }>
-    >(`/writing-practice/nerves/exercises${params}`);
+    return this.request<ApiResponse<{ exercises: NervesExercise[] }>>(
+      `/writing-practice/nerves/exercises${params}`
+    );
   }
 
   async completeNervesExercise(data: CompleteExerciseInput) {
@@ -2976,15 +3021,15 @@ class ApiService {
 
   async getNervesExerciseHistory(limit?: number) {
     const params = limit ? `?limit=${limit}` : "";
-    return this.request<
-      ApiResponse<{ history: CompletedNervesExercise[] }>
-    >(`/writing-practice/nerves/history${params}`);
+    return this.request<ApiResponse<{ history: CompletedNervesExercise[] }>>(
+      `/writing-practice/nerves/history${params}`
+    );
   }
 
   async generatePreparationChecklist(jobId: string) {
-    return this.request<
-      ApiResponse<{ checklist: PreparationChecklist }>
-    >(`/writing-practice/nerves/checklist/${jobId}`);
+    return this.request<ApiResponse<{ checklist: PreparationChecklist }>>(
+      `/writing-practice/nerves/checklist/${jobId}`
+    );
   }
 }
 

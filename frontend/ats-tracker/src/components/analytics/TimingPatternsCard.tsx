@@ -40,7 +40,7 @@ export function TimingPatternsCard({ patterns }: TimingPatternsCardProps) {
                         style={{ width: `${Math.min(pattern.successRate, 100)}%` }}
                       />
                     </div>
-                    <span className="text-xs font-medium text-[#0F1D3A] w-12 text-right">
+                    <span className="text-xs font-extralight text-[#0F1D3A] w-12 text-right font-poppins">
                       {pattern.successRate}%
                     </span>
                     {pattern.isOptimal && (
@@ -70,7 +70,7 @@ export function TimingPatternsCard({ patterns }: TimingPatternsCardProps) {
                         style={{ width: `${Math.min(pattern.successRate, 100)}%` }}
                       />
                     </div>
-                    <span className="text-xs font-medium text-[#0F1D3A] w-12 text-right">
+                    <span className="text-xs font-extralight text-[#0F1D3A] w-12 text-right font-poppins">
                       {pattern.successRate}%
                     </span>
                     {pattern.isOptimal && (

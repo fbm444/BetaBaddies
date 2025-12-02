@@ -365,6 +365,37 @@ function GoalFormModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Update form data when goal prop changes
+  useEffect(() => {
+    if (goal) {
+      setFormData({
+        title: goal.title || "",
+        description: goal.description || "",
+        category: goal.category || "job_search",
+        goalType: goal.goalType || "short_term",
+        targetValue: goal.targetValue?.toString() || "",
+        currentValue: goal.currentValue?.toString() || "0",
+        unit: goal.unit || "",
+        targetDate: goal.targetDate ? goal.targetDate.split("T")[0] : "",
+        priority: goal.priority || "medium",
+      });
+    } else {
+      // Reset form when creating new goal
+      setFormData({
+        title: "",
+        description: "",
+        category: "job_search",
+        goalType: "short_term",
+        targetValue: "",
+        currentValue: "0",
+        unit: "",
+        targetDate: "",
+        priority: "medium",
+      });
+    }
+    setError(null); // Clear any previous errors
+  }, [goal]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);

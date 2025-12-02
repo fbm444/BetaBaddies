@@ -171,7 +171,7 @@ class GoalService {
         currentValue: { column: "current_value", value: updateData.currentValue },
         targetDate: { column: "target_date", value: updateData.targetDate },
         status: { column: "status", value: updateData.status },
-        priority: { column: "status", value: updateData.priority }, // Map priority if needed
+        // Note: priority is not stored in the database schema, so we skip it
       };
 
       for (const [key, field] of Object.entries(fields)) {

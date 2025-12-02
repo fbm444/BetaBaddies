@@ -56,6 +56,9 @@ export function InterviewPerformance({ dateRange }: InterviewPerformanceProps) {
     );
   }
 
+  // Calculate industry average (placeholder - typically 20-30% for interview to offer)
+  const industryAverage = 25; // This could come from backend in the future
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -83,17 +86,28 @@ export function InterviewPerformance({ dateRange }: InterviewPerformanceProps) {
               </p>
             </div>
 
-            {/* Interview to Offer */}
+            {/* Interview to Offer Conversion Rate */}
             <div className="rounded-2xl bg-white p-6 border border-[#E4E8F5] min-h-[160px] flex flex-col justify-between">
               <div className="flex items-start justify-between mb-2">
                 <p className="text-[18px] font-normal text-[#0F1D3A]">Interview to Offer</p>
                 <Icon icon="mingcute:target-line" width={20} className="text-[#09244B]" />
               </div>
-              <div className="flex items-end gap-3">
+              <div className="flex flex-col gap-2">
                 <p className="text-5xl font-extralight text-[#5A87E6]">{data.overall.offerRate}%</p>
-                <p className="text-xs text-[#6D7A99] mb-1">
-                  {data.overall.offers} offers from {data.overall.totalInterviews} interviews
-                </p>
+                <div className="flex items-center gap-3 text-xs">
+                  <span className="text-[#6D7A99]">
+                    {data.overall.offers} offers from {data.overall.totalInterviews} interviews
+                  </span>
+                </div>
+                {/* Industry Comparison */}
+                <div className="flex items-center gap-2 pt-2 border-t border-[#E4E8F5]">
+                  <span className="text-xs text-[#6D7A99]">Industry Avg:</span>
+                  <span className={`text-xs font-semibold ${
+                    data.overall.offerRate >= industryAverage ? 'text-green-600' : 'text-amber-600'
+                  }`}>
+                    {industryAverage}%
+                  </span>
+                </div>
               </div>
             </div>
           </div>

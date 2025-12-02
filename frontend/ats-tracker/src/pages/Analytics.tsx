@@ -2,13 +2,12 @@ import { useState } from "react";
 import { Icon } from "@iconify/react";
 import { JobSearchPerformance } from "../components/analytics/JobSearchPerformance";
 import { ApplicationSuccessAnalysis } from "../components/analytics/ApplicationSuccessAnalysis";
-import { InterviewPerformance } from "../components/analytics/InterviewPerformance";
 import { NetworkROI } from "../components/analytics/NetworkROI";
 import { SalaryProgression } from "../components/analytics/SalaryProgression";
 import { GoalTracking } from "../components/analytics/GoalTracking";
 import { TimeProductivityAnalysis } from "../components/analytics/TimeProductivityAnalysis";
 
-type TabId = "performance" | "success" | "interview" | "network" | "salary" | "goals" | "productivity";
+type TabId = "performance" | "success" | "network" | "salary" | "goals" | "productivity";
 
 interface Tab {
   id: TabId;
@@ -33,12 +32,6 @@ export function Analytics() {
       label: "Application Success",
       icon: "mingcute:target-line",
       component: <ApplicationSuccessAnalysis dateRange={dateRange} />,
-    },
-    {
-      id: "interview",
-      label: "Interview Performance",
-      icon: "mingcute:chat-smile-line",
-      component: <InterviewPerformance dateRange={dateRange} />,
     },
     {
       id: "network",

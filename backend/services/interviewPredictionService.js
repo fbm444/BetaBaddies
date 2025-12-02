@@ -677,7 +677,15 @@ Provide an adjustment that reflects job-specific nuances that the base algorithm
       const jobDetails = await Promise.all(
         predictionRows.map(async (row) => {
           const jobResult = await database.query(
-            `SELECT title, position, company, location, description, industry, salary_range
+            `SELECT 
+              title, 
+              title AS position, 
+              company, 
+              location, 
+              job_description, 
+              industry, 
+              salary_min, 
+              salary_max
              FROM job_opportunities
              WHERE id = $1 AND user_id = $2`,
             [row.job_opportunity_id, userId]
@@ -1090,10 +1098,10 @@ Be thorough, specific, and actionable. ALWAYS mention actual company names, job 
         `SELECT 
           p.*,
           jo.title AS job_title,
-          jo.position AS job_position,
+          jo.title AS job_position,
           jo.company AS company,
           jo.location AS job_location,
-          jo.description AS job_description,
+          jo.job_description AS job_description,
           jo.industry AS job_industry
          FROM interview_success_predictions p
          LEFT JOIN job_opportunities jo ON p.job_opportunity_id = jo.id AND jo.user_id = $1

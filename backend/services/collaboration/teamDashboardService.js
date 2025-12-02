@@ -33,9 +33,10 @@ class TeamDashboardService {
         throw new Error("You are not a member of this team");
       }
 
-      const permissions = typeof member.rows[0].permissions === "string"
-        ? JSON.parse(member.rows[0].permissions)
-        : member.rows[0].permissions;
+      const permissions =
+        typeof member.rows[0].permissions === "string"
+          ? JSON.parse(member.rows[0].permissions)
+          : member.rows[0].permissions;
 
       // Get team info
       const teamResult = await database.query(
@@ -182,7 +183,7 @@ class TeamDashboardService {
           teamName: team.team_name,
           teamType: team.team_type,
           activeMembers: parseInt(team.active_members),
-          maxMembers: team.max_members
+          maxMembers: team.max_members,
         },
         membersByRole: membersByRole.rows.reduce((acc, row) => {
           acc[row.role] = parseInt(row.count);
@@ -190,60 +191,74 @@ class TeamDashboardService {
         }, {}),
         jobSearch: {
           ...jobStats.rows[0],
-          sharedJobs: parseInt(sharedJobsCount.rows[0]?.count || 0)
+          sharedJobs: parseInt(sharedJobsCount.rows[0]?.count || 0),
         },
         tasks: tasksStats.rows[0],
-        milestones: recentMilestones.rows.map(row => ({
+        milestones: recentMilestones.rows.map((row) => ({
           id: row.id,
           milestoneType: row.milestone_type,
           milestoneTitle: row.milestone_title,
           milestoneDescription: row.milestone_description,
-          milestoneData: typeof row.milestone_data === "string"
-            ? JSON.parse(row.milestone_data)
-            : row.milestone_data || {},
+          milestoneData:
+            typeof row.milestone_data === "string"
+              ? JSON.parse(row.milestone_data)
+              : row.milestone_data || {},
           achievedAt: row.achieved_at,
           userEmail: row.user_email,
-          userName: row.first_name && row.last_name
-            ? `${row.first_name} ${row.last_name}`.trim()
-            : row.user_email,
-          userProfilePicture: row.user_profile_picture
+          userName:
+            row.first_name && row.last_name
+              ? `${row.first_name} ${row.last_name}`.trim()
+              : row.user_email,
+          userProfilePicture: row.user_profile_picture,
         })),
         collaboration: {
           ...collaborationMetrics.rows[0],
-          engagementScore: Math.min(100, (engagementScore.rows[0]?.activity_count || 0) * 2)
+          engagementScore: Math.min(
+            100,
+            (engagementScore.rows[0]?.activity_count || 0) * 2
+          ),
         },
-        activityFeed: activityFeed.rows.map(row => ({
+        activityFeed: activityFeed.rows.map((row) => ({
           id: row.id,
           activityType: row.activity_type,
-          activityData: typeof row.activity_data === "string"
-            ? JSON.parse(row.activity_data)
-            : row.activity_data,
+          activityData:
+            typeof row.activity_data === "string"
+              ? JSON.parse(row.activity_data)
+              : row.activity_data,
           createdAt: row.created_at,
           userEmail: row.user_email,
-          userName: row.first_name && row.last_name
-            ? `${row.first_name} ${row.last_name}`.trim()
-            : row.user_email,
-          userProfilePicture: row.user_profile_picture,
-          // Include milestone data if this is a milestone_achieved activity
-          milestone: row.milestone_id ? {
-            id: row.milestone_id,
-            milestoneTitle: row.milestone_title,
-            milestoneDescription: row.milestone_description,
-            milestoneData: typeof row.milestone_data === "string"
-              ? JSON.parse(row.milestone_data)
-              : row.milestone_data || {},
-            achievedAt: row.milestone_achieved_at,
-            userName: row.first_name && row.last_name
+          userName:
+            row.first_name && row.last_name
               ? `${row.first_name} ${row.last_name}`.trim()
               : row.user_email,
-            userProfilePicture: row.user_profile_picture
-          } : null
+          userProfilePicture: row.user_profile_picture,
+          // Include milestone data if this is a milestone_achieved activity
+          milestone: row.milestone_id
+            ? {
+                id: row.milestone_id,
+                milestoneTitle: row.milestone_title,
+                milestoneDescription: row.milestone_description,
+                milestoneData:
+                  typeof row.milestone_data === "string"
+                    ? JSON.parse(row.milestone_data)
+                    : row.milestone_data || {},
+                achievedAt: row.milestone_achieved_at,
+                userName:
+                  row.first_name && row.last_name
+                    ? `${row.first_name} ${row.last_name}`.trim()
+                    : row.user_email,
+                userProfilePicture: row.user_profile_picture,
+              }
+            : null,
         })),
         userRole: member.rows[0].role,
-        userPermissions: permissions
+        userPermissions: permissions,
       };
     } catch (error) {
-      console.error("[TeamDashboardService] Error getting team dashboard:", error);
+      console.error(
+        "[TeamDashboardService] Error getting team dashboard:",
+        error
+      );
       throw error;
     }
   }
@@ -287,13 +302,13 @@ class TeamDashboardService {
       );
 
       // Calculate averages and percentiles
-      const stats = memberStats.rows.map(row => ({
+      const stats = memberStats.rows.map((row) => ({
         applicationsCount: parseInt(row.applications_count || 0),
         interviewsCount: parseInt(row.interviews_count || 0),
         offersCount: parseInt(row.offers_count || 0),
         tasksCompleted: parseInt(row.tasks_completed || 0),
         milestonesAchieved: parseInt(row.milestones_achieved || 0),
-        lastActivity: row.last_activity
+        lastActivity: row.last_activity,
       }));
 
       const totalMembers = stats.length;
@@ -305,47 +320,75 @@ class TeamDashboardService {
             interviews: 0,
             offers: 0,
             tasksCompleted: 0,
-            milestones: 0
+            milestones: 0,
           },
           percentiles: {
             applications: { p25: 0, p50: 0, p75: 0 },
             interviews: { p25: 0, p50: 0, p75: 0 },
-            offers: { p25: 0, p50: 0, p75: 0 }
+            offers: { p25: 0, p50: 0, p75: 0 },
           },
-          anonymizedMembers: []
+          anonymizedMembers: [],
         };
       }
 
-      // Calculate averages
+      // Calculate averages (rounded to whole numbers since these represent counts)
       const averages = {
-        applications: stats.reduce((sum, s) => sum + s.applicationsCount, 0) / totalMembers,
-        interviews: stats.reduce((sum, s) => sum + s.interviewsCount, 0) / totalMembers,
-        offers: stats.reduce((sum, s) => sum + s.offersCount, 0) / totalMembers,
-        tasksCompleted: stats.reduce((sum, s) => sum + s.tasksCompleted, 0) / totalMembers,
-        milestones: stats.reduce((sum, s) => sum + s.milestonesAchieved, 0) / totalMembers
+        applications: Math.round(
+          stats.reduce((sum, s) => sum + s.applicationsCount, 0) / totalMembers
+        ),
+        interviews: Math.round(
+          stats.reduce((sum, s) => sum + s.interviewsCount, 0) / totalMembers
+        ),
+        offers: Math.round(
+          stats.reduce((sum, s) => sum + s.offersCount, 0) / totalMembers
+        ),
+        tasksCompleted: Math.round(
+          stats.reduce((sum, s) => sum + s.tasksCompleted, 0) / totalMembers
+        ),
+        milestones: Math.round(
+          stats.reduce((sum, s) => sum + s.milestonesAchieved, 0) / totalMembers
+        ),
       };
 
       // Calculate percentiles
-      const sortedApplications = [...stats].sort((a, b) => a.applicationsCount - b.applicationsCount);
-      const sortedInterviews = [...stats].sort((a, b) => a.interviewsCount - b.interviewsCount);
-      const sortedOffers = [...stats].sort((a, b) => a.offersCount - b.offersCount);
+      const sortedApplications = [...stats].sort(
+        (a, b) => a.applicationsCount - b.applicationsCount
+      );
+      const sortedInterviews = [...stats].sort(
+        (a, b) => a.interviewsCount - b.interviewsCount
+      );
+      const sortedOffers = [...stats].sort(
+        (a, b) => a.offersCount - b.offersCount
+      );
 
       const percentiles = {
         applications: {
-          p25: sortedApplications[Math.floor(totalMembers * 0.25)]?.applicationsCount ?? 0,
-          p50: sortedApplications[Math.floor(totalMembers * 0.5)]?.applicationsCount ?? 0,
-          p75: sortedApplications[Math.floor(totalMembers * 0.75)]?.applicationsCount ?? 0
+          p25:
+            sortedApplications[Math.floor(totalMembers * 0.25)]
+              ?.applicationsCount ?? 0,
+          p50:
+            sortedApplications[Math.floor(totalMembers * 0.5)]
+              ?.applicationsCount ?? 0,
+          p75:
+            sortedApplications[Math.floor(totalMembers * 0.75)]
+              ?.applicationsCount ?? 0,
         },
         interviews: {
-          p25: sortedInterviews[Math.floor(totalMembers * 0.25)]?.interviewsCount ?? 0,
-          p50: sortedInterviews[Math.floor(totalMembers * 0.5)]?.interviewsCount ?? 0,
-          p75: sortedInterviews[Math.floor(totalMembers * 0.75)]?.interviewsCount ?? 0
+          p25:
+            sortedInterviews[Math.floor(totalMembers * 0.25)]
+              ?.interviewsCount ?? 0,
+          p50:
+            sortedInterviews[Math.floor(totalMembers * 0.5)]?.interviewsCount ??
+            0,
+          p75:
+            sortedInterviews[Math.floor(totalMembers * 0.75)]
+              ?.interviewsCount ?? 0,
         },
         offers: {
           p25: sortedOffers[Math.floor(totalMembers * 0.25)]?.offersCount ?? 0,
           p50: sortedOffers[Math.floor(totalMembers * 0.5)]?.offersCount ?? 0,
-          p75: sortedOffers[Math.floor(totalMembers * 0.75)]?.offersCount ?? 0
-        }
+          p75: sortedOffers[Math.floor(totalMembers * 0.75)]?.offersCount ?? 0,
+        },
       };
 
       // Return anonymized member data (no user_id, just performance metrics)
@@ -356,7 +399,7 @@ class TeamDashboardService {
         offersCount: stat.offersCount,
         tasksCompleted: stat.tasksCompleted,
         milestonesAchieved: stat.milestonesAchieved,
-        performanceTier: this._calculatePerformanceTier(stat, averages)
+        performanceTier: this._calculatePerformanceTier(stat, averages),
       }));
 
       return {
@@ -364,10 +407,13 @@ class TeamDashboardService {
         averages,
         percentiles,
         anonymizedMembers,
-        generatedAt: new Date()
+        generatedAt: new Date(),
       };
     } catch (error) {
-      console.error("[TeamDashboardService] Error getting team performance comparison:", error);
+      console.error(
+        "[TeamDashboardService] Error getting team performance comparison:",
+        error
+      );
       throw error;
     }
   }
@@ -376,13 +422,12 @@ class TeamDashboardService {
    * Calculate performance tier for a member
    */
   _calculatePerformanceTier(stat, averages) {
-    const score = (
+    const score =
       (stat.applicationsCount / Math.max(averages.applications, 1)) * 0.3 +
       (stat.interviewsCount / Math.max(averages.interviews, 1)) * 0.3 +
       (stat.offersCount / Math.max(averages.offers, 1)) * 0.2 +
       (stat.tasksCompleted / Math.max(averages.tasksCompleted, 1)) * 0.1 +
-      (stat.milestonesAchieved / Math.max(averages.milestones, 1)) * 0.1
-    );
+      (stat.milestonesAchieved / Math.max(averages.milestones, 1)) * 0.1;
 
     if (score >= 1.2) return "high";
     if (score >= 0.8) return "medium";
@@ -409,7 +454,8 @@ class TeamDashboardService {
       if (!this.openai) {
         return {
           insights: [],
-          message: "AI insights are not available. OpenAI API key is not configured.",
+          message:
+            "AI insights are not available. OpenAI API key is not configured.",
         };
       }
 
@@ -489,14 +535,29 @@ class TeamDashboardService {
         return acc;
       }, {});
 
-      // Calculate averages and percentiles
+      // Calculate averages and percentiles (rounded to whole numbers since these represent counts)
       const totalMembers = anonymizedMembers.length;
       const averages = {
-        applications: anonymizedMembers.reduce((sum, m) => sum + m.applicationsCount, 0) / Math.max(totalMembers, 1),
-        interviews: anonymizedMembers.reduce((sum, m) => sum + m.interviewsCount, 0) / Math.max(totalMembers, 1),
-        offers: anonymizedMembers.reduce((sum, m) => sum + m.offersCount, 0) / Math.max(totalMembers, 1),
-        tasksCompleted: anonymizedMembers.reduce((sum, m) => sum + m.tasksCompleted, 0) / Math.max(totalMembers, 1),
-        milestones: anonymizedMembers.reduce((sum, m) => sum + m.milestonesAchieved, 0) / Math.max(totalMembers, 1),
+        applications: Math.round(
+          anonymizedMembers.reduce((sum, m) => sum + m.applicationsCount, 0) /
+            Math.max(totalMembers, 1)
+        ),
+        interviews: Math.round(
+          anonymizedMembers.reduce((sum, m) => sum + m.interviewsCount, 0) /
+            Math.max(totalMembers, 1)
+        ),
+        offers: Math.round(
+          anonymizedMembers.reduce((sum, m) => sum + m.offersCount, 0) /
+            Math.max(totalMembers, 1)
+        ),
+        tasksCompleted: Math.round(
+          anonymizedMembers.reduce((sum, m) => sum + m.tasksCompleted, 0) /
+            Math.max(totalMembers, 1)
+        ),
+        milestones: Math.round(
+          anonymizedMembers.reduce((sum, m) => sum + m.milestonesAchieved, 0) /
+            Math.max(totalMembers, 1)
+        ),
       };
 
       // Prepare prompt for AI
@@ -512,7 +573,9 @@ Team Overview:
 - Total Tasks Completed: ${stats.total_tasks_completed}
 - Total Milestones Achieved: ${stats.total_milestones}
 - Messages Last Week: ${stats.messages_last_week}
-- Overall Offer Rate: ${(parseFloat(stats.overall_offer_rate || 0) * 100).toFixed(1)}%
+- Overall Offer Rate: ${(
+        parseFloat(stats.overall_offer_rate || 0) * 100
+      ).toFixed(1)}%
 
 Team Averages:
 - Applications per member: ${averages.applications.toFixed(1)}
@@ -546,7 +609,8 @@ Return ONLY a valid JSON array of insights, no markdown, no code blocks, just th
         messages: [
           {
             role: "system",
-            content: "You are an expert career coach and data analyst. Generate insightful, actionable, and motivating team performance insights. Always return valid JSON arrays.",
+            content:
+              "You are an expert career coach and data analyst. Generate insightful, actionable, and motivating team performance insights. Always return valid JSON arrays.",
           },
           {
             role: "user",
@@ -565,16 +629,23 @@ Return ONLY a valid JSON array of insights, no markdown, no code blocks, just th
       // Parse JSON from response (handle markdown code blocks)
       let insights;
       try {
-        const cleanedContent = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+        const cleanedContent = content
+          .replace(/```json\n?/g, "")
+          .replace(/```\n?/g, "")
+          .trim();
         insights = JSON.parse(cleanedContent);
       } catch (parseError) {
-        console.error("[TeamDashboardService] Error parsing AI insights:", parseError);
+        console.error(
+          "[TeamDashboardService] Error parsing AI insights:",
+          parseError
+        );
         // Fallback: create a simple insight
         insights = [
           {
             title: "Team Performance Analysis",
             type: "trend_analysis",
-            description: "AI insights generation encountered an error. Please try again.",
+            description:
+              "AI insights generation encountered an error. Please try again.",
             actionableAdvice: "Refresh the insights to get updated analysis.",
             impact: "low",
             category: "overall",
@@ -591,16 +662,20 @@ Return ONLY a valid JSON array of insights, no markdown, no code blocks, just th
           totalApplications: stats.total_applications,
           totalInterviews: stats.total_interviews,
           totalOffers: stats.total_offers,
-          overallOfferRate: (parseFloat(stats.overall_offer_rate || 0) * 100).toFixed(1),
+          overallOfferRate: (
+            parseFloat(stats.overall_offer_rate || 0) * 100
+          ).toFixed(1),
         },
         averages,
       };
     } catch (error) {
-      console.error("[TeamDashboardService] Error generating AI insights:", error);
+      console.error(
+        "[TeamDashboardService] Error generating AI insights:",
+        error
+      );
       throw error;
     }
   }
 }
 
 export default new TeamDashboardService();
-

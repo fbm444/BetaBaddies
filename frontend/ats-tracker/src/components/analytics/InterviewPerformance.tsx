@@ -56,123 +56,162 @@ export function InterviewPerformance({ dateRange }: InterviewPerformanceProps) {
     );
   }
 
+  // Calculate industry average (placeholder - typically 20-30% for interview to offer)
+  const industryAverage = 25; // This could come from backend in the future
+
   return (
     <div className="space-y-6">
-      {/* Overall Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="rounded-2xl bg-gradient-to-b from-[#1E3097] to-[#3351FD] p-5 text-white">
-          <div className="flex items-start justify-between mb-2">
-            <p className="text-[18px] font-normal">Total Interviews</p>
-            <Icon icon="mingcute:chat-smile-line" width={24} className="text-white" />
+      {/* Header */}
+      <div>
+        <h2 className="text-2xl font-bold text-slate-900 mb-4 font-poppins">Interview Performance</h2>
+        <p className="text-slate-600 mb-6 font-poppins">
+          Track your interview outcomes, performance trends, and success rates across different interview types.
+        </p>
+      </div>
+
+      {/* Two Column Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Left Column: Total Interviews, Interview to Offer, Performance Trends */}
+        <div className="space-y-4">
+          {/* Total Interviews and Interview to Offer - Side by Side */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Total Interviews */}
+            <div className="rounded-2xl bg-gradient-to-b from-[#1E3097] to-[#3351FD] p-6 text-white min-h-[160px] flex flex-col justify-between">
+              <div className="flex items-start justify-between mb-2">
+                <p className="text-[18px] font-normal">Total Interviews</p>
+                <Icon icon="mingcute:chat-smile-line" width={24} className="text-white" />
+              </div>
+              <p className="text-5xl font-medium leading-none text-[#E7EFFF]">
+                {data.overall.totalInterviews}
+              </p>
+            </div>
+
+            {/* Interview to Offer Conversion Rate */}
+            <div className="rounded-2xl bg-white p-6 border border-[#E4E8F5] min-h-[160px] flex flex-col justify-between">
+              <div className="flex items-start justify-between mb-2">
+                <p className="text-[18px] font-normal text-[#0F1D3A]">Interview to Offer</p>
+                <Icon icon="mingcute:target-line" width={20} className="text-[#09244B]" />
+              </div>
+              <div className="flex flex-col gap-2">
+                <p className="text-5xl font-extralight text-[#5A87E6]">{data.overall.offerRate}%</p>
+                <div className="flex items-center gap-3 text-xs">
+                  <span className="text-[#6D7A99]">
+                    {data.overall.offers} offers from {data.overall.totalInterviews} interviews
+                  </span>
+                </div>
+                {/* Industry Comparison */}
+                <div className="flex items-center gap-2 pt-2 border-t border-[#E4E8F5]">
+                  <span className="text-xs text-[#6D7A99]">Industry Avg:</span>
+                  <span className={`text-xs font-semibold ${
+                    data.overall.offerRate >= industryAverage ? 'text-green-600' : 'text-amber-600'
+                  }`}>
+                    {industryAverage}%
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
-          <p className="text-5xl font-medium leading-none text-[#E7EFFF]">
-            {data.overall.totalInterviews}
-          </p>
+
+          {/* Performance Trends - Full Width Under Both */}
+          {data.trends.length > 0 && (
+            <div className="rounded-3xl bg-white p-6 border border-slate-300">
+              <h3 className="text-[25px] font-normal text-[#0F1D3A] mb-4">Performance Trends</h3>
+              <div className="space-y-3">
+                {data.trends.map((trend, index) => {
+                  const date = new Date(trend.month + "-01");
+                  const monthLabel = date.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+
+                  return (
+                    <div key={index} className="flex items-center justify-between p-3 rounded-xl border border-[#E8EBF8] bg-[#FDFDFF]">
+                      <span className="text-sm font-medium text-[#0F1D3A]">{monthLabel}</span>
+                      <div className="flex items-center gap-6">
+                        <span className="text-xs text-[#6D7A99]">
+                          {trend.count} interviews
+                        </span>
+                        <span className="text-xs text-[#6D7A99]">
+                          {trend.offers} offers
+                        </span>
+                        {trend.avgConfidence !== null && (
+                          <span className="text-xs font-semibold text-[#3351FD]">
+                            Confidence: {trend.avgConfidence}/5
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
-        <div className="rounded-2xl bg-white p-5 border border-[#E4E8F5]">
-          <div className="flex items-start justify-between mb-2">
-            <p className="text-[18px] font-normal text-[#0F1D3A]">Interview to Offer</p>
-            <Icon icon="mingcute:target-line" width={20} className="text-[#09244B]" />
-          </div>
-          <p className="text-4xl font-extralight text-[#5A87E6]">{data.overall.offerRate}%</p>
-          <p className="text-xs text-[#6D7A99] mt-1">
-            {data.overall.offers} offers from {data.overall.totalInterviews} interviews
-          </p>
-        </div>
-
-        {data.overall.avgConfidence !== null && (
-          <div className="rounded-2xl bg-white p-5 border border-[#E4E8F5]">
-            <div className="flex items-start justify-between mb-2">
-              <p className="text-[18px] font-normal text-[#0F1D3A]">Avg. Confidence</p>
-              <Icon icon="mingcute:star-line" width={20} className="text-[#09244B]" />
+        {/* Right Column: Performance by Interview Type - Full Height */}
+        {data.byType.length > 0 && (
+          <div className="rounded-3xl bg-white p-6 border border-slate-300">
+            <h3 className="text-[25px] font-normal text-[#0F1D3A] mb-4">Performance by Interview Type</h3>
+            <div className="space-y-3">
+              {data.byType
+                .filter((item) => item.type != null) // Filter out null/undefined types
+                .map((item, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-4 rounded-xl border border-[#E8EBF8] bg-[#FDFDFF]"
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-semibold text-[#0F1D3A]">
+                        {item.type.replace(/_/g, " ")}
+                      </span>
+                      <span className="text-xs text-[#6D7A99]">{item.count} interviews</span>
+                    </div>
+                    <div className="flex items-center gap-4 text-xs">
+                      <span className="text-[#6D7A99]">
+                        Offer Rate: <span className="font-semibold text-[#0F1D3A]">{item.offerRate}%</span>
+                      </span>
+                      {item.avgConfidence !== null && (
+                        <span className="text-[#6D7A99]">
+                          Confidence: <span className="font-semibold text-[#0F1D3A]">{item.avgConfidence}/5</span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-right ml-4">
+                    <p className="text-2xl font-semibold text-[#3351FD]">{item.offers}</p>
+                    <p className="text-xs text-[#6D7A99]">offers</p>
+                  </div>
+                </div>
+              ))}
             </div>
-            <p className="text-4xl font-extralight text-[#5A87E6]">
-              {data.overall.avgConfidence}/5
-            </p>
-          </div>
-        )}
-
-        {data.overall.avgDifficulty !== null && (
-          <div className="rounded-2xl bg-white p-5 border border-[#E4E8F5]">
-            <div className="flex items-start justify-between mb-2">
-              <p className="text-[18px] font-normal text-[#0F1D3A]">Avg. Difficulty</p>
-              <Icon icon="mingcute:alert-line" width={20} className="text-[#09244B]" />
-            </div>
-            <p className="text-4xl font-extralight text-[#5A87E6]">
-              {data.overall.avgDifficulty}/5
-            </p>
           </div>
         )}
       </div>
 
-      {/* Performance by Type */}
-      {data.byType.length > 0 && (
-        <div className="rounded-3xl bg-white p-6 border border-[#E4E8F5]">
-          <h3 className="text-[25px] font-normal text-[#0F1D3A] mb-4">Performance by Interview Type</h3>
-          <div className="space-y-3">
-            {data.byType.map((item, index) => (
-              <div
-                key={index}
-                className="flex items-center justify-between p-4 rounded-xl border border-[#E8EBF8] bg-[#FDFDFF]"
-              >
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-semibold text-[#0F1D3A]">
-                      {item.type.replace(/_/g, " ")}
-                    </span>
-                    <span className="text-xs text-[#6D7A99]">{item.count} interviews</span>
-                  </div>
-                  <div className="flex items-center gap-4 text-xs">
-                    <span className="text-[#6D7A99]">
-                      Offer Rate: <span className="font-semibold text-[#0F1D3A]">{item.offerRate}%</span>
-                    </span>
-                    {item.avgConfidence !== null && (
-                      <span className="text-[#6D7A99]">
-                        Confidence: <span className="font-semibold text-[#0F1D3A]">{item.avgConfidence}/5</span>
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="text-right ml-4">
-                  <p className="text-2xl font-semibold text-[#3351FD]">{item.offers}</p>
-                  <p className="text-xs text-[#6D7A99]">offers</p>
-                </div>
+      {/* Additional Metrics Row - Avg Confidence and Avg Difficulty */}
+      {(data.overall.avgConfidence !== null || data.overall.avgDifficulty !== null) && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {data.overall.avgConfidence !== null && (
+            <div className="rounded-2xl bg-white p-5 border border-slate-300">
+              <div className="flex items-start justify-between mb-2">
+                <p className="text-[18px] font-normal text-[#0F1D3A]">Avg. Confidence</p>
+                <Icon icon="mingcute:star-line" width={20} className="text-[#09244B]" />
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+              <p className="text-4xl font-extralight text-[#5A87E6]">
+                {data.overall.avgConfidence}/5
+              </p>
+            </div>
+          )}
 
-      {/* Trends Over Time */}
-      {data.trends.length > 0 && (
-        <div className="rounded-3xl bg-white p-6 border border-[#E4E8F5]">
-          <h3 className="text-[25px] font-normal text-[#0F1D3A] mb-4">Performance Trends</h3>
-          <div className="space-y-3">
-            {data.trends.map((trend, index) => {
-              const date = new Date(trend.month + "-01");
-              const monthLabel = date.toLocaleDateString("en-US", { month: "short", year: "numeric" });
-
-              return (
-                <div key={index} className="flex items-center justify-between p-3 rounded-xl border border-[#E8EBF8] bg-[#FDFDFF]">
-                  <span className="text-sm font-medium text-[#0F1D3A]">{monthLabel}</span>
-                  <div className="flex items-center gap-6">
-                    <span className="text-xs text-[#6D7A99]">
-                      {trend.count} interviews
-                    </span>
-                    <span className="text-xs text-[#6D7A99]">
-                      {trend.offers} offers
-                    </span>
-                    {trend.avgConfidence !== null && (
-                      <span className="text-xs font-semibold text-[#3351FD]">
-                        Confidence: {trend.avgConfidence}/5
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          {data.overall.avgDifficulty !== null && (
+            <div className="rounded-2xl bg-white p-5 border border-slate-300">
+              <div className="flex items-start justify-between mb-2">
+                <p className="text-[18px] font-normal text-[#0F1D3A]">Avg. Difficulty</p>
+                <Icon icon="mingcute:alert-line" width={20} className="text-[#09244B]" />
+              </div>
+              <p className="text-4xl font-extralight text-[#5A87E6]">
+                {data.overall.avgDifficulty}/5
+              </p>
+            </div>
+          )}
         </div>
       )}
 

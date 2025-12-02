@@ -117,48 +117,54 @@ async function cleanupTestData() {
 // Helper function to create mock file buffer
 async function createMockFileBuffer(filename, mimetype, size = 1024) {
   let buffer;
-  
+
   // For image files, create a valid image buffer using Sharp
-  if (mimetype.startsWith('image/')) {
+  if (mimetype.startsWith("image/")) {
     try {
-      const sharp = (await import('sharp')).default;
+      const sharp = (await import("sharp")).default;
       // Create a small colored square image
       const width = 100;
       const height = 100;
       const channels = 3;
       const imageBuffer = Buffer.alloc(width * height * channels);
-      
+
       // Fill with a color pattern
       for (let i = 0; i < imageBuffer.length; i += channels) {
-        imageBuffer[i] = 100;     // R
+        imageBuffer[i] = 100; // R
         imageBuffer[i + 1] = 150; // G
         imageBuffer[i + 2] = 200; // B
       }
-      
+
       // Convert to JPEG or PNG
-      if (mimetype === 'image/jpeg' || mimetype === 'image/jpg') {
+      if (mimetype === "image/jpeg" || mimetype === "image/jpg") {
         buffer = await sharp(imageBuffer, {
-          raw: { width, height, channels }
-        }).jpeg().toBuffer();
-      } else if (mimetype === 'image/png') {
+          raw: { width, height, channels },
+        })
+          .jpeg()
+          .toBuffer();
+      } else if (mimetype === "image/png") {
         buffer = await sharp(imageBuffer, {
-          raw: { width, height, channels }
-        }).png().toBuffer();
-      } else if (mimetype === 'image/gif') {
+          raw: { width, height, channels },
+        })
+          .png()
+          .toBuffer();
+      } else if (mimetype === "image/gif") {
         // For GIF, use PNG and let the system handle it
         buffer = await sharp(imageBuffer, {
-          raw: { width, height, channels }
-        }).png().toBuffer();
+          raw: { width, height, channels },
+        })
+          .png()
+          .toBuffer();
       }
     } catch (error) {
-      console.warn('Sharp not available, using placeholder buffer');
+      console.warn("Sharp not available, using placeholder buffer");
       buffer = Buffer.alloc(size, "A");
     }
   } else {
     // For non-image files (PDFs, docs), just use a filled buffer
     buffer = Buffer.alloc(size, "A");
   }
-  
+
   return {
     fieldname: "file",
     originalname: filename,
@@ -303,7 +309,10 @@ async function runAllTests() {
       .set("Cookie", sessionCookie)
       .expect(200);
 
-    if (!response.body.data.resumes || !Array.isArray(response.body.data.resumes)) {
+    if (
+      !response.body.data.resumes ||
+      !Array.isArray(response.body.data.resumes)
+    ) {
       throw new Error("Failed to retrieve resumes");
     }
     // Note: We verify resumes exist, but don't enforce exact count
@@ -319,7 +328,10 @@ async function runAllTests() {
       .set("Cookie", sessionCookie)
       .expect(200);
 
-    if (!response.body.data.documents || !Array.isArray(response.body.data.documents)) {
+    if (
+      !response.body.data.documents ||
+      !Array.isArray(response.body.data.documents)
+    ) {
       throw new Error("Failed to retrieve documents");
     }
     // Note: We verify documents exist, but don't enforce exact count
@@ -389,35 +401,47 @@ async function runAllTests() {
   await runTest(
     "POST /api/v1/files/profile-picture - File Size Validation",
     async () => {
+      // Skip if Sharp is not available
+      let sharp;
+      try {
+        sharp = (await import("sharp")).default;
+      } catch (error) {
+        console.log(
+          "   ⚠️ Sharp not available, skipping file size validation test"
+        );
+        return;
+      }
+
       const freshCsrfToken = await getFreshCsrfToken();
-      
+
       // Create a valid but oversized JPEG
       // Use a smaller valid image as base, then pad it to exceed 5MB
-      const sharp = (await import('sharp')).default;
       const width = 200;
       const height = 200;
       const channels = 3;
       const smallImageBuffer = Buffer.alloc(width * height * channels);
-      
+
       // Fill with a simple pattern
       for (let i = 0; i < smallImageBuffer.length; i += channels) {
         smallImageBuffer[i] = 100;
         smallImageBuffer[i + 1] = 150;
         smallImageBuffer[i + 2] = 200;
       }
-      
+
       // Create a valid small JPEG
       const validImageBuffer = await sharp(smallImageBuffer, {
-        raw: { width, height, channels }
-      }).jpeg().toBuffer();
-      
+        raw: { width, height, channels },
+      })
+        .jpeg()
+        .toBuffer();
+
       // Now create an oversized buffer by padding
       // The validation checks file.size, which is the buffer length
       const oversizedBuffer = Buffer.concat([
         validImageBuffer,
-        Buffer.alloc(6 * 1024 * 1024) // Add 6MB of padding
+        Buffer.alloc(6 * 1024 * 1024), // Add 6MB of padding
       ]);
-      
+
       const oversizedFile = {
         fieldname: "profilePicture",
         originalname: "huge.jpg",
@@ -427,7 +451,11 @@ async function runAllTests() {
         size: oversizedBuffer.length,
       };
 
-      console.log(`   Generated file size: ${(oversizedFile.size / (1024 * 1024)).toFixed(2)}MB`);
+      console.log(
+        `   Generated file size: ${(oversizedFile.size / (1024 * 1024)).toFixed(
+          2
+        )}MB`
+      );
 
       const response = await request(app)
         .post("/api/v1/files/profile-picture")

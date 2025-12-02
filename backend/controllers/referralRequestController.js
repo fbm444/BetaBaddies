@@ -127,8 +127,31 @@ class ReferralRequestController {
           });
         }
       } catch (emailError) {
-        // Log error but don't fail the update
         console.error("❌ Error sending referral request email:", emailError);
+
+        // Do NOT block the request if email fails.
+        // Instead, include a warning so the UI can inform the user.
+        let warning = "Email could not be sent. Please try sending manually.";
+        let warningCode;
+
+        if (emailError && emailError.code) {
+          warningCode = emailError.code;
+        }
+        if (emailError.code === "EMAIL_QUOTA_EXCEEDED") {
+          warning =
+            emailError.message ||
+            "Gmail daily sending quota exceeded. Please try again tomorrow or use a different email account.";
+        }
+
+        return res.status(200).json({
+          ok: true,
+          data: {
+            referral,
+            message: "Referral request updated successfully",
+            warning,
+            warningCode,
+          },
+        });
       }
     }
 
@@ -552,6 +575,18 @@ class ReferralRequestController {
       });
     } catch (error) {
       console.error("Error sending gratitude message:", error);
+      
+      // Check for quota errors
+      if (error.code === 'EMAIL_QUOTA_EXCEEDED') {
+        return res.status(429).json({
+          ok: false,
+          error: {
+            message: error.message || "Gmail daily sending quota exceeded. Please try again tomorrow or use a different email account.",
+            code: 'EMAIL_QUOTA_EXCEEDED',
+          },
+        });
+      }
+      
       res.status(500).json({
         ok: false,
         error: {

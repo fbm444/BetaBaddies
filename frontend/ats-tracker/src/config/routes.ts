@@ -143,13 +143,13 @@ export const navigationGroups: NavigationGroup[] = [
       {
         id: "analytics",
         label: "Analytics",
-        icon: "mingcute:chart-line",
+        icon: "mingcute:chart-vertical-line",
         path: ROUTES.ANALYTICS,
       },
       {
         id: "market-intelligence",
         label: "Market Intelligence",
-        icon: "mingcute:chart-up-line",
+        icon: "mingcute:chart-bar-2-line",
         path: ROUTES.MARKET_INTELLIGENCE,
       },
       {

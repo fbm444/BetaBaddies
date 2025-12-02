@@ -1611,6 +1611,305 @@ export function SupportGroups() {
             </div>
           </div>
         )}
+
+        {/* Member Profile Modal - Abstract View - Rendered via Portal */}
+        {selectedMember && typeof window !== 'undefined' && window.document ? createPortal(
+          <div
+            key={`modal-${selectedMember.user_id}`}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4"
+            style={{
+              position: 'fixed',
+              zIndex: 9999,
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.5)'
+            }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setSelectedMember(null);
+                setMemberProfile(null);
+              }
+            }}
+          >
+            <div
+              className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto relative"
+              style={{ zIndex: 10000 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6 border-b border-slate-200 flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-slate-900">
+                  Member Overview
+                </h2>
+                <button
+                  onClick={() => {
+                    setSelectedMember(null);
+                    setMemberProfile(null);
+                  }}
+                  className="text-slate-400 hover:text-slate-600"
+                >
+                  <Icon icon="mingcute:close-line" width={24} />
+                </button>
+              </div>
+              <div className="p-6">
+                {isLoadingProfile ? (
+                  <div className="text-center py-12">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+                    <p className="text-slate-600 mt-4">Loading profile...</p>
+                  </div>
+                ) : memberProfile ? (
+                  <div className="space-y-6">
+                    {/* Experience Summary */}
+                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-5 rounded-xl border border-blue-100">
+                      <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                        <Icon icon="mingcute:briefcase-line" width={20} />
+                        Experience Overview
+                      </h3>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {memberProfile.experience.yearsOfExperience > 0 && (
+                          <div>
+                            <p className="text-2xl font-bold text-blue-600">
+                              {memberProfile.experience.yearsOfExperience}
+                            </p>
+                            <p className="text-sm text-slate-600">Years Experience</p>
+                          </div>
+                        )}
+                        {memberProfile.experience.experienceLevel && (
+                          <div>
+                            <p className="text-lg font-semibold text-slate-900 capitalize">
+                              {memberProfile.experience.experienceLevel}
+                            </p>
+                            <p className="text-sm text-slate-600">Level</p>
+                          </div>
+                        )}
+                        {memberProfile.experience.totalPositions > 0 && (
+                          <div>
+                            <p className="text-2xl font-bold text-blue-600">
+                              {memberProfile.experience.totalPositions}
+                            </p>
+                            <p className="text-sm text-slate-600">Positions</p>
+                          </div>
+                        )}
+                        {memberProfile.experience.companiesWorked > 0 && (
+                          <div>
+                            <p className="text-2xl font-bold text-blue-600">
+                              {memberProfile.experience.companiesWorked}
+                            </p>
+                            <p className="text-sm text-slate-600">Companies</p>
+                          </div>
+                        )}
+                      </div>
+                      {memberProfile.experience.primaryIndustry && (
+                        <div className="mt-4">
+                          <p className="text-sm text-slate-600">Primary Industry</p>
+                          <p className="text-base font-medium text-slate-900 capitalize">
+                            {memberProfile.experience.primaryIndustry}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Skills Summary */}
+                    {memberProfile.skills.totalSkills > 0 && (
+                      <div className="bg-gradient-to-br from-purple-50 to-pink-50 p-5 rounded-xl border border-purple-100">
+                        <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                          <Icon icon="mingcute:star-line" width={20} />
+                          Skills Overview
+                        </h3>
+                        <div className="space-y-3">
+                          <div>
+                            <p className="text-2xl font-bold text-purple-600 mb-1">
+                              {memberProfile.skills.totalSkills}
+                            </p>
+                            <p className="text-sm text-slate-600">Total Skills</p>
+                          </div>
+                          {memberProfile.skills.categories.length > 0 && (
+                            <div>
+                              <p className="text-sm font-medium text-slate-700 mb-2">
+                                Skill Categories
+                              </p>
+                              <div className="flex flex-wrap gap-2">
+                                {memberProfile.skills.categories.map((cat: string, idx: number) => (
+                                  <span
+                                    key={idx}
+                                    className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium capitalize"
+                                  >
+                                    {cat}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {Object.keys(memberProfile.skills.proficiencyDistribution).length > 0 && (
+                            <div>
+                              <p className="text-sm font-medium text-slate-700 mb-2">
+                                Proficiency Distribution
+                              </p>
+                              <div className="space-y-2">
+                                {Object.entries(memberProfile.skills.proficiencyDistribution).map(
+                                  ([level, count]: [string, any]) => (
+                                    <div key={level} className="flex items-center gap-2">
+                                      <span className="text-xs text-slate-600 capitalize w-20">
+                                        {level}:
+                                      </span>
+                                      <div className="flex-1 bg-slate-200 rounded-full h-2">
+                                        <div
+                                          className="bg-purple-500 h-2 rounded-full"
+                                          style={{
+                                            width: `${(count / memberProfile.skills.totalSkills) * 100}%`,
+                                          }}
+                                        ></div>
+                                      </div>
+                                      <span className="text-xs font-medium text-slate-700 w-8">
+                                        {count}
+                                      </span>
+                                    </div>
+                                  )
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Education Summary */}
+                    {memberProfile.education.totalDegrees > 0 && (
+                      <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-5 rounded-xl border border-green-100">
+                        <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                          <Icon icon="mingcute:graduation-line" width={20} />
+                          Education Overview
+                        </h3>
+                        <div className="space-y-2">
+                          <p className="text-2xl font-bold text-green-600">
+                            {memberProfile.education.totalDegrees}
+                          </p>
+                          <p className="text-sm text-slate-600 mb-3">Degrees</p>
+                          {memberProfile.education.degrees.map((deg: any, idx: number) => (
+                            <div
+                              key={idx}
+                              className="flex items-center justify-between p-2 bg-white rounded-lg"
+                            >
+                              <span className="text-sm font-medium text-slate-900 capitalize">
+                                {deg.type}
+                              </span>
+                              {deg.field && (
+                                <span className="text-xs text-slate-600">{deg.field}</span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Job Search Metrics */}
+                    {memberProfile.jobSearchMetrics.totalOpportunities > 0 && (
+                      <div className="bg-gradient-to-br from-orange-50 to-amber-50 p-5 rounded-xl border border-orange-100">
+                        <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                          <Icon icon="mingcute:target-line" width={20} />
+                          Job Search Activity
+                        </h3>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                          <div>
+                            <p className="text-2xl font-bold text-orange-600">
+                              {memberProfile.jobSearchMetrics.totalOpportunities}
+                            </p>
+                            <p className="text-sm text-slate-600">Opportunities</p>
+                          </div>
+                          {memberProfile.jobSearchMetrics.applicationResponseRate > 0 && (
+                            <div>
+                              <p className="text-2xl font-bold text-orange-600">
+                                {memberProfile.jobSearchMetrics.applicationResponseRate}%
+                              </p>
+                              <p className="text-sm text-slate-600">Response Rate</p>
+                            </div>
+                          )}
+                          {memberProfile.jobSearchMetrics.interviewConversionRate > 0 && (
+                            <div>
+                              <p className="text-2xl font-bold text-orange-600">
+                                {memberProfile.jobSearchMetrics.interviewConversionRate}%
+                              </p>
+                              <p className="text-sm text-slate-600">Interview Rate</p>
+                            </div>
+                          )}
+                          {memberProfile.jobSearchMetrics.offerConversionRate > 0 && (
+                            <div>
+                              <p className="text-2xl font-bold text-orange-600">
+                                {memberProfile.jobSearchMetrics.offerConversionRate}%
+                              </p>
+                              <p className="text-sm text-slate-600">Offer Rate</p>
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-sm text-slate-600 mb-1">Activity Level</p>
+                          <span
+                            className={`inline-block px-3 py-1 rounded-full text-xs font-medium capitalize ${
+                              memberProfile.jobSearchMetrics.activityLevel === "high"
+                                ? "bg-green-100 text-green-700"
+                                : memberProfile.jobSearchMetrics.activityLevel === "medium"
+                                ? "bg-yellow-100 text-yellow-700"
+                                : memberProfile.jobSearchMetrics.activityLevel === "low"
+                                ? "bg-blue-100 text-blue-700"
+                                : "bg-slate-100 text-slate-700"
+                            }`}
+                          >
+                            {memberProfile.jobSearchMetrics.activityLevel}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Additional Metrics */}
+                    <div className="grid grid-cols-2 gap-4">
+                      {memberProfile.certifications.total > 0 && (
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Icon icon="mingcute:award-line" width={18} />
+                            <h4 className="font-semibold text-slate-900">Certifications</h4>
+                          </div>
+                          <p className="text-2xl font-bold text-slate-700">
+                            {memberProfile.certifications.total}
+                          </p>
+                        </div>
+                      )}
+                      {memberProfile.projects.total > 0 && (
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Icon icon="mingcute:folder-line" width={18} />
+                            <h4 className="font-semibold text-slate-900">Projects</h4>
+                          </div>
+                          <p className="text-2xl font-bold text-slate-700">
+                            {memberProfile.projects.total}
+                          </p>
+                          {memberProfile.projects.industriesCovered > 0 && (
+                            <p className="text-xs text-slate-600 mt-1">
+                              Across {memberProfile.projects.industriesCovered} industries
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <Icon
+                      icon="mingcute:user-line"
+                      width={48}
+                      className="mx-auto text-slate-300 mb-4"
+                    />
+                    <p className="text-slate-600 mb-2">No profile data available</p>
+                    <p className="text-sm text-slate-500">
+                      This member hasn't added profile information yet.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>,
+          window.document.body
+        ) : null}
       </div>
     );
   }

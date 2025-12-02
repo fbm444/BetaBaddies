@@ -1,7 +1,11 @@
 import { useState, useEffect } from "react";
 import { Icon } from "@iconify/react";
 import { api } from "../../services/api";
-import type { Goal, GoalAnalytics, DateRange } from "../../types/analytics.types";
+import type {
+  Goal,
+  GoalAnalytics,
+  DateRange,
+} from "../../types/analytics.types";
 
 interface GoalTrackingProps {
   dateRange?: DateRange;
@@ -62,55 +66,95 @@ export function GoalTracking({ dateRange }: GoalTrackingProps) {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h2 className="text-2xl font-bold text-slate-900 mb-4 font-poppins">Goal Setting</h2>
+        <div className="flex items-center justify-between mb-6">
+          <p className="text-slate-600 font-poppins">
+            Create and track SMART goals to stay focused and measure your progress throughout your job search journey.
+          </p>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="inline-flex items-center gap-2 rounded-full bg-blue-500 px-6 py-3 text-sm font-medium text-white hover:bg-blue-600 transition-colors"
+          >
+            <Icon icon="mingcute:add-line" width={20} />
+            Create Goal
+          </button>
+        </div>
+      </div>
+
       {/* Analytics Summary */}
       {analytics && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="rounded-2xl bg-gradient-to-b from-[#1E3097] to-[#3351FD] p-5 text-white">
+          <div className="rounded-2xl bg-gradient-to-b from-[#1E3097] to-[#3351FD] p-6 text-white min-h-[160px] flex flex-col justify-between">
             <div className="flex items-start justify-between mb-2">
               <p className="text-[18px] font-normal">Total Goals</p>
-              <Icon icon="mingcute:target-2-line" width={24} className="text-white" />
+              <Icon
+                icon="mingcute:target-2-line"
+                width={24}
+                className="text-white"
+              />
             </div>
             <p className="text-5xl font-medium leading-none text-[#E7EFFF]">
               {analytics.totalGoals}
             </p>
           </div>
 
-          <div className="rounded-2xl bg-white p-5 border border-[#E4E8F5]">
+          <div className="rounded-2xl bg-white p-6 border border-slate-300 min-h-[160px] flex flex-col justify-between">
             <div className="flex items-start justify-between mb-2">
-              <p className="text-[18px] font-normal text-[#0F1D3A]">Active Goals</p>
-              <Icon icon="mingcute:time-line" width={20} className="text-[#09244B]" />
+              <p className="text-[18px] font-normal text-[#0F1D3A]">
+                Active Goals
+              </p>
+              <Icon
+                icon="mingcute:time-line"
+                width={20}
+                className="text-[#09244B]"
+              />
             </div>
-            <p className="text-4xl font-extralight text-[#5A87E6]">{analytics.activeGoals}</p>
+            <div className="flex items-end gap-3">
+              <p className="text-5xl font-extralight text-[#5A87E6]">
+                {analytics.activeGoals}
+              </p>
+            </div>
           </div>
 
-          <div className="rounded-2xl bg-white p-5 border border-[#E4E8F5]">
+          <div className="rounded-2xl bg-white p-6 border border-slate-300 min-h-[160px] flex flex-col justify-between">
             <div className="flex items-start justify-between mb-2">
-              <p className="text-[18px] font-normal text-[#0F1D3A]">Completed</p>
-              <Icon icon="mingcute:check-circle-line" width={20} className="text-[#09244B]" />
+              <p className="text-[18px] font-normal text-[#0F1D3A]">
+                Completed
+              </p>
+              <Icon
+                icon="mingcute:check-circle-line"
+                width={20}
+                className="text-[#09244B]"
+              />
             </div>
-            <p className="text-4xl font-extralight text-[#5A87E6]">{analytics.completedGoals}</p>
+            <div className="flex items-end gap-3">
+              <p className="text-5xl font-extralight text-[#5A87E6]">
+                {analytics.completedGoals}
+              </p>
+            </div>
           </div>
 
-          <div className="rounded-2xl bg-white p-5 border border-[#E4E8F5]">
+          <div className="rounded-2xl bg-white p-6 border border-slate-300 min-h-[160px] flex flex-col justify-between">
             <div className="flex items-start justify-between mb-2">
-              <p className="text-[18px] font-normal text-[#0F1D3A]">Achievement Rate</p>
-              <Icon icon="mingcute:chart-pie-line" width={20} className="text-[#09244B]" />
+              <p className="text-[18px] font-normal text-[#0F1D3A]">
+                Achievement Rate
+              </p>
+              <Icon
+                icon="mingcute:chart-pie-line"
+                width={20}
+                className="text-[#09244B]"
+              />
             </div>
-            <p className="text-4xl font-extralight text-[#5A87E6]">{analytics.achievementRate}%</p>
+            <div className="flex items-end gap-3">
+              <p className="text-5xl font-extralight text-[#5A87E6]">
+                {analytics.achievementRate}%
+              </p>
+            </div>
           </div>
         </div>
       )}
-
-      {/* Create Goal Button */}
-      <div className="flex justify-end">
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="inline-flex items-center gap-2 rounded-full bg-[#3351FD] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#3351FD1A] transition-transform hover:-translate-y-0.5 hover:bg-[#1E3097]"
-        >
-          <Icon icon="mingcute:add-line" width={20} />
-          Create Goal
-        </button>
-      </div>
 
       {/* Goals List */}
       {goals.length > 0 ? (
@@ -118,39 +162,58 @@ export function GoalTracking({ dateRange }: GoalTrackingProps) {
           {goals.map((goal) => (
             <div
               key={goal.id}
-              className="rounded-2xl bg-white p-6 border border-[#E4E8F5]"
+              className="rounded-2xl bg-white p-6 border border-slate-300"
             >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
-                  <h3 className="text-xl font-semibold text-[#0F1D3A] mb-1">{goal.title}</h3>
+                  <div className="flex items-center gap-3 mb-1">
+                    <h3 className="text-xl font-semibold text-[#0F1D3A]">
+                      {goal.title}
+                    </h3>
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        goal.status === "active"
+                          ? "bg-blue-100 text-blue-700"
+                          : goal.status === "completed"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-gray-100 text-gray-700"
+                      }`}
+                    >
+                      {goal.status}
+                    </span>
+                  </div>
                   {goal.description && (
-                    <p className="text-sm text-[#6D7A99] mb-2">{goal.description}</p>
+                    <p className="text-sm text-[#6D7A99] mb-2">
+                      {goal.description}
+                    </p>
                   )}
                   <div className="flex items-center gap-4 text-xs text-[#6D7A99]">
-                    <span className="capitalize">{goal.category}</span>
+                    <span>
+                      {goal.category
+                        ? goal.category.replace(/_/g, " ").split(" ").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ")
+                        : "Unknown"}
+                    </span>
                     <span>•</span>
-                    <span className="capitalize">{goal.goalType.replace("_", " ")}</span>
+                    <span className="capitalize">
+                      {goal.goalType
+                        ? goal.goalType.replace("_", " ")
+                        : "Unknown"}
+                    </span>
                     {goal.targetDate && (
                       <>
                         <span>•</span>
-                        <span>Target: {new Date(goal.targetDate).toLocaleDateString()}</span>
+                        <span>
+                          Target:{" "}
+                          {new Date(goal.targetDate).toLocaleDateString()}
+                        </span>
                       </>
                     )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span
-                    className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      goal.status === "active"
-                        ? "bg-blue-100 text-blue-700"
-                        : goal.status === "completed"
-                        ? "bg-green-100 text-green-700"
-                        : "bg-gray-100 text-gray-700"
-                    }`}
-                  >
-                    {goal.status}
-                  </span>
-                  {(goal.status === "active" || !goal.status || goal.status === "") && (
+                  {(goal.status === "active" ||
+                    !goal.status ||
+                    goal.status === "") && (
                     <button
                       onClick={async () => {
                         try {
@@ -159,7 +222,10 @@ export function GoalTracking({ dateRange }: GoalTrackingProps) {
                             await fetchGoals();
                             await fetchAnalytics();
                           } else {
-                            console.error("Failed to complete goal:", response.error || response.data?.error);
+                            console.error(
+                              "Failed to complete goal:",
+                              response.error || response.data?.error
+                            );
                             alert("Failed to complete goal. Please try again.");
                           }
                         } catch (err: any) {
@@ -167,12 +233,40 @@ export function GoalTracking({ dateRange }: GoalTrackingProps) {
                           alert(err.message || "Failed to complete goal");
                         }
                       }}
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium text-sm shadow-sm"
+                      className="p-2 text-green-500 hover:text-green-600 transition-colors"
                       title="Complete Goal"
                       aria-label="Complete Goal"
                     >
                       <Icon icon="mingcute:check-circle-line" width={18} />
-                      Complete
+                    </button>
+                  )}
+                  {goal.status === "completed" && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          const response = await api.updateGoal(goal.id, {
+                            status: "active",
+                          });
+                          if (response.ok) {
+                            await fetchGoals();
+                            await fetchAnalytics();
+                          } else {
+                            console.error(
+                              "Failed to uncomplete goal:",
+                              response.error || response.data?.error
+                            );
+                            alert("Failed to uncomplete goal. Please try again.");
+                          }
+                        } catch (err: any) {
+                          console.error("Failed to uncomplete goal:", err);
+                          alert(err.message || "Failed to uncomplete goal");
+                        }
+                      }}
+                      className="p-2 text-gray-500 hover:text-gray-700 transition-colors"
+                      title="Uncomplete Goal"
+                      aria-label="Uncomplete Goal"
+                    >
+                      <Icon icon="mingcute:back-line" width={18} />
                     </button>
                   )}
                   <button
@@ -190,13 +284,16 @@ export function GoalTracking({ dateRange }: GoalTrackingProps) {
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-[#6D7A99]">Progress</span>
                     <span className="font-semibold text-[#0F1D3A]">
-                      {goal.currentValue} / {goal.targetValue} {goal.unit || ""} ({goal.progressPercentage}%)
+                      {goal.currentValue} / {goal.targetValue} {goal.unit || ""}{" "}
+                      ({goal.progressPercentage}%)
                     </span>
                   </div>
                   <div className="h-3 w-full overflow-hidden rounded-full bg-[#EEF0FB]">
                     <div
                       className="h-full rounded-full bg-[#3351FD] transition-all"
-                      style={{ width: `${Math.min(goal.progressPercentage, 100)}%` }}
+                      style={{
+                        width: `${Math.min(goal.progressPercentage, 100)}%`,
+                      }}
                     />
                   </div>
                 </div>
@@ -206,13 +303,18 @@ export function GoalTracking({ dateRange }: GoalTrackingProps) {
         </div>
       ) : (
         <div className="rounded-2xl border border-dashed border-[#E4E8F5] bg-[#F8F8F8] p-10 text-center">
-          <Icon icon="mingcute:target-2-line" className="mx-auto mb-3 text-[#6D7A99]" width={48} />
+          <Icon
+            icon="mingcute:target-2-line"
+            className="mx-auto mb-3 text-[#6D7A99]"
+            width={48}
+          />
           <p className="text-sm text-[#6D7A99] mb-4">
-            No goals set yet. Create your first SMART goal to start tracking your progress.
+            No goals set yet. Create your first SMART goal to start tracking
+            your progress.
           </p>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="inline-flex items-center gap-2 rounded-full bg-[#3351FD] px-6 py-3 text-sm font-semibold text-white"
+            className="inline-flex items-center gap-2 rounded-full border-2 border-blue-500 px-6 py-3 text-sm font-medium text-blue-500 hover:bg-blue-50 transition-colors"
           >
             <Icon icon="mingcute:add-line" width={20} />
             Create Your First Goal
@@ -263,6 +365,37 @@ function GoalFormModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Update form data when goal prop changes
+  useEffect(() => {
+    if (goal) {
+      setFormData({
+        title: goal.title || "",
+        description: goal.description || "",
+        category: goal.category || "job_search",
+        goalType: goal.goalType || "short_term",
+        targetValue: goal.targetValue?.toString() || "",
+        currentValue: goal.currentValue?.toString() || "0",
+        unit: goal.unit || "",
+        targetDate: goal.targetDate ? goal.targetDate.split("T")[0] : "",
+        priority: goal.priority || "medium",
+      });
+    } else {
+      // Reset form when creating new goal
+      setFormData({
+        title: "",
+        description: "",
+        category: "job_search",
+        goalType: "short_term",
+        targetValue: "",
+        currentValue: "0",
+        unit: "",
+        targetDate: "",
+        priority: "medium",
+      });
+    }
+    setError(null); // Clear any previous errors
+  }, [goal]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -274,7 +407,9 @@ function GoalFormModal({
         description: formData.description.trim() || undefined,
         category: formData.category,
         goalType: formData.goalType,
-        targetValue: formData.targetValue ? parseFloat(formData.targetValue) : undefined,
+        targetValue: formData.targetValue
+          ? parseFloat(formData.targetValue)
+          : undefined,
         currentValue: parseFloat(formData.currentValue) || 0,
         unit: formData.unit.trim() || undefined,
         targetDate: formData.targetDate || undefined,
@@ -292,12 +427,16 @@ function GoalFormModal({
         onSuccess();
         onClose(); // Close modal on success
       } else {
-        const errorMsg = response.error?.message || response.data?.error?.message || "Failed to save goal";
+        const errorMsg =
+          response.error?.message ||
+          response.data?.error?.message ||
+          "Failed to save goal";
         setError(errorMsg);
       }
     } catch (err: any) {
       console.error("Failed to save goal:", err);
-      const errorMsg = err.message || err.error?.message || "Failed to save goal";
+      const errorMsg =
+        err.message || err.error?.message || "Failed to save goal";
       setError(errorMsg);
     } finally {
       setIsSubmitting(false);
@@ -353,9 +492,11 @@ function GoalFormModal({
               type="text"
               required
               value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, title: e.target.value })
+              }
               placeholder="e.g., Send 20 applications this month"
-              className="w-full px-4 py-2 border border-[#E4E8F5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]"
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]"
             />
           </div>
 
@@ -366,10 +507,12 @@ function GoalFormModal({
             </label>
             <textarea
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, description: e.target.value })
+              }
               placeholder="Additional details about this goal..."
               rows={3}
-              className="w-full px-4 py-2 border border-[#E4E8F5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]"
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]"
             />
           </div>
 
@@ -382,8 +525,10 @@ function GoalFormModal({
               <select
                 required
                 value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value as any })}
-                className="w-full px-4 py-2 border border-[#E4E8F5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]"
+                onChange={(e) =>
+                  setFormData({ ...formData, category: e.target.value as any })
+                }
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]"
               >
                 <option value="job_search">Job Search</option>
                 <option value="career">Career</option>
@@ -400,8 +545,10 @@ function GoalFormModal({
               <select
                 required
                 value={formData.goalType}
-                onChange={(e) => setFormData({ ...formData, goalType: e.target.value as any })}
-                className="w-full px-4 py-2 border border-[#E4E8F5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]"
+                onChange={(e) =>
+                  setFormData({ ...formData, goalType: e.target.value as any })
+                }
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]"
               >
                 <option value="short_term">Short Term</option>
                 <option value="long_term">Long Term</option>
@@ -420,9 +567,11 @@ function GoalFormModal({
                 min="0"
                 step="0.01"
                 value={formData.targetValue}
-                onChange={(e) => setFormData({ ...formData, targetValue: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, targetValue: e.target.value })
+                }
                 placeholder="20"
-                className="w-full px-4 py-2 border border-[#E4E8F5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]"
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]"
               />
             </div>
 
@@ -435,9 +584,11 @@ function GoalFormModal({
                 min="0"
                 step="0.01"
                 value={formData.currentValue}
-                onChange={(e) => setFormData({ ...formData, currentValue: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, currentValue: e.target.value })
+                }
                 placeholder="0"
-                className="w-full px-4 py-2 border border-[#E4E8F5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]"
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]"
               />
             </div>
           </div>
@@ -451,9 +602,11 @@ function GoalFormModal({
               <input
                 type="text"
                 value={formData.unit}
-                onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, unit: e.target.value })
+                }
                 placeholder="e.g., applications, interviews"
-                className="w-full px-4 py-2 border border-[#E4E8F5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]"
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]"
               />
             </div>
 
@@ -464,8 +617,10 @@ function GoalFormModal({
               <input
                 type="date"
                 value={formData.targetDate}
-                onChange={(e) => setFormData({ ...formData, targetDate: e.target.value })}
-                className="w-full px-4 py-2 border border-[#E4E8F5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]"
+                onChange={(e) =>
+                  setFormData({ ...formData, targetDate: e.target.value })
+                }
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]"
               />
             </div>
           </div>
@@ -477,8 +632,10 @@ function GoalFormModal({
             </label>
             <select
               value={formData.priority}
-              onChange={(e) => setFormData({ ...formData, priority: e.target.value as any })}
-              className="w-full px-4 py-2 border border-[#E4E8F5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]"
+              onChange={(e) =>
+                setFormData({ ...formData, priority: e.target.value as any })
+              }
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]"
             >
               <option value="low">Low</option>
               <option value="medium">Medium</option>
@@ -512,7 +669,11 @@ function GoalFormModal({
                 disabled={isSubmitting}
                 className="px-6 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#1E3097] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isSubmitting ? "Saving..." : goal ? "Update Goal" : "Create Goal"}
+                {isSubmitting
+                  ? "Saving..."
+                  : goal
+                  ? "Update Goal"
+                  : "Create Goal"}
               </button>
             </div>
           </div>
@@ -521,4 +682,3 @@ function GoalFormModal({
     </div>
   );
 }
-

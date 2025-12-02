@@ -617,7 +617,7 @@ export function Interviews() {
         {/* Thank-you note modal */}
         {activeThankYouInterview && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-40 px-4">
-            <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-6 font-poppins">
+            <div className="bg-white rounded-2xl border border-slate-300 max-w-2xl w-full p-6 font-poppins">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="text-lg font-semibold text-slate-900">
@@ -672,13 +672,13 @@ export function Interviews() {
                         type="text"
                         readOnly
                         value={thankYouNotes[0].subject}
-                        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 mb-2"
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-slate-50 mb-2"
                       />
                       <textarea
                         readOnly
                         rows={8}
                         value={thankYouNotes[0].body}
-                        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 font-mono whitespace-pre-wrap"
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-slate-50 font-mono whitespace-pre-wrap"
                       />
 
                       {showAllThankYouNotes && thankYouNotes.length > 1 && (
@@ -1065,7 +1065,7 @@ export function Interviews() {
                     {interviews.slice(0, 6).map((interview) => (
                       <div
                         key={interview.id}
-                        className="bg-white border border-slate-200 rounded-xl p-6 hover:shadow-md transition-shadow cursor-pointer"
+                        className="bg-white border border-slate-300 rounded-xl p-6 hover:shadow-md transition-shadow cursor-pointer"
                         onClick={() => navigate(`${ROUTES.INTERVIEW_SCHEDULING}?interviewId=${interview.id}`)}
                       >
                         <div className="flex items-start justify-between mb-3">
@@ -1150,7 +1150,7 @@ export function Interviews() {
                     return (
                     <div
                       key={companyKey}
-                      className="bg-white border border-slate-200 rounded-xl p-6 hover:shadow-md transition-shadow"
+                      className="bg-white border border-slate-300 rounded-xl p-6 hover:shadow-md transition-shadow"
                     >
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex-1">
@@ -1235,7 +1235,7 @@ export function Interviews() {
                                 {companyData.insights.stages.map((stage: any, index: number) => (
                                   <div
                                     key={`${stage.stage}-${index}`}
-                                    className="rounded-lg border border-slate-200 bg-slate-50 p-4"
+                                    className="rounded-lg border border-slate-300 bg-slate-50 p-4"
                                   >
                                     <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                                       <p className="text-sm font-medium text-slate-900">{stage.stage}</p>
@@ -1271,7 +1271,7 @@ export function Interviews() {
                               <h4 className="font-medium text-slate-900 mb-2">Common Questions</h4>
                               <div className="space-y-3">
                                 {companyData.insights.common_questions.map((item: any, index: number) => (
-                                  <div key={`${item.question}-${index}`} className="rounded-md border border-slate-200 p-4">
+                                  <div key={`${item.question}-${index}`} className="rounded-md border border-slate-300 p-4">
                                     <p className="text-sm font-medium text-slate-900 mb-1">"{item.question}"</p>
                                     <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 mb-2">
                                       <span className={`rounded-full px-2 py-1 uppercase tracking-wide font-medium ${getQuestionCategoryColor(item.category || "")}`}>
@@ -1360,7 +1360,7 @@ export function Interviews() {
                   {upcomingReminders.map((reminder) => (
                     <div
                       key={reminder.id}
-                      className="bg-white border border-slate-200 rounded-xl p-6 hover:shadow-md transition-shadow"
+                      className="bg-white border border-slate-300 rounded-xl p-6 hover:shadow-md transition-shadow"
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
@@ -1408,7 +1408,7 @@ export function Interviews() {
                   .map((interview) => (
                     <div
                       key={interview.id}
-                      className="bg-white border border-slate-200 rounded-xl p-6 hover:shadow-md transition-shadow cursor-pointer"
+                      className="bg-white border border-slate-300 rounded-xl p-6 hover:shadow-md transition-shadow cursor-pointer"
                       onClick={() => openThankYouModal(interview)}
                     >
                       <h3 className="font-semibold text-slate-900 mb-2">{interview.title || "Interview"}</h3>
@@ -1452,7 +1452,7 @@ export function Interviews() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {/* Thank-you Note Template */}
                   <div 
-                    className="bg-white border border-slate-200 rounded-xl p-6 hover:shadow-lg transition-all cursor-pointer relative"
+                    className="bg-white border border-slate-300 rounded-xl p-6 hover:shadow-lg transition-all cursor-pointer relative"
                     onClick={async () => {
                       const completedInterview = interviews.find(i => i.status === "completed" || i.outcome);
                       if (!completedInterview) {
@@ -1512,7 +1512,7 @@ export function Interviews() {
                     <p className="text-xs text-slate-600 mb-3">
                       Personalized thank-you email with specific conversation references and interviewer details. Includes timing suggestions.
                     </p>
-                    <div className="text-xs font-mono bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2 text-slate-700">
+                    <div className="text-xs font-mono bg-slate-50 border border-slate-300 rounded-lg p-3 space-y-2 text-slate-700">
                       <div>
                         <span className="font-semibold">Subject:</span>{" "}
                         Thank You - [Role] at [Company]
@@ -1534,7 +1534,7 @@ export function Interviews() {
 
                   {/* Status Inquiry Template */}
                   <div 
-                    className="bg-white border border-slate-200 rounded-xl p-6 hover:shadow-lg transition-all cursor-pointer relative"
+                    className="bg-white border border-slate-300 rounded-xl p-6 hover:shadow-lg transition-all cursor-pointer relative"
                     onClick={async () => {
                       const completedInterview = interviews.find(i => i.status === "completed" || i.outcome);
                       if (!completedInterview) {
@@ -1638,7 +1638,7 @@ export function Interviews() {
                     <p className="text-xs text-slate-600 mb-3">
                       Professional inquiry template for when you haven't heard back. Maintains interest while checking on timeline.
                     </p>
-                    <div className="text-xs font-mono bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2 text-slate-700">
+                    <div className="text-xs font-mono bg-slate-50 border border-slate-300 rounded-lg p-3 space-y-2 text-slate-700">
                       <div>
                         <span className="font-semibold">Subject:</span>{" "}
                         Follow-up: [Role] Application Status
@@ -1662,7 +1662,7 @@ export function Interviews() {
 
                   {/* Feedback Request Template */}
                   <div 
-                    className="bg-white border border-slate-200 rounded-xl p-6 hover:shadow-lg transition-all cursor-pointer relative"
+                    className="bg-white border border-slate-300 rounded-xl p-6 hover:shadow-lg transition-all cursor-pointer relative"
                     onClick={async () => {
                       const rejectedInterview = interviews.find(i => i.outcome === "rejected");
                       if (!rejectedInterview) {
@@ -1767,7 +1767,7 @@ export function Interviews() {
                     <p className="text-xs text-slate-600 mb-3">
                       Polite request for interview feedback to improve future performance. Shows professionalism and growth mindset.
                     </p>
-                    <div className="text-xs font-mono bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2 text-slate-700">
+                    <div className="text-xs font-mono bg-slate-50 border border-slate-300 rounded-lg p-3 space-y-2 text-slate-700">
                       <div>
                         <span className="font-semibold">Subject:</span>{" "}
                         Request for Interview Feedback
@@ -1830,7 +1830,7 @@ export function Interviews() {
                           return (
                             <div
                               key={draftKey}
-                              className="bg-white border border-slate-200 rounded-xl p-6 hover:shadow-lg transition-all"
+                              className="bg-white border border-slate-300 rounded-xl p-6 hover:shadow-lg transition-all"
                             >
                               <div className="flex items-start justify-between mb-3">
                                 <div className="flex-1">
@@ -1878,7 +1878,7 @@ export function Interviews() {
 
                               {/* Expanded/Edit view */}
                               {isExpanded && (
-                                <div className="mb-4 p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-3">
+                                <div className="mb-4 p-4 bg-slate-50 rounded-lg border border-slate-300 space-y-3">
                                   <div>
                                     <label className="block text-xs font-medium text-slate-600 mb-1">
                                       Subject
@@ -1920,7 +1920,7 @@ export function Interviews() {
                                         className="w-full text-sm text-slate-700 whitespace-pre-wrap font-mono bg-white p-3 rounded border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                       />
                                     ) : (
-                                      <div className="text-sm text-slate-700 whitespace-pre-wrap font-mono bg-white p-3 rounded border border-slate-200 max-h-96 overflow-y-auto">
+                                      <div className="text-sm text-slate-700 whitespace-pre-wrap font-mono bg-white p-3 rounded border border-slate-300 max-h-96 overflow-y-auto">
                                         {editedContent.body || "No content"}
                                       </div>
                                     )}
@@ -2052,7 +2052,7 @@ export function Interviews() {
                         return (
                           <div
                             key={followUpId}
-                            className="bg-white border border-slate-200 rounded-xl p-6 hover:shadow-lg transition-all"
+                            className="bg-white border border-slate-300 rounded-xl p-6 hover:shadow-lg transition-all"
                           >
                             <div className="flex items-start justify-between mb-3">
                               <div className="flex-1">
@@ -2103,7 +2103,7 @@ export function Interviews() {
 
                             {/* Expanded view */}
                             {isExpanded && (
-                              <div className="mb-4 p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-3">
+                              <div className="mb-4 p-4 bg-slate-50 rounded-lg border border-slate-300 space-y-3">
                                 <div>
                                   <label className="block text-xs font-medium text-slate-600 mb-1">
                                     Subject
@@ -2116,7 +2116,7 @@ export function Interviews() {
                                   <label className="block text-xs font-medium text-slate-600 mb-1">
                                     Email Body
                                   </label>
-                                  <div className="text-sm text-slate-700 whitespace-pre-wrap font-mono bg-white p-3 rounded border border-slate-200 max-h-96 overflow-y-auto">
+                                  <div className="text-sm text-slate-700 whitespace-pre-wrap font-mono bg-white p-3 rounded border border-slate-300 max-h-96 overflow-y-auto">
                                     {latestDraft.body || "No content"}
                                   </div>
                                 </div>
@@ -2181,7 +2181,7 @@ export function Interviews() {
                                         generatedBy: draft.generatedBy,
                                       });
                                     }}
-                                    className="w-full text-left px-2 py-1 rounded border border-slate-200 hover:border-blue-300 hover:bg-blue-50 transition-colors"
+                                    className="w-full text-left px-2 py-1 rounded border border-slate-300 hover:border-blue-300 hover:bg-blue-50 transition-colors"
                                   >
                                     <p className="text-xs font-medium text-slate-700 truncate">{draft.subject}</p>
                                     <p className="text-[10px] text-slate-500">
@@ -2232,7 +2232,7 @@ export function Interviews() {
                     return (
                     <div
                       key={followUp.id}
-                      className="bg-white border border-slate-200 rounded-xl p-5 hover:shadow-md transition-shadow flex flex-col relative"
+                      className="bg-white border border-slate-300 rounded-xl p-5 hover:shadow-md transition-shadow flex flex-col relative"
                     >
                       {hasDraft && (
                         <button
@@ -2454,7 +2454,7 @@ export function Interviews() {
                             {completedFollowUps.map((followUp) => (
                               <div
                                 key={followUp.id}
-                                className="bg-slate-50 border border-slate-200 rounded-xl p-5 opacity-75"
+                                className="bg-slate-50 border border-slate-300 rounded-xl p-5 opacity-75"
                               >
                                 <div>
                                     {/* Interview Context - Position, Company, Date */}
@@ -2557,7 +2557,7 @@ export function Interviews() {
                             )}
                           </div>
                           {showAll && drafts.length > 1 && (
-                            <div className="mb-4 max-h-48 overflow-y-auto border border-slate-200 rounded-lg p-2 bg-slate-50">
+                            <div className="mb-4 max-h-48 overflow-y-auto border border-slate-300 rounded-lg p-2 bg-slate-50">
                               {drafts.slice(1).map((draft, idx) => (
                                 <div
                                   key={idx}
@@ -2574,7 +2574,7 @@ export function Interviews() {
                                       return updated;
                                     });
                                   }}
-                                  className="p-2 mb-2 bg-white rounded border border-slate-200 cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition-colors"
+                                  className="p-2 mb-2 bg-white rounded border border-slate-300 cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition-colors"
                                 >
                                   <div className="text-xs font-medium text-slate-700 mb-1 truncate">
                                     {draft.subject}
@@ -2596,7 +2596,7 @@ export function Interviews() {
                           type="text"
                           readOnly
                           value={activeFollowUpDraft.subject}
-                          className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50"
+                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-slate-50"
                         />
                       </div>
                       <div>
@@ -2607,7 +2607,7 @@ export function Interviews() {
                           readOnly
                           rows={8}
                           value={activeFollowUpDraft.body}
-                          className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 font-mono whitespace-pre-wrap"
+                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-slate-50 font-mono whitespace-pre-wrap"
                         />
                       </div>
                       <p className="text-xs text-slate-500">
@@ -3035,7 +3035,7 @@ export function Interviews() {
                                 <>
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {/* Practice Interviews */}
-                                    <div className="border border-slate-200 rounded-lg p-3">
+                                    <div className="border border-slate-300 rounded-lg p-3">
                                       <h4 className="font-semibold text-slate-700 mb-2" style={{ fontFamily: 'Poppins' }}>Practice Interviews</h4>
                                       <div className="space-y-2">
                                         <div>
@@ -3062,7 +3062,7 @@ export function Interviews() {
                                     </div>
 
                                     {/* Real Interviews */}
-                                    <div className="border border-slate-200 rounded-lg p-3">
+                                    <div className="border border-slate-300 rounded-lg p-3">
                                       <h4 className="font-semibold text-slate-700 mb-2" style={{ fontFamily: 'Poppins' }}>Real Interviews</h4>
                                       <div className="space-y-2">
                                         <div>
@@ -3112,7 +3112,7 @@ export function Interviews() {
                   })()}
                 </>
               ) : (
-                <div className="bg-white border border-slate-200 rounded-xl p-12 text-center">
+                <div className="bg-white border border-slate-300 rounded-xl p-12 text-center">
                   <Icon icon="mingcute:chart-line" width={48} className="text-slate-400 mx-auto mb-4" />
                   <p className="text-slate-600 mb-4">No analytics data available</p>
                   <p className="text-sm text-slate-500">

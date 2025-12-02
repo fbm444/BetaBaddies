@@ -108,9 +108,9 @@ export function TimeLogModal({ isOpen, onClose, onLogSuccess, prefilledJobId }: 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl border border-slate-300 max-w-md w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-[#E4E8F5]">
+        <div className="flex items-center justify-between p-6 border-b border-slate-300">
           <div className="flex items-center gap-2">
             <Icon icon="mingcute:time-line" width={24} className="text-[#3351FD]" />
             <h2 className="text-xl font-semibold text-[#0F1D3A]">Log Time Spent</h2>
@@ -131,7 +131,7 @@ export function TimeLogModal({ isOpen, onClose, onLogSuccess, prefilledJobId }: 
               Related Job Opportunity (Optional)
             </label>
             {loadingJobs ? (
-              <div className="w-full px-4 py-2 border border-[#E4E8F5] rounded-lg bg-[#F8F9FF] text-[#6D7A99] flex items-center gap-2">
+              <div className="w-full px-4 py-2 border border-slate-300 rounded-lg bg-[#F8F9FF] text-[#6D7A99] flex items-center gap-2">
                 <div className="w-4 h-4 border-2 border-[#3351FD] border-t-transparent rounded-full animate-spin" />
                 Loading jobs...
               </div>
@@ -139,7 +139,7 @@ export function TimeLogModal({ isOpen, onClose, onLogSuccess, prefilledJobId }: 
               <select
                 value={formData.jobOpportunityId || ''}
                 onChange={(e) => setFormData({ ...formData, jobOpportunityId: e.target.value || undefined })}
-                className="w-full px-4 py-2 border border-[#E4E8F5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]/20"
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]/20"
                 disabled={!!prefilledJobId}
               >
                 <option value="">General job search activity</option>
@@ -165,7 +165,7 @@ export function TimeLogModal({ isOpen, onClose, onLogSuccess, prefilledJobId }: 
             <select
               value={formData.activityType}
               onChange={(e) => setFormData({ ...formData, activityType: e.target.value })}
-              className="w-full px-4 py-2 border border-[#E4E8F5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]/20"
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]/20"
               required
             >
               <option value="research">Research & Planning</option>
@@ -192,7 +192,7 @@ export function TimeLogModal({ isOpen, onClose, onLogSuccess, prefilledJobId }: 
                 step="0.25"
                 value={formData.hoursSpent}
                 onChange={(e) => setFormData({ ...formData, hoursSpent: parseFloat(e.target.value) || 0 })}
-                className="flex-1 px-4 py-2 border border-[#E4E8F5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]/20"
+                className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]/20"
                 required
               />
               <span className="text-sm text-[#6D7A99]">hours</span>
@@ -228,7 +228,7 @@ export function TimeLogModal({ isOpen, onClose, onLogSuccess, prefilledJobId }: 
               value={formData.activityDate}
               onChange={(e) => setFormData({ ...formData, activityDate: e.target.value })}
               max={new Date().toISOString().split('T')[0]}
-              className="w-full px-4 py-2 border border-[#E4E8F5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]/20"
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]/20"
               required
             />
           </div>
@@ -243,7 +243,7 @@ export function TimeLogModal({ isOpen, onClose, onLogSuccess, prefilledJobId }: 
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               placeholder="Add any additional details..."
               rows={3}
-              className="w-full px-4 py-2 border border-[#E4E8F5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]/20 resize-none"
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]/20 resize-none"
             />
           </div>
 
@@ -259,7 +259,7 @@ export function TimeLogModal({ isOpen, onClose, onLogSuccess, prefilledJobId }: 
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 border border-[#E4E8F5] rounded-lg text-[#6D7A99] hover:bg-[#F8F9FF] transition-colors"
+              className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-[#6D7A99] hover:bg-[#F8F9FF] transition-colors"
             >
               Cancel
             </button>

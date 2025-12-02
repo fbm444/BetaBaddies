@@ -392,14 +392,14 @@ export function SalaryNegotiation() {
                 <p className="text-3xl font-bold text-white">{stats.active}</p>
               </div>
 
-              <div className="bg-white rounded-xl p-6 border border-slate-200">
+              <div className="bg-white rounded-xl p-6 border border-slate-300">
                 <p className="text-sm text-slate-600 mb-2">Avg. Increase</p>
                 <p className="text-3xl font-bold text-slate-900">
                   {stats.avgIncrease > 0 ? `+${stats.avgIncrease.toFixed(1)}%` : "0%"}
                 </p>
               </div>
 
-              <div className="bg-white rounded-xl p-6 border border-slate-200">
+              <div className="bg-white rounded-xl p-6 border border-slate-300">
                 <p className="text-sm text-slate-600 mb-2">Total Saved</p>
                 <p className="text-3xl font-bold text-slate-900">
                   ${stats.totalSaved.toLocaleString()}
@@ -408,7 +408,7 @@ export function SalaryNegotiation() {
             </div>
 
             {/* Negotiations List */}
-            <div className="bg-white rounded-xl border border-slate-200">
+            <div className="bg-white rounded-xl border border-slate-300">
               <div className="p-6 border-b border-slate-200">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-semibold text-slate-900">Negotiations</h2>
@@ -542,7 +542,7 @@ export function SalaryNegotiation() {
             </div>
 
             {negotiations.length === 0 ? (
-              <div className="bg-slate-50 rounded-xl p-12 text-center border border-slate-200">
+              <div className="bg-slate-50 rounded-xl p-12 text-center border border-slate-300">
                 <Icon icon="mingcute:chart-line" width={48} className="text-slate-400 mx-auto mb-4" />
                 <p className="text-slate-600 mb-2">No negotiations yet</p>
                 <p className="text-sm text-slate-500">
@@ -560,7 +560,7 @@ export function SalaryNegotiation() {
                     return (
                       <div
                         key={negotiation.id}
-                        className="bg-white rounded-xl p-6 border border-slate-200 hover:border-blue-300 transition-colors"
+                        className="bg-white rounded-xl p-6 border border-slate-300 hover:border-blue-300 transition-colors"
                       >
                         {/* Header */}
                         <div className="flex items-start justify-between mb-4">
@@ -595,7 +595,7 @@ export function SalaryNegotiation() {
 
                         {/* Market Data Percentiles */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                          <div className="text-center p-4 bg-slate-50 rounded-lg border border-slate-200">
+                          <div className="text-center p-4 bg-slate-50 rounded-lg border border-slate-300">
                             <p className="text-xs text-slate-600 mb-1 font-medium">25th Percentile</p>
                             <p className="text-xl font-bold text-slate-900">
                               ${(marketData.percentile25 || 0).toLocaleString()}
@@ -609,7 +609,7 @@ export function SalaryNegotiation() {
                             </p>
                             <p className="text-xs text-blue-600 mt-1 font-medium">Market average</p>
                           </div>
-                          <div className="text-center p-4 bg-slate-50 rounded-lg border border-slate-200">
+                          <div className="text-center p-4 bg-slate-50 rounded-lg border border-slate-300">
                             <p className="text-xs text-slate-600 mb-1 font-medium">75th Percentile</p>
                             <p className="text-xl font-bold text-slate-900">
                               ${(marketData.percentile75 || 0).toLocaleString()}
@@ -676,7 +676,7 @@ export function SalaryNegotiation() {
 
                         {/* Market Insights */}
                         {marketData.notes && (
-                          <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                          <div className="bg-slate-50 rounded-lg p-4 border border-slate-300">
                             <div className="flex items-center gap-2 mb-2">
                               <Icon icon="mingcute:lightbulb-line" width={18} className="text-yellow-500" />
                               <h5 className="text-sm font-semibold text-slate-900">Market Insights</h5>
@@ -708,7 +708,7 @@ export function SalaryNegotiation() {
                   })}
 
                 {negotiations.filter((neg) => neg.marketSalaryData).length === 0 && (
-                  <div className="bg-slate-50 rounded-xl p-12 text-center border border-slate-200">
+                  <div className="bg-slate-50 rounded-xl p-12 text-center border border-slate-300">
                     <Icon icon="mingcute:chart-line" width={48} className="text-slate-400 mx-auto mb-4" />
                     <p className="text-slate-600 mb-2">No market research data available</p>
                     <p className="text-sm text-slate-500 mb-6">
@@ -941,7 +941,7 @@ export function SalaryNegotiation() {
                           <SalaryProgressionChart entries={chartEntries} />
                         </div>
                       ) : (
-                        <div className="h-[400px] flex items-center justify-center bg-slate-50 rounded-lg border border-slate-200">
+                        <div className="h-[400px] flex items-center justify-center bg-slate-50 rounded-lg border border-slate-300">
                           <p className="text-sm text-[#6D7A99]">No chart data available</p>
                         </div>
                       )}
@@ -1471,7 +1471,7 @@ export function SalaryNegotiation() {
       {/* Delete Confirmation Modal */}
       {deleteProgressionEntryId && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-xl">
+          <div className="bg-white rounded-2xl border border-slate-300 p-8 max-w-md w-full">
             <h3 className="text-xl font-bold text-slate-900 mb-4">Delete Progression Entry</h3>
             <p className="text-slate-600 mb-6">
               Are you sure you want to delete this progression entry? This action cannot be undone.

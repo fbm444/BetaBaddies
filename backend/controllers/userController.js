@@ -2,6 +2,7 @@ import userService from "../services/userService.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 import emailService from "../services/emailService.js";
 import passport from "../config/passport.js";
+import linkedinService from "../services/linkedinService.js";
 
 class UserController {
   // Register a new user
@@ -153,6 +154,7 @@ class UserController {
           email: user.email,
           createdAt: user.created_at,
           updatedAt: user.updated_at,
+          authProvider: user.auth_provider || null,
         },
       },
     });
@@ -272,17 +274,7 @@ class UserController {
     const userId = req.session.userId;
     const { password, confirmationText } = req.body;
 
-    // Validate required fields
-    if (!password) {
-      return res.status(400).json({
-        ok: false,
-        error: {
-          code: "PASSWORD_REQUIRED",
-          message: "Password is required to delete account",
-        },
-      });
-    }
-
+    // Validate confirmation text (required for all users)
     if (confirmationText !== "DELETE MY ACCOUNT") {
       return res.status(400).json({
         ok: false,
@@ -294,8 +286,8 @@ class UserController {
     }
 
     try {
-      // Delete account (includes password verification)
-      const result = await userService.deleteUser(userId, password);
+      // Delete account (password verification is handled in userService for non-OAuth users)
+      const result = await userService.deleteUser(userId, password || null);
 
       // Send confirmation email
       await emailService.sendAccountDeletionConfirmation(result.email);
@@ -329,6 +321,15 @@ class UserController {
           },
         });
       }
+      if (error.message.includes("Password is required")) {
+        return res.status(400).json({
+          ok: false,
+          error: {
+            code: "PASSWORD_REQUIRED",
+            message: error.message,
+          },
+        });
+      }
       throw error;
     }
   });
@@ -356,6 +357,151 @@ class UserController {
     res.redirect(
       `${process.env.FRONTEND_URL || "http://localhost:3000"}/dashboard`
     );
+  });
+
+  // LinkedIn OAuth - initiate authentication
+  linkedinAuth = passport.authenticate("linkedin", {
+    scope: ["openid", "profile", "email"],
+  });
+
+  // LinkedIn OAuth - handle callback with error handling
+  linkedinCallback = (req, res, next) => {
+    passport.authenticate("linkedin", { session: false }, (err, user, info) => {
+      // Check for OAuth errors from LinkedIn URL parameters
+      if (req.query.error) {
+        console.error("❌ LinkedIn OAuth error from URL:", req.query.error, req.query.error_description);
+        return res.redirect(
+          `/login?error=linkedin_oauth_failed&details=${encodeURIComponent(req.query.error_description || req.query.error)}`
+        );
+      }
+
+      // Handle passport authentication errors
+      if (err) {
+        console.error("❌ LinkedIn OAuth passport error:", err);
+        return res.redirect(
+          `/login?error=linkedin_oauth_failed&details=${encodeURIComponent(err.message || "Authentication failed")}`
+        );
+      }
+
+      // Handle info messages (like "failed to fetch user profile")
+      if (info && info.message) {
+        console.error("❌ LinkedIn OAuth info:", info.message);
+        // If it's a profile fetch error, try to continue with what we have
+        if (info.message.includes("failed to fetch user profile")) {
+          // Pass the error to the next handler to try manual fetch
+          req.passportError = info.message;
+        } else {
+          return res.redirect(
+            `/login?error=linkedin_oauth_failed&details=${encodeURIComponent(info.message)}`
+          );
+        }
+      }
+
+      // Set user if available
+      if (user) {
+        req.user = user;
+      }
+
+      next();
+    })(req, res, next);
+  };
+
+  // Handle LinkedIn OAuth callback and create session
+  handleLinkedInCallback = asyncHandler(async (req, res, next) => {
+    // Check for OAuth errors from LinkedIn
+    if (req.query.error) {
+      console.error("❌ LinkedIn OAuth error:", req.query.error, req.query.error_description);
+      return res.redirect(
+        `/login?error=linkedin_oauth_failed&details=${encodeURIComponent(req.query.error_description || req.query.error)}`
+      );
+    }
+
+    // If passport failed but we have an access token, try manual fetch
+    if (!req.user && req.passportError) {
+      console.log("⚠️ Passport failed, attempting manual profile fetch...");
+      try {
+        // Get access token from session/state if available
+        // Note: passport-linkedin-oauth2 stores tokens, but we might need to get them differently
+        // For now, redirect to error page
+        return res.redirect(
+          `/login?error=linkedin_oauth_failed&details=${encodeURIComponent("Failed to authenticate with LinkedIn. Please try again.")}`
+        );
+      } catch (manualError) {
+        console.error("❌ Manual fetch also failed:", manualError);
+        return res.redirect(
+          `/login?error=linkedin_oauth_failed&details=${encodeURIComponent("Failed to fetch LinkedIn profile")}`
+        );
+      }
+    }
+
+    // After passport authenticates, req.user is populated
+    if (!req.user) {
+      console.error("❌ LinkedIn OAuth: req.user not populated after authentication");
+      return res.redirect("/login?error=oauth_failed");
+    }
+
+    // Create session
+    req.session.userId = req.user.id;
+    req.session.userEmail = req.user.email;
+
+    // Import LinkedIn profile data in the background (fire-and-forget)
+    try {
+      const accessToken = await linkedinService.getLinkedInAccessToken(req.user.id);
+      if (accessToken) {
+        const profileData = await linkedinService.fetchLinkedInProfile(accessToken);
+        await linkedinService.importProfileToUser(req.user.id, profileData);
+      }
+    } catch (profileError) {
+      // Don't block login if profile import fails
+      console.error("❌ Error importing LinkedIn profile after login:", profileError);
+    }
+
+    // Redirect to frontend
+    res.redirect(
+      `${process.env.FRONTEND_URL || "http://localhost:3000"}/dashboard`
+    );
+  });
+
+  // Import LinkedIn profile data (manual trigger)
+  importLinkedInProfile = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+
+    if (!userId) {
+      return res.status(401).json({
+        ok: false,
+        error: {
+          code: "UNAUTHORIZED",
+          message: "You must be logged in to import LinkedIn profile",
+        },
+      });
+    }
+
+    try {
+      const accessToken = await linkedinService.getLinkedInAccessToken(userId);
+      if (!accessToken) {
+        return res.status(400).json({
+          ok: false,
+          error: {
+            code: "NO_LINKEDIN_TOKEN",
+            message: "LinkedIn account not connected. Please sign in with LinkedIn first.",
+          },
+        });
+      }
+
+      const profileData = await linkedinService.fetchLinkedInProfile(accessToken);
+      await linkedinService.importProfileToUser(userId, profileData);
+
+      res.status(200).json({
+        ok: true,
+        data: {
+          message: "LinkedIn profile imported successfully",
+          profile: profileData,
+        },
+      });
+    } catch (error) {
+      console.error("❌ Error importing LinkedIn profile:", error);
+      throw error;
+    }
   });
 }
 

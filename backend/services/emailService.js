@@ -4,39 +4,113 @@
  * Production: Uses nodemailer with SMTP
  */
 
-import nodemailer from 'nodemailer';
+import nodemailer from "nodemailer";
 
 class EmailService {
   constructor() {
     this.transporter = null;
+    this.initializationPromise = null;
     this.initializeTransporter();
   }
 
   async initializeTransporter() {
-    // Only initialize in production
-    if (process.env.NODE_ENV === 'production') {
+    // Initialize if SMTP credentials are provided (not just in production)
+    if (
+      process.env.SMTP_HOST &&
+      process.env.SMTP_USER &&
+      process.env.SMTP_PASS
+    ) {
       try {
+        const port = parseInt(process.env.SMTP_PORT) || 587;
+        // Port 465 uses SSL/TLS directly, other ports use STARTTLS
+        const secure = port === 465;
+
         this.transporter = nodemailer.createTransport({
           host: process.env.SMTP_HOST,
-          port: parseInt(process.env.SMTP_PORT) || 587,
-          secure: true, // true for 465, false for other ports
+          port: port,
+          secure: secure, // true for 465, false for other ports (uses STARTTLS)
           auth: {
             user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS
+            pass: process.env.SMTP_PASS,
           },
           tls: {
-            rejectUnauthorized: false // For self-signed certificates
-          }
+            rejectUnauthorized: false, // For self-signed certificates
+          },
         });
 
         // Verify connection configuration
         await this.transporter.verify();
-        console.log('✅ Email service initialized successfully');
+        console.log("✅ Email service initialized successfully");
       } catch (error) {
-        console.error('❌ Email service initialization failed:', error);
+        console.error("❌ Email service initialization failed:", error);
+        console.error("Error details:", error.message);
         this.transporter = null;
+        // Don't throw - allow app to continue, emails will just log to console
+      }
+    } else {
+      console.warn(
+        "⚠️ Email service: SMTP credentials not configured. Emails will only be logged to console."
+      );
+    }
+  }
+
+  /**
+   * Ensure transporter is initialized before sending emails
+   */
+  async ensureInitialized() {
+    if (
+      !this.transporter &&
+      process.env.SMTP_HOST &&
+      process.env.SMTP_USER &&
+      process.env.SMTP_PASS
+    ) {
+      if (!this.initializationPromise) {
+        this.initializationPromise = this.initializeTransporter().catch(
+          (error) => {
+            // Reset promise on failure so we can retry later
+            this.initializationPromise = null;
+            console.error(
+              "Failed to initialize email transporter:",
+              error.message
+            );
+          }
+        );
+      }
+      try {
+        await this.initializationPromise;
+      } catch (error) {
+        // Already handled in catch above, just ensure we don't throw
       }
     }
+  }
+
+  /**
+   * Check if an error is a Gmail quota/rate limit error
+   * @param {Error} error - The error to check
+   * @returns {boolean} - True if it's a quota error
+   */
+  isQuotaError(error) {
+    const errorMessage = error?.message || error?.response || String(error);
+    return (
+      errorMessage?.toLowerCase().includes("quota") ||
+      errorMessage?.toLowerCase().includes("daily sending limit") ||
+      errorMessage?.toLowerCase().includes("rate limit") ||
+      error?.responseCode === 550 ||
+      error?.code === "EAUTH" ||
+      error?.code === "EENVELOPE"
+    );
+  }
+
+  /**
+   * Create a quota exceeded error with helpful message
+   * @returns {Error} - A formatted quota error
+   */
+  createQuotaError() {
+    const quotaError = new Error(
+      "Gmail daily sending quota exceeded. Please try again tomorrow or use a different email account."
+    );
+    quotaError.code = "EMAIL_QUOTA_EXCEEDED";
+    return quotaError;
   }
 
   /**
@@ -45,29 +119,34 @@ class EmailService {
    * @returns {Promise<void>}
    */
   async sendAccountDeletionConfirmation(email) {
-    // Development mode - log to console
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('\n========== ACCOUNT DELETION EMAIL ==========');
+    // Ensure transporter is initialized
+    await this.ensureInitialized();
+
+    // If no transporter configured, log to console (development mode)
+    if (!this.transporter) {
+      console.log("\n========== ACCOUNT DELETION EMAIL ==========");
       console.log(`To: ${email}`);
-      console.log('Subject: Account Deletion Confirmation - ATS Tracker');
-      console.log('\nYour ATS Tracker account has been permanently deleted.');
-      console.log('All your personal data has been removed from our systems.');
-      console.log('\nIf you did not request this deletion, please contact support immediately.');
-      console.log('\nThank you for using ATS Tracker.');
-      console.log('============================================\n');
+      console.log("Subject: Account Deletion Confirmation - ATS Tracker");
+      console.log("\nYour ATS Tracker account has been permanently deleted.");
+      console.log("All your personal data has been removed from our systems.");
+      console.log(
+        "\nIf you did not request this deletion, please contact support immediately."
+      );
+      console.log("\nThank you for using ATS Tracker.");
+      console.log("============================================\n");
       return;
     }
 
-    // Production mode - use nodemailer
+    // Use nodemailer to send email
     if (!this.transporter) {
-      console.error('❌ Email service not initialized');
+      console.error("❌ Email service not initialized");
       return;
     }
 
     const mailOptions = {
-      from: process.env.EMAIL_FROM || 'noreply@atstracker.com',
+      from: process.env.EMAIL_FROM || "noreply@atstracker.com",
       to: email,
-      subject: 'Account Deletion Confirmation - ATS Tracker',
+      subject: "Account Deletion Confirmation - ATS Tracker",
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #DC2626;">Your Account Has Been Deleted</h2>
@@ -89,14 +168,14 @@ class EmailService {
             Thank you for using ATS Tracker.
           </p>
         </div>
-      `
+      `,
     };
 
     try {
       await this.transporter.sendMail(mailOptions);
-      console.log('✅ Account deletion email sent to:', email);
+      console.log("✅ Account deletion email sent to:", email);
     } catch (error) {
-      console.error('❌ Error sending deletion email:', error);
+      console.error("❌ Error sending deletion email:", error);
       // Don't throw - deletion still successful even if email fails
     }
   }
@@ -108,33 +187,42 @@ class EmailService {
    * @returns {Promise<void>}
    */
   async sendPasswordResetEmail(email, resetToken) {
-    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
-    
-    // Development mode - log to console
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('\n========== PASSWORD RESET EMAIL ==========');
+    const resetUrl = `${
+      process.env.FRONTEND_URL || "http://localhost:3000"
+    }/reset-password?token=${resetToken}`;
+
+    // Ensure transporter is initialized
+    await this.ensureInitialized();
+
+    // If no transporter configured, log to console (development mode)
+    if (!this.transporter) {
+      console.log("\n========== PASSWORD RESET EMAIL ==========");
       console.log(`To: ${email}`);
-      console.log('Subject: Password Reset Request - ATS Tracker');
-      console.log('\nYou requested a password reset for your ATS Tracker account.');
-      console.log('\nClick the link below to reset your password:');
+      console.log("Subject: Password Reset Request - ATS Tracker");
+      console.log(
+        "\nYou requested a password reset for your ATS Tracker account."
+      );
+      console.log("\nClick the link below to reset your password:");
       console.log(resetUrl);
-      console.log('\nThis link will expire in 1 hour for security reasons.');
-      console.log('\nIf you did not request this password reset, please ignore this email.');
-      console.log('\nThank you for using ATS Tracker.');
-      console.log('==========================================\n');
+      console.log("\nThis link will expire in 1 hour for security reasons.");
+      console.log(
+        "\nIf you did not request this password reset, please ignore this email."
+      );
+      console.log("\nThank you for using ATS Tracker.");
+      console.log("==========================================\n");
       return;
     }
 
-    // Production mode - use nodemailer
+    // Use nodemailer to send email
     if (!this.transporter) {
-      console.error('❌ Email service not initialized');
+      console.error("❌ Email service not initialized");
       return;
     }
 
     const mailOptions = {
-      from: process.env.EMAIL_FROM || 'noreply@atstracker.com',
+      from: process.env.EMAIL_FROM || "noreply@atstracker.com",
       to: email,
-      subject: 'Password Reset Request - ATS Tracker',
+      subject: "Password Reset Request - ATS Tracker",
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #6A94EE;">Password Reset Request</h2>
@@ -162,14 +250,20 @@ class EmailService {
             Thank you for using ATS Tracker.
           </p>
         </div>
-      `
+      `,
     };
 
     try {
       await this.transporter.sendMail(mailOptions);
-      console.log('✅ Password reset email sent to:', email);
+      console.log("✅ Password reset email sent to:", email);
     } catch (error) {
-      console.error('❌ Error sending password reset email:', error);
+      console.error("❌ Error sending password reset email:", error);
+
+      // Check for Gmail quota/rate limit errors
+      if (this.isQuotaError(error)) {
+        throw this.createQuotaError();
+      }
+
       throw error;
     }
   }
@@ -186,15 +280,19 @@ class EmailService {
    * @returns {Promise<void>}
    */
   async sendTeamInvitation(email, invitationData) {
-    const { teamName, inviterName, inviterEmail, role, invitationToken } = invitationData;
-    const appUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const { teamName, inviterName, inviterEmail, role, invitationToken } =
+      invitationData;
+    const appUrl = process.env.FRONTEND_URL || "http://localhost:3000";
     const acceptUrl = `${appUrl}/collaboration/teams/accept-invite?token=${invitationToken}`;
-    
-    // Development mode - log to console
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('\n========== TEAM INVITATION EMAIL ==========');
+
+    // Ensure transporter is initialized
+    await this.ensureInitialized();
+
+    // If no transporter configured, log to console (development mode)
+    if (!this.transporter) {
+      console.log("\n========== TEAM INVITATION EMAIL ==========");
       console.log(`To: ${email}`);
-      console.log('Subject: Team Invitation - ATS Tracker');
+      console.log("Subject: Team Invitation - ATS Tracker");
       console.log(`\nYou've been invited to join the team: ${teamName}`);
       if (inviterName) {
         console.log(`Invited by: ${inviterName} (${inviterEmail})`);
@@ -202,21 +300,21 @@ class EmailService {
         console.log(`Invited by: ${inviterEmail}`);
       }
       console.log(`Role: ${role}`);
-      console.log('\nClick the link below to accept the invitation:');
+      console.log("\nClick the link below to accept the invitation:");
       console.log(acceptUrl);
-      console.log('\nThis invitation will expire in 7 days.');
-      console.log('==========================================\n');
+      console.log("\nThis invitation will expire in 7 days.");
+      console.log("==========================================\n");
       return;
     }
 
-    // Production mode - use nodemailer
+    // Use nodemailer to send email
     if (!this.transporter) {
-      console.error('❌ Email service not initialized');
+      console.error("❌ Email service not initialized");
       return;
     }
 
     const mailOptions = {
-      from: process.env.EMAIL_FROM || 'noreply@atstracker.com',
+      from: process.env.EMAIL_FROM || "noreply@atstracker.com",
       to: email,
       subject: `Team Invitation: ${teamName} - ATS Tracker`,
       html: `
@@ -226,9 +324,10 @@ class EmailService {
           
           <div style="background: #F3F4F6; border-left: 4px solid #6A94EE; padding: 20px; margin: 20px 0; border-radius: 8px;">
             <p style="color: #1F2937; font-size: 16px; margin: 8px 0;"><strong>Team:</strong> ${teamName}</p>
-            ${inviterName 
-              ? `<p style="color: #4B5563; font-size: 16px; margin: 8px 0;"><strong>Invited by:</strong> ${inviterName} (${inviterEmail})</p>`
-              : `<p style="color: #4B5563; font-size: 16px; margin: 8px 0;"><strong>Invited by:</strong> ${inviterEmail}</p>`
+            ${
+              inviterName
+                ? `<p style="color: #4B5563; font-size: 16px; margin: 8px 0;"><strong>Invited by:</strong> ${inviterName} (${inviterEmail})</p>`
+                : `<p style="color: #4B5563; font-size: 16px; margin: 8px 0;"><strong>Invited by:</strong> ${inviterEmail}</p>`
             }
             <p style="color: #4B5563; font-size: 16px; margin: 8px 0;"><strong>Role:</strong> ${role}</p>
           </div>
@@ -254,14 +353,23 @@ class EmailService {
             If you did not expect this invitation, you can safely ignore this email.
           </p>
         </div>
-      `
+      `,
     };
 
     try {
       await this.transporter.sendMail(mailOptions);
-      console.log('✅ Team invitation email sent to:', email);
+      console.log("✅ Team invitation email sent to:", email);
     } catch (error) {
-      console.error('❌ Error sending team invitation email:', error);
+      console.error("❌ Error sending team invitation email:", error);
+
+      // Check for Gmail quota/rate limit errors
+      if (this.isQuotaError(error)) {
+        console.error(
+          "⚠️ Gmail daily sending quota exceeded. The invitation was created but the email could not be sent."
+        );
+        // Don't throw - invitation is still created even if email fails
+        // But log a warning so the user knows
+      }
       // Don't throw - invitation is still created even if email fails
     }
   }
@@ -278,61 +386,71 @@ class EmailService {
    * @returns {Promise<void>}
    */
   async sendDeadlineReminder(email, jobDetails) {
-    const { title, company, applicationDeadline, location, jobPostingUrl } = jobDetails;
-    
+    const { title, company, applicationDeadline, location, jobPostingUrl } =
+      jobDetails;
+
     // Format deadline date
     const deadlineDate = new Date(applicationDeadline);
-    const formattedDeadline = deadlineDate.toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
+    const formattedDeadline = deadlineDate.toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
     });
-    
+
     // Calculate days remaining
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const deadline = new Date(applicationDeadline);
     deadline.setHours(0, 0, 0, 0);
     const daysRemaining = Math.ceil((deadline - today) / (1000 * 60 * 60 * 24));
-    
-    let daysRemainingText = '';
+
+    let daysRemainingText = "";
     if (daysRemaining < 0) {
-      daysRemainingText = `<p style="color: #DC2626; font-weight: bold; font-size: 16px;">⚠️ This deadline has passed (${Math.abs(daysRemaining)} day${Math.abs(daysRemaining) !== 1 ? 's' : ''} ago)</p>`;
+      daysRemainingText = `<p style="color: #DC2626; font-weight: bold; font-size: 16px;">⚠️ This deadline has passed (${Math.abs(
+        daysRemaining
+      )} day${Math.abs(daysRemaining) !== 1 ? "s" : ""} ago)</p>`;
     } else if (daysRemaining === 0) {
-      daysRemainingText = '<p style="color: #DC2626; font-weight: bold; font-size: 16px;">🚨 Deadline is today!</p>';
+      daysRemainingText =
+        '<p style="color: #DC2626; font-weight: bold; font-size: 16px;">🚨 Deadline is today!</p>';
     } else if (daysRemaining === 1) {
-      daysRemainingText = '<p style="color: #DC2626; font-weight: bold; font-size: 16px;">⚠️ Deadline is tomorrow!</p>';
+      daysRemainingText =
+        '<p style="color: #DC2626; font-weight: bold; font-size: 16px;">⚠️ Deadline is tomorrow!</p>';
     } else {
       daysRemainingText = `<p style="color: #F59E0B; font-weight: bold; font-size: 16px;">⏰ ${daysRemaining} days remaining</p>`;
     }
-    
-    // Development mode - log to console
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('\n========== DEADLINE REMINDER EMAIL ==========');
+
+    // Ensure transporter is initialized
+    await this.ensureInitialized();
+
+    // If no transporter configured, log to console (development mode)
+    if (!this.transporter) {
+      console.log("\n========== DEADLINE REMINDER EMAIL ==========");
       console.log(`To: ${email}`);
-      console.log('Subject: Application Deadline Reminder - ATS Tracker');
+      console.log("Subject: Application Deadline Reminder - ATS Tracker");
       console.log(`\nJob: ${title} at ${company}`);
-      console.log(`Location: ${location || 'Not specified'}`);
+      console.log(`Location: ${location || "Not specified"}`);
       console.log(`Deadline: ${formattedDeadline}`);
       console.log(`Days Remaining: ${daysRemaining}`);
       if (jobPostingUrl) {
         console.log(`Job Posting: ${jobPostingUrl}`);
       }
-      console.log('\nThis is a reminder about your upcoming application deadline.');
-      console.log('============================================\n');
+      console.log(
+        "\nThis is a reminder about your upcoming application deadline."
+      );
+      console.log("============================================\n");
       return;
     }
 
-    // Production mode - use nodemailer
+    // Use nodemailer to send email
     if (!this.transporter) {
-      console.error('❌ Email service not initialized');
+      console.error("❌ Email service not initialized");
       return;
     }
 
-    const appUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const appUrl = process.env.FRONTEND_URL || "http://localhost:3000";
     const mailOptions = {
-      from: process.env.EMAIL_FROM || 'noreply@atstracker.com',
+      from: process.env.EMAIL_FROM || "noreply@atstracker.com",
       to: email,
       subject: `Application Deadline Reminder: ${title} at ${company}`,
       html: `
@@ -343,12 +461,18 @@ class EmailService {
           <div style="background: #F3F4F6; border-left: 4px solid #6A94EE; padding: 20px; margin: 20px 0; border-radius: 8px;">
             <h3 style="color: #1F2937; margin-top: 0; font-size: 20px;">${title}</h3>
             <p style="color: #4B5563; font-size: 16px; margin: 8px 0;"><strong>Company:</strong> ${company}</p>
-            ${location ? `<p style="color: #4B5563; font-size: 16px; margin: 8px 0;"><strong>Location:</strong> ${location}</p>` : ''}
+            ${
+              location
+                ? `<p style="color: #4B5563; font-size: 16px; margin: 8px 0;"><strong>Location:</strong> ${location}</p>`
+                : ""
+            }
             <p style="color: #4B5563; font-size: 16px; margin: 8px 0;"><strong>Application Deadline:</strong> ${formattedDeadline}</p>
             ${daysRemainingText}
           </div>
           
-          ${jobPostingUrl ? `
+          ${
+            jobPostingUrl
+              ? `
           <div style="text-align: center; margin: 30px 0;">
             <a href="${jobPostingUrl}" 
                target="_blank"
@@ -361,7 +485,9 @@ class EmailService {
               View Job Posting
             </a>
           </div>
-          ` : ''}
+          `
+              : ""
+          }
           
           <div style="text-align: center; margin: 30px 0;">
             <a href="${appUrl}/job-opportunities" 
@@ -381,14 +507,20 @@ class EmailService {
             This is an automated reminder from ATS Tracker. Good luck with your application!
           </p>
         </div>
-      `
+      `,
     };
 
     try {
       await this.transporter.sendMail(mailOptions);
-      console.log('✅ Deadline reminder email sent to:', email);
+      console.log("✅ Deadline reminder email sent to:", email);
     } catch (error) {
-      console.error('❌ Error sending deadline reminder email:', error);
+      console.error("❌ Error sending deadline reminder email:", error);
+
+      // Check for Gmail quota/rate limit errors
+      if (this.isQuotaError(error)) {
+        throw this.createQuotaError();
+      }
+
       throw error;
     }
   }
@@ -404,27 +536,26 @@ class EmailService {
    */
   async sendInterviewReminder(email, reminderData) {
     const { userName, reminderType, interview } = reminderData;
-    
+
     const interviewTime = new Date(interview.scheduledAt);
-    const formattedTime = interviewTime.toLocaleString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
+    const formattedTime = interviewTime.toLocaleString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
     });
 
-    const timeUntil = reminderType === '24_hours' 
-      ? '24 hours' 
-      : '2 hours';
+    const timeUntil = reminderType === "24_hours" ? "24 hours" : "2 hours";
 
-    const reminderTitle = reminderType === '24_hours'
-      ? '📅 Interview Tomorrow'
-      : '⏰ Interview in 2 Hours';
+    const reminderTitle =
+      reminderType === "24_hours"
+        ? "📅 Interview Tomorrow"
+        : "⏰ Interview in 2 Hours";
 
     // Build location/contact info
-    let locationInfo = '';
+    let locationInfo = "";
     if (interview.location) {
       locationInfo = `<p style="color: #4B5563; font-size: 16px; margin: 8px 0;"><strong>Location:</strong> ${interview.location}</p>`;
     } else if (interview.videoLink) {
@@ -434,61 +565,81 @@ class EmailService {
     }
 
     // Build interviewer info
-    let interviewerInfo = '';
+    let interviewerInfo = "";
     if (interview.interviewerName) {
       interviewerInfo = `<p style="color: #4B5563; font-size: 16px; margin: 8px 0;"><strong>Interviewer:</strong> ${interview.interviewerName}`;
       if (interview.interviewerEmail) {
         interviewerInfo += ` (${interview.interviewerEmail})`;
       }
-      interviewerInfo += '</p>';
+      interviewerInfo += "</p>";
     }
 
-    // Development mode - log to console
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('\n========== INTERVIEW REMINDER EMAIL ==========');
+    // Ensure transporter is initialized
+    await this.ensureInitialized();
+
+    // If no transporter configured, log to console (development mode)
+    if (!this.transporter) {
+      console.log("\n========== INTERVIEW REMINDER EMAIL ==========");
       console.log(`To: ${email}`);
-      console.log(`Subject: ${reminderTitle}: ${interview.title || 'Interview'} at ${interview.company}`);
+      console.log(
+        `Subject: ${reminderTitle}: ${interview.title || "Interview"} at ${
+          interview.company
+        }`
+      );
       console.log(`\nHi ${userName || email},`);
       console.log(`\nYour interview is in ${timeUntil}:`);
-      console.log(`\n${interview.title || 'Interview'} at ${interview.company}`);
+      console.log(
+        `\n${interview.title || "Interview"} at ${interview.company}`
+      );
       console.log(`Time: ${formattedTime}`);
-      if (locationInfo) console.log(`\n${locationInfo.replace(/<[^>]*>/g, '')}`);
-      if (interviewerInfo) console.log(interviewerInfo.replace(/<[^>]*>/g, ''));
-      console.log('\nGood luck with your interview!');
-      console.log('============================================\n');
+      if (locationInfo)
+        console.log(`\n${locationInfo.replace(/<[^>]*>/g, "")}`);
+      if (interviewerInfo) console.log(interviewerInfo.replace(/<[^>]*>/g, ""));
+      console.log("\nGood luck with your interview!");
+      console.log("============================================\n");
       return;
     }
 
-    // Production mode - use nodemailer
+    // Use nodemailer to send email
     if (!this.transporter) {
-      console.error('❌ Email service not initialized');
+      console.error("❌ Email service not initialized");
       return;
     }
 
-    const appUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const appUrl = process.env.FRONTEND_URL || "http://localhost:3000";
     const mailOptions = {
-      from: process.env.EMAIL_FROM || 'noreply@atstracker.com',
+      from: process.env.EMAIL_FROM || "noreply@atstracker.com",
       to: email,
-      subject: `${reminderTitle}: ${interview.title || 'Interview'} at ${interview.company}`,
+      subject: `${reminderTitle}: ${interview.title || "Interview"} at ${
+        interview.company
+      }`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #6A94EE;">${reminderTitle}</h2>
-          <p>Hi ${userName || 'there'},</p>
+          <p>Hi ${userName || "there"},</p>
           <p>This is a reminder that your interview is in <strong>${timeUntil}</strong>.</p>
           
           <div style="background: #F3F4F6; border-left: 4px solid #6A94EE; padding: 20px; margin: 20px 0; border-radius: 8px;">
-            <h3 style="color: #1F2937; margin-top: 0; font-size: 20px;">${interview.title || 'Interview'}</h3>
-            <p style="color: #4B5563; font-size: 16px; margin: 8px 0;"><strong>Company:</strong> ${interview.company}</p>
+            <h3 style="color: #1F2937; margin-top: 0; font-size: 20px;">${
+              interview.title || "Interview"
+            }</h3>
+            <p style="color: #4B5563; font-size: 16px; margin: 8px 0;"><strong>Company:</strong> ${
+              interview.company
+            }</p>
             <p style="color: #4B5563; font-size: 16px; margin: 8px 0;"><strong>Time:</strong> ${formattedTime}</p>
             ${locationInfo}
             ${interviewerInfo}
           </div>
           
-          ${reminderType === '24_hours' ? `
+          ${
+            reminderType === "24_hours"
+              ? `
           <div style="background: #FEF3C7; border-left: 4px solid #F59E0B; padding: 15px; margin: 20px 0; border-radius: 8px;">
             <p style="color: #92400E; margin: 0; font-size: 14px;"><strong>💡 Preparation Tip:</strong> Make sure to review your preparation checklist and have everything ready!</p>
           </div>
-          ` : ''}
+          `
+              : ""
+          }
           
           <div style="text-align: center; margin: 30px 0;">
             <a href="${appUrl}/interview-scheduling" 
@@ -507,14 +658,22 @@ class EmailService {
             Good luck with your interview! 💼
           </p>
         </div>
-      `
+      `,
     };
 
     try {
       await this.transporter.sendMail(mailOptions);
-      console.log(`✅ Interview reminder email sent to: ${email} (${reminderType})`);
+      console.log(
+        `✅ Interview reminder email sent to: ${email} (${reminderType})`
+      );
     } catch (error) {
-      console.error('❌ Error sending interview reminder email:', error);
+      console.error("❌ Error sending interview reminder email:", error);
+
+      // Check for Gmail quota/rate limit errors
+      if (this.isQuotaError(error)) {
+        throw this.createQuotaError();
+      }
+
       throw error;
     }
   }
@@ -535,13 +694,20 @@ class EmailService {
       personalizedMessage,
     } = referralDetails;
 
-    // Development mode - log to console
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('\n========== REFERRAL REQUEST EMAIL ==========');
+    // Ensure transporter is initialized
+    await this.ensureInitialized();
+
+    // If no transporter configured, log to console (development mode)
+    if (!this.transporter) {
+      console.log("\n========== REFERRAL REQUEST EMAIL ==========");
       console.log(`To: ${contactEmail}`);
       console.log(`Subject: Referral Request: ${jobTitle} at ${jobCompany}`);
-      console.log(`\nDear ${contactName || 'Contact'},`);
-      console.log(`\n${requesterName || 'A colleague'} has requested a referral for the following position:`);
+      console.log(`\nDear ${contactName || "Contact"},`);
+      console.log(
+        `\n${
+          requesterName || "A colleague"
+        } has requested a referral for the following position:`
+      );
       console.log(`\nPosition: ${jobTitle}`);
       console.log(`Company: ${jobCompany}`);
       if (jobLocation) {
@@ -550,39 +716,52 @@ class EmailService {
       if (personalizedMessage) {
         console.log(`\nMessage:\n${personalizedMessage}`);
       }
-      console.log('\n============================================\n');
+      console.log("\n============================================\n");
       return;
     }
 
-    // Production mode - use nodemailer
+    // Use nodemailer to send email
     if (!this.transporter) {
-      console.error('❌ Email service not initialized');
+      console.error("❌ Email service not initialized");
       return;
     }
 
-    const appUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const appUrl = process.env.FRONTEND_URL || "http://localhost:3000";
     const mailOptions = {
-      from: process.env.EMAIL_FROM || 'noreply@atstracker.com',
+      from: process.env.EMAIL_FROM || "noreply@atstracker.com",
       to: contactEmail,
       subject: `Referral Request: ${jobTitle} at ${jobCompany}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #3351FD;">Referral Request</h2>
-          <p>Dear ${contactName || 'Contact'},</p>
+          <p>Dear ${contactName || "Contact"},</p>
           
-          <p>${requesterName || 'A colleague'} has requested a referral for the following position:</p>
+          <p>${
+            requesterName || "A colleague"
+          } has requested a referral for the following position:</p>
           
           <div style="background: #F3F4F6; border-left: 4px solid #3351FD; padding: 20px; margin: 20px 0; border-radius: 8px;">
             <h3 style="color: #1F2937; margin-top: 0; font-size: 20px;">${jobTitle}</h3>
             <p style="color: #4B5563; font-size: 16px; margin: 8px 0;"><strong>Company:</strong> ${jobCompany}</p>
-            ${jobLocation ? `<p style="color: #4B5563; font-size: 16px; margin: 8px 0;"><strong>Location:</strong> ${jobLocation}</p>` : ''}
+            ${
+              jobLocation
+                ? `<p style="color: #4B5563; font-size: 16px; margin: 8px 0;"><strong>Location:</strong> ${jobLocation}</p>`
+                : ""
+            }
           </div>
           
-          ${personalizedMessage ? `
+          ${
+            personalizedMessage
+              ? `
           <div style="background: #FFFFFF; border: 1px solid #E5E7EB; padding: 20px; margin: 20px 0; border-radius: 8px;">
-            <p style="color: #1F2937; font-size: 14px; line-height: 1.6; white-space: pre-wrap;">${personalizedMessage.replace(/\n/g, '<br>')}</p>
+            <p style="color: #1F2937; font-size: 14px; line-height: 1.6; white-space: pre-wrap;">${personalizedMessage.replace(
+              /\n/g,
+              "<br>"
+            )}</p>
           </div>
-          ` : ''}
+          `
+              : ""
+          }
           
           <div style="text-align: center; margin: 30px 0;">
             <a href="${appUrl}/network/referrals?tab=write" 
@@ -600,7 +779,9 @@ class EmailService {
           
           <hr style="border: 1px solid #E5E7EB; margin: 20px 0;">
           <p style="color: #6B7280; font-size: 12px;">
-            This is an automated notification from ATS Tracker. Please respond directly to ${requesterName || 'the requester'} to proceed with the referral.
+            This is an automated notification from ATS Tracker. Please respond directly to ${
+              requesterName || "the requester"
+            } to proceed with the referral.
           </p>
         </div>
       `,
@@ -608,9 +789,15 @@ class EmailService {
 
     try {
       await this.transporter.sendMail(mailOptions);
-      console.log('✅ Referral request email sent to:', contactEmail);
+      console.log("✅ Referral request email sent to:", contactEmail);
     } catch (error) {
-      console.error('❌ Error sending referral request email:', error);
+      console.error("❌ Error sending referral request email:", error);
+
+      // Check for Gmail quota/rate limit errors
+      if (this.isQuotaError(error)) {
+        throw this.createQuotaError();
+      }
+
       throw error;
     }
   }
@@ -627,28 +814,31 @@ class EmailService {
    */
   async sendThankYouNoteEmail(emailData) {
     const { to, recipientName, subject, body, senderEmail } = emailData;
-    
-    // Development mode - log to console
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('\n========== THANK-YOU NOTE EMAIL ==========');
+
+    // Ensure transporter is initialized
+    await this.ensureInitialized();
+
+    // If no transporter configured, log to console (development mode)
+    if (!this.transporter) {
+      console.log("\n========== THANK-YOU NOTE EMAIL ==========");
       console.log(`To: ${to}`);
       console.log(`Subject: ${subject}`);
       console.log(`\n${body}`);
-      console.log('\n==========================================\n');
+      console.log("\n==========================================\n");
       return;
     }
 
-    // Production mode - use nodemailer
+    // Use nodemailer to send email
     if (!this.transporter) {
-      console.error('❌ Email service not initialized');
+      console.error("❌ Email service not initialized");
       return;
     }
 
     // Convert plain text body to HTML with line breaks
-    const htmlBody = body.replace(/\n/g, '<br>');
+    const htmlBody = body.replace(/\n/g, "<br>");
 
     const mailOptions = {
-      from: process.env.EMAIL_FROM || 'noreply@atstracker.com',
+      from: process.env.EMAIL_FROM || "noreply@atstracker.com",
       to: to,
       replyTo: senderEmail,
       subject: subject,
@@ -666,7 +856,13 @@ class EmailService {
       await this.transporter.sendMail(mailOptions);
       console.log(`✅ Thank-you note email sent to: ${to}`);
     } catch (error) {
-      console.error('❌ Error sending thank-you note email:', error);
+      console.error("❌ Error sending thank-you note email:", error);
+
+      // Check for Gmail quota/rate limit errors
+      if (this.isQuotaError(error)) {
+        throw this.createQuotaError();
+      }
+
       throw error;
     }
   }
@@ -678,55 +874,66 @@ class EmailService {
    * @returns {Promise<void>}
    */
   async sendGratitudeMessage(contactEmail, gratitudeDetails) {
-    const {
-      contactName,
-      requesterName,
-      jobTitle,
-      jobCompany,
-      message,
-    } = gratitudeDetails;
+    const { contactName, requesterName, jobTitle, jobCompany, message } =
+      gratitudeDetails;
 
-    // Development mode - log to console
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('\n========== GRATITUDE MESSAGE EMAIL ==========');
+    // Ensure transporter is initialized
+    await this.ensureInitialized();
+
+    // If no transporter configured, log to console (development mode)
+    if (!this.transporter) {
+      console.log("\n========== GRATITUDE MESSAGE EMAIL ==========");
       console.log(`To: ${contactEmail}`);
       console.log(`Subject: Thank You for Your Referral`);
-      console.log(`\nDear ${contactName || 'Contact'},`);
+      console.log(`\nDear ${contactName || "Contact"},`);
       console.log(`\n${message}`);
-      console.log('\n============================================\n');
+      console.log("\n============================================\n");
       return;
     }
 
-    // Production mode - use nodemailer
+    // Use nodemailer to send email
     if (!this.transporter) {
-      console.error('❌ Email service not initialized');
+      console.error("❌ Email service not initialized");
       return;
     }
 
     const mailOptions = {
-      from: process.env.EMAIL_FROM || 'noreply@atstracker.com',
+      from: process.env.EMAIL_FROM || "noreply@atstracker.com",
       to: contactEmail,
-      subject: `Thank You for Your Referral${jobTitle ? `: ${jobTitle} at ${jobCompany}` : ''}`,
+      subject: `Thank You for Your Referral${
+        jobTitle ? `: ${jobTitle} at ${jobCompany}` : ""
+      }`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #3351FD;">Thank You for Your Referral</h2>
-          <p>Dear ${contactName || 'Contact'},</p>
+          <p>Dear ${contactName || "Contact"},</p>
           
           <div style="background: #FFFFFF; border: 1px solid #E5E7EB; padding: 20px; margin: 20px 0; border-radius: 8px;">
-            <p style="color: #1F2937; font-size: 14px; line-height: 1.6; white-space: pre-wrap;">${message.replace(/\n/g, '<br>')}</p>
+            <p style="color: #1F2937; font-size: 14px; line-height: 1.6; white-space: pre-wrap;">${message.replace(
+              /\n/g,
+              "<br>"
+            )}</p>
           </div>
           
-          ${jobTitle ? `
+          ${
+            jobTitle
+              ? `
           <div style="background: #F3F4F6; border-left: 4px solid #3351FD; padding: 20px; margin: 20px 0; border-radius: 8px;">
             <p style="color: #4B5563; font-size: 14px; margin: 0;"><strong>Position:</strong> ${jobTitle}</p>
-            ${jobCompany ? `<p style="color: #4B5563; font-size: 14px; margin: 8px 0 0 0;"><strong>Company:</strong> ${jobCompany}</p>` : ''}
+            ${
+              jobCompany
+                ? `<p style="color: #4B5563; font-size: 14px; margin: 8px 0 0 0;"><strong>Company:</strong> ${jobCompany}</p>`
+                : ""
+            }
           </div>
-          ` : ''}
+          `
+              : ""
+          }
           
           <hr style="border: 1px solid #E5E7EB; margin: 20px 0;">
           <p style="color: #6B7280; font-size: 12px;">
             Best regards,<br>
-            ${requesterName || 'A colleague'}
+            ${requesterName || "A colleague"}
           </p>
         </div>
       `,
@@ -734,9 +941,15 @@ class EmailService {
 
     try {
       await this.transporter.sendMail(mailOptions);
-      console.log('✅ Gratitude message email sent to:', contactEmail);
+      console.log("✅ Gratitude message email sent to:", contactEmail);
     } catch (error) {
-      console.error('❌ Error sending gratitude message email:', error);
+      console.error("❌ Error sending gratitude message email:", error);
+
+      // Check for Gmail quota/rate limit errors
+      if (this.isQuotaError(error)) {
+        throw this.createQuotaError();
+      }
+
       throw error;
     }
   }
@@ -748,38 +961,41 @@ class EmailService {
    * @returns {Promise<void>}
    */
   async sendReferralLetterNotification(requesterEmail, referralDetails) {
-    const {
-      writerName,
-      jobTitle,
-      jobCompany,
-      referralLetter,
-    } = referralDetails;
+    const { writerName, jobTitle, jobCompany, referralLetter } =
+      referralDetails;
 
-    // Development mode - log to console
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('\n========== REFERRAL LETTER EMAIL ==========');
+    // Ensure transporter is initialized
+    await this.ensureInitialized();
+
+    // If no transporter configured, log to console (development mode)
+    if (!this.transporter) {
+      console.log("\n========== REFERRAL LETTER EMAIL ==========");
       console.log(`To: ${requesterEmail}`);
       console.log(`Subject: Referral Letter for ${jobTitle} at ${jobCompany}`);
       console.log(`\nDear ${requesterEmail},`);
-      console.log(`\n${writerName || 'Your contact'} has provided a referral letter for the following position:`);
+      console.log(
+        `\n${
+          writerName || "Your contact"
+        } has provided a referral letter for the following position:`
+      );
       console.log(`\nPosition: ${jobTitle}`);
       console.log(`Company: ${jobCompany}`);
       if (referralLetter) {
         console.log(`\nReferral Letter:\n${referralLetter}`);
       }
-      console.log('\n============================================\n');
+      console.log("\n============================================\n");
       return;
     }
 
-    // Production mode - use nodemailer
+    // Use nodemailer to send email
     if (!this.transporter) {
-      console.error('❌ Email service not initialized');
+      console.error("❌ Email service not initialized");
       return;
     }
 
-    const appUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const appUrl = process.env.FRONTEND_URL || "http://localhost:3000";
     const mailOptions = {
-      from: process.env.EMAIL_FROM || 'noreply@atstracker.com',
+      from: process.env.EMAIL_FROM || "noreply@atstracker.com",
       to: requesterEmail,
       subject: `Referral Letter: ${jobTitle} at ${jobCompany}`,
       html: `
@@ -787,19 +1003,28 @@ class EmailService {
           <h2 style="color: #3351FD;">Referral Letter Received</h2>
           <p>Dear ${requesterEmail},</p>
           
-          <p>${writerName || 'Your contact'} has provided a referral letter for the following position:</p>
+          <p>${
+            writerName || "Your contact"
+          } has provided a referral letter for the following position:</p>
           
           <div style="background: #F3F4F6; border-left: 4px solid #3351FD; padding: 20px; margin: 20px 0; border-radius: 8px;">
             <h3 style="color: #1F2937; margin-top: 0; font-size: 20px;">${jobTitle}</h3>
             <p style="color: #4B5563; font-size: 16px; margin: 8px 0;"><strong>Company:</strong> ${jobCompany}</p>
           </div>
           
-          ${referralLetter ? `
+          ${
+            referralLetter
+              ? `
           <div style="background: #FFFFFF; border: 1px solid #E5E7EB; padding: 20px; margin: 20px 0; border-radius: 8px;">
             <h3 style="color: #1F2937; margin-top: 0; font-size: 18px;">Referral Letter</h3>
-            <p style="color: #1F2937; font-size: 14px; line-height: 1.6; white-space: pre-wrap;">${referralLetter.replace(/\n/g, '<br>')}</p>
+            <p style="color: #1F2937; font-size: 14px; line-height: 1.6; white-space: pre-wrap;">${referralLetter.replace(
+              /\n/g,
+              "<br>"
+            )}</p>
           </div>
-          ` : ''}
+          `
+              : ""
+          }
           
           <div style="text-align: center; margin: 30px 0;">
             <a href="${appUrl}/network/referrals" 
@@ -825,9 +1050,15 @@ class EmailService {
 
     try {
       await this.transporter.sendMail(mailOptions);
-      console.log('✅ Referral letter email sent to:', requesterEmail);
+      console.log("✅ Referral letter email sent to:", requesterEmail);
     } catch (error) {
-      console.error('❌ Error sending referral letter email:', error);
+      console.error("❌ Error sending referral letter email:", error);
+
+      // Check for Gmail quota/rate limit errors
+      if (this.isQuotaError(error)) {
+        throw this.createQuotaError();
+      }
+
       throw error;
     }
   }

@@ -82,11 +82,11 @@ export function CoverLetterBuilder() {
             }
           } else {
             // Load existing cover letter (owner view)
-            const response = await coverLetterService.getCoverLetter(coverLetterId);
-            if (response.ok && response.data) {
-              setCoverLetter(response.data.coverLetter);
-            } else {
-              throw new Error("Failed to load cover letter");
+          const response = await coverLetterService.getCoverLetter(coverLetterId);
+          if (response.ok && response.data) {
+            setCoverLetter(response.data.coverLetter);
+          } else {
+            throw new Error("Failed to load cover letter");
             }
           }
         } else if (templateId) {
@@ -1080,15 +1080,15 @@ export function CoverLetterBuilder() {
 
             {/* AI Assistant Toggle Button - Hidden in review mode */}
             {!reviewMode && (
-              <div className="mb-6">
-                <button
-                  onClick={() => setShowAIPanel(!showAIPanel)}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-full font-medium transition-all bg-gradient-to-r from-[#845BFF] via-[#A95BFF] to-[#F551A2] text-white shadow-sm hover:opacity-90"
-                >
-                  <Icon icon="mingcute:ai-fill" className="w-5 h-5" />
-                  {showAIPanel ? "Hide AI Assistant" : "Show AI Assistant"}
-                </button>
-              </div>
+            <div className="mb-6">
+              <button
+                onClick={() => setShowAIPanel(!showAIPanel)}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-full font-medium transition-all bg-gradient-to-r from-[#845BFF] via-[#A95BFF] to-[#F551A2] text-white shadow-sm hover:opacity-90"
+              >
+                <Icon icon="mingcute:ai-fill" className="w-5 h-5" />
+                {showAIPanel ? "Hide AI Assistant" : "Show AI Assistant"}
+              </button>
+            </div>
             )}
 
             {/* Cover Letter Editor */}
@@ -1103,8 +1103,8 @@ export function CoverLetterBuilder() {
               <div className="mb-6 relative">
                 <div className="flex items-center justify-between mb-2">
                   <label className="block text-sm font-medium text-gray-700">
-                    Greeting
-                  </label>
+                  Greeting
+                </label>
                   {reviewMode ? (
                     <button
                       onClick={() => setShowCommentInput(showCommentInput?.section === "greeting" ? null : { section: "greeting" })}
@@ -1181,8 +1181,8 @@ export function CoverLetterBuilder() {
               <div className="mb-6 relative">
                 <div className="flex items-center justify-between mb-2">
                   <label className="block text-sm font-medium text-gray-700">
-                    Opening Paragraph
-                  </label>
+                  Opening Paragraph
+                </label>
                   {reviewMode ? (
                     <button
                       onClick={() => setShowCommentInput(showCommentInput?.section === "opening" ? null : { section: "opening" })}
@@ -1293,13 +1293,13 @@ export function CoverLetterBuilder() {
                     Body Paragraphs
                   </label>
                   {!reviewMode && (
-                    <button
-                      onClick={handleAddBodyParagraph}
-                      className="flex items-center gap-1 px-3 py-1 text-sm text-[#3351FD] hover:bg-blue-50 rounded-lg transition-colors"
-                    >
-                      <Icon icon="mingcute:add-line" className="w-4 h-4" />
-                      Add Paragraph
-                    </button>
+                  <button
+                    onClick={handleAddBodyParagraph}
+                    className="flex items-center gap-1 px-3 py-1 text-sm text-[#3351FD] hover:bg-blue-50 rounded-lg transition-colors"
+                  >
+                    <Icon icon="mingcute:add-line" className="w-4 h-4" />
+                    Add Paragraph
+                  </button>
                   )}
                 </div>
                 {(coverLetter.content?.body || []).map((paragraph, index) => (
@@ -1339,12 +1339,12 @@ export function CoverLetterBuilder() {
                         placeholder={`Body paragraph ${index + 1}...`}
                       />
                       {!reviewMode && (
-                        <button
-                          onClick={() => handleRemoveBodyParagraph(index)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        >
-                          <Icon icon="mingcute:delete-line" className="w-5 h-5" />
-                        </button>
+                      <button
+                        onClick={() => handleRemoveBodyParagraph(index)}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      >
+                        <Icon icon="mingcute:delete-line" className="w-5 h-5" />
+                      </button>
                       )}
                     </div>
                     {/* Comments for body paragraph */}
@@ -1438,8 +1438,8 @@ export function CoverLetterBuilder() {
               <div className="mb-6 relative">
                 <div className="flex items-center justify-between mb-2">
                   <label className="block text-sm font-medium text-gray-700">
-                    Closing Paragraph
-                  </label>
+                  Closing Paragraph
+                </label>
                   {reviewMode ? (
                     <button
                       onClick={() => setShowCommentInput(showCommentInput?.section === "closing" ? null : { section: "closing" })}

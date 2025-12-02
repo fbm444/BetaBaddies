@@ -2,12 +2,12 @@ import { useState } from "react";
 import { Icon } from "@iconify/react";
 import { JobSearchPerformance } from "../components/analytics/JobSearchPerformance";
 import { ApplicationSuccessAnalysis } from "../components/analytics/ApplicationSuccessAnalysis";
-import { InterviewPerformance } from "../components/analytics/InterviewPerformance";
 import { NetworkROI } from "../components/analytics/NetworkROI";
 import { SalaryProgression } from "../components/analytics/SalaryProgression";
 import { GoalTracking } from "../components/analytics/GoalTracking";
+import { TimeProductivityAnalysis } from "../components/analytics/TimeProductivityAnalysis";
 
-type TabId = "performance" | "success" | "interview" | "network" | "salary" | "goals";
+type TabId = "performance" | "success" | "network" | "salary" | "goals" | "productivity";
 
 interface Tab {
   id: TabId;
@@ -34,12 +34,6 @@ export function Analytics() {
       component: <ApplicationSuccessAnalysis dateRange={dateRange} />,
     },
     {
-      id: "interview",
-      label: "Interview Performance",
-      icon: "mingcute:chat-smile-line",
-      component: <InterviewPerformance dateRange={dateRange} />,
-    },
-    {
       id: "network",
       label: "Network ROI",
       icon: "mingcute:user-community-line",
@@ -57,6 +51,12 @@ export function Analytics() {
       icon: "mingcute:target-2-line",
       component: <GoalTracking dateRange={dateRange} />,
     },
+    {
+      id: "productivity",
+      label: "Time Productivity",
+      icon: "mingcute:time-line",
+      component: <TimeProductivityAnalysis dateRange={dateRange} />,
+    },
   ];
 
   const activeTabData = tabs.find((tab) => tab.id === activeTab);
@@ -66,7 +66,7 @@ export function Analytics() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-poppins">
+    <div className="min-h-screen bg-white font-poppins">
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
@@ -106,29 +106,45 @@ export function Analytics() {
         </div>
 
         {/* Tabs */}
-        <div className="bg-white rounded-2xl shadow-sm border border-[#E4E8F5] overflow-hidden">
-          <div className="flex overflow-x-auto border-b border-[#E4E8F5]">
+        <div className="border-b border-slate-200 mb-8">
+          <div className="flex gap-1 overflow-x-auto scrollbar-hide">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`
-                  flex items-center gap-2 px-6 py-4 text-sm font-medium whitespace-nowrap transition-colors
-                  ${
-                    activeTab === tab.id
-                      ? "text-[#3351FD] border-b-2 border-[#3351FD] bg-[#F8F9FF]"
-                      : "text-[#6D7A99] hover:text-[#0F1D3A] hover:bg-slate-50"
-                  }
-                `}
+                className={`px-5 py-2.5 font-medium text-sm whitespace-nowrap flex items-center flex-shrink-0 min-w-fit bg-transparent hover:bg-transparent focus:bg-transparent relative ${
+                  activeTab === tab.id
+                    ? "text-blue-500"
+                    : "text-slate-600"
+                }`}
+                style={{ 
+                  outline: 'none', 
+                  boxShadow: 'none',
+                  borderTop: 'none',
+                  borderLeft: 'none',
+                  borderRight: 'none',
+                  borderRadius: '0'
+                }}
+                onFocus={(e) => e.target.blur()}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
               >
-                <Icon icon={tab.icon} width={20} />
-                {tab.label}
+                <span className="flex-shrink-0">{tab.label}</span>
+                {activeTab === tab.id && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500"></div>
+                )}
               </button>
             ))}
           </div>
+        </div>
 
-          {/* Tab Content */}
-          <div className="p-6">{activeTabData?.component}</div>
+        {/* Tab Content */}
+        <div className="bg-slate-50 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-10">
+          {activeTabData?.component}
         </div>
       </div>
     </div>

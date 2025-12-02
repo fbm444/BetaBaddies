@@ -35,6 +35,21 @@ router.get(
   userController.handleGoogleCallback
 );
 
+// LinkedIn OAuth routes
+router.get("/auth/linkedin", userController.linkedinAuth);
+router.get(
+  "/auth/linkedin/callback",
+  userController.linkedinCallback,
+  userController.handleLinkedInCallback
+);
+
+// LinkedIn profile import route (protected)
+router.post(
+  "/import-linkedin-profile",
+  isAuthenticated,
+  userController.importLinkedInProfile
+);
+
 router.post("/logout", userController.logout);
 
 // Protected routes (authentication required)

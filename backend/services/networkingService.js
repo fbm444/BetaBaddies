@@ -29,6 +29,7 @@ class NetworkingService {
           COUNT(*) as opportunity_count,
           MAX(CASE WHEN cc.message_sent = true THEN 1 ELSE 0 END) as has_message_sent,
           MAX(CASE WHEN cc.response_received = true THEN 1 ELSE 0 END) as has_response_received,
+          MAX(CASE WHEN cc.referral_provided = true THEN 1 ELSE 0 END) as has_referral_provided,
           MAX(cc.message_sent_at) as last_message_sent_at,
           MAX(cc.response_received_at) as last_response_received_at,
           COUNT(DISTINCT CASE WHEN cc.id IS NOT NULL THEN cc.id END) as coffee_chat_count
@@ -54,6 +55,7 @@ class NetworkingService {
         opportunityCount: parseInt(row.opportunity_count) || 0,
         messageSent: row.has_message_sent === 1 || row.has_message_sent === true,
         responseReceived: row.has_response_received === 1 || row.has_response_received === true,
+        referralProvided: row.has_referral_provided === 1 || row.has_referral_provided === true,
         lastMessageSentAt: row.last_message_sent_at,
         lastResponseReceivedAt: row.last_response_received_at,
         coffeeChatCount: parseInt(row.coffee_chat_count) || 0,

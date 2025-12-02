@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Icon } from "@iconify/react";
 import { api } from "../../services/api";
 import type { NetworkROI, DateRange } from "../../types/analytics.types";
+import { ToastContainer, ToastType } from "../Toast";
 
 interface NetworkROIProps {
   dateRange?: DateRange;
@@ -34,6 +35,18 @@ export function NetworkROI({ dateRange }: NetworkROIProps) {
   const [contactSearchCompany, setContactSearchCompany] = useState("");
   const [contactSearchResults, setContactSearchResults] = useState<{ recruiters: any[]; contacts: any[] }>({ recruiters: [], contacts: [] });
   const [isSearchingContacts, setIsSearchingContacts] = useState(false);
+
+  // Toast notification state
+  const [toasts, setToasts] = useState<Array<{ id: string; message: string; type: ToastType }>>([]);
+
+  const showToast = (message: string, type: ToastType = "info") => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setToasts((prev) => [...prev, { id, message, type }]);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts((prev) => prev.filter((toast) => toast.id !== id));
+  };
 
   useEffect(() => {
     fetchData();
@@ -119,10 +132,10 @@ export function NetworkROI({ dateRange }: NetworkROIProps) {
         setGeneratedMessage(response.data.message);
         setShowMessageModal(true);
       }
-    } catch (err: any) {
-      console.error("Failed to generate message:", err);
-      alert(err.message || "Failed to generate message");
-    }
+      } catch (err: any) {
+        console.error("Failed to generate message:", err);
+        showToast(err.message || "Failed to generate message", "error");
+      }
   };
 
   const handleSearchCompanies = async () => {
@@ -134,10 +147,10 @@ export function NetworkROI({ dateRange }: NetworkROIProps) {
       if (response.ok && response.data?.companies) {
         setSearchResults(response.data.companies);
       }
-    } catch (err: any) {
-      console.error("Failed to search companies:", err);
-      alert(err.message || "Failed to search companies");
-    } finally {
+      } catch (err: any) {
+        console.error("Failed to search companies:", err);
+        showToast(err.message || "Failed to search companies", "error");
+      } finally {
       setIsSearching(false);
     }
   };
@@ -154,12 +167,12 @@ export function NetworkROI({ dateRange }: NetworkROIProps) {
       });
 
       if (response.ok) {
-        alert("Coffee chat created successfully!");
+        showToast("Coffee chat created successfully!", "success");
         fetchData();
       }
     } catch (err: any) {
       console.error("Failed to create coffee chat:", err);
-      alert(err.message || "Failed to create coffee chat");
+      showToast(err.message || "Failed to create coffee chat", "error");
     }
   };
 
@@ -230,6 +243,7 @@ export function NetworkROI({ dateRange }: NetworkROIProps) {
             isLoading={isLoading}
             onGenerateMessage={handleGenerateMessage}
             onRefresh={fetchData}
+            showToast={showToast}
           />
         )}
 
@@ -249,6 +263,7 @@ export function NetworkROI({ dateRange }: NetworkROIProps) {
             isLoading={isLoading}
             onCreateCoffeeChat={handleCreateCoffeeChat}
             onRefresh={fetchData}
+            showToast={showToast}
           />
         )}
 
@@ -271,10 +286,10 @@ export function NetworkROI({ dateRange }: NetworkROIProps) {
                     contacts: response.data.contacts || [],
                   });
                 }
-              } catch (err: any) {
-                console.error("Failed to search contacts:", err);
-                alert(err.message || "Failed to search contacts");
-              } finally {
+                      } catch (err: any) {
+                        console.error("Failed to search contacts:", err);
+                        showToast(err.message || "Failed to search contacts", "error");
+                      } finally {
                 setIsSearchingContacts(false);
               }
             }}
@@ -304,11 +319,11 @@ export function NetworkROI({ dateRange }: NetworkROIProps) {
                 subject: generatedMessage.subject,
                 messageBody: generatedMessage.messageBody,
               });
-              alert("Message saved successfully!");
+              showToast("Message saved successfully!", "success");
               setShowMessageModal(false);
             } catch (err: any) {
               console.error("Failed to save message:", err);
-              alert(err.message || "Failed to save message");
+              showToast(err.message || "Failed to save message", "error");
             }
           }}
         />
@@ -328,6 +343,9 @@ export function NetworkROI({ dateRange }: NetworkROIProps) {
           onCreateCoffeeChat={handleCreateCoffeeChat}
         />
       )}
+
+      {/* Toast Notifications */}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   );
 }
@@ -481,7 +499,7 @@ function OverviewTab({ roiData, analytics, error }: any) {
 }
 
 // Recruiters Tab Component
-function RecruitersTab({ recruiters, isLoading, onGenerateMessage, onRefresh }: any) {
+function RecruitersTab({ recruiters, isLoading, onGenerateMessage, onRefresh, showToast }: any) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -570,6 +588,12 @@ function RecruitersTab({ recruiters, isLoading, onGenerateMessage, onRefresh }: 
                       )}
                     </div>
                   )}
+                  {recruiter.referralProvided && (
+                    <div className="flex items-center gap-1">
+                      <Icon icon="mingcute:user-add-line" width={16} className="text-purple-600" />
+                      <span className="text-xs text-purple-600">Referral Provided</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -618,11 +642,11 @@ function RecruitersTab({ recruiters, isLoading, onGenerateMessage, onRefresh }: 
                             responseReceivedAt: new Date().toISOString(),
                           });
                           if (onRefresh) onRefresh();
-                          alert("Response marked as received!");
+                          showToast("Response marked as received!", "success");
                         }
                       } catch (err: any) {
                         console.error("Failed to mark response:", err);
-                        alert(err.message || "Failed to mark response");
+                        showToast(err.message || "Failed to mark response", "error");
                       }
                     }}
                     className="px-3 py-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium flex items-center gap-1"
@@ -630,6 +654,57 @@ function RecruitersTab({ recruiters, isLoading, onGenerateMessage, onRefresh }: 
                   >
                     <Icon icon="mingcute:mail-check-line" width={16} />
                     Got Response
+                  </button>
+                )}
+                {recruiter.responseReceived && !recruiter.referralProvided && (
+                  <button
+                    onClick={async () => {
+                      // Find or create coffee chat for this recruiter and mark referral
+                      try {
+                        const chatsResponse = await api.getCoffeeChats();
+                        let chatId = null;
+                        
+                        const matchingChat = chatsResponse.ok && chatsResponse.data?.chats
+                          ? chatsResponse.data.chats.find((chat: any) => 
+                              chat.contactEmail === recruiter.email || 
+                              (chat.contactName && recruiter.name && chat.contactName.toLowerCase().includes(recruiter.name.toLowerCase()))
+                            )
+                          : null;
+                        
+                        if (matchingChat) {
+                          chatId = matchingChat.id;
+                        } else {
+                          // Create a new coffee chat if none exists
+                          const createResponse = await api.createCoffeeChat({
+                            contactName: recruiter.name,
+                            contactEmail: recruiter.email,
+                            contactCompany: recruiter.company,
+                            chatType: "coffee_chat",
+                          });
+                          if (createResponse.ok && createResponse.data?.chat) {
+                            chatId = createResponse.data.chat.id;
+                          }
+                        }
+                        
+                        if (chatId) {
+                          // Mark referral as provided
+                          await api.updateCoffeeChat(chatId, {
+                            referralProvided: true,
+                            referralDetails: `Referral from ${recruiter.name} at ${recruiter.company || "their company"}`,
+                          });
+                          if (onRefresh) onRefresh();
+                          if (showToast) showToast("Referral marked as received!", "success");
+                        }
+                      } catch (err: any) {
+                        console.error("Failed to mark referral:", err);
+                        if (showToast) showToast(err.message || "Failed to mark referral", "error");
+                      }
+                    }}
+                    className="px-3 py-2 bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100 transition-colors text-sm font-medium flex items-center gap-1"
+                    title="Mark referral as received"
+                  >
+                    <Icon icon="mingcute:user-add-line" width={16} />
+                    Got Referral
                   </button>
                 )}
                 {!recruiter.messageSent && (
@@ -651,11 +726,11 @@ function RecruitersTab({ recruiters, isLoading, onGenerateMessage, onRefresh }: 
                             messageSentAt: new Date().toISOString(),
                           });
                           if (onRefresh) onRefresh();
-                          alert("Message marked as sent!");
+                          if (showToast) showToast("Message marked as sent!", "success");
                         }
                       } catch (err: any) {
                         console.error("Failed to mark message as sent:", err);
-                        alert(err.message || "Failed to mark message as sent");
+                        if (showToast) showToast(err.message || "Failed to mark message as sent", "error");
                       }
                     }}
                     className="px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium flex items-center gap-1"
@@ -792,7 +867,7 @@ function LinkedInTab({ contacts, isLoading, onGenerateMessage, onCreateCoffeeCha
 }
 
 // Coffee Chats Tab Component
-function CoffeeChatsTab({ chats, isLoading, onCreateCoffeeChat, onRefresh }: any) {
+function CoffeeChatsTab({ chats, isLoading, onCreateCoffeeChat, onRefresh, showToast }: any) {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newChatForm, setNewChatForm] = useState({
@@ -807,11 +882,11 @@ function CoffeeChatsTab({ chats, isLoading, onCreateCoffeeChat, onRefresh }: any
 
   const handleCreateCoffeeChat = async () => {
     if (!newChatForm.contactName.trim()) {
-      alert("Please enter a contact name");
+      if (showToast) showToast("Please enter a contact name", "warning");
       return;
     }
     if (!newChatForm.scheduledDate) {
-      alert("Please select a scheduled date");
+      if (showToast) showToast("Please select a scheduled date", "warning");
       return;
     }
 
@@ -838,10 +913,11 @@ function CoffeeChatsTab({ chats, isLoading, onCreateCoffeeChat, onRefresh }: any
           notes: "",
         });
         if (onRefresh) onRefresh();
+        if (showToast) showToast("Coffee chat created successfully!", "success");
       }
     } catch (err: any) {
       console.error("Failed to create coffee chat:", err);
-      alert(err.message || "Failed to create coffee chat");
+      if (showToast) showToast(err.message || "Failed to create coffee chat", "error");
     } finally {
       setIsCreating(false);
     }

@@ -90,14 +90,16 @@ export function InterviewPredictionTab({
   };
 
   const handleCompare = async () => {
-    if (activeJobs.length < 2) {
+    // Compare ALL job opportunities, not just active ones
+    if (jobOpportunities.length < 2) {
       setError("You need at least 2 job opportunities to compare");
       return;
     }
     setIsLoading(true);
     setError(null);
     try {
-      const jobIds = activeJobs.map((job) => job.id);
+      // Use all job opportunities, not just activeJobs
+      const jobIds = jobOpportunities.map((job) => job.id);
       const response = await api.compareInterviewPredictions(jobIds);
       if (response.ok && response.data?.predictions) {
         const predictions = response.data.predictions;
@@ -166,7 +168,7 @@ export function InterviewPredictionTab({
             Get AI-powered predictions of your interview success probability
           </p>
         </div>
-        {activeJobs.length >= 2 && (
+        {jobOpportunities.length >= 2 && (
           <button
             onClick={(e) => {
               e.preventDefault();

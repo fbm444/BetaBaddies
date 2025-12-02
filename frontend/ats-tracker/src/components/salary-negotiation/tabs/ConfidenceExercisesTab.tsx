@@ -328,9 +328,21 @@ export function ConfidenceExercisesTab({
 
   // Render Script Practice Exercise
   const renderScriptPracticeExercise = () => {
-    const scripts = negotiation.scripts ? Object.values(negotiation.scripts) : [];
+    // Map scenario IDs to their display labels (matching NegotiationScriptsTab)
+    const scenarioLabels: Record<string, string> = {
+      initial_negotiation: "Initial Negotiation",
+      counteroffer_response: "Counteroffer Response",
+      benefits_negotiation: "Benefits Negotiation",
+      timing_discussion: "Timing Discussion",
+      objection_handling: "Objection Handling",
+    };
+
+    // Get scripts as array of [scenarioId, script] pairs to preserve scenario IDs
+    const scriptEntries = negotiation.scripts 
+      ? Object.entries(negotiation.scripts).filter(([_, script]) => script && script.script)
+      : [];
     
-    if (scripts.length === 0) {
+    if (scriptEntries.length === 0) {
       return (
         <div className="bg-yellow-50 rounded-xl p-6 border border-yellow-200">
           <div className="flex items-start gap-3">
@@ -346,7 +358,8 @@ export function ConfidenceExercisesTab({
       );
     }
 
-    const currentScript = scripts[currentScriptIndex];
+    const [currentScenarioId, currentScript] = scriptEntries[currentScriptIndex];
+    const scenarioLabel = scenarioLabels[currentScenarioId] || currentScript.scenario || "Negotiation Script";
 
     return (
       <div className="space-y-6">
@@ -354,10 +367,10 @@ export function ConfidenceExercisesTab({
           <div>
             <h4 className="font-semibold text-slate-900 text-lg mb-2">Script Practice</h4>
             <p className="text-sm text-slate-600">
-              Practice {currentScriptIndex + 1} of {scripts.length}
+              Practice {currentScriptIndex + 1} of {scriptEntries.length}
             </p>
           </div>
-          {scripts.length > 1 && (
+          {scriptEntries.length > 1 && (
             <div className="flex gap-2">
               <button
                 onClick={() => setCurrentScriptIndex(Math.max(0, currentScriptIndex - 1))}
@@ -367,8 +380,8 @@ export function ConfidenceExercisesTab({
                 <Icon icon="mingcute:arrow-left-line" width={18} />
               </button>
               <button
-                onClick={() => setCurrentScriptIndex(Math.min(scripts.length - 1, currentScriptIndex + 1))}
-                disabled={currentScriptIndex === scripts.length - 1}
+                onClick={() => setCurrentScriptIndex(Math.min(scriptEntries.length - 1, currentScriptIndex + 1))}
+                disabled={currentScriptIndex === scriptEntries.length - 1}
                 className="px-3 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Icon icon="mingcute:arrow-right-line" width={18} />
@@ -380,7 +393,10 @@ export function ConfidenceExercisesTab({
         <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-200">
           <div className="mb-4">
             <p className="text-sm font-semibold text-green-900 mb-2">Scenario:</p>
-            <p className="text-slate-800 font-medium">{currentScript.scenario}</p>
+            <p className="text-slate-800 font-medium text-base">{scenarioLabel}</p>
+            {currentScript.scenario && currentScript.scenario !== scenarioLabel && (
+              <p className="text-sm text-slate-600 mt-1 italic">{currentScript.scenario}</p>
+            )}
           </div>
           <div className="bg-white rounded-lg p-5 border border-green-200">
             <p className="text-sm font-semibold text-green-700 mb-3">Your Script:</p>
@@ -413,6 +429,22 @@ export function ConfidenceExercisesTab({
                   >
                     {phrase}
                   </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {currentScript.commonObjections && currentScript.commonObjections.length > 0 && (
+            <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+              <p className="text-sm font-semibold text-slate-900 mb-3">Common Objections & Responses:</p>
+              <div className="space-y-3">
+                {currentScript.commonObjections.map((obj, idx) => (
+                  <div key={idx} className="bg-white rounded-lg p-3 border border-slate-200">
+                    <p className="text-xs font-medium text-red-600 mb-1">Objection:</p>
+                    <p className="text-sm text-slate-700 mb-2">{obj.objection}</p>
+                    <p className="text-xs font-medium text-green-600 mb-1">Response:</p>
+                    <p className="text-sm text-slate-700">{obj.response}</p>
+                  </div>
                 ))}
               </div>
             </div>

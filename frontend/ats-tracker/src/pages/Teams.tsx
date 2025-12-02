@@ -369,7 +369,7 @@ export function Teams() {
 
   if (teams.length === 0) {
     return (
-      <div className="max-w-4xl mx-auto p-6">
+      <div className="max-w-xl mx-auto p-6">
         <h1 className="text-3xl font-bold text-slate-900 mb-6">Create Your First Team</h1>
         <form onSubmit={handleCreateTeam} className="bg-white rounded-lg shadow p-6 space-y-4">
           <div>
@@ -404,7 +404,7 @@ export function Teams() {
           <button
             type="submit"
             disabled={isCreating}
-            className="w-full bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 disabled:opacity-50"
+            className="w-full bg-blue-500 text-white py-2 px-4 rounded-full hover:bg-blue-600 disabled:opacity-50"
           >
             {isCreating ? "Creating..." : "Create Team"}
           </button>

@@ -738,17 +738,25 @@ export function MenteeDashboard() {
             {
               id: "mockInterviews",
               label: "Mock Interviews",
-              icon: "mingcute:microphone-line",
+              icon: null,
             },
           ].map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm ${
+              className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm bg-transparent hover:bg-transparent focus:bg-transparent ${
                 activeTab === tab.id
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+                  ? "border-blue-500 text-blue-500"
+                  : "border-transparent text-slate-600"
               }`}
+              style={{ 
+                outline: 'none', 
+                boxShadow: 'none',
+                borderTop: 'none',
+                borderLeft: 'none',
+                borderRight: 'none',
+                borderRadius: '0'
+              }}
             >
               {tab.icon && <Icon icon={tab.icon} width={20} />}
               <span>{tab.label}</span>
@@ -827,8 +835,9 @@ export function MenteeDashboard() {
                     Feedback
                   </h3>
                   <Icon
-                    icon="mingcute:message-line"
+                    icon="mingcute:chat-3-line"
                     width={24}
+                    height={24}
                     className="text-purple-500"
                   />
                 </div>
@@ -1109,8 +1118,9 @@ export function MenteeDashboard() {
                 className="flex items-center space-x-3 p-4 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors text-left"
               >
                 <Icon
-                  icon="mingcute:file-edit-line"
+                  icon="mingcute:edit-line"
                   width={24}
+                  height={24}
                   className="text-orange-600"
                 />
                 <div>
@@ -1711,9 +1721,8 @@ export function MenteeDashboard() {
               <button
                 onClick={handleGenerateReport}
                 disabled={isGeneratingReport}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+                className="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-full hover:from-pink-600 hover:to-purple-700 disabled:opacity-50"
               >
-                <Icon icon="mingcute:refresh-line" width={20} />
                 {isGeneratingReport ? "Generating..." : "Generate"}
               </button>
             </div>
@@ -2608,9 +2617,9 @@ export function MenteeDashboard() {
             <button
               onClick={fetchMockInterviewsWithComments}
               disabled={isLoadingMockInterviews}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+              className="text-blue-600 hover:text-blue-700 transition disabled:opacity-50 bg-transparent hover:bg-transparent border-none p-0 cursor-pointer flex items-center gap-2"
             >
-              <Icon icon="mingcute:refresh-line" width={20} />
+              <Icon icon="mingcute:refresh-2-line" width={18} height={18} className="text-blue-600" />
               Refresh
             </button>
           </div>

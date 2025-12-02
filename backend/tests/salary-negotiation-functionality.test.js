@@ -168,11 +168,11 @@ async function runAllTests() {
         throw new Error("Negotiation was not created with an ID");
       }
 
-      if (negotiation.initialOfferBaseSalary !== offerData.initialOffer.baseSalary) {
+      if (negotiation.initialOffer?.baseSalary !== offerData.initialOffer.baseSalary) {
         throw new Error("Initial offer base salary mismatch");
       }
 
-      if (negotiation.targetBaseSalary !== offerData.targetCompensation.baseSalary) {
+      if (negotiation.targetCompensation?.baseSalary !== offerData.targetCompensation.baseSalary) {
         throw new Error("Target base salary mismatch");
       }
 
@@ -303,13 +303,12 @@ async function runAllTests() {
         benefitsValue: 10000,
       };
 
-      const completed = await salaryNegotiationService.updateNegotiation(
+      const completed = await salaryNegotiationService.completeNegotiation(
         negotiationId,
         testUserId,
         {
-          status: "completed",
-          outcome: "accepted",
           finalCompensation: finalCompensation,
+          outcome: "accepted",
           outcomeDate: new Date(),
         }
       );

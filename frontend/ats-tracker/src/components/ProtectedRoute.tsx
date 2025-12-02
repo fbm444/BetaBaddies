@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Navigate, useSearchParams } from 'react-router-dom'
 import { api } from '@/services/api'
 import { ROUTES } from '@/config/routes'
 import { Icon } from '@iconify/react'
@@ -12,6 +12,10 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children, requireAuth = true }: ProtectedRouteProps) {
   const [isChecking, setIsChecking] = useState(true)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [searchParams] = useSearchParams()
+  
+  // Check for invitation token in URL or sessionStorage
+  const hasInvitationToken = searchParams.get('invite') || sessionStorage.getItem('pendingInvitationToken')
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -45,9 +49,29 @@ export function ProtectedRoute({ children, requireAuth = true }: ProtectedRouteP
     return <Navigate to={ROUTES.LOGIN} replace />
   }
 
-  // If route requires NO auth (like login page) and user IS authenticated → redirect to dashboard
+  // If route requires NO auth (like login/register page) and user IS authenticated
+  // Allow access if:
+  // 1. There's an invitation token (user might need to log out and use different account)
+  // 2. It's the invitation accept page (it handles email mismatch)
+  // Otherwise, redirect to dashboard
+  const isInvitationAcceptPage = window.location.pathname === ROUTES.TEAM_INVITE_ACCEPT
+  const isLoginOrRegisterPage = window.location.pathname === ROUTES.LOGIN || window.location.pathname === ROUTES.REGISTER
+  
   if (!requireAuth && isAuthenticated) {
-    return <Navigate to={ROUTES.DASHBOARD} replace />
+    // Always allow invitation accept page (it handles email mismatch)
+    if (isInvitationAcceptPage) {
+      return <>{children}</>
+    }
+    
+    // Allow login/register pages if there's an invitation token (user needs to log out)
+    if (isLoginOrRegisterPage && hasInvitationToken) {
+      return <>{children}</>
+    }
+    
+    // Otherwise, redirect authenticated users away from login/register pages
+    if (isLoginOrRegisterPage) {
+      return <Navigate to={ROUTES.DASHBOARD} replace />
+    }
   }
 
   // All good, render the children

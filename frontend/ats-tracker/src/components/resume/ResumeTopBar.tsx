@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
 import { ROUTES } from "../../config/routes";
 import { Resume } from "../../types";
+import { ShareDocumentModal } from "../team/ShareDocumentModal";
 
 interface ResumeTopBarProps {
   resume: Resume | null;
@@ -33,6 +34,7 @@ interface ResumeTopBarProps {
   onShowVersionControl?: () => void;
   onUpdateResume?: (resumeId: string, updates: { name: string }) => Promise<void>;
   onUpdateResumeName?: (name: string) => void;
+  onShare?: () => void;
 }
 
 export function ResumeTopBar({
@@ -64,11 +66,13 @@ export function ResumeTopBar({
   onShowVersionControl,
   onUpdateResume,
   onUpdateResumeName,
+  onShare,
 }: ResumeTopBarProps) {
   const navigate = useNavigate();
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(resume?.name || "New Resume");
   const [isUpdatingName, setIsUpdatingName] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   // Update edited name when resume changes
@@ -433,6 +437,18 @@ export function ResumeTopBar({
               <span className="text-sm font-semibold">Validate</span>
             </button>
 
+            {/* Share */}
+            {resumeId && resumeId !== "new" && (
+              <button
+                onClick={() => setShowShareModal(true)}
+                className="px-3 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium flex items-center gap-2"
+                title="Share with team"
+              >
+                <Icon icon="lucide:share-2" className="w-4 h-4" />
+                <span className="text-sm">Share</span>
+              </button>
+            )}
+
             {/* Export */}
             <div className="relative">
               <button
@@ -523,6 +539,22 @@ export function ResumeTopBar({
           </div>
         </div>
       </div>
+
+      {/* Share Modal */}
+      {showShareModal && resume && resumeId && resumeId !== "new" && (
+        <ShareDocumentModal
+          documentType="resume"
+          documentId={resumeId}
+          documentName={resume.name || resume.versionName || "Untitled Resume"}
+          onClose={() => setShowShareModal(false)}
+          onShared={() => {
+            setShowShareModal(false);
+            if (onShare) {
+              onShare();
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import interviewService from "../services/interviewService.js";
+import { interviewCompanyResearchService } from "../services/interviewPrep/index.js";
 import confidenceAnxietyService from "../services/confidenceAnxietyService.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 
@@ -248,6 +249,55 @@ class InterviewController {
     });
   });
 
+  // ============================================================================
+  // UC-074: Company Research Automation (additional endpoints)
+  // ============================================================================
+
+  /**
+   * GET /api/interviews/:id/company-research
+   * Get company research for an interview
+   */
+  getCompanyResearch = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { id } = req.params;
+
+    const research = await interviewCompanyResearchService.getCompanyResearchForInterview(
+      id,
+      userId
+    );
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        research,
+      },
+    });
+  });
+
+  /**
+   * POST /api/interviews/:id/company-research/generate
+   * Generate/refresh company research
+   */
+  generateCompanyResearch = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { id } = req.params;
+    const { forceRefresh } = req.body;
+
+    const result = await interviewCompanyResearchService.generateCompanyResearch(
+      id,
+      userId,
+      { forceRefresh }
+    );
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        ...result,
+        message: "Company research generated successfully",
+      },
+    });
+  });
+
   // Create pre-interview assessment
   createPreAssessment = asyncHandler(async (req, res) => {
     const userId = req.session.userId;
@@ -279,6 +329,30 @@ class InterviewController {
       data: {
         assessment,
         message: "Pre-interview assessment saved successfully",
+      },
+    });
+  });
+
+  /**
+   * GET /api/interviews/:id/company-research/export
+   * Export company research report
+   */
+  exportCompanyResearch = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { id } = req.params;
+    const { format = "markdown" } = req.query;
+
+    const report = await interviewCompanyResearchService.exportResearchReport(
+      id,
+      userId,
+      format
+    );
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        report,
+        format,
       },
     });
   });

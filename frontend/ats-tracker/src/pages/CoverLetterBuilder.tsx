@@ -4,6 +4,7 @@ import { Icon } from "@iconify/react";
 import { ROUTES } from "../config/routes";
 import { CoverLetter } from "../types";
 import { coverLetterService } from "../services/coverLetterService";
+import { api } from "../services/api";
 import { CoverLetterTopBar } from "../components/coverletter/CoverLetterTopBar";
 import { CoverLetterAIAssistant } from "../components/coverletter/CoverLetterAIAssistant";
 import { CoverLetterPreviewModal } from "../components/coverletter/CoverLetterPreviewModal";
@@ -13,12 +14,15 @@ import {
   ExportTheme,
 } from "../components/coverletter/CoverLetterExportModal";
 import { Toast } from "../components/resume/Toast";
+import { ShareDocumentModal } from "../components/team/ShareDocumentModal";
 
 export function CoverLetterBuilder() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const coverLetterId = searchParams.get("id");
   const templateId = searchParams.get("templateId");
+  const reviewMode = searchParams.get("mode") === "review"; // Review/suggesting mode for editors
+  const teamId = searchParams.get("teamId"); // Team ID when in review mode
 
   const [coverLetter, setCoverLetter] = useState<CoverLetter | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -28,12 +32,19 @@ export function CoverLetterBuilder() {
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [toast, setToast] = useState<{
     message: string;
     type: "success" | "error" | "info";
   } | null>(null);
+  // Review mode state
+  const [comments, setComments] = useState<any[]>([]);
+  const [isLoadingComments, setIsLoadingComments] = useState(false);
+  const [showCommentInput, setShowCommentInput] = useState<{ section: string; index?: number } | null>(null);
+  const [newComment, setNewComment] = useState("");
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
 
   // Helper function to validate UUID format
   const isValidUUID = (id: string | null): boolean => {
@@ -48,12 +59,35 @@ export function CoverLetterBuilder() {
         setIsLoading(true);
 
         if (coverLetterId && isValidUUID(coverLetterId)) {
-          // Load existing cover letter
-          const response = await coverLetterService.getCoverLetter(coverLetterId);
-          if (response.ok && response.data) {
-            setCoverLetter(response.data.coverLetter);
+          // In review mode, use the collaboration API to get shared document
+          if (reviewMode && teamId) {
+            const response = await api.getDocumentDetails("cover_letter", coverLetterId);
+            if (response.ok && response.data) {
+              const doc = response.data.document;
+              setCoverLetter({
+                id: doc.id,
+                userId: "",
+                name: doc.name || doc.versionName || "Untitled Cover Letter",
+                versionName: doc.versionName,
+                content: doc.content || {},
+                customizations: doc.customizations || {},
+                jobId: doc.jobId,
+                versionNumber: doc.versionNumber || 1,
+                isMaster: false,
+                createdAt: doc.createdAt,
+                updatedAt: doc.updatedAt,
+              } as CoverLetter);
+            } else {
+              throw new Error("Failed to load shared cover letter");
+            }
           } else {
-            throw new Error("Failed to load cover letter");
+            // Load existing cover letter (owner view)
+            const response = await coverLetterService.getCoverLetter(coverLetterId);
+            if (response.ok && response.data) {
+              setCoverLetter(response.data.coverLetter);
+            } else {
+              throw new Error("Failed to load cover letter");
+            }
           }
         } else if (templateId) {
           // Create new cover letter from template
@@ -183,7 +217,60 @@ export function CoverLetterBuilder() {
            };
 
     fetchCoverLetter();
-  }, [coverLetterId, templateId, navigate]);
+  }, [coverLetterId, templateId, navigate, reviewMode, teamId]);
+
+  // Fetch comments - in review mode for specific team, in owner mode from all teams
+  useEffect(() => {
+    if (coverLetterId) {
+      const fetchComments = async () => {
+        try {
+          setIsLoadingComments(true);
+          if (reviewMode && teamId) {
+            // Review mode: fetch comments for specific team
+            const response = await api.getDocumentComments("cover_letter", coverLetterId, teamId);
+            if (response.ok && response.data) {
+              setComments(response.data.comments || []);
+            }
+          } else if (!reviewMode && coverLetter) {
+            // Owner mode: fetch comments from all teams where document is shared
+            // First, get all teams where this document is shared
+            try {
+              const userTeamsResponse = await api.getUserTeams();
+              if (userTeamsResponse.ok && userTeamsResponse.data?.teams) {
+                const teams = userTeamsResponse.data.teams;
+                // Fetch comments from all teams
+                const allComments: any[] = [];
+                for (const team of teams) {
+                  try {
+                    const commentsResponse = await api.getDocumentComments("cover_letter", coverLetterId, team.id);
+                    if (commentsResponse.ok && commentsResponse.data?.comments) {
+                      // Add team info to each comment
+                      const teamComments = commentsResponse.data.comments.map((c: any) => ({
+                        ...c,
+                        teamId: team.id,
+                        teamName: team.teamName,
+                      }));
+                      allComments.push(...teamComments);
+                    }
+                  } catch (err) {
+                    console.error(`Failed to fetch comments from team ${team.id}:`, err);
+                  }
+                }
+                setComments(allComments);
+              }
+            } catch (error) {
+              console.error("Failed to fetch teams for comments:", error);
+            }
+          }
+        } catch (error) {
+          console.error("Failed to fetch comments:", error);
+        } finally {
+          setIsLoadingComments(false);
+        }
+      };
+      fetchComments();
+    }
+  }, [reviewMode, coverLetterId, teamId, coverLetter]);
 
   // Auto-save functionality - DISABLED to prevent double saves
   // Users can manually save with the Save button
@@ -634,6 +721,143 @@ export function CoverLetterBuilder() {
     });
   };
 
+  // Review mode: Add comment to a section
+  const handleAddComment = async (section: string, index?: number) => {
+    if (!newComment.trim() || !coverLetterId || !teamId || isSubmittingComment) return;
+
+    try {
+      setIsSubmittingComment(true);
+      const documentSection = index !== undefined ? `${section}_${index}` : section;
+      const response = await api.addDocumentComment({
+        documentType: "cover_letter",
+        documentId: coverLetterId,
+        teamId,
+        commentText: newComment.trim(),
+        documentSection,
+      });
+
+      if (response.ok) {
+        setNewComment("");
+        setShowCommentInput(null);
+        // Refresh comments
+        const commentsResponse = await api.getDocumentComments("cover_letter", coverLetterId, teamId);
+        if (commentsResponse.ok && commentsResponse.data) {
+          setComments(commentsResponse.data.comments || []);
+        }
+        setToast({
+          message: "Comment added successfully",
+          type: "success",
+        });
+      } else {
+        setToast({
+          message: response.error || "Failed to add comment",
+          type: "error",
+        });
+      }
+    } catch (error) {
+      console.error("Failed to add comment:", error);
+      setToast({
+        message: "Failed to add comment. Please try again.",
+        type: "error",
+      });
+    } finally {
+      setIsSubmittingComment(false);
+    }
+  };
+
+  // Get comments for a specific section
+  const getSectionComments = (section: string, index?: number) => {
+    const documentSection = index !== undefined ? `${section}_${index}` : section;
+    return comments.filter((c) => c.documentSection === documentSection);
+  };
+
+  // Owner mode: Accept a suggestion (apply it to the cover letter)
+  const handleAcceptSuggestion = async (comment: any) => {
+    if (!coverLetter || !coverLetterId) return;
+
+    try {
+      // Apply the suggestion based on the comment text
+      // For now, we'll show the comment text as a suggestion that can be applied
+      // In a more advanced version, we could parse structured suggestions
+      const suggestionText = comment.commentText;
+      
+      // Determine which section to update based on documentSection
+      const section = comment.documentSection?.split('_')[0] || '';
+      const index = comment.documentSection?.includes('_') 
+        ? parseInt(comment.documentSection.split('_')[1]) 
+        : undefined;
+
+      if (section === 'greeting' && suggestionText.toLowerCase().includes('greeting')) {
+        // Extract greeting from suggestion or use a default
+        const newGreeting = suggestionText.match(/["']([^"']+)["']/) 
+          ? suggestionText.match(/["']([^"']+)["']/)![1]
+          : suggestionText.split('\n')[0].replace(/^(suggest|try|use):\s*/i, '').trim();
+        if (newGreeting) {
+          handleContentUpdate('greeting', newGreeting);
+          setToast({
+            message: "Suggestion applied to greeting",
+            type: "success",
+          });
+        }
+      } else if (section === 'opening') {
+        // For opening, we can replace or append based on suggestion
+        const newOpening = suggestionText.replace(/^(suggest|try|use):\s*/i, '').trim();
+        if (newOpening) {
+          handleContentUpdate('opening', newOpening);
+          setToast({
+            message: "Suggestion applied to opening paragraph",
+            type: "success",
+          });
+        }
+      } else if (section === 'body' && index !== undefined) {
+        const newBody = [...(coverLetter.content?.body || [])];
+        const suggestionText = comment.commentText.replace(/^(suggest|try|use):\s*/i, '').trim();
+        if (suggestionText && newBody[index] !== undefined) {
+          newBody[index] = suggestionText;
+          setCoverLetter({
+            ...coverLetter,
+            content: {
+              ...coverLetter.content,
+              body: newBody,
+            },
+          });
+          setToast({
+            message: `Suggestion applied to paragraph ${index + 1}`,
+            type: "success",
+          });
+        }
+      } else if (section === 'closing') {
+        const newClosing = comment.commentText.replace(/^(suggest|try|use):\s*/i, '').trim();
+        if (newClosing) {
+          handleContentUpdate('closing', newClosing);
+          setToast({
+            message: "Suggestion applied to closing paragraph",
+            type: "success",
+          });
+        }
+      }
+
+      // Save the cover letter after applying suggestion
+      await handleSave();
+    } catch (error) {
+      console.error("Failed to apply suggestion:", error);
+      setToast({
+        message: "Failed to apply suggestion",
+        type: "error",
+      });
+    }
+  };
+
+  // Owner mode: Reject/dismiss a suggestion
+  const handleRejectSuggestion = (comment: any) => {
+    // For now, just remove it from the UI (in a full implementation, we'd mark it as rejected in the backend)
+    setComments(comments.filter((c) => c.id !== comment.id));
+    setToast({
+      message: "Suggestion dismissed",
+      type: "info",
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -688,6 +912,9 @@ export function CoverLetterBuilder() {
         onToggleExportMenu={() => setShowExportMenu(!showExportMenu)}
         onToggleCustomization={() => setShowCustomization(!showCustomization)}
         onNameChange={handleNameChange}
+        onShare={() => {
+          setShowShareModal(true);
+        }}
       />
 
       <div className="flex h-[calc(100vh-64px)]">
@@ -851,16 +1078,18 @@ export function CoverLetterBuilder() {
               </div>
             )}
 
-            {/* AI Assistant Toggle Button */}
-            <div className="mb-6">
-              <button
-                onClick={() => setShowAIPanel(!showAIPanel)}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-full font-medium transition-all bg-gradient-to-r from-[#845BFF] via-[#A95BFF] to-[#F551A2] text-white shadow-sm hover:opacity-90"
-              >
-                <Icon icon="mingcute:ai-fill" className="w-5 h-5" />
-                {showAIPanel ? "Hide AI Assistant" : "Show AI Assistant"}
-              </button>
-            </div>
+            {/* AI Assistant Toggle Button - Hidden in review mode */}
+            {!reviewMode && (
+              <div className="mb-6">
+                <button
+                  onClick={() => setShowAIPanel(!showAIPanel)}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-full font-medium transition-all bg-gradient-to-r from-[#845BFF] via-[#A95BFF] to-[#F551A2] text-white shadow-sm hover:opacity-90"
+                >
+                  <Icon icon="mingcute:ai-fill" className="w-5 h-5" />
+                  {showAIPanel ? "Hide AI Assistant" : "Show AI Assistant"}
+                </button>
+              </div>
+            )}
 
             {/* Cover Letter Editor */}
             <div
@@ -871,31 +1100,190 @@ export function CoverLetterBuilder() {
               }}
             >
               {/* Greeting */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Greeting
-                </label>
+              <div className="mb-6 relative">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Greeting
+                  </label>
+                  {reviewMode ? (
+                    <button
+                      onClick={() => setShowCommentInput(showCommentInput?.section === "greeting" ? null : { section: "greeting" })}
+                      className="flex items-center gap-1 px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                    >
+                      <Icon icon="mingcute:comment-line" width={16} />
+                      {getSectionComments("greeting").length > 0 && (
+                        <span className="bg-blue-500 text-white rounded-full px-1.5 text-xs">
+                          {getSectionComments("greeting").length}
+                        </span>
+                      )}
+                    </button>
+                  ) : getSectionComments("greeting").length > 0 && (
+                    <span className="flex items-center gap-1 px-2 py-1 text-xs text-amber-600 bg-amber-100 rounded">
+                      <Icon icon="mingcute:lightbulb-line" width={16} />
+                      {getSectionComments("greeting").length} {getSectionComments("greeting").length === 1 ? "suggestion" : "suggestions"}
+                    </span>
+                  )}
+                </div>
                 <input
                   type="text"
                   value={coverLetter.content?.greeting || ""}
                   onChange={(e) => handleContentUpdate("greeting", e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                  disabled={reviewMode}
+                  className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent ${
+                    reviewMode ? "bg-gray-50 cursor-not-allowed" : ""
+                  }`}
                   placeholder="Dear Hiring Manager,"
                 />
+                {/* Comments for greeting */}
+                {reviewMode && getSectionComments("greeting").length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    {getSectionComments("greeting").map((comment) => (
+                      <div key={comment.id} className="bg-blue-50 border-l-2 border-blue-400 pl-3 py-2 rounded text-sm">
+                        <div className="font-medium text-blue-900">{comment.commenterName || comment.commenterEmail}</div>
+                        <div className="text-blue-700">{comment.commentText}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {/* Comment input for greeting */}
+                {reviewMode && showCommentInput?.section === "greeting" && (
+                  <div className="mt-2 border border-blue-300 rounded-lg p-3 bg-blue-50">
+                    <textarea
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      placeholder="Add a comment or suggestion..."
+                      className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-sm"
+                      rows={2}
+                    />
+                    <div className="flex gap-2 mt-2">
+                      <button
+                        onClick={() => handleAddComment("greeting")}
+                        disabled={!newComment.trim() || isSubmittingComment}
+                        className="px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 text-sm"
+                      >
+                        Add Comment
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowCommentInput(null);
+                          setNewComment("");
+                        }}
+                        className="px-3 py-1 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Opening Paragraph */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Opening Paragraph
-                </label>
+              <div className="mb-6 relative">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Opening Paragraph
+                  </label>
+                  {reviewMode ? (
+                    <button
+                      onClick={() => setShowCommentInput(showCommentInput?.section === "opening" ? null : { section: "opening" })}
+                      className="flex items-center gap-1 px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                    >
+                      <Icon icon="mingcute:comment-line" width={16} />
+                      {getSectionComments("opening").length > 0 && (
+                        <span className="bg-blue-500 text-white rounded-full px-1.5 text-xs">
+                          {getSectionComments("opening").length}
+                        </span>
+                      )}
+                    </button>
+                  ) : getSectionComments("opening").length > 0 && (
+                    <span className="flex items-center gap-1 px-2 py-1 text-xs text-amber-600 bg-amber-100 rounded">
+                      <Icon icon="mingcute:lightbulb-line" width={16} />
+                      {getSectionComments("opening").length} {getSectionComments("opening").length === 1 ? "suggestion" : "suggestions"}
+                    </span>
+                  )}
+                </div>
                 <textarea
                   value={coverLetter.content?.opening || ""}
                   onChange={(e) => handleContentUpdate("opening", e.target.value)}
+                  disabled={reviewMode}
                   rows={4}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                  className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent ${
+                    reviewMode ? "bg-gray-50 cursor-not-allowed" : ""
+                  }`}
                   placeholder="I am writing to express my interest in..."
                 />
+                {/* Comments for opening */}
+                {getSectionComments("opening").length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    {getSectionComments("opening").map((comment) => (
+                      <div key={comment.id} className={`border-l-2 pl-3 py-2 rounded text-sm ${
+                        reviewMode 
+                          ? "bg-blue-50 border-blue-400" 
+                          : "bg-amber-50 border-amber-400"
+                      }`}>
+                        <div className="flex items-start justify-between mb-1">
+                          <div className="flex-1">
+                            <div className={`font-medium ${reviewMode ? "text-blue-900" : "text-amber-900"}`}>
+                              {comment.commenterName || comment.commenterEmail}
+                              {comment.teamName && !reviewMode && (
+                                <span className="text-xs text-amber-600 ml-2">({comment.teamName})</span>
+                              )}
+                            </div>
+                            <div className={reviewMode ? "text-blue-700" : "text-amber-800"}>{comment.commentText}</div>
+                          </div>
+                          {!reviewMode && (
+                            <div className="flex gap-2 ml-2">
+                              <button
+                                onClick={() => handleAcceptSuggestion(comment)}
+                                className="px-2 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600 transition-colors"
+                                title="Apply this suggestion"
+                              >
+                                <Icon icon="mingcute:check-line" width={14} />
+                              </button>
+                              <button
+                                onClick={() => handleRejectSuggestion(comment)}
+                                className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 transition-colors"
+                                title="Dismiss this suggestion"
+                              >
+                                <Icon icon="mingcute:close-line" width={14} />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {/* Comment input for opening */}
+                {reviewMode && showCommentInput?.section === "opening" && (
+                  <div className="mt-2 border border-blue-300 rounded-lg p-3 bg-blue-50">
+                    <textarea
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      placeholder="Add a comment or suggestion..."
+                      className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-sm"
+                      rows={2}
+                    />
+                    <div className="flex gap-2 mt-2">
+                      <button
+                        onClick={() => handleAddComment("opening")}
+                        disabled={!newComment.trim() || isSubmittingComment}
+                        className="px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 text-sm"
+                      >
+                        Add Comment
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowCommentInput(null);
+                          setNewComment("");
+                        }}
+                        className="px-3 py-1 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Body Paragraphs */}
@@ -904,33 +1292,133 @@ export function CoverLetterBuilder() {
                   <label className="block text-sm font-medium text-gray-700">
                     Body Paragraphs
                   </label>
-                  <button
-                    onClick={handleAddBodyParagraph}
-                    className="flex items-center gap-1 px-3 py-1 text-sm text-[#3351FD] hover:bg-blue-50 rounded-lg transition-colors"
-                  >
-                    <Icon icon="mingcute:add-line" className="w-4 h-4" />
-                    Add Paragraph
-                  </button>
+                  {!reviewMode && (
+                    <button
+                      onClick={handleAddBodyParagraph}
+                      className="flex items-center gap-1 px-3 py-1 text-sm text-[#3351FD] hover:bg-blue-50 rounded-lg transition-colors"
+                    >
+                      <Icon icon="mingcute:add-line" className="w-4 h-4" />
+                      Add Paragraph
+                    </button>
+                  )}
                 </div>
                 {(coverLetter.content?.body || []).map((paragraph, index) => (
-                  <div key={index} className="mb-4">
+                  <div key={index} className="mb-4 relative">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs text-gray-500">Paragraph {index + 1}</span>
+                      {reviewMode ? (
+                        <button
+                          onClick={() => setShowCommentInput(showCommentInput?.section === "body" && showCommentInput?.index === index ? null : { section: "body", index })}
+                          className="flex items-center gap-1 px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                        >
+                          <Icon icon="mingcute:comment-line" width={16} />
+                          {getSectionComments("body", index).length > 0 && (
+                            <span className="bg-blue-500 text-white rounded-full px-1.5 text-xs">
+                              {getSectionComments("body", index).length}
+                            </span>
+                          )}
+                        </button>
+                      ) : getSectionComments("body", index).length > 0 && (
+                        <span className="flex items-center gap-1 px-2 py-1 text-xs text-amber-600 bg-amber-100 rounded">
+                          <Icon icon="mingcute:lightbulb-line" width={16} />
+                          {getSectionComments("body", index).length} {getSectionComments("body", index).length === 1 ? "suggestion" : "suggestions"}
+                        </span>
+                      )}
+                    </div>
                     <div className="flex items-start gap-2">
                       <textarea
                         value={paragraph}
                         onChange={(e) =>
                           handleBodyParagraphUpdate(index, e.target.value)
                         }
+                        disabled={reviewMode}
                         rows={4}
-                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                        className={`flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent ${
+                          reviewMode ? "bg-gray-50 cursor-not-allowed" : ""
+                        }`}
                         placeholder={`Body paragraph ${index + 1}...`}
                       />
-                      <button
-                        onClick={() => handleRemoveBodyParagraph(index)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      >
-                        <Icon icon="mingcute:delete-line" className="w-5 h-5" />
-                      </button>
+                      {!reviewMode && (
+                        <button
+                          onClick={() => handleRemoveBodyParagraph(index)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          <Icon icon="mingcute:delete-line" className="w-5 h-5" />
+                        </button>
+                      )}
                     </div>
+                    {/* Comments for body paragraph */}
+                    {getSectionComments("body", index).length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {getSectionComments("body", index).map((comment) => (
+                          <div key={comment.id} className={`border-l-2 pl-3 py-2 rounded text-sm ${
+                            reviewMode 
+                              ? "bg-blue-50 border-blue-400" 
+                              : "bg-amber-50 border-amber-400"
+                          }`}>
+                            <div className="flex items-start justify-between mb-1">
+                              <div className="flex-1">
+                                <div className={`font-medium ${reviewMode ? "text-blue-900" : "text-amber-900"}`}>
+                                  {comment.commenterName || comment.commenterEmail}
+                                  {comment.teamName && !reviewMode && (
+                                    <span className="text-xs text-amber-600 ml-2">({comment.teamName})</span>
+                                  )}
+                                </div>
+                                <div className={reviewMode ? "text-blue-700" : "text-amber-800"}>{comment.commentText}</div>
+                              </div>
+                              {!reviewMode && (
+                                <div className="flex gap-2 ml-2">
+                                  <button
+                                    onClick={() => handleAcceptSuggestion(comment)}
+                                    className="px-2 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600 transition-colors"
+                                    title="Apply this suggestion"
+                                  >
+                                    <Icon icon="mingcute:check-line" width={14} />
+                                  </button>
+                                  <button
+                                    onClick={() => handleRejectSuggestion(comment)}
+                                    className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 transition-colors"
+                                    title="Dismiss this suggestion"
+                                  >
+                                    <Icon icon="mingcute:close-line" width={14} />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {/* Comment input for body paragraph */}
+                    {reviewMode && showCommentInput?.section === "body" && showCommentInput?.index === index && (
+                      <div className="mt-2 border border-blue-300 rounded-lg p-3 bg-blue-50">
+                        <textarea
+                          value={newComment}
+                          onChange={(e) => setNewComment(e.target.value)}
+                          placeholder="Add a comment or suggestion..."
+                          className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-sm"
+                          rows={2}
+                        />
+                        <div className="flex gap-2 mt-2">
+                          <button
+                            onClick={() => handleAddComment("body", index)}
+                            disabled={!newComment.trim() || isSubmittingComment}
+                            className="px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 text-sm"
+                          >
+                            Add Comment
+                          </button>
+                          <button
+                            onClick={() => {
+                              setShowCommentInput(null);
+                              setNewComment("");
+                            }}
+                            className="px-3 py-1 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
                 {(!coverLetter.content?.body || coverLetter.content.body.length === 0) && (
@@ -947,17 +1435,112 @@ export function CoverLetterBuilder() {
               </div>
 
               {/* Closing Paragraph */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Closing Paragraph
-                </label>
+              <div className="mb-6 relative">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Closing Paragraph
+                  </label>
+                  {reviewMode ? (
+                    <button
+                      onClick={() => setShowCommentInput(showCommentInput?.section === "closing" ? null : { section: "closing" })}
+                      className="flex items-center gap-1 px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                    >
+                      <Icon icon="mingcute:comment-line" width={16} />
+                      {getSectionComments("closing").length > 0 && (
+                        <span className="bg-blue-500 text-white rounded-full px-1.5 text-xs">
+                          {getSectionComments("closing").length}
+                        </span>
+                      )}
+                    </button>
+                  ) : getSectionComments("closing").length > 0 && (
+                    <span className="flex items-center gap-1 px-2 py-1 text-xs text-amber-600 bg-amber-100 rounded">
+                      <Icon icon="mingcute:lightbulb-line" width={16} />
+                      {getSectionComments("closing").length} {getSectionComments("closing").length === 1 ? "suggestion" : "suggestions"}
+                    </span>
+                  )}
+                </div>
                 <textarea
                   value={coverLetter.content?.closing || ""}
                   onChange={(e) => handleContentUpdate("closing", e.target.value)}
+                  disabled={reviewMode}
                   rows={3}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent"
+                  className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent ${
+                    reviewMode ? "bg-gray-50 cursor-not-allowed" : ""
+                  }`}
                   placeholder="Thank you for considering my application..."
                 />
+                {/* Comments for closing */}
+                {getSectionComments("closing").length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    {getSectionComments("closing").map((comment) => (
+                      <div key={comment.id} className={`border-l-2 pl-3 py-2 rounded text-sm ${
+                        reviewMode 
+                          ? "bg-blue-50 border-blue-400" 
+                          : "bg-amber-50 border-amber-400"
+                      }`}>
+                        <div className="flex items-start justify-between mb-1">
+                          <div className="flex-1">
+                            <div className={`font-medium ${reviewMode ? "text-blue-900" : "text-amber-900"}`}>
+                              {comment.commenterName || comment.commenterEmail}
+                              {comment.teamName && !reviewMode && (
+                                <span className="text-xs text-amber-600 ml-2">({comment.teamName})</span>
+                              )}
+                            </div>
+                            <div className={reviewMode ? "text-blue-700" : "text-amber-800"}>{comment.commentText}</div>
+                          </div>
+                          {!reviewMode && (
+                            <div className="flex gap-2 ml-2">
+                              <button
+                                onClick={() => handleAcceptSuggestion(comment)}
+                                className="px-2 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600 transition-colors"
+                                title="Apply this suggestion"
+                              >
+                                <Icon icon="mingcute:check-line" width={14} />
+                              </button>
+                              <button
+                                onClick={() => handleRejectSuggestion(comment)}
+                                className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 transition-colors"
+                                title="Dismiss this suggestion"
+                              >
+                                <Icon icon="mingcute:close-line" width={14} />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {/* Comment input for closing */}
+                {reviewMode && showCommentInput?.section === "closing" && (
+                  <div className="mt-2 border border-blue-300 rounded-lg p-3 bg-blue-50">
+                    <textarea
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      placeholder="Add a comment or suggestion..."
+                      className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-sm"
+                      rows={2}
+                    />
+                    <div className="flex gap-2 mt-2">
+                      <button
+                        onClick={() => handleAddComment("closing")}
+                        disabled={!newComment.trim() || isSubmittingComment}
+                        className="px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 text-sm"
+                      >
+                        Add Comment
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowCommentInput(null);
+                          setNewComment("");
+                        }}
+                        className="px-3 py-1 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Signature */}
@@ -1040,6 +1623,23 @@ export function CoverLetterBuilder() {
           message={toast.message}
           type={toast.type}
           onClose={() => setToast(null)}
+        />
+      )}
+
+      {/* Share Document Modal */}
+      {showShareModal && coverLetter && (
+        <ShareDocumentModal
+          documentType="cover_letter"
+          documentId={coverLetter.id}
+          documentName={coverLetter.versionName || coverLetter.title || "Untitled Cover Letter"}
+          onClose={() => setShowShareModal(false)}
+          onShared={() => {
+            setShowShareModal(false);
+            setToast({
+              message: "Cover letter shared successfully with team!",
+              type: "success",
+            });
+          }}
         />
       )}
     </div>

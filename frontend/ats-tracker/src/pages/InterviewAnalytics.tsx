@@ -84,8 +84,8 @@ export function InterviewAnalytics() {
 
   const tabs: { id: TabType; label: string; icon: string }[] = [
     { id: "schedule", label: "Schedule", icon: "mingcute:calendar-line" },
-    { id: "preparation", label: "Preparation", icon: "mingcute:lightbulb-line" },
-    { id: "reminders", label: "Reminders", icon: "mingcute:alarm-line" },
+    { id: "preparation", label: "Preparation", icon: "mingcute:bulb-line" },
+    { id: "reminders", label: "Reminders", icon: "mingcute:clipboard-line" },
     { id: "thank-you", label: "Thank You Notes", icon: "mingcute:mail-line" },
     { id: "follow-ups", label: "Follow-ups", icon: "mingcute:task-line" },
     { id: "analytics", label: "Analytics", icon: "mingcute:chart-line" },
@@ -105,28 +105,48 @@ export function InterviewAnalytics() {
       <div className="min-h-screen bg-white font-poppins">
         <main className="max-w-[1400px] mx-auto px-6 lg:px-10 py-10">
           {/* Header */}
-          <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-            <h1 className="text-4xl md:text-5xl font-bold text-slate-900">
+          <div className="mb-6">
+            <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4">
               Interviews
             </h1>
+            <p className="text-slate-600">
+              View and manage your interviews. Schedule new interviews, view upcoming ones, and access all interview details.
+            </p>
           </div>
 
           {/* Tabs */}
           <div className="border-b border-slate-200 mb-8">
-            <div className="flex gap-1 overflow-x-auto">
+            <div className="flex gap-6 overflow-x-auto">
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => handleTabClick(tab.id)}
-                  className={`px-6 py-3 font-medium text-sm whitespace-nowrap border-b-2 transition-colors flex items-center gap-2 ${
+                  className={`relative pb-3 font-medium text-sm whitespace-nowrap transition-colors flex items-center gap-2 bg-transparent ${
                     tab.id === "analytics"
-                      ? "border-blue-500 text-blue-600"
-                      : "border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300"
+                      ? "text-blue-500"
+                      : "text-slate-600"
                   }`}
-                  style={{ fontFamily: 'Poppins' }}
+                  style={{ 
+                    fontFamily: 'Poppins',
+                    outline: 'none', 
+                    boxShadow: 'none', 
+                    border: 'none',
+                    borderRadius: '0px',
+                    borderTopLeftRadius: '0px',
+                    borderTopRightRadius: '0px',
+                    borderBottomLeftRadius: '0px',
+                    borderBottomRightRadius: '0px'
+                  }}
+                  onFocus={(e) => e.target.blur()}
                 >
                   <Icon icon={tab.icon} width={18} />
                   {tab.label}
+                  {tab.id === "analytics" && (
+                    <div 
+                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500"
+                      style={{ height: '2px', borderRadius: '0px' }}
+                    />
+                  )}
                 </button>
               ))}
             </div>
@@ -147,28 +167,48 @@ export function InterviewAnalytics() {
       <div className="min-h-screen bg-white font-poppins">
         <main className="max-w-[1400px] mx-auto px-6 lg:px-10 py-10">
           {/* Header */}
-          <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-            <h1 className="text-4xl md:text-5xl font-bold text-slate-900">
+          <div className="mb-6">
+            <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4">
               Interviews
             </h1>
+            <p className="text-slate-600">
+              View and manage your interviews. Schedule new interviews, view upcoming ones, and access all interview details.
+            </p>
           </div>
 
           {/* Tabs */}
           <div className="border-b border-slate-200 mb-8">
-            <div className="flex gap-1 overflow-x-auto">
+            <div className="flex gap-6 overflow-x-auto">
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => handleTabClick(tab.id)}
-                  className={`px-6 py-3 font-medium text-sm whitespace-nowrap border-b-2 transition-colors flex items-center gap-2 ${
+                  className={`relative pb-3 font-medium text-sm whitespace-nowrap transition-colors flex items-center gap-2 bg-transparent ${
                     tab.id === "analytics"
-                      ? "border-blue-500 text-blue-600"
-                      : "border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300"
+                      ? "text-blue-500"
+                      : "text-slate-600"
                   }`}
-                  style={{ fontFamily: 'Poppins' }}
+                  style={{ 
+                    fontFamily: 'Poppins',
+                    outline: 'none', 
+                    boxShadow: 'none', 
+                    border: 'none',
+                    borderRadius: '0px',
+                    borderTopLeftRadius: '0px',
+                    borderTopRightRadius: '0px',
+                    borderBottomLeftRadius: '0px',
+                    borderBottomRightRadius: '0px'
+                  }}
+                  onFocus={(e) => e.target.blur()}
                 >
                   <Icon icon={tab.icon} width={18} />
                   {tab.label}
+                  {tab.id === "analytics" && (
+                    <div 
+                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500"
+                      style={{ height: '2px', borderRadius: '0px' }}
+                    />
+                  )}
                 </button>
               ))}
             </div>
@@ -255,67 +295,54 @@ export function InterviewAnalytics() {
     <div className="min-h-screen bg-white font-poppins">
       <main className="max-w-[1400px] mx-auto px-6 lg:px-10 py-10">
         {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-          <h1 className="text-4xl md:text-5xl font-bold text-slate-900" style={{ fontFamily: 'Poppins' }}>
+        <div className="mb-6">
+          <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4" style={{ fontFamily: 'Poppins' }}>
             Interviews
           </h1>
-          <div className="flex items-center gap-3">
-            {!calendarConnected ? (
-              <button
-                onClick={handleConnectCalendar}
-                className="px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-xs font-medium inline-flex items-center gap-1.5 shadow-md hover:from-blue-600 hover:to-indigo-700 transition-all"
-              >
-                <Icon icon="mingcute:calendar-line" width={16} />
-                Connect Google Calendar
-              </button>
-            ) : (
-              <button
-                onClick={async () => {
-                  try {
-                    await api.disconnectGoogleCalendar();
-                    setCalendarConnected(false);
-                  } catch (err: any) {
-                    setError(err.message || "Failed to disconnect");
-                  }
-                }}
-                className="px-4 py-2 rounded-lg bg-green-100 text-green-700 text-xs font-medium inline-flex items-center gap-1.5 shadow-sm hover:bg-green-200 transition-all"
-              >
-                <Icon icon="mingcute:check-circle-line" width={16} />
-                Connected
-              </button>
-            )}
-            <button
-              onClick={() => navigate(ROUTES.INTERVIEW_SCHEDULING)}
-              className="px-6 py-3 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 text-white text-sm font-semibold inline-flex items-center gap-2 shadow-lg hover:from-pink-600 hover:to-purple-700 transition-all transform hover:scale-105"
-            >
-              <Icon icon="mingcute:calendar-check-line" width={20} />
-              Interview Calendar
-            </button>
-          </div>
+          <p className="text-slate-600">
+            View and manage your interviews. Schedule new interviews, view upcoming ones, and access all interview details.
+          </p>
         </div>
 
         {/* Tabs */}
         <div className="border-b border-slate-200 mb-8">
-          <div className="flex gap-1 overflow-x-auto">
+          <div className="flex gap-6 overflow-x-auto">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => handleTabClick(tab.id)}
                 className={`px-6 py-3 font-medium text-sm whitespace-nowrap border-b-2 transition-colors flex items-center gap-2 flex-shrink-0 min-w-fit ${
                   tab.id === "analytics"
-                    ? "border-blue-500 text-blue-600"
-                    : "border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300"
+                    ? "text-blue-500"
+                    : "text-slate-600"
                 }`}
+                style={{ 
+                  outline: 'none', 
+                  boxShadow: 'none', 
+                  border: 'none',
+                  borderRadius: '0px',
+                  borderTopLeftRadius: '0px',
+                  borderTopRightRadius: '0px',
+                  borderBottomLeftRadius: '0px',
+                  borderBottomRightRadius: '0px'
+                }}
+                onFocus={(e) => e.target.blur()}
               >
-                <Icon icon={tab.icon} width={18} height={18} className="flex-shrink-0" style={{ minWidth: '18px', minHeight: '18px' }} />
-                <span className="flex-shrink-0">{tab.label}</span>
+                <Icon icon={tab.icon} width={18} />
+                {tab.label}
+                {tab.id === "analytics" && (
+                  <div 
+                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500"
+                    style={{ height: '2px', borderRadius: '0px' }}
+                  />
+                )}
               </button>
             ))}
           </div>
         </div>
 
         {/* Tab Content - Analytics */}
-        <div className="mt-8">
+        <div className="mt-8 bg-slate-50 -mx-6 lg:-mx-10 px-6 lg:px-10 py-10 rounded-t-2xl">
           {/* Main Content Container with Light Blue Background */}
           <div className="bg-[#EBF5FF] rounded-t-[30px] border border-[#B7B7B7] p-8">
             {/* Single Grid Layout with Strategy Insights spanning all rows */}

@@ -12,10 +12,201 @@ class CompanyResearchService {
     return Math.min(parsed, 100);
   }
 
-  normalizeOffset(offset) {
-    const parsed = parseInt(offset, 10);
-    if (Number.isNaN(parsed) || parsed < 0) return 0;
-    return parsed;
+  /**
+   * Create or update company information
+   * Note: jobId can be null - we can store company research without a job reference
+   */
+  async upsertCompanyInfo(jobId, companyData) {
+    const {
+      size,
+      industry,
+      location,
+      website,
+      description,
+      companyLogo,
+      contactEmail,
+      contactPhone,
+      mission,
+      culture,
+      values,
+      recentDevelopments,
+      products,
+      competitors,
+      whyWorkHere,
+      interviewTips,
+      foundedYear,
+      enrichedData,
+    } = companyData;
+
+    try {
+      // Check if company info already exists for this job (if jobId provided)
+      let existing = { rows: [] };
+      if (jobId) {
+        const existingQuery = `
+          SELECT id FROM company_info WHERE job_id = $1
+        `;
+        existing = await database.query(existingQuery, [jobId]);
+      }
+
+      let companyInfoId;
+
+      if (existing.rows.length > 0) {
+        // Update existing
+        companyInfoId = existing.rows[0].id;
+        const updateQuery = `
+          UPDATE company_info 
+          SET size = $1, industry = $2, location = $3, website = $4, 
+              description = $5, company_logo = $6, contact_email = $7, contact_phone = $8,
+              mission = $9, culture = $10, values = $11, recent_developments = $12,
+              products = $13, competitors = $14, why_work_here = $15, interview_tips = $16,
+              founded_year = $17, enriched_data = $18
+          WHERE id = $19
+          RETURNING *
+        `;
+        const result = await database.query(updateQuery, [
+          size || null,
+          industry || null,
+          location || null,
+          website || null,
+          description || null,
+          companyLogo || null,
+          contactEmail || null,
+          contactPhone || null,
+          mission || null,
+          culture || null,
+          typeof values === "string" ? values : values ? JSON.stringify(values) : null,
+          recentDevelopments || null,
+          typeof products === "string" ? products : products ? JSON.stringify(products) : null,
+          typeof competitors === "string" ? competitors : competitors ? JSON.stringify(competitors) : null,
+          whyWorkHere || null,
+          interviewTips || null,
+          foundedYear || null,
+          enrichedData ? JSON.stringify(enrichedData) : null,
+          companyInfoId,
+        ]);
+        return this.mapCompanyInfoRow(result.rows[0]);
+      } else {
+        // Insert new
+        companyInfoId = uuidv4();
+        const insertQuery = `
+          INSERT INTO company_info 
+            (id, job_id, size, industry, location, website, description, company_logo, contact_email, contact_phone,
+             mission, culture, values, recent_developments, products, competitors, why_work_here, interview_tips, founded_year, enriched_data)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+          RETURNING *
+        `;
+        const result = await database.query(insertQuery, [
+          companyInfoId,
+          jobId,
+          size || null,
+          industry || null,
+          location || null,
+          website || null,
+          description || null,
+          companyLogo || null,
+          contactEmail || null,
+          contactPhone || null,
+          mission || null,
+          culture || null,
+          typeof values === "string" ? values : values ? JSON.stringify(values) : null,
+          recentDevelopments || null,
+          typeof products === "string" ? products : products ? JSON.stringify(products) : null,
+          typeof competitors === "string" ? competitors : competitors ? JSON.stringify(competitors) : null,
+          whyWorkHere || null,
+          interviewTips || null,
+          foundedYear || null,
+          enrichedData ? JSON.stringify(enrichedData) : null,
+        ]);
+        return this.mapCompanyInfoRow(result.rows[0]);
+      }
+    } catch (error) {
+      console.error("❌ Error upserting company info:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get company info by job ID
+   */
+  async getCompanyInfoByJobId(jobId) {
+    try {
+      const query = `
+        SELECT * FROM company_info WHERE job_id = $1
+      `;
+      const result = await database.query(query, [jobId]);
+
+      if (result.rows.length === 0) {
+        return null;
+      }
+
+      return this.mapCompanyInfoRow(result.rows[0]);
+    } catch (error) {
+      console.error("❌ Error getting company info:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get company info by company info ID
+   */
+  async getCompanyInfoById(companyInfoId) {
+    try {
+      const query = `
+        SELECT * FROM company_info WHERE id = $1
+      `;
+      const result = await database.query(query, [companyInfoId]);
+
+      if (result.rows.length === 0) {
+        return null;
+      }
+
+      return this.mapCompanyInfoRow(result.rows[0]);
+    } catch (error) {
+      console.error("❌ Error getting company info by ID:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Add company media link
+   */
+  async addCompanyMedia(companyId, platform, link) {
+    try {
+      const mediaId = uuidv4();
+      const query = `
+        INSERT INTO company_media (id, company_id, platform, link)
+        VALUES ($1, $2, $3, $4)
+        RETURNING *
+      `;
+      const result = await database.query(query, [
+        mediaId,
+        companyId,
+        platform,
+        link || null,
+      ]);
+
+      return this.mapCompanyMediaRow(result.rows[0]);
+    } catch (error) {
+      console.error("❌ Error adding company media:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all media for a company
+   */
+  async getCompanyMedia(companyId) {
+    try {
+      const query = `
+        SELECT * FROM company_media WHERE company_id = $1
+      `;
+      const result = await database.query(query, [companyId]);
+
+      return result.rows.map(this.mapCompanyMediaRow);
+    } catch (error) {
+      console.error("❌ Error getting company media:", error);
+      throw error;
+    }
   }
 
   mapCompanyInfoRow(row) {

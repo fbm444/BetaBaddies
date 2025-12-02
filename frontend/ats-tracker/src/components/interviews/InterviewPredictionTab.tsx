@@ -90,21 +90,34 @@ export function InterviewPredictionTab({
   };
 
   const handleCompare = async () => {
-    if (activeJobs.length < 2) return;
+    if (activeJobs.length < 2) {
+      setError("You need at least 2 job opportunities to compare");
+      return;
+    }
     setIsLoading(true);
     setError(null);
     try {
       const jobIds = activeJobs.map((job) => job.id);
       const response = await api.compareInterviewPredictions(jobIds);
       if (response.ok && response.data?.predictions) {
-        setComparisonPredictions(response.data.predictions);
-        setShowComparison(true);
+        const predictions = response.data.predictions;
+        if (predictions.length === 0) {
+          setError("No predictions found. Please calculate predictions for at least one job opportunity first.");
+          setShowComparison(false);
+        } else {
+          setComparisonPredictions(predictions);
+          setShowComparison(true);
+        }
       } else {
-        setError(response.error?.message || "Failed to compare predictions");
+        const errorMsg = response.error?.message || response.error?.detail || "Failed to compare predictions";
+        setError(errorMsg);
+        setShowComparison(false);
       }
     } catch (err: any) {
       console.error("Failed to compare predictions:", err);
-      setError(err.message || "Failed to compare predictions");
+      const errorMsg = err.detail || err.message || err.error?.message || "Failed to compare predictions";
+      setError(errorMsg);
+      setShowComparison(false);
     } finally {
       setIsLoading(false);
     }
@@ -155,12 +168,25 @@ export function InterviewPredictionTab({
         </div>
         {activeJobs.length >= 2 && (
           <button
-            onClick={handleCompare}
-            disabled={isLoading}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleCompare();
+            }}
+            disabled={isLoading || isCalculating}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
           >
-            <Icon icon="mingcute:chart-line" width={20} />
-            Compare All
+            {isLoading ? (
+              <>
+                <Icon icon="mingcute:loading-line" width={20} className="animate-spin" />
+                Comparing...
+              </>
+            ) : (
+              <>
+                <Icon icon="mingcute:chart-line" width={20} />
+                Compare All
+              </>
+            )}
           </button>
         )}
       </div>
@@ -215,27 +241,35 @@ export function InterviewPredictionTab({
             </button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {comparisonPredictions.map((comp) => (
-              <div
-                key={comp.jobOpportunityId}
-                className="border border-slate-200 rounded-lg p-4 hover:shadow-md transition"
-              >
-                <h4 className="font-semibold text-slate-900 mb-1">{comp.jobTitle}</h4>
-                <p className="text-sm text-slate-600 mb-3">{comp.company}</p>
-                <div className="flex items-center gap-2">
-                  <div
-                    className={`text-3xl font-bold ${getProbabilityColor(
-                      comp.prediction.predictedSuccessProbability
-                    )}`}
-                  >
-                    {Math.round(comp.prediction.predictedSuccessProbability)}%
-                  </div>
-                  <div className="text-xs text-slate-600">
-                    Confidence: {Math.round(comp.prediction.confidenceScore)}%
+            {comparisonPredictions.map((comp) => {
+              const prediction = comp.prediction || comp;
+              const probability = prediction.predictedSuccessProbability ?? prediction.predictedSuccessProbability ?? 0;
+              const confidence = prediction.confidenceScore ?? prediction.confidenceScore ?? 0;
+              
+              return (
+                <div
+                  key={comp.jobOpportunityId || comp.id}
+                  className="border border-slate-200 rounded-lg p-4 hover:shadow-md transition"
+                >
+                  <h4 className="font-semibold text-slate-900 mb-1">
+                    {comp.jobTitle || "Unknown Position"}
+                  </h4>
+                  <p className="text-sm text-slate-600 mb-3">
+                    {comp.company || "Unknown Company"}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`text-3xl font-bold ${getProbabilityColor(probability)}`}
+                    >
+                      {Math.round(probability)}%
+                    </div>
+                    <div className="text-xs text-slate-600">
+                      Confidence: {Math.round(confidence)}%
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

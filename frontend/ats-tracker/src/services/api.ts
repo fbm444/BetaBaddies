@@ -1408,6 +1408,14 @@ class ApiService {
     });
   }
 
+  async deleteSalaryProgressionEntry(entryId: string) {
+    return this.request<
+      ApiResponse<{ message: string }>
+    >(`/salary-negotiations/progression/entry/${entryId}`, {
+      method: "DELETE",
+    });
+  }
+
   // ============================================
   // Writing Practice API Methods
   // ============================================

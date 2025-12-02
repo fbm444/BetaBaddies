@@ -454,26 +454,57 @@ class InterviewPredictionService {
     try {
       const placeholders = jobOpportunityIds.map((_, i) => `$${i + 2}`).join(",");
       const result = await database.query(
-        `SELECT * FROM interview_success_predictions
-         WHERE user_id = $1 AND job_opportunity_id IN (${placeholders})
-         ORDER BY predicted_success_probability DESC`,
+        `SELECT 
+          p.*,
+          jo.title AS job_title,
+          jo.company AS company
+         FROM interview_success_predictions p
+         INNER JOIN job_opportunities jo ON p.job_opportunity_id = jo.id
+         WHERE p.user_id = $1 AND p.job_opportunity_id IN (${placeholders})
+         ORDER BY p.predicted_success_probability DESC`,
         [userId, ...jobOpportunityIds]
       );
 
-      return result.rows.map((row) => ({
-        id: row.id,
-        jobOpportunityId: row.job_opportunity_id,
-        predictedSuccessProbability: parseFloat(row.predicted_success_probability),
-        confidenceScore: parseFloat(row.confidence_score),
-        preparationScore: parseFloat(row.preparation_score),
-        roleMatchScore: parseFloat(row.role_match_score),
-        companyResearchScore: parseFloat(row.company_research_score),
-        practiceHoursScore: parseFloat(row.practice_hours_score),
-        historicalPerformanceScore: parseFloat(row.historical_performance_score),
-        factorsBreakdown: row.factors_breakdown || {},
-        recommendations: row.recommendations || [],
-        calculatedAt: row.calculated_at,
-      }));
+      return result.rows.map((row) => {
+        // Parse JSON fields if they're strings
+        let factorsBreakdown = row.factors_breakdown;
+        let recommendations = row.recommendations;
+        
+        if (typeof factorsBreakdown === 'string') {
+          try {
+            factorsBreakdown = JSON.parse(factorsBreakdown);
+          } catch (e) {
+            factorsBreakdown = {};
+          }
+        }
+        
+        if (typeof recommendations === 'string') {
+          try {
+            recommendations = JSON.parse(recommendations);
+          } catch (e) {
+            recommendations = [];
+          }
+        }
+
+        return {
+          id: row.id,
+          jobOpportunityId: row.job_opportunity_id,
+          jobTitle: row.job_title || "Unknown Position",
+          company: row.company || "Unknown Company",
+          prediction: {
+            predictedSuccessProbability: parseFloat(row.predicted_success_probability),
+            confidenceScore: parseFloat(row.confidence_score),
+            preparationScore: parseFloat(row.preparation_score),
+            roleMatchScore: parseFloat(row.role_match_score),
+            companyResearchScore: parseFloat(row.company_research_score),
+            practiceHoursScore: parseFloat(row.practice_hours_score),
+            historicalPerformanceScore: parseFloat(row.historical_performance_score),
+            factorsBreakdown: factorsBreakdown || {},
+            recommendations: recommendations || [],
+          },
+          calculatedAt: row.calculated_at,
+        };
+      });
     } catch (error) {
       console.error("❌ Error comparing predictions:", error);
       throw error;

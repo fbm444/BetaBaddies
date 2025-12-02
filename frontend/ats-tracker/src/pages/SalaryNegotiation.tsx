@@ -42,6 +42,8 @@ export function SalaryNegotiation() {
   const [employmentJobs, setEmploymentJobs] = useState<JobData[]>([]);
   const [loadingProgression, setLoadingProgression] = useState(false);
   const [showAddProgressionModal, setShowAddProgressionModal] = useState(false);
+  const [deleteProgressionEntryId, setDeleteProgressionEntryId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Form state for creating negotiation
   const [formData, setFormData] = useState({
@@ -160,6 +162,28 @@ export function SalaryNegotiation() {
       setEmploymentJobs([]);
     } finally {
       setLoadingProgression(false);
+    }
+  };
+
+  const handleDeleteProgressionEntry = async () => {
+    if (!deleteProgressionEntryId) return;
+
+    try {
+      setIsDeleting(true);
+      const response = await api.deleteSalaryProgressionEntry(deleteProgressionEntryId);
+      if (response.ok) {
+        setSuccessMessage("Salary progression entry deleted successfully");
+        setTimeout(() => setSuccessMessage(null), 3000);
+        setDeleteProgressionEntryId(null);
+        await fetchProgression();
+      } else {
+        setError("Failed to delete entry");
+      }
+    } catch (err: any) {
+      console.error("Failed to delete progression entry:", err);
+      setError(err.message || "Failed to delete entry");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -973,25 +997,42 @@ export function SalaryNegotiation() {
                               <div className="flex-1 min-w-0">
                                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
                                   <div className="flex-1">
-                                    <h4 className={`font-bold text-lg mb-1 ${
-                                      isLatest ? "text-blue-900" : "text-slate-900"
-                                    }`}>
-                                      {item.roleTitle} @ {item.company}
-                                    </h4>
-                                    <div className="flex items-center gap-3 flex-wrap">
-                                      <p className="text-sm text-slate-600 flex items-center gap-1">
-                                        <Icon icon="mingcute:calendar-line" width={14} />
-                                        {new Date(item.date).toLocaleDateString("en-US", {
-                                          year: "numeric",
-                                          month: "long",
-                                          day: "numeric",
-                                        })}
-                                      </p>
-                                      {item.location && (
-                                        <p className="text-xs text-slate-500 flex items-center gap-1">
-                                          <Icon icon="mingcute:map-pin-line" width={14} />
-                                          {item.location}
-                                        </p>
+                                    <div className="flex items-start justify-between gap-3">
+                                      <div className="flex-1">
+                                        <h4 className={`font-bold text-lg mb-1 ${
+                                          isLatest ? "text-blue-900" : "text-slate-900"
+                                        }`}>
+                                          {item.roleTitle} @ {item.company}
+                                        </h4>
+                                        <div className="flex items-center gap-3 flex-wrap">
+                                          <p className="text-sm text-slate-600 flex items-center gap-1">
+                                            <Icon icon="mingcute:calendar-line" width={14} />
+                                            {new Date(item.date).toLocaleDateString("en-US", {
+                                              year: "numeric",
+                                              month: "long",
+                                              day: "numeric",
+                                            })}
+                                          </p>
+                                          {item.location && (
+                                            <p className="text-xs text-slate-500 flex items-center gap-1">
+                                              <Icon icon="mingcute:map-pin-line" width={14} />
+                                              {item.location}
+                                            </p>
+                                          )}
+                                        </div>
+                                      </div>
+                                      {/* Delete button - only show for progression entries */}
+                                      {item.source === "progression" && (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setDeleteProgressionEntryId(item.id);
+                                          }}
+                                          className="flex-shrink-0 text-slate-400 hover:text-red-500 transition-colors p-1 rounded hover:bg-red-50"
+                                          title="Delete entry"
+                                        >
+                                          <Icon icon="mingcute:close-line" width={20} height={20} />
+                                        </button>
                                       )}
                                     </div>
                                   </div>
@@ -1427,6 +1468,65 @@ export function SalaryNegotiation() {
             showMessage("Progression entry added successfully!", "success");
           }}
         />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteProgressionEntryId && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-xl">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                  <Icon icon="mingcute:alert-line" width={24} className="text-red-600" />
+                </div>
+                <h2 className="text-2xl font-bold text-slate-900">Delete Entry</h2>
+              </div>
+              <button
+                onClick={() => setDeleteProgressionEntryId(null)}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+                disabled={isDeleting}
+              >
+                <Icon icon="mingcute:close-line" width={24} />
+              </button>
+            </div>
+
+            <div className="mb-6">
+              <p className="text-slate-700 mb-2">
+                Are you sure you want to delete this salary progression entry?
+              </p>
+              <p className="text-sm text-slate-500">
+                This action cannot be undone. The entry will be permanently removed from your salary progression history.
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteProgressionEntryId(null)}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-3 border border-slate-300 text-slate-700 rounded-lg font-medium hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteProgressionEntry}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-3 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isDeleting ? (
+                  <>
+                    <Icon icon="mingcute:loading-line" width={20} className="animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Icon icon="mingcute:delete-line" width={20} />
+                    Delete
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

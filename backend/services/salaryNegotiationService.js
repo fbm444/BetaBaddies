@@ -561,6 +561,28 @@ class SalaryNegotiationService {
     }
   }
 
+  // Delete salary progression entry
+  async deleteSalaryProgressionEntry(userId, entryId) {
+    try {
+      const query = `
+        DELETE FROM salary_progression_history
+        WHERE id = $1 AND user_id = $2
+        RETURNING id
+      `;
+
+      const result = await database.query(query, [entryId, userId]);
+
+      if (result.rows.length === 0) {
+        throw new Error("Salary progression entry not found or access denied");
+      }
+
+      return true;
+    } catch (error) {
+      console.error("❌ Error deleting salary progression entry:", error);
+      throw error;
+    }
+  }
+
   // Map database row to negotiation object
   mapRowToNegotiation(row) {
     return {

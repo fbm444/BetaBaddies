@@ -182,28 +182,62 @@ export function Interviews() {
   const fetchUpcomingReminders = async () => {
     setLoadingReminders(true);
     try {
+      console.log("🔔 Fetching reminders. Total interviews:", interviews.length);
+      
       // Fetch reminders for all upcoming interviews
+      // Also include interviews that might have reminders even if past (to show sent reminders)
       const upcomingInterviews = interviews.filter((interview) => {
-        if (!interview.scheduledAt) return false;
+        if (!interview.scheduledAt) {
+          console.log(`⏭️ Skipping interview ${interview.id}: no scheduledAt`);
+          return false;
+        }
         const interviewDate = new Date(interview.scheduledAt);
         const now = new Date();
-        return interviewDate > now && interview.status === "scheduled";
+        const isUpcoming = interviewDate > now;
+        const isScheduled = interview.status === "scheduled";
+        
+        console.log(`📅 Interview ${interview.id}: scheduledAt=${interview.scheduledAt}, status=${interview.status}, isUpcoming=${isUpcoming}, isScheduled=${isScheduled}`);
+        
+        // Include scheduled interviews that are upcoming OR have reminders
+        return isScheduled && isUpcoming;
       });
+
+      console.log(`✅ Found ${upcomingInterviews.length} upcoming scheduled interviews`);
 
       const allReminders: any[] = [];
       for (const interview of upcomingInterviews) {
         try {
+          console.log(`🔍 Fetching reminders for interview ${interview.id} (${interview.title || interview.company})`);
           const response = await api.getRemindersForInterview(interview.id);
+          console.log(`📬 Response for interview ${interview.id}:`, response);
+          
           if (response.ok && response.data?.reminders) {
-            const reminders = response.data.reminders
-              .filter((r: any) => r.status === "pending")
+            const allRemindersForInterview = response.data.reminders;
+            console.log(`📋 Found ${allRemindersForInterview.length} total reminders for interview ${interview.id}`);
+            
+            // Filter for pending reminders that are in the future
+            const now = new Date();
+            const pendingReminders = allRemindersForInterview
+              .filter((r: any) => {
+                const isPending = r.status === "pending";
+                const reminderTime = new Date(r.scheduledAt);
+                const isFuture = reminderTime > now;
+                console.log(`  Reminder ${r.id}: type=${r.reminderType}, status=${r.status}, scheduledAt=${r.scheduledAt}, isPending=${isPending}, isFuture=${isFuture}`);
+                return isPending && isFuture;
+              })
               .map((r: any) => ({ ...r, interview }));
-            allReminders.push(...reminders);
+            
+            console.log(`✅ Adding ${pendingReminders.length} pending future reminders for interview ${interview.id}`);
+            allReminders.push(...pendingReminders);
+          } else {
+            console.warn(`⚠️ No reminders found for interview ${interview.id} or response not ok:`, response);
           }
         } catch (err) {
-          console.error(`Failed to fetch reminders for interview ${interview.id}:`, err);
+          console.error(`❌ Failed to fetch reminders for interview ${interview.id}:`, err);
         }
       }
+
+      console.log(`🎯 Total reminders collected: ${allReminders.length}`);
 
       // Sort by scheduledAt
       allReminders.sort((a, b) => 
@@ -211,7 +245,7 @@ export function Interviews() {
       );
       setUpcomingReminders(allReminders);
     } catch (err: any) {
-      console.error("Failed to fetch reminders:", err);
+      console.error("❌ Failed to fetch reminders:", err);
     } finally {
       setLoadingReminders(false);
     }

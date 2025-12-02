@@ -187,8 +187,8 @@ async function createTestUser() {
     const jobs = [
       {
         title: "Senior Software Engineer",
-        company: "TechCorp Inc.",
-        location: "San Francisco, CA",
+        company: "LinkedIn",
+        location: "Sunnyvale, CA",
         start_date: "2020-03-01",
         end_date: null,
         is_current: true,
@@ -197,7 +197,7 @@ async function createTestUser() {
       },
       {
         title: "Software Engineer",
-        company: "StartupXYZ",
+        company: "Twitch",
         location: "San Francisco, CA",
         start_date: "2018-06-01",
         end_date: "2020-02-28",
@@ -366,7 +366,7 @@ async function createTestUser() {
     }
     console.log(`   ✓ Added ${certifications.length} certifications`);
 
-    // Step 8: Create job opportunities (needed for interviews) - Using real MAANG companies
+    // Step 8: Create job opportunities (needed for interviews) - Using big-name tech companies, no duplicates
     console.log("\n📝 Step 8: Creating job opportunities with recruiter data...");
     const jobOpportunities = [
       {
@@ -374,7 +374,7 @@ async function createTestUser() {
         company: "Meta",
         location: "Menlo Park, CA",
         industry: "Technology",
-        status: "Offer", // Changed to Offer for salary negotiation testing
+        status: "Offer",
         salary_min: 180000,
         salary_max: 250000,
         recruiter_name: "Sarah Johnson",
@@ -386,7 +386,7 @@ async function createTestUser() {
         company: "Amazon",
         location: "Seattle, WA",
         industry: "Technology",
-        status: "Offer", // Changed to Offer for salary negotiation testing
+        status: "Offer",
         salary_min: 175000,
         salary_max: 240000,
         recruiter_name: "Michael Chen",
@@ -398,7 +398,7 @@ async function createTestUser() {
         company: "Apple",
         location: "Cupertino, CA",
         industry: "Technology",
-        status: "Offer", // Changed to Offer for salary negotiation testing
+        status: "Offer",
         salary_min: 190000,
         salary_max: 260000,
         recruiter_name: "Emily Rodriguez",
@@ -441,6 +441,126 @@ async function createTestUser() {
         recruiter_email: "robert.martinez@microsoft.com",
         recruiter_phone: "+1 (425) 555-0223",
       },
+      {
+        title: "Senior Software Engineer",
+        company: "Salesforce",
+        location: "San Francisco, CA",
+        industry: "Technology",
+        status: "Interview",
+        salary_min: 180000,
+        salary_max: 250000,
+        recruiter_name: "Alex Thompson",
+        recruiter_email: "alex.thompson@salesforce.com",
+        recruiter_phone: "+1 (415) 555-0245",
+      },
+      {
+        title: "Software Engineer",
+        company: "Oracle",
+        location: "Austin, TX",
+        industry: "Technology",
+        status: "Interview",
+        salary_min: 175000,
+        salary_max: 240000,
+        recruiter_name: "Priya Patel",
+        recruiter_email: "priya.patel@oracle.com",
+        recruiter_phone: "+1 (512) 555-0267",
+      },
+      {
+        title: "Senior Software Engineer",
+        company: "Adobe",
+        location: "San Jose, CA",
+        industry: "Technology",
+        status: "Interview",
+        salary_min: 190000,
+        salary_max: 260000,
+        recruiter_name: "James Wilson",
+        recruiter_email: "james.wilson@adobe.com",
+        recruiter_phone: "+1 (408) 555-0289",
+      },
+      {
+        title: "Senior Software Engineer",
+        company: "Nvidia",
+        location: "Santa Clara, CA",
+        industry: "Technology",
+        status: "Interview",
+        salary_min: 200000,
+        salary_max: 280000,
+        recruiter_name: "Maria Garcia",
+        recruiter_email: "maria.garcia@nvidia.com",
+        recruiter_phone: "+1 (408) 555-0301",
+      },
+      {
+        title: "Software Engineer",
+        company: "Uber",
+        location: "San Francisco, CA",
+        industry: "Technology",
+        status: "Interview",
+        salary_min: 185000,
+        salary_max: 255000,
+        recruiter_name: "Chris Anderson",
+        recruiter_email: "chris.anderson@uber.com",
+        recruiter_phone: "+1 (415) 555-0323",
+      },
+      {
+        title: "Senior Backend Engineer",
+        company: "Stripe",
+        location: "San Francisco, CA",
+        industry: "Technology",
+        status: "Interview",
+        salary_min: 175000,
+        salary_max: 245000,
+        recruiter_name: "Amanda Lee",
+        recruiter_email: "amanda.lee@stripe.com",
+        recruiter_phone: "+1 (415) 555-0345",
+      },
+      {
+        title: "Senior Software Engineer",
+        company: "Airbnb",
+        location: "San Francisco, CA",
+        industry: "Technology",
+        status: "Interview",
+        salary_min: 190000,
+        salary_max: 260000,
+        recruiter_name: "Jennifer Martinez",
+        recruiter_email: "jennifer.martinez@airbnb.com",
+        recruiter_phone: "+1 (415) 555-0367",
+      },
+      {
+        title: "Software Engineer",
+        company: "Palantir",
+        location: "Palo Alto, CA",
+        industry: "Technology",
+        status: "Interview",
+        salary_min: 195000,
+        salary_max: 270000,
+        recruiter_name: "David Taylor",
+        recruiter_email: "david.taylor@palantir.com",
+        recruiter_phone: "+1 (650) 555-0389",
+      },
+      {
+        title: "Senior Software Engineer",
+        company: "Databricks",
+        location: "San Francisco, CA",
+        industry: "Technology",
+        status: "Interview",
+        salary_min: 200000,
+        salary_max: 275000,
+        recruiter_name: "Lisa Wang",
+        recruiter_email: "lisa.wang@databricks.com",
+        recruiter_phone: "+1 (415) 555-0401",
+      },
+      {
+        title: "Software Engineer",
+        company: "Snowflake",
+        location: "San Mateo, CA",
+        industry: "Technology",
+        status: "Interview",
+        salary_min: 185000,
+        salary_max: 250000,
+        recruiter_name: "Robert Chen",
+        recruiter_email: "robert.chen@snowflake.com",
+        recruiter_phone: "+1 (650) 555-0423",
+      },
     ];
 
     const jobOppIds = [];
@@ -475,7 +595,7 @@ async function createTestUser() {
     // First create some practice interviews
     const practiceInterviewsData = [
       {
-        jobOpportunityId: jobOppIds[0],
+        jobOpportunityId: jobOppIds[6], // Salesforce for practice
         interviewType: "video",
         format: "technical",
         scheduledAt: new Date(now.getTime() - 12 * 30 * 24 * 60 * 60 * 1000), // 12 months ago
@@ -485,7 +605,7 @@ async function createTestUser() {
         isPractice: true,
       },
       {
-        jobOpportunityId: jobOppIds[1],
+        jobOpportunityId: jobOppIds[7], // Oracle for practice
         interviewType: "video",
         format: "behavioral",
         scheduledAt: new Date(now.getTime() - 11.5 * 30 * 24 * 60 * 60 * 1000), // 11.5 months ago
@@ -496,7 +616,7 @@ async function createTestUser() {
       },
     ];
     
-    // Past completed interviews
+    // Past completed interviews - each company appears only once
     const pastInterviewsData = [
       {
         jobOpportunityId: jobOppIds[0], // Meta
@@ -509,7 +629,7 @@ async function createTestUser() {
         isPractice: false,
       },
       {
-        jobOpportunityId: jobOppIds[0], // Meta
+        jobOpportunityId: jobOppIds[1], // Amazon
         interviewType: "video",
         format: "technical",
         scheduledAt: new Date(now.getTime() - 10 * 30 * 24 * 60 * 60 * 1000), // 10 months ago
@@ -519,7 +639,7 @@ async function createTestUser() {
         isPractice: false,
       },
       {
-        jobOpportunityId: jobOppIds[0], // Meta
+        jobOpportunityId: jobOppIds[2], // Apple
         interviewType: "video",
         format: "behavioral",
         scheduledAt: new Date(now.getTime() - 9 * 30 * 24 * 60 * 60 * 1000), // 9 months ago
@@ -529,7 +649,7 @@ async function createTestUser() {
         isPractice: false,
       },
       {
-        jobOpportunityId: jobOppIds[1], // Amazon
+        jobOpportunityId: jobOppIds[3], // Netflix
         interviewType: "video",
         format: "technical",
         scheduledAt: new Date(now.getTime() - 8 * 30 * 24 * 60 * 60 * 1000), // 8 months ago
@@ -539,7 +659,7 @@ async function createTestUser() {
         isPractice: false,
       },
       {
-        jobOpportunityId: jobOppIds[1], // Amazon
+        jobOpportunityId: jobOppIds[4], // Google
         interviewType: "in-person",
         format: "on_site",
         scheduledAt: new Date(now.getTime() - 7 * 30 * 24 * 60 * 60 * 1000), // 7 months ago
@@ -549,7 +669,7 @@ async function createTestUser() {
         isPractice: false,
       },
       {
-        jobOpportunityId: jobOppIds[1], // Amazon
+        jobOpportunityId: jobOppIds[5], // Microsoft
         interviewType: "video",
         format: "system_design",
         scheduledAt: new Date(now.getTime() - 6 * 30 * 24 * 60 * 60 * 1000), // 6 months ago
@@ -559,7 +679,7 @@ async function createTestUser() {
         isPractice: false,
       },
       {
-        jobOpportunityId: jobOppIds[2], // Apple
+        jobOpportunityId: jobOppIds[6], // Salesforce
         interviewType: "video",
         format: "technical",
         scheduledAt: new Date(now.getTime() - 5 * 30 * 24 * 60 * 60 * 1000), // 5 months ago
@@ -569,7 +689,7 @@ async function createTestUser() {
         isPractice: false,
       },
       {
-        jobOpportunityId: jobOppIds[2], // Apple
+        jobOpportunityId: jobOppIds[7], // Oracle
         interviewType: "video",
         format: "behavioral",
         scheduledAt: new Date(now.getTime() - 4 * 30 * 24 * 60 * 60 * 1000), // 4 months ago
@@ -579,7 +699,7 @@ async function createTestUser() {
         isPractice: false,
       },
       {
-        jobOpportunityId: jobOppIds[3], // Netflix
+        jobOpportunityId: jobOppIds[8], // Adobe
         interviewType: "video",
         format: "phone_screen",
         scheduledAt: new Date(now.getTime() - 3 * 30 * 24 * 60 * 60 * 1000), // 3 months ago
@@ -589,7 +709,7 @@ async function createTestUser() {
         isPractice: false,
       },
       {
-        jobOpportunityId: jobOppIds[3], // Netflix
+        jobOpportunityId: jobOppIds[9], // Nvidia
         interviewType: "video",
         format: "technical",
         scheduledAt: new Date(now.getTime() - 2 * 30 * 24 * 60 * 60 * 1000), // 2 months ago
@@ -599,7 +719,7 @@ async function createTestUser() {
         isPractice: false,
       },
       {
-        jobOpportunityId: jobOppIds[4], // Google
+        jobOpportunityId: jobOppIds[10], // Uber
         interviewType: "video",
         format: "hirevue",
         scheduledAt: new Date(now.getTime() - 1 * 30 * 24 * 60 * 60 * 1000), // 1 month ago
@@ -610,10 +730,25 @@ async function createTestUser() {
       },
     ];
     
-    // Future scheduled interviews with real companies
+    // Future scheduled interviews - each company appears only once
     const scheduledInterviewsData = [
       {
-        jobOpportunityId: jobOppIds[0], // Meta - Technical Round
+        jobOpportunityId: jobOppIds[11], // Stripe - Technical Interview
+        interviewType: "video",
+        format: "technical",
+        scheduledAt: new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000), // 2 days from now
+        duration: 60,
+        status: "scheduled",
+        outcome: "pending",
+        isPractice: false,
+        interviewerName: "Chris Anderson",
+        interviewerEmail: "chris.anderson@stripe.com",
+        interviewerTitle: "Senior Software Engineer",
+        videoLink: "https://stripe.zoom.us/j/meetup-join/123",
+        notes: "Technical interview focusing on problem-solving and code quality.",
+      },
+      {
+        jobOpportunityId: jobOppIds[12], // Airbnb - Technical Round
         interviewType: "video",
         format: "technical",
         scheduledAt: new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000), // 3 days from now
@@ -622,205 +757,55 @@ async function createTestUser() {
         outcome: "pending",
         isPractice: false,
         interviewerName: "John Smith",
-        interviewerEmail: "john.smith@meta.com",
+        interviewerEmail: "john.smith@airbnb.com",
         interviewerTitle: "Senior Engineering Manager",
-        videoLink: "https://meet.meta.com/interview-room-123",
-        notes: "Focus on system design and algorithms. Review Meta's engineering blog.",
+        videoLink: "https://airbnb.zoom.us/j/interview-room-123",
+        notes: "Focus on system design and algorithms. Review Airbnb's engineering blog.",
       },
       {
-        jobOpportunityId: jobOppIds[0], // Meta - System Design Round
-        interviewType: "video",
-        format: "system_design",
-        scheduledAt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000), // 1 week from now
-        duration: 90,
-        status: "scheduled",
-        outcome: "pending",
-        isPractice: false,
-        interviewerName: "Sarah Johnson",
-        interviewerEmail: "sarah.j@meta.com",
-        interviewerTitle: "Staff Engineer",
-        videoLink: "https://meet.meta.com/interview-room-456",
-        notes: "Prepare for large-scale system design. Review distributed systems concepts.",
-      },
-      {
-        jobOpportunityId: jobOppIds[1], // Amazon - Phone Screen
+        jobOpportunityId: jobOppIds[13], // Palantir - Phone Screen
         interviewType: "phone",
         format: "phone_screen",
-        scheduledAt: new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
+        scheduledAt: new Date(now.getTime() + 4 * 24 * 60 * 60 * 1000), // 4 days from now
         duration: 30,
         status: "scheduled",
         outcome: "pending",
         isPractice: false,
         interviewerName: "Michael Chen",
-        interviewerEmail: "mchen@amazon.com",
+        interviewerEmail: "mchen@palantir.com",
         interviewerTitle: "Recruiter",
-        phoneNumber: "+1-206-555-0123",
+        phoneNumber: "+1-650-555-0123",
         notes: "Initial screening call. Be ready to discuss background and motivation.",
       },
       {
-        jobOpportunityId: jobOppIds[1], // Amazon - Technical Round 1
+        jobOpportunityId: jobOppIds[14], // Databricks - Technical Interview
         interviewType: "video",
         format: "technical",
-        scheduledAt: new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000), // 10 days from now
+        scheduledAt: new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
         duration: 60,
         status: "scheduled",
         outcome: "pending",
         isPractice: false,
         interviewerName: "Emily Rodriguez",
-        interviewerEmail: "erodriguez@amazon.com",
+        interviewerEmail: "erodriguez@databricks.com",
         interviewerTitle: "Software Development Manager",
-        videoLink: "https://chime.aws.com/interview-789",
+        videoLink: "https://databricks.zoom.us/j/interview-789",
         notes: "Coding interview. Focus on data structures and algorithms. Review LeetCode.",
       },
       {
-        jobOpportunityId: jobOppIds[2], // Apple - Technical Interview
+        jobOpportunityId: jobOppIds[15], // Snowflake - System Design
         interviewType: "video",
-        format: "technical",
+        format: "system_design",
         scheduledAt: new Date(now.getTime() + 6 * 24 * 60 * 60 * 1000), // 6 days from now
-        duration: 60,
+        duration: 90,
         status: "scheduled",
         outcome: "pending",
         isPractice: false,
         interviewerName: "David Kim",
-        interviewerEmail: "david.kim@apple.com",
+        interviewerEmail: "david.kim@snowflake.com",
         interviewerTitle: "Senior Software Engineer",
-        videoLink: "https://apple.zoom.us/j/interview-abc",
-        notes: "Technical deep dive. Review iOS/macOS development if relevant.",
-      },
-      {
-        jobOpportunityId: jobOppIds[2], // Apple - On-site (Virtual)
-        interviewType: "video",
-        format: "on_site",
-        scheduledAt: new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000), // 2 weeks from now
-        duration: 240,
-        status: "scheduled",
-        outcome: "pending",
-        isPractice: false,
-        interviewerName: "Lisa Wang",
-        interviewerEmail: "lisa.wang@apple.com",
-        interviewerTitle: "Engineering Director",
-        videoLink: "https://apple.zoom.us/j/onsite-xyz",
-        notes: "Full day virtual on-site. Multiple rounds: technical, behavioral, system design.",
-      },
-      {
-        jobOpportunityId: jobOppIds[3], // Netflix - Technical Round
-        interviewType: "video",
-        format: "technical",
-        scheduledAt: new Date(now.getTime() + 4 * 24 * 60 * 60 * 1000), // 4 days from now
-        duration: 60,
-        status: "scheduled",
-        outcome: "pending",
-        isPractice: false,
-        interviewerName: "Robert Taylor",
-        interviewerEmail: "rtaylor@netflix.com",
-        interviewerTitle: "Senior Engineer",
-        videoLink: "https://netflix.zoom.us/j/tech-123",
-        notes: "Focus on scalability and performance. Review Netflix tech blog.",
-      },
-      {
-        jobOpportunityId: jobOppIds[3], // Netflix - System Design
-        interviewType: "video",
-        format: "system_design",
-        scheduledAt: new Date(now.getTime() + 12 * 24 * 60 * 60 * 1000), // 12 days from now
-        duration: 90,
-        status: "scheduled",
-        outcome: "pending",
-        isPractice: false,
-        interviewerName: "Jennifer Martinez",
-        interviewerEmail: "jmartinez@netflix.com",
-        interviewerTitle: "Principal Engineer",
-        videoLink: "https://netflix.zoom.us/j/system-456",
-        notes: "Design a scalable video streaming system. Review distributed systems patterns.",
-      },
-      {
-        jobOpportunityId: jobOppIds[4], // Google - Technical Phone Screen
-        interviewType: "phone",
-        format: "phone_screen",
-        scheduledAt: new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000), // 2 days from now
-        duration: 45,
-        status: "scheduled",
-        outcome: "pending",
-        isPractice: false,
-        interviewerName: "Alex Thompson",
-        interviewerEmail: "alex.thompson@google.com",
-        interviewerTitle: "Recruiter",
-        phoneNumber: "+1-650-555-0456",
-        notes: "Initial technical screening. Prepare for coding questions.",
-      },
-      {
-        jobOpportunityId: jobOppIds[4], // Google - Technical Round 1
-        interviewType: "video",
-        format: "technical",
-        scheduledAt: new Date(now.getTime() + 9 * 24 * 60 * 60 * 1000), // 9 days from now
-        duration: 60,
-        status: "scheduled",
-        outcome: "pending",
-        isPractice: false,
-        interviewerName: "Priya Patel",
-        interviewerEmail: "priya.patel@google.com",
-        interviewerTitle: "Software Engineer L5",
-        videoLink: "https://meet.google.com/abc-defg-hij",
-        notes: "Coding interview. Focus on algorithms and problem-solving. Review Google's interview prep guide.",
-      },
-      {
-        jobOpportunityId: jobOppIds[4], // Google - Technical Round 2
-        interviewType: "video",
-        format: "technical",
-        scheduledAt: new Date(now.getTime() + 11 * 24 * 60 * 60 * 1000), // 11 days from now
-        duration: 60,
-        status: "scheduled",
-        outcome: "pending",
-        isPractice: false,
-        interviewerName: "James Wilson",
-        interviewerEmail: "jwilson@google.com",
-        interviewerTitle: "Senior Software Engineer",
-        videoLink: "https://meet.google.com/xyz-uvwx-rst",
-        notes: "Second technical round. May include system design elements.",
-      },
-      {
-        jobOpportunityId: jobOppIds[4], // Google - Behavioral Round
-        interviewType: "video",
-        format: "behavioral",
-        scheduledAt: new Date(now.getTime() + 13 * 24 * 60 * 60 * 1000), // 13 days from now
-        duration: 45,
-        status: "scheduled",
-        outcome: "pending",
-        isPractice: false,
-        interviewerName: "Maria Garcia",
-        interviewerEmail: "maria.garcia@google.com",
-        interviewerTitle: "Engineering Manager",
-        videoLink: "https://meet.google.com/beh-klmn-opq",
-        notes: "Behavioral interview. Prepare STAR method examples. Review Google's leadership principles.",
-      },
-      {
-        jobOpportunityId: jobOppIds[5], // Microsoft - Technical Interview
-        interviewType: "video",
-        format: "technical",
-        scheduledAt: new Date(now.getTime() + 8 * 24 * 60 * 60 * 1000), // 8 days from now
-        duration: 60,
-        status: "scheduled",
-        outcome: "pending",
-        isPractice: false,
-        interviewerName: "Chris Anderson",
-        interviewerEmail: "chris.anderson@microsoft.com",
-        interviewerTitle: "Senior Software Engineer",
-        videoLink: "https://teams.microsoft.com/l/meetup-join/123",
-        notes: "Technical interview focusing on problem-solving and code quality.",
-      },
-      {
-        jobOpportunityId: jobOppIds[5], // Microsoft - System Design
-        interviewType: "video",
-        format: "system_design",
-        scheduledAt: new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000), // 15 days from now
-        duration: 90,
-        status: "scheduled",
-        outcome: "pending",
-        isPractice: false,
-        interviewerName: "Amanda Lee",
-        interviewerEmail: "amanda.lee@microsoft.com",
-        interviewerTitle: "Principal Software Engineer",
-        videoLink: "https://teams.microsoft.com/l/meetup-join/456",
-        notes: "System design interview. Review Azure architecture and distributed systems.",
+        videoLink: "https://snowflake.zoom.us/j/interview-abc",
+        notes: "System design interview. Review cloud data architecture and distributed systems.",
       },
     ];
     
@@ -971,41 +956,41 @@ async function createTestUser() {
       // Past Interview 0 (11 months ago) - Meta Phone screen - Offer
       { interviewId: interviewIds[practiceCountForFeedback + 0], skillArea: "behavioral", score: 55 },
       
-      // Past Interview 1 (10 months ago) - Meta Technical - Passed
+      // Past Interview 1 (10 months ago) - Amazon Technical - Passed
       { interviewId: interviewIds[practiceCountForFeedback + 1], skillArea: "algorithms", score: 60 },
       { interviewId: interviewIds[practiceCountForFeedback + 1], skillArea: "system_design", score: 65 },
       
-      // Past Interview 2 (9 months ago) - Meta Behavioral - Offer
+      // Past Interview 2 (9 months ago) - Apple Behavioral - Offer
       { interviewId: interviewIds[practiceCountForFeedback + 2], skillArea: "behavioral", score: 65 },
       
-      // Past Interview 3 (8 months ago) - Amazon Technical - Passed
+      // Past Interview 3 (8 months ago) - Netflix Technical - Passed
       { interviewId: interviewIds[practiceCountForFeedback + 3], skillArea: "algorithms", score: 70 },
       { interviewId: interviewIds[practiceCountForFeedback + 3], skillArea: "apis", score: 75 },
       
-      // Past Interview 4 (7 months ago) - Amazon On-site - Rejected (lower scores)
+      // Past Interview 4 (7 months ago) - Google On-site - Rejected (lower scores)
       { interviewId: interviewIds[practiceCountForFeedback + 4], skillArea: "behavioral", score: 45 },
       { interviewId: interviewIds[practiceCountForFeedback + 4], skillArea: "system_design", score: 50 },
       { interviewId: interviewIds[practiceCountForFeedback + 4], skillArea: "time_management", score: 40 },
       
-      // Past Interview 5 (6 months ago) - Amazon System design - Rejected
+      // Past Interview 5 (6 months ago) - Microsoft System design - Rejected
       { interviewId: interviewIds[practiceCountForFeedback + 5], skillArea: "system_design", score: 55 },
       
-      // Past Interview 6 (5 months ago) - Apple Technical - Offer (better scores)
+      // Past Interview 6 (5 months ago) - Salesforce Technical - Offer (better scores)
       { interviewId: interviewIds[practiceCountForFeedback + 6], skillArea: "algorithms", score: 80 },
       { interviewId: interviewIds[practiceCountForFeedback + 6], skillArea: "system_design", score: 75 },
       
-      // Past Interview 7 (4 months ago) - Apple Behavioral - Passed
+      // Past Interview 7 (4 months ago) - Oracle Behavioral - Passed
       { interviewId: interviewIds[practiceCountForFeedback + 7], skillArea: "behavioral", score: 75 },
       
-      // Past Interview 8 (3 months ago) - Netflix Phone screen - Passed
+      // Past Interview 8 (3 months ago) - Adobe Phone screen - Passed
       { interviewId: interviewIds[practiceCountForFeedback + 8], skillArea: "behavioral", score: 70 },
       
-      // Past Interview 9 (2 months ago) - Netflix Technical - Offer (great scores)
+      // Past Interview 9 (2 months ago) - Nvidia Technical - Offer (great scores)
       { interviewId: interviewIds[practiceCountForFeedback + 9], skillArea: "algorithms", score: 85 },
       { interviewId: interviewIds[practiceCountForFeedback + 9], skillArea: "system_design", score: 80 },
       { interviewId: interviewIds[practiceCountForFeedback + 9], skillArea: "apis", score: 85 },
       
-      // Past Interview 10 (1 month ago) - Google HireVue - Passed
+      // Past Interview 10 (1 month ago) - Uber HireVue - Passed
       { interviewId: interviewIds[practiceCountForFeedback + 10], skillArea: "behavioral", score: 80 },
       { interviewId: interviewIds[practiceCountForFeedback + 10], skillArea: "time_management", score: 75 },
     ];
@@ -1015,15 +1000,15 @@ async function createTestUser() {
       [interviewIds[practiceCountForFeedback + 0]]:
         "Great communication and clear explanation of experience with Meta",
       [interviewIds[practiceCountForFeedback + 1]]:
-        "Strong technical depth, excellent problem solving approach at Meta",
+        "Strong technical depth, excellent problem solving approach at Amazon",
       [interviewIds[practiceCountForFeedback + 4]]:
-        "Struggled with time management, nervous during Amazon on-site",
+        "Struggled with time management, nervous during Google on-site",
       [interviewIds[practiceCountForFeedback + 5]]:
-        "Needs improvement in system design, lack of preparation for Amazon",
+        "Needs improvement in system design, lack of preparation for Microsoft",
       [interviewIds[practiceCountForFeedback + 6]]:
-        "Outstanding code quality, confident and well-prepared for Apple",
+        "Outstanding code quality, confident and well-prepared for Salesforce",
       [interviewIds[practiceCountForFeedback + 9]]:
-        "Excellent algorithm knowledge, great communication clarity at Netflix",
+        "Excellent algorithm knowledge, great communication clarity at Nvidia",
     };
 
     for (const feedback of feedbackData) {
@@ -1063,9 +1048,9 @@ async function createTestUser() {
       { interviewId: pastRealInterviewIds[0], postConfidence: 70, postAnxiety: 35, feeling: "great", 
         whatWentWell: "Clear communication, good examples with Meta recruiter", whatToImprove: "Could be more concise" },
       { interviewId: pastRealInterviewIds[6], postConfidence: 85, postAnxiety: 25, feeling: "great",
-        whatWentWell: "Excellent preparation paid off at Apple", whatToImprove: "None, performed well" },
+        whatWentWell: "Excellent preparation paid off at Salesforce", whatToImprove: "None, performed well" },
       { interviewId: pastRealInterviewIds[9], postConfidence: 88, postAnxiety: 20, feeling: "great",
-        whatWentWell: "Strong technical performance at Netflix", whatToImprove: "Continue current approach" },
+        whatWentWell: "Strong technical performance at Nvidia", whatToImprove: "Continue current approach" },
     ];
     
     for (const reflection of postReflectionsData) {
@@ -1405,7 +1390,7 @@ async function createTestUser() {
         } else {
           // Interview response - more detailed
           const examples = [
-            `In my previous role at TechCorp, I had the opportunity to work on several challenging projects. ` +
+            `In my previous role at LinkedIn, I had the opportunity to work on several challenging projects. ` +
             `One example that comes to mind is when I led the development of a distributed system that needed ` +
             `to handle millions of requests per day. I collaborated closely with cross-functional teams, ` +
             `including product managers, designers, and other engineers, to understand requirements and ` +
@@ -1556,7 +1541,7 @@ async function createTestUser() {
 
 I am writing to express my strong interest in the Senior Software Engineer position at Meta. With over 5 years of experience in full-stack development and a passion for building scalable systems, I am excited about the opportunity to contribute to Meta's innovative products.
 
-In my current role at TechCorp, I have led the development of distributed systems serving millions of users, improved system performance by 40%, and mentored junior developers. My expertise in React, Node.js, and cloud architecture aligns perfectly with Meta's technology stack.
+In my current role at LinkedIn, I have led the development of distributed systems serving millions of users, improved system performance by 40%, and mentored junior developers. My expertise in React, Node.js, and cloud architecture aligns perfectly with Meta's technology stack.
 
 I am particularly drawn to Meta's mission of connecting people globally and would be thrilled to help shape the future of social technology.
 
@@ -1573,7 +1558,7 @@ Sarah Chen`,
 
 I am excited to apply for the Software Development Engineer II position at Amazon. Your commitment to innovation and customer obsession resonates deeply with my professional values.
 
-Throughout my career, I have focused on building reliable, scalable systems. At TechCorp, I designed and implemented microservices architecture that reduced latency by 35% and improved system reliability. My experience with AWS, distributed systems, and data structures would allow me to contribute meaningfully to Amazon's engineering culture.
+Throughout my career, I have focused on building reliable, scalable systems. At LinkedIn, I designed and implemented microservices architecture that reduced latency by 35% and improved system reliability. My experience with AWS, distributed systems, and data structures would allow me to contribute meaningfully to Amazon's engineering culture.
 
 I am eager to join a team that solves complex technical challenges while maintaining high standards of quality and customer focus.
 
@@ -1674,10 +1659,10 @@ Sarah Chen`,
         lastName: "Thompson",
         email: "alex.thompson@techcorp.com",
         phone: "+1 (415) 555-0100",
-        company: "TechCorp",
+        company: "LinkedIn",
         jobTitle: "Senior Software Engineer",
         industry: "Technology",
-        location: "San Francisco, CA",
+        location: "Sunnyvale, CA",
         relationshipType: "Colleague",
         relationshipStrength: "Strong",
         relationshipContext: "Former coworker from previous role",
@@ -1688,10 +1673,10 @@ Sarah Chen`,
         lastName: "Garcia",
         email: "maria.garcia@google.com",
         phone: "+1 (650) 555-0101",
-        company: "Google",
+        company: "Uber",
         jobTitle: "Engineering Manager",
         industry: "Technology",
-        location: "Mountain View, CA",
+        location: "San Francisco, CA",
         relationshipType: "Mentor",
         relationshipStrength: "Very Strong",
         relationshipContext: "Met at tech conference, became mentor",
@@ -1700,12 +1685,12 @@ Sarah Chen`,
       {
         firstName: "James",
         lastName: "Wilson",
-        email: "james.wilson@meta.com",
-        phone: "+1 (650) 555-0102",
-        company: "Meta",
+        email: "james.wilson@salesforce.com",
+        phone: "+1 (415) 555-0102",
+        company: "Salesforce",
         jobTitle: "Technical Recruiter",
         industry: "Technology",
-        location: "Menlo Park, CA",
+        location: "San Francisco, CA",
         relationshipType: "Recruiter",
         relationshipStrength: "Medium",
         relationshipContext: "Connected through LinkedIn",
@@ -1714,26 +1699,26 @@ Sarah Chen`,
       {
         firstName: "Priya",
         lastName: "Patel",
-        email: "priya.patel@amazon.com",
-        phone: "+1 (206) 555-0103",
-        company: "Amazon",
+        email: "priya.patel@oracle.com",
+        phone: "+1 (512) 555-0103",
+        company: "Oracle",
         jobTitle: "Software Development Manager",
         industry: "Technology",
-        location: "Seattle, WA",
+        location: "Austin, TX",
         relationshipType: "Industry Contact",
         relationshipStrength: "Weak",
-        relationshipContext: "Met at AWS conference",
+        relationshipContext: "Met at cloud computing conference",
         linkedinUrl: "https://linkedin.com/in/priyapatel",
       },
       {
         firstName: "Robert",
         lastName: "Chen",
-        email: "robert.chen@apple.com",
+        email: "robert.chen@adobe.com",
         phone: "+1 (408) 555-0104",
-        company: "Apple",
-        jobTitle: "Senior iOS Engineer",
+        company: "Adobe",
+        jobTitle: "Senior Software Engineer",
         industry: "Technology",
-        location: "Cupertino, CA",
+        location: "San Jose, CA",
         relationshipType: "College Classmate",
         relationshipStrength: "Strong",
         relationshipContext: "University computer science program",
@@ -1742,12 +1727,12 @@ Sarah Chen`,
       {
         firstName: "Lisa",
         lastName: "Anderson",
-        email: "lisa.anderson@netflix.com",
+        email: "lisa.anderson@nvidia.com",
         phone: "+1 (408) 555-0105",
-        company: "Netflix",
+        company: "Nvidia",
         jobTitle: "Backend Engineer",
         industry: "Technology",
-        location: "Los Gatos, CA",
+        location: "Santa Clara, CA",
         relationshipType: "Industry Contact",
         relationshipStrength: "Medium",
         relationshipContext: "Met through mutual connections",
@@ -1756,12 +1741,12 @@ Sarah Chen`,
       {
         firstName: "David",
         lastName: "Martinez",
-        email: "david.martinez@microsoft.com",
-        phone: "+1 (425) 555-0106",
-        company: "Microsoft",
+        email: "david.martinez@stripe.com",
+        phone: "+1 (415) 555-0106",
+        company: "Stripe",
         jobTitle: "Principal Software Engineer",
         industry: "Technology",
-        location: "Redmond, WA",
+        location: "San Francisco, CA",
         relationshipType: "Mentor",
         relationshipStrength: "Very Strong",
         relationshipContext: "Former manager, stayed in touch",
@@ -1814,16 +1799,16 @@ Sarah Chen`,
     }
     console.log(`   ✓ Created ${contactsData.length} professional contacts`);
     console.log(`     - Mix of recruiters, mentors, colleagues, and industry contacts`);
-    console.log(`     - Contacts from MAANG companies and other tech companies`);
+    console.log(`     - Contacts from top tech companies`);
 
     // Step 15.5: Create coffee chats with contacts
     console.log("\n📝 Step 15.5: Creating coffee chats with contacts...");
     const coffeeChatsData = [
       {
-        contactId: contactIds[1], // Maria Garcia at Google
+        contactId: contactIds[1], // Maria Garcia at Uber
         contactName: "Maria Garcia",
-        contactEmail: "maria.garcia@google.com",
-        contactCompany: "Google",
+        contactEmail: "maria.garcia@uber.com",
+        contactCompany: "Uber",
         contactTitle: "Engineering Manager",
         chatType: "coffee_chat",
         scheduledDate: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
@@ -1837,8 +1822,8 @@ Sarah Chen`,
       {
         contactId: contactIds[0], // Alex Thompson
         contactName: "Alex Thompson",
-        contactEmail: "alex.thompson@techcorp.com",
-        contactCompany: "TechCorp",
+        contactEmail: "alex.thompson@linkedin.com",
+        contactCompany: "LinkedIn",
         contactTitle: "Senior Software Engineer",
         chatType: "coffee_chat",
         scheduledDate: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
@@ -1853,18 +1838,18 @@ Sarah Chen`,
         notes: "Great conversation about distributed systems. Very helpful!",
       },
       {
-        contactId: contactIds[4], // Robert Chen at Apple
+        contactId: contactIds[4], // Robert Chen at Adobe
         contactName: "Robert Chen",
-        contactEmail: "robert.chen@apple.com",
-        contactCompany: "Apple",
-        contactTitle: "Senior iOS Engineer",
+        contactEmail: "robert.chen@adobe.com",
+        contactCompany: "Adobe",
+        contactTitle: "Senior Software Engineer",
         chatType: "informational",
         scheduledDate: new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000), // 14 days from now
         status: "upcoming",
         messageSent: false,
       },
       {
-        contactId: contactIds[2], // James Wilson - Meta recruiter
+        contactId: contactIds[2], // James Wilson - Salesforce recruiter
         contactName: "James Wilson",
         contactEmail: "james.wilson@meta.com",
         contactCompany: "Meta",
@@ -1936,7 +1921,7 @@ Sarah Chen`,
         subject: "Coffee Chat Request - Software Engineering Discussion",
         messageBody: `Hi Maria,
 
-I hope this message finds you well! I'm reaching out because I'd love to have a coffee chat to learn more about your experience as an Engineering Manager at Google and get some insights into the industry.
+I hope this message finds you well! I'm reaching out because I'd love to have a coffee chat to learn more about your experience as an Engineering Manager at Uber and get some insights into the industry.
 
 I'm currently exploring opportunities in software engineering and would really value your perspective. Would you be available for a virtual coffee chat next week?
 
@@ -1977,14 +1962,14 @@ Sarah Chen`,
         coffeeChatId: null,
         messageType: "coffee_chat",
         recipientName: "Priya Patel",
-        recipientEmail: "priya.patel@amazon.com",
+        recipientEmail: "priya.patel@oracle.com",
         recipientLinkedInUrl: "https://linkedin.com/in/priyapatel",
-        subject: "Networking - AWS Conference Connection",
+        subject: "Networking - Cloud Computing Conference Connection",
         messageBody: `Hi Priya,
 
-It was great meeting you at the AWS conference last month! I wanted to reach out and connect.
+It was great meeting you at the cloud computing conference last month! I wanted to reach out and connect.
 
-I'm currently exploring software engineering opportunities and would love to learn more about your experience at Amazon. Would you be open to a brief coffee chat?
+I'm currently exploring software engineering opportunities and would love to learn more about your experience at Oracle. Would you be open to a brief coffee chat?
 
 Best,
 Sarah Chen`,
@@ -1997,12 +1982,12 @@ Sarah Chen`,
         coffeeChatId: null,
         messageType: "referral_request",
         recipientName: "David Martinez",
-        recipientEmail: "david.martinez@microsoft.com",
+        recipientEmail: "david.martinez@stripe.com",
         recipientLinkedInUrl: "https://linkedin.com/in/davidmartinez",
-        subject: "Referral Request - Microsoft Opportunities",
+        subject: "Referral Request - Stripe Opportunities",
         messageBody: `Hi David,
 
-I hope you're doing well! I wanted to reach out because I saw a Senior Backend Engineer position at Microsoft that really interests me.
+I hope you're doing well! I wanted to reach out because I saw a Senior Backend Engineer position at Stripe that really interests me.
 
 Given our previous working relationship and your knowledge of my technical skills, I was wondering if you'd be comfortable providing a referral or introduction to the hiring manager.
 
@@ -2169,7 +2154,7 @@ Sarah Chen`,
     console.log(`   ✓ ${jobs.length} Jobs`);
     console.log(`   ✓ ${projects.length} Projects`);
     console.log(`   ✓ ${certifications.length} Certifications`);
-    console.log(`   ✓ ${jobOpportunities.length} Job Opportunities (Meta, Amazon, Apple, Netflix, Google, Microsoft)`);
+    console.log(`   ✓ ${jobOpportunities.length} Job Opportunities (MAANG + Salesforce, Oracle, Adobe, Nvidia, Uber, Stripe, Airbnb, Palantir, Databricks, Snowflake)`);
     console.log(`     - 3 with "Offer" status for salary negotiation testing`);
     console.log(`     - All with recruiter contact information`);
     console.log(`     - 3 linked to resumes and cover letters`);

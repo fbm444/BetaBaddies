@@ -1,4 +1,5 @@
 import reminderService from "../services/reminderService.js";
+import database from "../services/database.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 
 class ReminderController {
@@ -12,6 +13,21 @@ class ReminderController {
         ok: false,
         error: {
           message: "Unauthorized",
+        },
+      });
+    }
+
+    // Verify user owns the interview
+    const interviewCheck = await database.query(
+      `SELECT id FROM interviews WHERE id = $1 AND user_id = $2`,
+      [interviewId, userId]
+    );
+
+    if (interviewCheck.rows.length === 0) {
+      return res.status(404).json({
+        ok: false,
+        error: {
+          message: "Interview not found",
         },
       });
     }

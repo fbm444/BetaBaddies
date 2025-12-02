@@ -56,6 +56,9 @@ async function createTestUser() {
       await database.query("DELETE FROM salary_negotiations WHERE user_id = $1", [userId]);
       await database.query("DELETE FROM interview_feedback WHERE user_id = $1", [userId]);
       await database.query("DELETE FROM interviews WHERE user_id = $1", [userId]);
+      // Delete cover letters and resumes before job opportunities (they reference job_opportunities)
+      await database.query("DELETE FROM coverletter WHERE user_id = $1", [userId]);
+      await database.query("DELETE FROM resume WHERE user_id = $1", [userId]);
       await database.query("DELETE FROM job_opportunities WHERE user_id = $1", [userId]);
       await database.query("DELETE FROM certifications WHERE user_id = $1", [userId]);
       await database.query("DELETE FROM projects WHERE user_id = $1", [userId]);

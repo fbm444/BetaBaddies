@@ -9,7 +9,7 @@ interface NetworkROIProps {
   dateRange?: DateRange;
 }
 
-type TabType = "overview" | "recruiters" | "linkedin" | "coffee-chats" | "contacts" | "search";
+type TabType = "overview" | "recruiters" | "coffee-chats" | "contacts" | "search";
 
 export function NetworkROI({ dateRange }: NetworkROIProps) {
   const [searchParams] = useSearchParams();
@@ -17,7 +17,6 @@ export function NetworkROI({ dateRange }: NetworkROIProps) {
   const [roiData, setRoiData] = useState<NetworkROI | null>(null);
   const [analytics, setAnalytics] = useState<any>(null);
   const [recruiters, setRecruiters] = useState<any[]>([]);
-  const [linkedInContacts, setLinkedInContacts] = useState<any[]>([]);
   const [coffeeChats, setCoffeeChats] = useState<any[]>([]);
   const [professionalContacts, setProfessionalContacts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -55,18 +54,6 @@ export function NetworkROI({ dateRange }: NetworkROIProps) {
     fetchData();
   }, [dateRange, activeTab]);
 
-  // Switch to LinkedIn tab if coming from LinkedIn connection
-  useEffect(() => {
-    if (searchParams.get("linkedin") === "connected") {
-      setActiveTab("linkedin");
-      // Remove the query param after handling
-      const newSearchParams = new URLSearchParams(searchParams);
-      newSearchParams.delete("linkedin");
-      window.history.replaceState({}, "", `${window.location.pathname}${newSearchParams.toString() ? '?' + newSearchParams.toString() : ''}`);
-      // Fetch LinkedIn network immediately
-      fetchData();
-    }
-  }, [searchParams]);
 
   // Listen for job opportunity updates to refresh recruiters
   useEffect(() => {
@@ -113,12 +100,6 @@ export function NetworkROI({ dateRange }: NetworkROIProps) {
         const recruitersResponse = await api.getRecruiters();
         if (recruitersResponse.ok && recruitersResponse.data?.recruiters) {
           setRecruiters(recruitersResponse.data.recruiters);
-        }
-      } else if (activeTab === "linkedin") {
-        // Fetch entire LinkedIn network (no filters, no limit)
-        const linkedInResponse = await api.getLinkedInNetwork({ limit: 1000 });
-        if (linkedInResponse.ok && linkedInResponse.data?.contacts) {
-          setLinkedInContacts(linkedInResponse.data.contacts);
         }
       } else if (activeTab === "coffee-chats") {
         const chatsResponse = await api.getCoffeeChats();
@@ -212,7 +193,6 @@ export function NetworkROI({ dateRange }: NetworkROIProps) {
   const tabs = [
     { id: "overview" as TabType, label: "Overview", icon: "mingcute:chart-line" },
     { id: "recruiters" as TabType, label: "Recruiters", icon: "mingcute:user-line" },
-    { id: "linkedin" as TabType, label: "LinkedIn Network", icon: "mingcute:linkedin-line" },
     { id: "coffee-chats" as TabType, label: "Coffee Chats", icon: "mingcute:chat-3-line" },
     { id: "contacts" as TabType, label: "My Contacts", icon: "mingcute:user-3-line" },
     { id: "search" as TabType, label: "Search", icon: "mingcute:search-line" },
@@ -267,16 +247,6 @@ export function NetworkROI({ dateRange }: NetworkROIProps) {
             onGenerateMessage={handleGenerateMessage}
             onRefresh={fetchData}
             showToast={showToast}
-          />
-        )}
-
-        {activeTab === "linkedin" && (
-          <LinkedInTab
-            contacts={linkedInContacts}
-            isLoading={isLoading}
-            onGenerateMessage={handleGenerateMessage}
-            onCreateCoffeeChat={handleCreateCoffeeChat}
-            onRefresh={fetchData}
           />
         )}
 
@@ -774,123 +744,6 @@ function RecruitersTab({ recruiters, isLoading, onGenerateMessage, onRefresh, sh
                     Mark Sent
                   </button>
                 )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// LinkedIn Tab Component
-function LinkedInTab({ contacts, isLoading, onGenerateMessage, onCreateCoffeeChat, onRefresh }: any) {
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-center">
-          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-[#3351FD]" />
-          <p className="text-sm text-[#6D7A99]">Loading LinkedIn network...</p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-slate-600">
-          Your LinkedIn network contacts. Connect with them for coffee chats and networking.
-        </p>
-          <button
-            onClick={async () => {
-              if (onRefresh) {
-                await onRefresh();
-              }
-            }}
-            className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium"
-          >
-            <Icon icon="mingcute:refresh-line" width={16} className="inline mr-2" />
-            Sync Network
-          </button>
-        </div>
-
-      {contacts.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-[#E4E8F5] bg-[#F8F8F8] p-10 text-center">
-          <Icon icon="mingcute:linkedin-line" className="mx-auto mb-3 text-[#6D7A99]" width={48} />
-          <p className="text-sm text-[#6D7A99] mb-4">
-            No LinkedIn contacts found. Connect your LinkedIn account to see your network.
-          </p>
-          <button
-            onClick={() => {
-              // Redirect to LinkedIn OAuth
-              window.location.href = "/api/v1/users/auth/linkedin";
-            }}
-            className="px-4 py-2 bg-[#0077B5] text-white rounded-lg hover:bg-[#005885] transition-colors flex items-center gap-2 mx-auto"
-          >
-            <Icon icon="mingcute:linkedin-fill" width={20} />
-            Connect LinkedIn
-          </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {contacts.map((contact: any, index: number) => (
-            <div
-              key={index}
-              className="rounded-xl bg-white p-6 border border-[#E4E8F5] hover:shadow-md transition-shadow"
-            >
-              <div className="flex items-start gap-3 mb-4">
-                {contact.profilePictureUrl && (
-                  <img
-                    src={contact.profilePictureUrl}
-                    alt={contact.fullName}
-                    className="w-12 h-12 rounded-full object-cover"
-                  />
-                )}
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-[#0F1D3A]">
-                    {contact.fullName || `${contact.firstName} ${contact.lastName}`}
-                  </h3>
-                  {contact.headline && (
-                    <p className="text-sm text-[#6D7A99] mt-1 line-clamp-2">{contact.headline}</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-2 mb-4">
-                {contact.company && (
-                  <div className="flex items-center gap-2 text-sm text-[#6D7A99]">
-                    <Icon icon="mingcute:building-2-line" width={16} />
-                    <span>{contact.company}</span>
-                  </div>
-                )}
-                {contact.title && (
-                  <div className="flex items-center gap-2 text-sm text-[#6D7A99]">
-                    <Icon icon="mingcute:briefcase-line" width={16} />
-                    <span>{contact.title}</span>
-                  </div>
-                )}
-                {contact.connectionDegree && (
-                  <div className="flex items-center gap-2 text-sm text-blue-600">
-                    <Icon icon="mingcute:user-2-line" width={16} />
-                    <span>{contact.connectionDegree} connection</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  onClick={() => onGenerateMessage(contact, "coffee_chat")}
-                  className="flex-1 px-3 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#1E3097] transition-colors text-sm font-medium"
-                >
-                  Message
-                </button>
-                <button
-                  onClick={() => onCreateCoffeeChat(contact)}
-                  className="flex-1 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium"
-                >
-                  Add Chat
-                </button>
               </div>
             </div>
           ))}

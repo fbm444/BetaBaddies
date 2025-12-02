@@ -88,6 +88,7 @@ import {
   ContactInteraction,
   ContactInteractionInput,
   DiscoveredContact,
+  ContactNetworkItem,
   GoogleContactsStatus,
   GoogleContactsImportSummary,
   NetworkingEvent,
@@ -103,9 +104,6 @@ import {
   DiscoveredEvent,
   NetworkingGoal,
   NetworkingGoalInput,
-  EventAttendee,
-  EventGoals,
-  EventGoalsInput,
 } from "../types/network.types";
 
 // In development, use proxy (relative path). In production, use env variable or full URL
@@ -3141,7 +3139,7 @@ class ApiService {
     );
   }
 
-  async getSalaryProgression() {
+  async getSalaryProgressionHistory() {
     return this.request<ApiResponse<{ progression: SalaryProgressionEntry[] }>>(
       "/salary-negotiations/progression/history"
     );
@@ -3221,6 +3219,8 @@ class ApiService {
     const queryString = params.toString();
     return this.request<any>(
       `/analytics/ai-preparation-analysis${queryString ? `?${queryString}` : ""}`
+    );
+  }
 
   async deleteContact(id: string) {
     return this.request<ApiResponse<{ message: string }>>(`/network/contacts/${id}`, {

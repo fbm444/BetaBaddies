@@ -111,7 +111,9 @@ export function InterviewPerformance({ dateRange }: InterviewPerformanceProps) {
         <div className="rounded-3xl bg-white p-6 border border-[#E4E8F5]">
           <h3 className="text-[25px] font-normal text-[#0F1D3A] mb-4">Performance by Interview Type</h3>
           <div className="space-y-3">
-            {data.byType.map((item, index) => (
+            {data.byType
+              .filter((item) => item.type != null) // Filter out null/undefined types
+              .map((item, index) => (
               <div
                 key={index}
                 className="flex items-center justify-between p-4 rounded-xl border border-[#E8EBF8] bg-[#FDFDFF]"

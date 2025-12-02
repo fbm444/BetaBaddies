@@ -1556,15 +1556,15 @@ export function Interviews() {
                               notes: "Follow-up on interview status and hiring timeline",
                             });
 
-                            if (createResponse.ok && (createResponse.data?.followUp || createResponse.data?.action)) {
-                              statusFollowUp = createResponse.data?.followUp || createResponse.data?.action;
+                            if (createResponse.ok && (createResponse.data?.followUp || (createResponse.data as any)?.action)) {
+                              statusFollowUp = createResponse.data?.followUp || (createResponse.data as any)?.action;
                               // Add to pending follow-ups list
                               setPendingFollowUps(prev => [...prev, statusFollowUp]);
                               // Reload follow-ups to get updated list
                               fetchPendingFollowUps();
                             } else {
                               console.error("Failed to create follow-up action - Response:", createResponse);
-                              const errorMsg = createResponse.error?.message || createResponse.data?.message || "Failed to create follow-up action. Please try again.";
+                              const errorMsg = createResponse.error?.message || (createResponse.data as any)?.message || "Failed to create follow-up action. Please try again.";
                               showMessage(errorMsg, "error");
                               setDraftLoadingId(null);
                               return;
@@ -1685,15 +1685,15 @@ export function Interviews() {
                               notes: "Request feedback on interview performance to improve for future opportunities",
                             });
 
-                            if (createResponse.ok && (createResponse.data?.followUp || createResponse.data?.action)) {
-                              feedbackFollowUp = createResponse.data?.followUp || createResponse.data?.action;
+                            if (createResponse.ok && (createResponse.data?.followUp || (createResponse.data as any)?.action)) {
+                              feedbackFollowUp = createResponse.data?.followUp || (createResponse.data as any)?.action;
                               // Add to pending follow-ups list
                               setPendingFollowUps(prev => [...prev, feedbackFollowUp]);
                               // Reload follow-ups to get updated list
                               fetchPendingFollowUps();
                             } else {
                               console.error("Failed to create follow-up action - Response:", createResponse);
-                              const errorMsg = createResponse.error?.message || createResponse.data?.message || "Failed to create follow-up action. Please try again.";
+                              const errorMsg = createResponse.error?.message || (createResponse.data as any)?.message || "Failed to create follow-up action. Please try again.";
                               showMessage(errorMsg, "error");
                               setDraftLoadingId(null);
                               return;
@@ -1824,12 +1824,12 @@ export function Interviews() {
                                     }
                                   />
                                   <p className="text-xs font-semibold uppercase text-slate-600 tracking-wide">
-                                    {actionType.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}
+                                    {actionType.replace(/_/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase())}
                                   </p>
                                 </div>
                                 {interview && (
                                   <p className="text-sm font-medium text-slate-900">
-                                    {interview.title || interview.position} at {interview.company}
+                                    {interview.title} at {interview.company}
                                   </p>
                                 )}
                                 <p className="text-xs text-slate-500 mt-1">

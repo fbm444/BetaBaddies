@@ -230,7 +230,7 @@ export const navigationGroups: NavigationGroup[] = [
       {
         id: "referrals",
         label: "Referrals",
-        icon: "mingcute:handshake-line",
+        icon: "mingcute:pen-line",
         path: ROUTES.NETWORK_REFERRALS,
       },
     ],

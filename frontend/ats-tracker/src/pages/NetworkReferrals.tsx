@@ -273,20 +273,20 @@ Thanks so much!`;
         <div className="mb-6 flex items-center gap-4">
           <button
             onClick={() => setViewMode("referrals")}
-            className={`px-6 py-3 rounded-lg font-medium transition-all ${
+            className={`px-6 py-3 rounded-full font-medium transition-all ${
               viewMode === "referrals"
                 ? "bg-[#3351FD] text-white shadow-md"
                 : "bg-white text-slate-600 border border-slate-300 hover:bg-slate-50"
             }`}
           >
             <div className="flex items-center gap-2">
-              <Icon icon="mingcute:handshake-line" width={20} height={20} />
+              <Icon icon="mingcute:user-3-line" width={20} height={20} />
               Ask for Referrals
             </div>
           </button>
           <button
             onClick={() => setViewMode("references")}
-            className={`px-6 py-3 rounded-lg font-medium transition-all ${
+            className={`px-6 py-3 rounded-full font-medium transition-all ${
               viewMode === "references"
                 ? "bg-[#3351FD] text-white shadow-md"
                 : "bg-white text-slate-600 border border-slate-300 hover:bg-slate-50"
@@ -304,25 +304,55 @@ Thanks so much!`;
         ) : (
           <>
             {/* Referral Tabs */}
-            <div className="mb-6 border-b border-slate-200">
-              <div className="flex gap-4">
+            <div className="border-b border-slate-200 mb-8">
+              <div className="flex gap-1 overflow-x-auto scrollbar-hide">
                 <button
                   onClick={() => setActiveTab("referrals")}
-                  className={`px-4 py-2 font-medium transition-colors border-b-2 ${
+                  className={`px-6 py-3 font-medium text-sm whitespace-nowrap flex-shrink-0 min-w-fit bg-transparent hover:bg-transparent focus:bg-transparent ${
                     activeTab === "referrals"
-                      ? "border-[#3351FD] text-[#3351FD]"
-                      : "border-transparent text-slate-600 hover:text-slate-900"
+                      ? "text-blue-500 border-b-2 border-blue-500"
+                      : "text-slate-600"
                   }`}
+                  style={{ 
+                    outline: 'none', 
+                    boxShadow: 'none',
+                    borderTop: 'none',
+                    borderLeft: 'none',
+                    borderRight: 'none',
+                    borderRadius: '0'
+                  }}
+                  onFocus={(e) => e.target.blur()}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
                 >
                   Referrals
                 </button>
                 <button
                   onClick={() => setActiveTab("stats")}
-                  className={`px-4 py-2 font-medium transition-colors border-b-2 ${
+                  className={`px-6 py-3 font-medium text-sm whitespace-nowrap flex-shrink-0 min-w-fit bg-transparent hover:bg-transparent focus:bg-transparent ${
                     activeTab === "stats"
-                      ? "border-[#3351FD] text-[#3351FD]"
-                      : "border-transparent text-slate-600 hover:text-slate-900"
+                      ? "text-blue-500 border-b-2 border-blue-500"
+                      : "text-slate-600"
                   }`}
+                  style={{ 
+                    outline: 'none', 
+                    boxShadow: 'none',
+                    borderTop: 'none',
+                    borderLeft: 'none',
+                    borderRight: 'none',
+                    borderRadius: '0'
+                  }}
+                  onFocus={(e) => e.target.blur()}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
                 >
                   Referral Stats
                 </button>
@@ -357,7 +387,7 @@ Thanks so much!`;
                   setModalExcludedContactIds(null);
                   setIsAddModalOpen(true);
                 }}
-                className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a43d4] transition-colors flex items-center gap-2"
+                className="px-4 py-2 bg-[#3351FD] text-white rounded-full hover:bg-[#2a43d4] transition-colors flex items-center gap-2"
               >
                 <Icon icon="mingcute:add-line" width={20} height={20} />
                 Request Referral
@@ -373,14 +403,14 @@ Thanks so much!`;
                       setModalExcludedContactIds(null);
                       setIsAddModalOpen(true);
                     }}
-                    className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a43d4] transition-colors flex items-center gap-2"
+                    className="px-4 py-2 bg-[#3351FD] text-white rounded-full hover:bg-[#2a43d4] transition-colors flex items-center gap-2"
                   >
                     <Icon icon="mingcute:add-line" width={20} height={20} />
                     Request Referral
                   </button>
                   <button
                     onClick={() => setIsTemplateModalOpen(true)}
-                    className="px-4 py-2 bg-white text-[#3351FD] border border-[#3351FD] rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-2"
+                    className="px-4 py-2 bg-white text-[#3351FD] border border-[#3351FD] rounded-full hover:bg-slate-50 transition-colors flex items-center gap-2"
                   >
                     <Icon icon="mingcute:magic-line" width={20} height={20} />
                     Generate Template
@@ -411,14 +441,14 @@ Thanks so much!`;
                             <div className="flex flex-wrap gap-2">
                               <button
                                 onClick={() => handleRequestReferralForJob(group.jobId!)}
-                                className="px-3 py-1.5 text-sm border border-slate-300 rounded-lg hover:bg-slate-50"
+                                className="px-3 py-1.5 text-sm border border-slate-300 rounded-full hover:bg-slate-50"
                               >
                                 Request Another Referral for this Role
                               </button>
                               <button
                                 onClick={() => handleDeleteRole(group)}
                                 disabled={deletingRoleId === group.jobId}
-                                className="px-3 py-1.5 text-sm border border-red-200 text-red-600 rounded-lg hover:bg-red-50 disabled:opacity-60"
+                                className="px-3 py-1.5 text-sm border border-red-200 text-red-600 rounded-full hover:bg-red-50 disabled:opacity-60"
                               >
                                 {deletingRoleId === group.jobId ? "Deleting..." : "Delete Role"}
                               </button>
@@ -464,7 +494,7 @@ Thanks so much!`;
                                     setSelectedReferral(referral);
                                     setIsViewReferralModalOpen(true);
                                   }}
-                                  className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm flex items-center gap-2"
+                                  className="px-3 py-2 bg-green-600 text-white rounded-full hover:bg-green-700 transition-colors text-sm flex items-center gap-2"
                                   title="View Referral Letter"
                                 >
                                   <Icon icon="mingcute:eye-line" width={16} height={16} />
@@ -474,7 +504,7 @@ Thanks so much!`;
                                 <button
                                   onClick={() => handleSendReferral(referral)}
                                   disabled={sendingReferralId === referral.id}
-                                  className="px-3 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a43d4] transition-colors text-sm flex items-center gap-2 disabled:opacity-60"
+                                  className="px-3 py-2 bg-[#3351FD] text-white rounded-full hover:bg-[#2a43d4] transition-colors text-sm flex items-center gap-2 disabled:opacity-60"
                                   title="Send Request"
                                 >
                                   {sendingReferralId === referral.id ? (
@@ -488,7 +518,7 @@ Thanks so much!`;
                                 <button
                                   onClick={() => handleSendReferral(referral, true)}
                                   disabled={sendingReferralId === referral.id}
-                                  className="px-3 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm flex items-center gap-2 disabled:opacity-60"
+                                  className="px-3 py-2 bg-orange-500 text-white rounded-full hover:bg-orange-600 transition-colors text-sm flex items-center gap-2 disabled:opacity-60"
                                   title="Resend Request"
                                 >
                                   {sendingReferralId === referral.id ? (
@@ -830,7 +860,7 @@ function WriteReferralsView() {
                         e.stopPropagation();
                         setPreviewTemplateId(template.id);
                       }}
-                      className="px-3 py-1.5 text-xs bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors flex items-center gap-1"
+                      className="px-3 py-1.5 text-xs bg-slate-100 text-slate-700 rounded-full hover:bg-slate-200 transition-colors flex items-center gap-1"
                     >
                       <Icon icon="mingcute:eye-line" width={14} height={14} />
                       Preview
@@ -936,7 +966,7 @@ function WriteReferralsView() {
                           setSelectedRequest(request);
                         }
                       }}
-                      className={`flex-1 px-3 py-2 text-sm rounded-lg transition-colors ${
+                      className={`flex-1 px-3 py-2 text-sm rounded-full transition-colors ${
                         selectedRequest?.id === request.id
                           ? "bg-[#3351FD] text-white hover:bg-[#2641DD]"
                           : "bg-slate-100 text-slate-700 hover:bg-slate-200"
@@ -951,7 +981,7 @@ function WriteReferralsView() {
                           handleSendLetter(request.id);
                         }}
                         disabled={isSending[request.id]}
-                        className="px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-1"
+                        className="px-3 py-2 text-sm bg-green-600 text-white rounded-full hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-1"
                         title="Send saved letter"
                       >
                         {isSending[request.id] ? (
@@ -981,7 +1011,7 @@ function WriteReferralsView() {
                   <button
                     onClick={handleGenerateLetter}
                     disabled={isGenerating}
-                    className="w-full px-4 py-3 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a43d4] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="w-full px-4 py-3 bg-[#3351FD] text-white rounded-full hover:bg-[#2a43d4] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {isGenerating ? (
                       <>
@@ -1028,7 +1058,7 @@ function WriteReferralsView() {
                     <button
                       onClick={handleSaveLetter}
                       disabled={isSaving || (!generatedLetter?.trim() && !selectedRequest?.draftReferralLetter?.trim())}
-                      className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a43d4] transition-colors flex items-center gap-2 disabled:opacity-50"
+                      className="px-4 py-2 bg-[#3351FD] text-white rounded-full hover:bg-[#2a43d4] transition-colors flex items-center gap-2 disabled:opacity-50"
                     >
                       {isSaving ? (
                         <>
@@ -1224,40 +1254,74 @@ function ReferralStats({
       {/* Overall Stats */}
       <div className="bg-white rounded-lg border border-slate-200 p-6">
         <h2 className="text-xl font-semibold text-slate-900 mb-4">Overall Referral Statistics</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="p-4 bg-slate-50 rounded-lg">
-            <p className="text-sm text-slate-600 mb-1">Total Requests</p>
-            <p className="text-2xl font-bold text-slate-900">{stats.overall.total}</p>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="flex flex-col justify-between rounded-2xl bg-gradient-to-b from-[#1E3097] to-[#3351FD] p-6 text-white border border-slate-300 min-h-[180px]">
+            <div className="flex items-start justify-between">
+              <p className="text-[22px] font-normal" style={{ fontFamily: "Poppins" }}>
+                Total Requests
+              </p>
+            </div>
+            <p
+              className="text-6xl font-medium leading-none text-[#E7EFFF] mt-2"
+              style={{ fontFamily: "Poppins" }}
+            >
+              {stats.overall.total}
+            </p>
           </div>
-          <div className="p-4 bg-blue-50 rounded-lg">
-            <p className="text-sm text-blue-600 mb-1">Sent</p>
-            <p className="text-2xl font-bold text-blue-900">{stats.overall.sent}</p>
+          <div className="flex flex-col justify-between rounded-2xl bg-gradient-to-b from-[#2563EB] to-[#60A5FA] p-6 text-white border border-slate-300 min-h-[180px]">
+            <div className="flex items-start justify-between">
+              <p className="text-[22px] font-normal" style={{ fontFamily: "Poppins" }}>
+                Sent
+              </p>
+            </div>
+            <p
+              className="text-6xl font-medium leading-none text-[#E7EFFF] mt-2"
+              style={{ fontFamily: "Poppins" }}
+            >
+              {stats.overall.sent}
+            </p>
           </div>
-          <div className="p-4 bg-green-50 rounded-lg">
-            <p className="text-sm text-green-600 mb-1">Success Rate</p>
-            <p className="text-2xl font-bold text-green-900">
+          <div className="flex flex-col justify-between rounded-2xl bg-gradient-to-b from-[#3B82F6] to-[#93C5FD] p-6 text-white border border-slate-300 min-h-[180px]">
+            <div className="flex items-start justify-between">
+              <p className="text-[22px] font-normal" style={{ fontFamily: "Poppins" }}>
+                Success Rate
+              </p>
+            </div>
+            <p
+              className="text-6xl font-medium leading-none text-[#E7EFFF] mt-2"
+              style={{ fontFamily: "Poppins" }}
+            >
               {stats.overall.successRate.toFixed(1)}%
             </p>
           </div>
-          <div className="p-4 bg-purple-50 rounded-lg">
-            <p className="text-sm text-purple-600 mb-1">Response Rate</p>
-            <p className="text-2xl font-bold text-purple-900">
+          <div className="flex flex-col justify-between rounded-2xl bg-gradient-to-b from-[#0284C7] to-[#38BDF8] p-6 text-white border border-slate-300 min-h-[180px]">
+            <div className="flex items-start justify-between">
+              <p className="text-[22px] font-normal" style={{ fontFamily: "Poppins" }}>
+                Response Rate
+              </p>
+            </div>
+            <p
+              className="text-6xl font-medium leading-none text-[#E7EFFF] mt-2"
+              style={{ fontFamily: "Poppins" }}
+            >
               {stats.overall.responseRate.toFixed(1)}%
             </p>
           </div>
         </div>
-        <div className="mt-4 grid grid-cols-3 gap-4">
-          <div>
-            <p className="text-sm text-slate-600">Successful</p>
-            <p className="text-lg font-semibold text-green-600">{stats.overall.successful}</p>
-          </div>
-          <div>
-            <p className="text-sm text-slate-600">Unsuccessful</p>
-            <p className="text-lg font-semibold text-red-600">{stats.overall.unsuccessful}</p>
-          </div>
-          <div>
-            <p className="text-sm text-slate-600">Pending</p>
-            <p className="text-lg font-semibold text-orange-600">{stats.overall.pending}</p>
+        <div className="mt-4 bg-white rounded-lg border border-slate-200 p-6">
+          <div className="grid grid-cols-3 divide-x divide-slate-300">
+            <div className="px-4">
+              <p className="text-sm text-slate-600 mb-1">Successful</p>
+              <p className="text-2xl font-semibold text-green-600">{stats.overall.successful}</p>
+            </div>
+            <div className="px-4">
+              <p className="text-sm text-slate-600 mb-1">Unsuccessful</p>
+              <p className="text-2xl font-semibold text-red-600">{stats.overall.unsuccessful}</p>
+            </div>
+            <div className="px-4">
+              <p className="text-sm text-slate-600 mb-1">Pending</p>
+              <p className="text-2xl font-semibold text-orange-600">{stats.overall.pending}</p>
+            </div>
           </div>
         </div>
       </div>
@@ -1827,8 +1891,8 @@ ${displayUserName}`;
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 p-2 sm:p-4 pt-16 sm:pt-20 overflow-y-auto">
-      <div className="bg-white rounded-lg max-w-4xl w-full mb-4 sm:mb-8 max-h-[85vh] sm:max-h-[80vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-[110] p-2 sm:p-4 overflow-y-auto" style={{ paddingTop: '80px' }}>
+      <div className="bg-white rounded-lg max-w-4xl w-full my-4 sm:my-8 max-h-[calc(100vh-120px)] overflow-y-auto">
         <div className="p-6 border-b border-slate-200">
           <h2 className="text-2xl font-bold text-slate-900">
             {referral ? "Edit Referral Request" : "Request Referral"}
@@ -1917,7 +1981,7 @@ ${displayUserName}`;
                               type="button"
                               onClick={() => handleFieldChange("contactId", contact.id)}
                               disabled={referral?.requestStatus === "received"}
-                              className={`p-3 text-left border rounded-lg transition-colors ${
+                              className={`p-3 text-left border rounded-full transition-colors ${
                                 formData.contactId === contact.id
                                   ? "border-[#3351FD] bg-blue-50"
                                   : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
@@ -2106,14 +2170,14 @@ ${displayUserName}`;
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200"
+              className="px-4 py-2 text-slate-700 bg-slate-100 rounded-full hover:bg-slate-200"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting || isLoadingData || referral?.requestStatus === "received"}
-              className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a43d4] disabled:opacity-50"
+              className="px-4 py-2 bg-[#3351FD] text-white rounded-full hover:bg-[#2a43d4] disabled:opacity-50"
             >
               {isSubmitting ? "Saving..." : referral ? "Update" : "Request"} Referral
             </button>
@@ -2294,8 +2358,8 @@ function TemplateGeneratorModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 p-2 sm:p-4 pt-16 sm:pt-20 overflow-y-auto">
-      <div className="bg-white rounded-lg max-w-4xl w-full mb-4 sm:mb-8 max-h-[85vh] sm:max-h-[80vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-[110] p-2 sm:p-4 overflow-y-auto" style={{ paddingTop: '80px' }}>
+      <div className="bg-white rounded-lg max-w-4xl w-full my-4 sm:my-8 max-h-[calc(100vh-120px)] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
           <h2 className="text-xl font-semibold text-slate-900">Generate Referral Template</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
@@ -2574,13 +2638,13 @@ function TemplatePreviewModal({
   }, [templateId]);
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-3xl w-full max-h-[85vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-[110] p-4 overflow-y-auto" style={{ paddingTop: '80px' }}>
+      <div className="bg-white rounded-lg max-w-3xl w-full my-4 sm:my-8 max-h-[calc(100vh-120px)] overflow-hidden flex flex-col">
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="text-xl font-semibold text-slate-900">Template Preview</h2>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
           >
             <Icon icon="mingcute:close-line" width={24} height={24} />
           </button>
@@ -2622,8 +2686,8 @@ function ViewReferralModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 p-2 sm:p-4 pt-16 sm:pt-20 overflow-y-auto">
-      <div className="bg-white rounded-lg max-w-4xl w-full mb-4 sm:mb-8 max-h-[85vh] sm:max-h-[80vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-[110] p-2 sm:p-4 overflow-y-auto" style={{ paddingTop: '80px' }}>
+      <div className="bg-white rounded-lg max-w-4xl w-full my-4 sm:my-8 max-h-[calc(100vh-120px)] overflow-y-auto">
         <div className="p-6 border-b border-slate-200 flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold text-slate-900">Referral Letter Received</h2>
@@ -2636,7 +2700,7 @@ function ViewReferralModal({
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+            className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-colors"
           >
             <Icon icon="mingcute:close-line" width={24} height={24} />
           </button>
@@ -2661,7 +2725,7 @@ function ViewReferralModal({
           <div className="mt-6 flex justify-end">
             <button
               onClick={onClose}
-              className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a43d4] transition-colors"
+              className="px-4 py-2 bg-[#3351FD] text-white rounded-full hover:bg-[#2a43d4] transition-colors"
             >
               Close
             </button>

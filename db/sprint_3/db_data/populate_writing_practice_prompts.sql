@@ -1,12 +1,16 @@
 -- ============================================================================
--- Populate writing_practice_prompts from interview_question_banks
+-- Populate writing_practice_prompts with curated prompts
 -- ============================================================================
--- This script extracts unique interview questions from the interview_question_banks
--- table and populates the writing_practice_prompts table with appropriate
--- category and difficulty mappings.
+-- This script:
+-- 1. Extracts unique interview questions from interview_question_banks (optional)
+-- 2. Inserts curated prompts for each category (2-3 prompts per category)
+-- 3. Updates categories for prompts that already exist with wrong categories
+--
+-- Categories included: behavioral, technical, situational, strengths, weaknesses,
+--                      company_fit, leadership, teamwork, problem_solving
 --
 -- Usage:
---   psql -U ats_user -d ats_tracker -f db/migrations/populate_writing_practice_prompts.sql
+--   psql -U postgres -d postgres -f db/sprint_3/db_data/populate_writing_practice_prompts.sql
 -- ============================================================================
 
 BEGIN;
@@ -74,9 +78,9 @@ WHERE question_text IS NOT NULL
   )
 ORDER BY LOWER(TRIM(question_text)), created_at DESC;
 
--- Add some common behavioral interview prompts that might not be in the question bank
+-- Add curated prompts for each category (2-3 prompts per category)
+-- This inserts prompts that don't already exist
 INSERT INTO writing_practice_prompts (
-    id,
     category,
     prompt_text,
     difficulty_level,
@@ -87,8 +91,7 @@ INSERT INTO writing_practice_prompts (
     updated_at
 )
 SELECT 
-    gen_random_uuid(),
-    'behavioral',
+    category,
     prompt,
     difficulty,
     time_minutes,
@@ -148,18 +151,64 @@ WHERE NOT EXISTS (
     WHERE LOWER(TRIM(wpp.prompt_text)) = LOWER(TRIM(additional_prompts.prompt))
 );
 
+-- Update category for prompts that already exist but may have wrong category
+-- This ensures prompts from interview_question_banks get correct categories
+UPDATE writing_practice_prompts wpp
+SET 
+    category = mapping.correct_category,
+    updated_at = CURRENT_TIMESTAMP
+FROM (
+    SELECT 
+        LOWER(TRIM(prompt)) as prompt_text,
+        category as correct_category
+    FROM (VALUES
+        ('behavioral', 'Tell me about yourself.'),
+        ('behavioral', 'Tell me about a time when you had to work with a difficult team member. How did you handle it?'),
+        ('behavioral', 'Give me an example of a time when you had to learn something new quickly.'),
+        ('technical', 'Explain a complex technical concept to someone without a technical background.'),
+        ('technical', 'Describe a technical challenge you faced and how you solved it.'),
+        ('technical', 'Walk me through your approach to debugging a difficult technical issue.'),
+        ('situational', 'How would you handle a situation where you disagree with your manager''s decision?'),
+        ('situational', 'What would you do if you discovered a critical bug in production right before a major launch?'),
+        ('situational', 'How would you approach starting a new project with limited requirements or unclear direction?'),
+        ('strengths', 'What is your greatest professional achievement?'),
+        ('strengths', 'What skills do you bring to the table that set you apart from other candidates?'),
+        ('strengths', 'Describe a time when your technical skills directly contributed to a project''s success.'),
+        ('weaknesses', 'What is your greatest weakness and how are you working to improve it?'),
+        ('weaknesses', 'Tell me about a skill you''re currently developing and why it matters to you.'),
+        ('weaknesses', 'Describe a time when you had to ask for help. How did you approach it?'),
+        ('company_fit', 'Why do you want to work for our company specifically?'),
+        ('company_fit', 'What do you know about our company culture?'),
+        ('company_fit', 'How do your values align with our company''s mission and values?'),
+        ('leadership', 'Describe a time when you had to lead a team through a significant change or challenge.'),
+        ('leadership', 'Tell me about a time when you had to make a difficult decision without all the information you needed.'),
+        ('leadership', 'How do you motivate team members who seem disengaged or unmotivated?'),
+        ('teamwork', 'Describe a situation where you had to collaborate with multiple stakeholders with conflicting priorities.'),
+        ('teamwork', 'Tell me about a time when you successfully resolved a conflict within your team.'),
+        ('teamwork', 'How do you handle disagreements with colleagues while maintaining a positive working relationship?'),
+        ('problem_solving', 'Tell me about the most complex problem you''ve ever solved. Walk me through your thought process.'),
+        ('problem_solving', 'Describe a situation where you had to think outside the box to find a solution.'),
+        ('problem_solving', 'How do you approach a problem when you don''t know where to start?')
+    ) AS prompts(category, prompt)
+) AS mapping
+WHERE LOWER(TRIM(wpp.prompt_text)) = mapping.prompt_text
+  AND wpp.category != mapping.correct_category
+  AND wpp.is_active = true;
+
 COMMIT;
 
 -- ============================================================================
 -- Summary
 -- ============================================================================
 -- This script will:
--- 1. Extract unique questions from interview_question_banks
--- 2. Map categories appropriately (culture -> company_fit, etc.)
--- 3. Map difficulty levels (entry -> beginner, mid -> intermediate, senior -> advanced)
--- 4. Set estimated time based on difficulty (3 min for beginner, 5 for intermediate, 7 for advanced)
--- 5. Add industry-specific tags when applicable
--- 6. Add common behavioral interview prompts that might be missing
--- 7. Avoid duplicates by checking existing prompts
+-- 1. Extract unique questions from interview_question_banks (if table exists)
+--    - Maps categories appropriately (culture -> company_fit, etc.)
+--    - Maps difficulty levels (entry -> beginner, mid -> intermediate, senior -> advanced)
+--    - Sets estimated time based on difficulty (3 min for beginner, 5 for intermediate, 7 for advanced)
+-- 2. Insert curated prompts for each category (2-3 prompts per category)
+--    - Skips prompts that already exist (checks by prompt text)
+-- 3. Update categories for existing prompts that have wrong categories
+--    - Ensures prompts from interview_question_banks get correct categories
+-- 4. Avoids duplicates by checking existing prompts
 -- ============================================================================
 

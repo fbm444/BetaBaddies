@@ -1343,6 +1343,109 @@ CREATE TABLE public.external_advisors (
 
 
 --
+-- Name: family_boundary_settings; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.family_boundary_settings (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    family_member_user_id uuid,
+    setting_type character varying(50) NOT NULL,
+    setting_value jsonb NOT NULL,
+    ai_suggestions jsonb,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT family_boundary_settings_setting_type_check CHECK (((setting_type)::text = ANY ((ARRAY['communication_frequency'::character varying, 'data_sharing_level'::character varying, 'support_style'::character varying, 'notification_preferences'::character varying])::text[])))
+);
+
+
+--
+-- Name: family_celebrations; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.family_celebrations (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    family_member_user_id uuid,
+    celebration_type character varying(50) NOT NULL,
+    title character varying(255) NOT NULL,
+    description text,
+    milestone_data jsonb,
+    shared_with_family boolean DEFAULT true,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT family_celebrations_celebration_type_check CHECK (((celebration_type)::text = ANY ((ARRAY['milestone'::character varying, 'achievement'::character varying, 'interview'::character varying, 'offer'::character varying, 'application_milestone'::character varying, 'personal_win'::character varying])::text[])))
+);
+
+
+--
+-- Name: family_communications; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.family_communications (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    family_member_user_id uuid,
+    communication_type character varying(50) NOT NULL,
+    message text NOT NULL,
+    is_read boolean DEFAULT false,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    read_at timestamp with time zone,
+    CONSTRAINT family_communications_communication_type_check CHECK (((communication_type)::text = ANY ((ARRAY['update'::character varying, 'milestone'::character varying, 'celebration'::character varying, 'support_message'::character varying, 'check_in'::character varying])::text[])))
+);
+
+
+--
+-- Name: family_educational_resources; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.family_educational_resources (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    resource_type character varying(50) NOT NULL,
+    title character varying(255) NOT NULL,
+    content text NOT NULL,
+    category character varying(50),
+    ai_generated boolean DEFAULT false,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    user_id uuid,
+    CONSTRAINT family_educational_resources_resource_type_check CHECK (((resource_type)::text = ANY ((ARRAY['article'::character varying, 'guide'::character varying, 'tip'::character varying, 'video'::character varying, 'ai_generated'::character varying])::text[])))
+);
+
+
+--
+-- Name: family_invitations; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.family_invitations (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    invited_by uuid,
+    email character varying(255) NOT NULL,
+    family_member_name character varying(255),
+    relationship character varying(50),
+    invitation_token character varying(255) NOT NULL,
+    status character varying(50) DEFAULT 'pending'::character varying,
+    expires_at timestamp with time zone NOT NULL,
+    accepted_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT family_invitations_status_check CHECK (((status)::text = ANY ((ARRAY['pending'::character varying, 'accepted'::character varying, 'declined'::character varying, 'expired'::character varying, 'cancelled'::character varying])::text[])))
+);
+
+
+--
+-- Name: family_member_views; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.family_member_views (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    family_member_id uuid NOT NULL,
+    last_viewed_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    view_count integer DEFAULT 0
+);
+
+
+--
 -- Name: family_progress_summaries; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1371,7 +1474,49 @@ CREATE TABLE public.family_support_access (
     access_level character varying(50),
     educational_resources_provided boolean DEFAULT false,
     active boolean DEFAULT true,
+    invitation_id uuid,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+--
+-- Name: family_support_suggestions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.family_support_suggestions (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    family_member_user_id uuid,
+    suggestion_type character varying(50) NOT NULL,
+    title character varying(255) NOT NULL,
+    suggestion_text text NOT NULL,
+    context_data jsonb,
+    ai_generated boolean DEFAULT true,
+    is_applied boolean DEFAULT false,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    applied_at timestamp with time zone,
+    CONSTRAINT family_support_suggestions_suggestion_type_check CHECK (((suggestion_type)::text = ANY ((ARRAY['support_strategy'::character varying, 'boundary_setting'::character varying, 'communication_tip'::character varying, 'celebration_idea'::character varying, 'wellbeing_support'::character varying])::text[])))
+);
+
+
+--
+-- Name: family_wellbeing_tracking; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.family_wellbeing_tracking (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    tracked_by_user_id uuid,
+    stress_level integer,
+    mood_indicator character varying(50),
+    energy_level integer,
+    sleep_quality integer,
+    notes text,
+    wellbeing_indicators jsonb,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT family_wellbeing_tracking_energy_level_check CHECK (((energy_level >= 1) AND (energy_level <= 10))),
+    CONSTRAINT family_wellbeing_tracking_sleep_quality_check CHECK (((sleep_quality >= 1) AND (sleep_quality <= 10))),
+    CONSTRAINT family_wellbeing_tracking_stress_level_check CHECK (((stress_level >= 1) AND (stress_level <= 10)))
 );
 
 
@@ -3263,6 +3408,115 @@ CREATE TABLE public.professional_contacts (
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     contact_user_id uuid
 );
+
+
+--
+-- Name: coffee_chats; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.coffee_chats (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    contact_id uuid,
+    job_opportunity_id uuid,
+    contact_name character varying(255) NOT NULL,
+    contact_email character varying(255),
+    contact_linkedin_url character varying(1001),
+    contact_company character varying(255),
+    contact_title character varying(255),
+    chat_type character varying(50) DEFAULT 'coffee_chat'::character varying,
+    scheduled_date timestamp with time zone,
+    completed_date timestamp with time zone,
+    status character varying(50) DEFAULT 'upcoming'::character varying,
+    message_sent boolean DEFAULT false,
+    message_sent_at timestamp with time zone,
+    response_received boolean DEFAULT false,
+    response_received_at timestamp with time zone,
+    response_content text,
+    referral_provided boolean DEFAULT false,
+    referral_details text,
+    notes text,
+    impact_on_opportunity character varying(50),
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT coffee_chats_chat_type_check CHECK (((chat_type)::text = ANY ((ARRAY['coffee_chat'::character varying, 'interview_request'::character varying, 'informational'::character varying, 'referral_request'::character varying])::text[]))),
+    CONSTRAINT coffee_chats_status_check CHECK (((status)::text = ANY ((ARRAY['upcoming'::character varying, 'completed'::character varying, 'cancelled'::character varying, 'no_show'::character varying])::text[]))),
+    CONSTRAINT coffee_chats_impact_on_opportunity_check CHECK (((impact_on_opportunity)::text = ANY ((ARRAY['positive'::character varying, 'neutral'::character varying, 'negative'::character varying, 'unknown'::character varying])::text[])))
+);
+
+
+--
+-- Name: networking_messages; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.networking_messages (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    coffee_chat_id uuid,
+    message_type character varying(50) NOT NULL,
+    recipient_name character varying(255) NOT NULL,
+    recipient_email character varying(255),
+    recipient_linkedin_url character varying(1000),
+    subject character varying(500),
+    message_body text NOT NULL,
+    generated_by character varying(50) DEFAULT 'ai'::character varying,
+    sent boolean DEFAULT false,
+    sent_at timestamp with time zone,
+    response_received boolean DEFAULT false,
+    response_received_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT networking_messages_message_type_check CHECK (((message_type)::text = ANY ((ARRAY['coffee_chat'::character varying, 'interview_request'::character varying, 'referral_request'::character varying, 'follow_up'::character varying])::text[]))),
+    CONSTRAINT networking_messages_generated_by_check CHECK (((generated_by)::text = ANY ((ARRAY['ai'::character varying, 'template'::character varying, 'manual'::character varying])::text[])))
+);
+
+
+--
+-- Name: linkedin_network_contacts; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.linkedin_network_contacts (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    linkedin_id character varying(255),
+    first_name character varying(255),
+    last_name character varying(255),
+    full_name character varying(500),
+    headline text,
+    current_company character varying(255),
+    current_title character varying(255),
+    location character varying(255),
+    profile_url character varying(1000),
+    profile_picture_url character varying(1000),
+    connection_degree character varying(50) DEFAULT '1st'::character varying,
+    industry character varying(255),
+    mutual_connections_count integer DEFAULT 0,
+    last_updated timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT linkedin_network_contacts_connection_degree_check CHECK (((connection_degree)::text = ANY ((ARRAY['1st'::character varying, '2nd'::character varying, '3rd'::character varying])::text[]))),
+    CONSTRAINT linkedin_network_contacts_linkedin_id_key UNIQUE (linkedin_id)
+);
+
+
+--
+-- Name: TABLE coffee_chats; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.coffee_chats IS 'Tracks coffee chats and networking interactions with contacts';
+
+
+--
+-- Name: TABLE networking_messages; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.networking_messages IS 'Stores generated networking messages (coffee chat requests, interview requests, etc.)';
+
+
+--
+-- Name: TABLE linkedin_network_contacts; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.linkedin_network_contacts IS 'Cached LinkedIn network contacts for quick access';
 
 
 --
@@ -5274,6 +5528,78 @@ ALTER TABLE ONLY public.external_advisors
 
 
 --
+-- Name: family_boundary_settings family_boundary_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.family_boundary_settings
+    ADD CONSTRAINT family_boundary_settings_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: family_boundary_settings family_boundary_settings_user_id_family_member_user_id_sett_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.family_boundary_settings
+    ADD CONSTRAINT family_boundary_settings_user_id_family_member_user_id_sett_key UNIQUE (user_id, family_member_user_id, setting_type);
+
+
+--
+-- Name: family_celebrations family_celebrations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.family_celebrations
+    ADD CONSTRAINT family_celebrations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: family_communications family_communications_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.family_communications
+    ADD CONSTRAINT family_communications_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: family_educational_resources family_educational_resources_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.family_educational_resources
+    ADD CONSTRAINT family_educational_resources_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: family_invitations family_invitations_invitation_token_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.family_invitations
+    ADD CONSTRAINT family_invitations_invitation_token_key UNIQUE (invitation_token);
+
+
+--
+-- Name: family_invitations family_invitations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.family_invitations
+    ADD CONSTRAINT family_invitations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: family_member_views family_member_views_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.family_member_views
+    ADD CONSTRAINT family_member_views_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: family_member_views family_member_views_user_id_family_member_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.family_member_views
+    ADD CONSTRAINT family_member_views_user_id_family_member_id_key UNIQUE (user_id, family_member_id);
+
+
+--
 -- Name: family_progress_summaries family_progress_summaries_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5287,6 +5613,22 @@ ALTER TABLE ONLY public.family_progress_summaries
 
 ALTER TABLE ONLY public.family_support_access
     ADD CONSTRAINT family_support_access_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: family_support_suggestions family_support_suggestions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.family_support_suggestions
+    ADD CONSTRAINT family_support_suggestions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: family_wellbeing_tracking family_wellbeing_tracking_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.family_wellbeing_tracking
+    ADD CONSTRAINT family_wellbeing_tracking_pkey PRIMARY KEY (id);
 
 
 --
@@ -5831,6 +6173,30 @@ ALTER TABLE ONLY public.productivity_analysis
 
 ALTER TABLE ONLY public.professional_contacts
     ADD CONSTRAINT professional_contacts_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: coffee_chats coffee_chats_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.coffee_chats
+    ADD CONSTRAINT coffee_chats_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: networking_messages networking_messages_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.networking_messages
+    ADD CONSTRAINT networking_messages_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: linkedin_network_contacts linkedin_network_contacts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.linkedin_network_contacts
+    ADD CONSTRAINT linkedin_network_contacts_pkey PRIMARY KEY (id);
 
 
 --
@@ -7369,6 +7735,153 @@ CREATE INDEX idx_networking_goals_user_id ON public.networking_goals USING btree
 
 
 --
+-- Name: idx_family_boundary_settings_family_member; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_family_boundary_settings_family_member ON public.family_boundary_settings USING btree (family_member_user_id);
+
+
+--
+-- Name: idx_family_boundary_settings_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_family_boundary_settings_user ON public.family_boundary_settings USING btree (user_id);
+
+
+--
+-- Name: idx_family_celebrations_family_member; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_family_celebrations_family_member ON public.family_celebrations USING btree (family_member_user_id, created_at DESC);
+
+
+--
+-- Name: idx_family_celebrations_shared; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_family_celebrations_shared ON public.family_celebrations USING btree (user_id, shared_with_family) WHERE (shared_with_family = true);
+
+
+--
+-- Name: idx_family_celebrations_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_family_celebrations_user ON public.family_celebrations USING btree (user_id, created_at DESC);
+
+
+--
+-- Name: idx_family_communications_family_member; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_family_communications_family_member ON public.family_communications USING btree (family_member_user_id, created_at DESC);
+
+
+--
+-- Name: idx_family_communications_unread; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_family_communications_unread ON public.family_communications USING btree (user_id, is_read) WHERE (is_read = false);
+
+
+--
+-- Name: idx_family_communications_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_family_communications_user ON public.family_communications USING btree (user_id, created_at DESC);
+
+
+--
+-- Name: idx_family_educational_resources_category; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_family_educational_resources_category ON public.family_educational_resources USING btree (category);
+
+
+--
+-- Name: idx_family_educational_resources_type; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_family_educational_resources_type ON public.family_educational_resources USING btree (resource_type);
+
+
+--
+-- Name: idx_family_educational_resources_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_family_educational_resources_user ON public.family_educational_resources USING btree (user_id, created_at DESC);
+
+
+--
+-- Name: idx_family_invitations_email; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_family_invitations_email ON public.family_invitations USING btree (email, status);
+
+
+--
+-- Name: idx_family_invitations_token; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_family_invitations_token ON public.family_invitations USING btree (invitation_token);
+
+
+--
+-- Name: idx_family_invitations_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_family_invitations_user ON public.family_invitations USING btree (user_id, status);
+
+
+--
+-- Name: idx_family_member_views_family; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_family_member_views_family ON public.family_member_views USING btree (family_member_id);
+
+
+--
+-- Name: idx_family_member_views_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_family_member_views_user ON public.family_member_views USING btree (user_id);
+
+
+--
+-- Name: idx_family_support_suggestions_family_member; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_family_support_suggestions_family_member ON public.family_support_suggestions USING btree (family_member_user_id, created_at DESC);
+
+
+--
+-- Name: idx_family_support_suggestions_type; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_family_support_suggestions_type ON public.family_support_suggestions USING btree (suggestion_type, created_at DESC);
+
+
+--
+-- Name: idx_family_support_suggestions_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_family_support_suggestions_user ON public.family_support_suggestions USING btree (user_id, created_at DESC);
+
+
+--
+-- Name: idx_family_wellbeing_tracker; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_family_wellbeing_tracker ON public.family_wellbeing_tracking USING btree (tracked_by_user_id, created_at DESC);
+
+
+--
+-- Name: idx_family_wellbeing_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_family_wellbeing_user ON public.family_wellbeing_tracking USING btree (user_id, created_at DESC);
+
+
+--
 -- Name: idx_networking_impact_date; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -7590,6 +8103,90 @@ CREATE INDEX idx_professional_contacts_contact_user_id ON public.professional_co
 --
 
 CREATE INDEX idx_professional_contacts_user_id ON public.professional_contacts USING btree (user_id);
+
+
+--
+-- Name: idx_coffee_chats_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_coffee_chats_user_id ON public.coffee_chats USING btree (user_id);
+
+
+--
+-- Name: idx_coffee_chats_contact_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_coffee_chats_contact_id ON public.coffee_chats USING btree (contact_id);
+
+
+--
+-- Name: idx_coffee_chats_job_opportunity_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_coffee_chats_job_opportunity_id ON public.coffee_chats USING btree (job_opportunity_id);
+
+
+--
+-- Name: idx_coffee_chats_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_coffee_chats_status ON public.coffee_chats USING btree (status);
+
+
+--
+-- Name: idx_coffee_chats_scheduled_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_coffee_chats_scheduled_date ON public.coffee_chats USING btree (scheduled_date);
+
+
+--
+-- Name: idx_networking_messages_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_networking_messages_user_id ON public.networking_messages USING btree (user_id);
+
+
+--
+-- Name: idx_networking_messages_coffee_chat_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_networking_messages_coffee_chat_id ON public.networking_messages USING btree (coffee_chat_id);
+
+
+--
+-- Name: idx_networking_messages_sent; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_networking_messages_sent ON public.networking_messages USING btree (sent);
+
+
+--
+-- Name: idx_linkedin_network_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_linkedin_network_user_id ON public.linkedin_network_contacts USING btree (user_id);
+
+
+--
+-- Name: idx_linkedin_network_company; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_linkedin_network_company ON public.linkedin_network_contacts USING btree (current_company);
+
+
+--
+-- Name: idx_linkedin_network_industry; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_linkedin_network_industry ON public.linkedin_network_contacts USING btree (industry);
+
+
+--
+-- Name: idx_linkedin_network_linkedin_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_linkedin_network_linkedin_id ON public.linkedin_network_contacts USING btree (linkedin_id);
 
 
 --
@@ -9269,6 +9866,94 @@ ALTER TABLE ONLY public.external_advisors
 
 
 --
+-- Name: family_boundary_settings family_boundary_settings_family_member_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.family_boundary_settings
+    ADD CONSTRAINT family_boundary_settings_family_member_user_id_fkey FOREIGN KEY (family_member_user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: family_boundary_settings family_boundary_settings_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.family_boundary_settings
+    ADD CONSTRAINT family_boundary_settings_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: family_celebrations family_celebrations_family_member_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.family_celebrations
+    ADD CONSTRAINT family_celebrations_family_member_user_id_fkey FOREIGN KEY (family_member_user_id) REFERENCES public.users(u_id) ON DELETE SET NULL;
+
+
+--
+-- Name: family_celebrations family_celebrations_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.family_celebrations
+    ADD CONSTRAINT family_celebrations_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: family_communications family_communications_family_member_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.family_communications
+    ADD CONSTRAINT family_communications_family_member_user_id_fkey FOREIGN KEY (family_member_user_id) REFERENCES public.users(u_id) ON DELETE SET NULL;
+
+
+--
+-- Name: family_communications family_communications_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.family_communications
+    ADD CONSTRAINT family_communications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: family_educational_resources family_educational_resources_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.family_educational_resources
+    ADD CONSTRAINT family_educational_resources_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: family_invitations family_invitations_invited_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.family_invitations
+    ADD CONSTRAINT family_invitations_invited_by_fkey FOREIGN KEY (invited_by) REFERENCES public.users(u_id) ON DELETE SET NULL;
+
+
+--
+-- Name: family_invitations family_invitations_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.family_invitations
+    ADD CONSTRAINT family_invitations_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: family_member_views family_member_views_family_member_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.family_member_views
+    ADD CONSTRAINT family_member_views_family_member_id_fkey FOREIGN KEY (family_member_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: family_member_views family_member_views_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.family_member_views
+    ADD CONSTRAINT family_member_views_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
 -- Name: family_progress_summaries family_progress_summaries_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -9281,7 +9966,47 @@ ALTER TABLE ONLY public.family_progress_summaries
 --
 
 ALTER TABLE ONLY public.family_support_access
+    ADD CONSTRAINT family_support_access_invitation_id_fkey FOREIGN KEY (invitation_id) REFERENCES public.family_invitations(id) ON DELETE SET NULL;
+
+
+--
+-- Name: family_support_access family_support_access_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.family_support_access
     ADD CONSTRAINT family_support_access_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: family_support_suggestions family_support_suggestions_family_member_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.family_support_suggestions
+    ADD CONSTRAINT family_support_suggestions_family_member_user_id_fkey FOREIGN KEY (family_member_user_id) REFERENCES public.users(u_id) ON DELETE SET NULL;
+
+
+--
+-- Name: family_support_suggestions family_support_suggestions_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.family_support_suggestions
+    ADD CONSTRAINT family_support_suggestions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: family_wellbeing_tracking family_wellbeing_tracking_tracked_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.family_wellbeing_tracking
+    ADD CONSTRAINT family_wellbeing_tracking_tracked_by_user_id_fkey FOREIGN KEY (tracked_by_user_id) REFERENCES public.users(u_id) ON DELETE SET NULL;
+
+
+--
+-- Name: family_wellbeing_tracking family_wellbeing_tracking_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.family_wellbeing_tracking
+    ADD CONSTRAINT family_wellbeing_tracking_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
 
 
 --
@@ -10186,6 +10911,54 @@ ALTER TABLE ONLY public.professional_contacts
 
 ALTER TABLE ONLY public.professional_contacts
     ADD CONSTRAINT professional_contacts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: coffee_chats coffee_chats_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.coffee_chats
+    ADD CONSTRAINT coffee_chats_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: coffee_chats coffee_chats_contact_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.coffee_chats
+    ADD CONSTRAINT coffee_chats_contact_id_fkey FOREIGN KEY (contact_id) REFERENCES public.professional_contacts(id) ON DELETE SET NULL;
+
+
+--
+-- Name: coffee_chats coffee_chats_job_opportunity_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.coffee_chats
+    ADD CONSTRAINT coffee_chats_job_opportunity_id_fkey FOREIGN KEY (job_opportunity_id) REFERENCES public.job_opportunities(id) ON DELETE SET NULL;
+
+
+--
+-- Name: networking_messages networking_messages_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.networking_messages
+    ADD CONSTRAINT networking_messages_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: networking_messages networking_messages_coffee_chat_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.networking_messages
+    ADD CONSTRAINT networking_messages_coffee_chat_id_fkey FOREIGN KEY (coffee_chat_id) REFERENCES public.coffee_chats(id) ON DELETE CASCADE;
+
+
+--
+-- Name: linkedin_network_contacts linkedin_network_contacts_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.linkedin_network_contacts
+    ADD CONSTRAINT linkedin_network_contacts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
 
 
 --

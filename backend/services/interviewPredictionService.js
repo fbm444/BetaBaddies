@@ -452,6 +452,10 @@ class InterviewPredictionService {
    */
   async comparePredictions(userId, jobOpportunityIds) {
     try {
+      if (!jobOpportunityIds || jobOpportunityIds.length === 0) {
+        return [];
+      }
+
       const placeholders = jobOpportunityIds.map((_, i) => `$${i + 2}`).join(",");
       const result = await database.query(
         `SELECT 
@@ -459,11 +463,13 @@ class InterviewPredictionService {
           jo.title AS job_title,
           jo.company AS company
          FROM interview_success_predictions p
-         INNER JOIN job_opportunities jo ON p.job_opportunity_id = jo.id
+         LEFT JOIN job_opportunities jo ON p.job_opportunity_id = jo.id AND jo.user_id = $1
          WHERE p.user_id = $1 AND p.job_opportunity_id IN (${placeholders})
          ORDER BY p.predicted_success_probability DESC`,
         [userId, ...jobOpportunityIds]
       );
+
+      console.log(`[comparePredictions] Found ${result.rows.length} predictions for ${jobOpportunityIds.length} job opportunities`);
 
       return result.rows.map((row) => {
         // Parse JSON fields if they're strings
@@ -474,6 +480,7 @@ class InterviewPredictionService {
           try {
             factorsBreakdown = JSON.parse(factorsBreakdown);
           } catch (e) {
+            console.warn("Failed to parse factors_breakdown:", e);
             factorsBreakdown = {};
           }
         }
@@ -482,23 +489,29 @@ class InterviewPredictionService {
           try {
             recommendations = JSON.parse(recommendations);
           } catch (e) {
+            console.warn("Failed to parse recommendations:", e);
             recommendations = [];
           }
         }
 
+        const jobTitle = row.job_title || null;
+        const company = row.company || null;
+
+        console.log(`[comparePredictions] Job ${row.job_opportunity_id}: title="${jobTitle}", company="${company}"`);
+
         return {
           id: row.id,
           jobOpportunityId: row.job_opportunity_id,
-          jobTitle: row.job_title || "Unknown Position",
-          company: row.company || "Unknown Company",
+          jobTitle: jobTitle || "Unknown Position",
+          company: company || "Unknown Company",
           prediction: {
-            predictedSuccessProbability: parseFloat(row.predicted_success_probability),
-            confidenceScore: parseFloat(row.confidence_score),
-            preparationScore: parseFloat(row.preparation_score),
-            roleMatchScore: parseFloat(row.role_match_score),
-            companyResearchScore: parseFloat(row.company_research_score),
-            practiceHoursScore: parseFloat(row.practice_hours_score),
-            historicalPerformanceScore: parseFloat(row.historical_performance_score),
+            predictedSuccessProbability: parseFloat(row.predicted_success_probability) || 0,
+            confidenceScore: parseFloat(row.confidence_score) || 0,
+            preparationScore: parseFloat(row.preparation_score) || 0,
+            roleMatchScore: parseFloat(row.role_match_score) || 0,
+            companyResearchScore: parseFloat(row.company_research_score) || 0,
+            practiceHoursScore: parseFloat(row.practice_hours_score) || 0,
+            historicalPerformanceScore: parseFloat(row.historical_performance_score) || 0,
             factorsBreakdown: factorsBreakdown || {},
             recommendations: recommendations || [],
           },
@@ -507,6 +520,7 @@ class InterviewPredictionService {
       });
     } catch (error) {
       console.error("❌ Error comparing predictions:", error);
+      console.error("Error details:", error.message, error.stack);
       throw error;
     }
   }

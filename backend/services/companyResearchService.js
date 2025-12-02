@@ -233,8 +233,8 @@ class CompanyResearchService {
 
   async addCompanyMedia(companyInfoId, platform, link) {
     const result = await database.query(
-      `INSERT INTO company_media (id, company_id, platform, link, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, NOW(), NOW())
+      `INSERT INTO company_media (id, company_id, platform, link, created_at)
+       VALUES ($1, $2, $3, $4, NOW())
        RETURNING id, company_id, platform, link, created_at`,
       [uuidv4(), companyInfoId, platform, link]
     );
@@ -271,10 +271,10 @@ class CompanyResearchService {
   async addCompanyNews(companyInfoId, newsData) {
     const result = await database.query(
       `INSERT INTO company_news (
-        id, company_id, heading, description, type, date, source, created_at, updated_at
+        id, company_id, heading, description, type, date, source, created_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
-      RETURNING id, company_id, heading, description, type, date, source`,
+      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+      RETURNING id, company_id, heading, description, type, date, source, created_at`,
       [
         uuidv4(),
         companyInfoId,
@@ -293,6 +293,7 @@ class CompanyResearchService {
       type: result.rows[0].type,
       date: result.rows[0].date,
       source: result.rows[0].source,
+      createdAt: result.rows[0].created_at,
     };
   }
 

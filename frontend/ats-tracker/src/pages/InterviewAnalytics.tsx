@@ -16,17 +16,53 @@ import {
   Area,
 } from "recharts";
 
-type TabType = "schedule" | "preparation" | "reminders" | "thank-you" | "follow-ups" | "calendar" | "analytics";
+type TabType = "schedule" | "preparation" | "reminders" | "thank-you" | "follow-ups" | "analytics" | "predictions";
 
 export function InterviewAnalytics() {
   const navigate = useNavigate();
   const [analytics, setAnalytics] = useState<InterviewAnalytics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Calendar state
+  const [calendarConnected, setCalendarConnected] = useState(false);
+  const [calendarLoading, setCalendarLoading] = useState(false);
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
 
   useEffect(() => {
     fetchAnalytics();
+    checkCalendarStatus();
   }, []);
+
+  const checkCalendarStatus = async () => {
+    setCalendarLoading(true);
+    try {
+      const response = await api.getGoogleCalendarStatus();
+      if (response.ok && response.data) {
+        setCalendarConnected(response.data.status?.enabled || false);
+      }
+    } catch (err: any) {
+      console.error("Failed to check calendar status:", err);
+    } finally {
+      setCalendarLoading(false);
+    }
+  };
+
+  const handleConnectCalendar = async () => {
+    setShowCalendarModal(true);
+  };
+
+  const confirmConnectCalendar = async () => {
+    try {
+      setShowCalendarModal(false);
+      const response = await api.getGoogleCalendarAuthUrl();
+      if (response.ok && response.data?.authUrl) {
+        window.location.href = response.data.authUrl;
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to get calendar auth URL");
+    }
+  };
 
   const fetchAnalytics = async () => {
     try {
@@ -52,8 +88,8 @@ export function InterviewAnalytics() {
     { id: "reminders", label: "Reminders", icon: "mingcute:alarm-line" },
     { id: "thank-you", label: "Thank You Notes", icon: "mingcute:mail-line" },
     { id: "follow-ups", label: "Follow-ups", icon: "mingcute:task-line" },
-    { id: "calendar", label: "Calendar", icon: "mingcute:calendar-check-line" },
     { id: "analytics", label: "Analytics", icon: "mingcute:chart-line" },
+    { id: "predictions", label: "Predictions", icon: "mingcute:target-line" },
   ];
 
   const handleTabClick = (tabId: TabType) => {
@@ -223,6 +259,39 @@ export function InterviewAnalytics() {
           <h1 className="text-4xl md:text-5xl font-bold text-slate-900" style={{ fontFamily: 'Poppins' }}>
             Interviews
           </h1>
+          <div className="flex items-center gap-3">
+            {!calendarConnected ? (
+              <button
+                onClick={handleConnectCalendar}
+                className="px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-xs font-medium inline-flex items-center gap-1.5 shadow-md hover:from-blue-600 hover:to-indigo-700 transition-all"
+              >
+                <Icon icon="mingcute:calendar-line" width={16} />
+                Connect Google Calendar
+              </button>
+            ) : (
+              <button
+                onClick={async () => {
+                  try {
+                    await api.disconnectGoogleCalendar();
+                    setCalendarConnected(false);
+                  } catch (err: any) {
+                    setError(err.message || "Failed to disconnect");
+                  }
+                }}
+                className="px-4 py-2 rounded-lg bg-green-100 text-green-700 text-xs font-medium inline-flex items-center gap-1.5 shadow-sm hover:bg-green-200 transition-all"
+              >
+                <Icon icon="mingcute:check-circle-line" width={16} />
+                Connected
+              </button>
+            )}
+            <button
+              onClick={() => navigate(ROUTES.INTERVIEW_SCHEDULING)}
+              className="px-6 py-3 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 text-white text-sm font-semibold inline-flex items-center gap-2 shadow-lg hover:from-pink-600 hover:to-purple-700 transition-all transform hover:scale-105"
+            >
+              <Icon icon="mingcute:calendar-check-line" width={20} />
+              Interview Calendar
+            </button>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -232,14 +301,14 @@ export function InterviewAnalytics() {
               <button
                 key={tab.id}
                 onClick={() => handleTabClick(tab.id)}
-                className={`px-6 py-3 font-medium text-sm whitespace-nowrap border-b-2 transition-colors flex items-center gap-2 ${
+                className={`px-6 py-3 font-medium text-sm whitespace-nowrap border-b-2 transition-colors flex items-center gap-2 flex-shrink-0 min-w-fit ${
                   tab.id === "analytics"
                     ? "border-blue-500 text-blue-600"
                     : "border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300"
                 }`}
               >
-                <Icon icon={tab.icon} width={18} />
-                {tab.label}
+                <Icon icon={tab.icon} width={18} height={18} className="flex-shrink-0" style={{ minWidth: '18px', minHeight: '18px' }} />
+                <span className="flex-shrink-0">{tab.label}</span>
               </button>
             ))}
           </div>
@@ -641,7 +710,47 @@ export function InterviewAnalytics() {
             </div>
           </div>
         </div>
+
+        {/* Return to Original Screen Button */}
+        <div className="mt-12 pt-8 border-t border-slate-200 flex justify-center">
+          <button
+            onClick={() => navigate(ROUTES.INTERVIEWS)}
+            className="px-6 py-3 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 font-medium inline-flex items-center gap-2 transition-all"
+          >
+            <Icon icon="mingcute:arrow-left-line" width={18} />
+            Return to Original Screen
+          </button>
+        </div>
       </main>
+
+      {/* Calendar Connect Modal */}
+      {showCalendarModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <Icon icon="mingcute:calendar-line" width={32} className="text-blue-500" />
+              <h3 className="text-xl font-semibold text-slate-900">Connect Google Calendar</h3>
+            </div>
+            <p className="text-slate-600 mb-6">
+              Sync your interviews with Google Calendar to get automatic reminders and updates
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowCalendarModal(false)}
+                className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-medium transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmConnectCalendar}
+                className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg hover:from-blue-600 hover:to-indigo-700 font-medium transition shadow-md"
+              >
+                Connect
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -2,6 +2,15 @@ import { useState, useEffect, useMemo } from "react";
 import { Icon } from "@iconify/react";
 import { api } from "../../services/api";
 import type { SalaryProgression, DateRange } from "../../types/analytics.types";
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+} from "recharts";
 
 interface SalaryProgressionProps {
   dateRange?: DateRange;
@@ -164,36 +173,10 @@ export function SalaryProgression({ dateRange }: SalaryProgressionProps) {
     };
   }, [safeData]);
 
-  // Calculate chart dimensions
-  const chartHeight = 300;
-  const chartWidth = 1000;
-  const padding = { top: 40, right: 40, bottom: 60, left: 80 };
-
-  // Get min/max for scaling
+  // Get min/max for display in growth metrics
   const salaryValues = chartData.filter(d => d.salary !== null).map(d => d.salary!);
   const minSalary = salaryValues.length > 0 ? Math.min(...salaryValues) : 0;
   const maxSalary = salaryValues.length > 0 ? Math.max(...salaryValues) : 100000;
-  const salaryRange = maxSalary - minSalary || 1;
-
-  // Scale function
-  const scaleY = (value: number) => {
-    return chartHeight - padding.bottom - ((value - minSalary) / salaryRange) * (chartHeight - padding.top - padding.bottom);
-  };
-
-  // Generate path for line chart
-  const generateLinePath = () => {
-    if (chartData.length === 0) return "";
-    
-    const points = chartData
-      .filter(d => d.salary !== null)
-      .map((d, i) => {
-        const x = padding.left + (i / (chartData.length - 1 || 1)) * (chartWidth - padding.left - padding.right);
-        const y = scaleY(d.salary!);
-        return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
-      });
-    
-    return points.join(' ');
-  };
 
   if (isLoading) {
     return (
@@ -274,89 +257,58 @@ export function SalaryProgression({ dateRange }: SalaryProgressionProps) {
                 </div>
               </div>
               
-              {/* SVG Chart */}
-              <div className="overflow-x-auto">
-                <svg width={chartWidth} height={chartHeight} className="w-full" viewBox={`0 0 ${chartWidth} ${chartHeight}`}>
-                  {/* Grid lines */}
-                  {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
-                    const y = chartHeight - padding.bottom - ratio * (chartHeight - padding.top - padding.bottom);
-                    const value = minSalary + ratio * salaryRange;
-                    return (
-                      <g key={ratio}>
-                        <line
-                          x1={padding.left}
-                          y1={y}
-                          x2={chartWidth - padding.right}
-                          y2={y}
-                          stroke="#E8EBF8"
-                          strokeWidth="1"
-                        />
-                        <text
-                          x={padding.left - 10}
-                          y={y + 4}
-                          textAnchor="end"
-                          fontSize="12"
-                          fill="#6D7A99"
-                        >
-                          {formatCurrency(value)}
-                        </text>
-                      </g>
-                    );
-                  })}
-
-                  {/* Line */}
-                  <path
-                    d={generateLinePath()}
-                    fill="none"
-                    stroke="#3351FD"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+              {/* Area Chart with Gradient */}
+              <div className="mt-12">
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart data={chartData.filter(d => d.salary !== null)} margin={{ top: 10, right: 10, left: 10, bottom: 30 }}>
+                    <defs>
+                      <linearGradient id="salaryGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#3351FD" stopOpacity={0.6} />
+                        <stop offset="100%" stopColor="#3351FD" stopOpacity={0.15} />
+                      </linearGradient>
+                    </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E8EBF8" />
+                  <XAxis 
+                    dataKey="monthLabel" 
+                    tick={{ fill: '#6D7A99', fontSize: 12, fontFamily: 'Poppins', fontWeight: 400 }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={60}
                   />
-
-                  {/* Data points */}
-                  {chartData
-                    .filter(d => d.salary !== null)
-                    .map((d, i) => {
-                      const x = padding.left + (i / (chartData.length - 1 || 1)) * (chartWidth - padding.left - padding.right);
-                      const y = scaleY(d.salary!);
-                      return (
-                        <g key={i}>
-                          <circle
-                            cx={x}
-                            cy={y}
-                            r="6"
-                            fill="#3351FD"
-                            stroke="white"
-                            strokeWidth="2"
-                          />
-                          {/* Tooltip on hover */}
-                          <title>
-                            {d.monthLabel}: {formatCurrency(d.salary)}
-                            {d.growth !== null && ` (${d.growth > 0 ? '+' : ''}${d.growth.toFixed(1)}%)`}
-                          </title>
-                        </g>
-                      );
-                    })}
-
-                  {/* X-axis labels */}
-                  {chartData.map((d, i) => {
-                    const x = padding.left + (i / (chartData.length - 1 || 1)) * (chartWidth - padding.left - padding.right);
-                    return (
-                      <text
-                        key={i}
-                        x={x}
-                        y={chartHeight - padding.bottom + 20}
-                        textAnchor="middle"
-                        fontSize="11"
-                        fill="#6D7A99"
-                        transform={`rotate(-45 ${x} ${chartHeight - padding.bottom + 20})`}
-                      >
-                        {d.monthLabel}
-                      </text>
-                    );
-                  })}
-                </svg>
+                  <YAxis 
+                    tick={{ fill: '#6D7A99', fontSize: 12, fontFamily: 'Poppins', fontWeight: 400 }}
+                    tickFormatter={(value) => {
+                      if (value >= 1000) return `$${(value / 1000).toFixed(0)}k`;
+                      return `$${value}`;
+                    }}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      fontFamily: 'Poppins',
+                      backgroundColor: 'white',
+                      border: '1px solid #E8EBF8',
+                      borderRadius: '8px'
+                    }}
+                    formatter={(value: any) => {
+                      const dataPoint = chartData.find(d => d.salary === value);
+                      if (!dataPoint) return [formatCurrency(value), 'Salary'];
+                      const growthText = dataPoint.growth !== null 
+                        ? ` (${dataPoint.growth > 0 ? '+' : ''}${dataPoint.growth.toFixed(1)}%)`
+                        : '';
+                      return [`${formatCurrency(value)}${growthText}`, 'Salary'];
+                    }}
+                    labelStyle={{ fontFamily: 'Poppins', fontWeight: 500 }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="salary"
+                    stroke="#3351FD"
+                    strokeWidth={3}
+                    fill="url(#salaryGradient)"
+                    name="Salary"
+                  />
+                  </AreaChart>
+                </ResponsiveContainer>
               </div>
 
               {/* Growth Metrics */}
@@ -500,7 +452,9 @@ export function SalaryProgression({ dateRange }: SalaryProgressionProps) {
                         item.negotiationStatus?.includes('stalled') || item.negotiationStatus === 'stalled' ? 'bg-yellow-100 text-yellow-700' :
                         'bg-gray-100 text-gray-700'
                       }`}>
-                        {item.negotiationStatus || 'Not started'}
+                        {item.negotiationStatus 
+                          ? item.negotiationStatus.replace(/_/g, ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
+                          : 'Not Started'}
                       </span>
                     </div>
                     

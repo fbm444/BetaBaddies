@@ -1361,8 +1361,14 @@ class ApiService {
   }
 
   async searchCompanies(industry: string) {
-    return this.request<ApiResponse<{ companies: Array<{ name: string; industry: string; type: string }> }>>(
+    return this.request<ApiResponse<{ companies: Array<{ name: string; industry: string; type: string; linkedInUrl?: string }> }>>(
       `/networking/companies/search?industry=${encodeURIComponent(industry)}`
+    );
+  }
+
+  async searchContactsByCompany(company: string) {
+    return this.request<ApiResponse<{ recruiters: Array<any>; contacts: Array<any>; total: number }>>(
+      `/networking/contacts/search?company=${encodeURIComponent(company)}`
     );
   }
 

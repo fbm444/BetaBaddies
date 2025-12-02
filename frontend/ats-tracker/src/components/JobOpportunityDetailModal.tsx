@@ -231,10 +231,18 @@ export function JobOpportunityDetailModal({
     e.preventDefault();
     setIsSaving(true);
     try {
-      await onSave(formData);
+      // Ensure recruiter fields are included even if empty (backend will convert empty strings to null)
+      const submitData = {
+        ...formData,
+        recruiterName: formData.recruiterName || "",
+        recruiterEmail: formData.recruiterEmail || "",
+        recruiterPhone: formData.recruiterPhone || "",
+      };
+      await onSave(submitData);
       setIsEditMode(false);
     } catch (error) {
       console.error("Failed to save:", error);
+      alert("Failed to save changes. Please try again.");
     } finally {
       setIsSaving(false);
     }

@@ -492,6 +492,8 @@ export function JobOpportunities() {
         setSelectedOpportunity(response.data.jobOpportunity);
         await fetchOpportunities();
         showMessage("Job opportunity updated successfully!", "success");
+        // Dispatch event to notify other components (like NetworkROI) to refresh
+        window.dispatchEvent(new Event("jobOpportunityUpdated"));
       }
     } catch (err: any) {
       showMessage(err.message || "Failed to update job opportunity", "error");

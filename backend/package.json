@@ -18,6 +18,9 @@
     "test:reset-password": "node tests/reset-password-functionality.test.js",
     "test:reset-password-api": "node tests/reset-password-api.test.js",
     "test:resume-services": "node tests/resume-services-test.js",
+    "test:interview-analytics": "node tests/interview-analytics-functionality.test.js",
+    "test:interview-analytics-api": "node tests/interview-analytics-api.test.js",
+    "test:interview-prediction": "node tests/interview-prediction-functionality.test.js",
     "test:frontend-github": "node tests/frontend-github-actions.test.js",
     "test:all": "node tests/test-runner.js",
     "populate:demo": "node scripts/populateDemoData.js"

@@ -66,10 +66,21 @@ export function GoalTracking({ dateRange }: GoalTrackingProps) {
 
   return (
     <div className="space-y-6">
+      {/* Create Goal Button */}
+      <div className="flex justify-end">
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="inline-flex items-center gap-2 rounded-full bg-blue-500 px-6 py-3 text-sm font-medium text-white hover:bg-blue-600 transition-colors"
+        >
+          <Icon icon="mingcute:add-line" width={20} />
+          Create Goal
+        </button>
+      </div>
+
       {/* Analytics Summary */}
       {analytics && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="rounded-2xl bg-gradient-to-b from-[#1E3097] to-[#3351FD] p-5 text-white">
+          <div className="rounded-2xl bg-gradient-to-b from-[#1E3097] to-[#3351FD] p-6 text-white min-h-[160px] flex flex-col justify-between">
             <div className="flex items-start justify-between mb-2">
               <p className="text-[18px] font-normal">Total Goals</p>
               <Icon
@@ -83,7 +94,7 @@ export function GoalTracking({ dateRange }: GoalTrackingProps) {
             </p>
           </div>
 
-          <div className="rounded-2xl bg-white p-5 border border-[#E4E8F5]">
+          <div className="rounded-2xl bg-white p-6 border border-[#E4E8F5] min-h-[160px] flex flex-col justify-between">
             <div className="flex items-start justify-between mb-2">
               <p className="text-[18px] font-normal text-[#0F1D3A]">
                 Active Goals
@@ -94,12 +105,14 @@ export function GoalTracking({ dateRange }: GoalTrackingProps) {
                 className="text-[#09244B]"
               />
             </div>
-            <p className="text-4xl font-extralight text-[#5A87E6]">
-              {analytics.activeGoals}
-            </p>
+            <div className="flex items-end gap-3">
+              <p className="text-5xl font-extralight text-[#5A87E6]">
+                {analytics.activeGoals}
+              </p>
+            </div>
           </div>
 
-          <div className="rounded-2xl bg-white p-5 border border-[#E4E8F5]">
+          <div className="rounded-2xl bg-white p-6 border border-[#E4E8F5] min-h-[160px] flex flex-col justify-between">
             <div className="flex items-start justify-between mb-2">
               <p className="text-[18px] font-normal text-[#0F1D3A]">
                 Completed
@@ -110,12 +123,14 @@ export function GoalTracking({ dateRange }: GoalTrackingProps) {
                 className="text-[#09244B]"
               />
             </div>
-            <p className="text-4xl font-extralight text-[#5A87E6]">
-              {analytics.completedGoals}
-            </p>
+            <div className="flex items-end gap-3">
+              <p className="text-5xl font-extralight text-[#5A87E6]">
+                {analytics.completedGoals}
+              </p>
+            </div>
           </div>
 
-          <div className="rounded-2xl bg-white p-5 border border-[#E4E8F5]">
+          <div className="rounded-2xl bg-white p-6 border border-[#E4E8F5] min-h-[160px] flex flex-col justify-between">
             <div className="flex items-start justify-between mb-2">
               <p className="text-[18px] font-normal text-[#0F1D3A]">
                 Achievement Rate
@@ -126,23 +141,14 @@ export function GoalTracking({ dateRange }: GoalTrackingProps) {
                 className="text-[#09244B]"
               />
             </div>
-            <p className="text-4xl font-extralight text-[#5A87E6]">
-              {analytics.achievementRate}%
-            </p>
+            <div className="flex items-end gap-3">
+              <p className="text-5xl font-extralight text-[#5A87E6]">
+                {analytics.achievementRate}%
+              </p>
+            </div>
           </div>
         </div>
       )}
-
-      {/* Create Goal Button */}
-      <div className="flex justify-end">
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="inline-flex items-center gap-2 rounded-full bg-[#3351FD] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#3351FD1A] transition-transform hover:-translate-y-0.5 hover:bg-[#1E3097]"
-        >
-          <Icon icon="mingcute:add-line" width={20} />
-          Create Goal
-        </button>
-      </div>
 
       {/* Goals List */}
       {goals.length > 0 ? (
@@ -154,16 +160,33 @@ export function GoalTracking({ dateRange }: GoalTrackingProps) {
             >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
-                  <h3 className="text-xl font-semibold text-[#0F1D3A] mb-1">
-                    {goal.title}
-                  </h3>
+                  <div className="flex items-center gap-3 mb-1">
+                    <h3 className="text-xl font-semibold text-[#0F1D3A]">
+                      {goal.title}
+                    </h3>
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        goal.status === "active"
+                          ? "bg-blue-100 text-blue-700"
+                          : goal.status === "completed"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-gray-100 text-gray-700"
+                      }`}
+                    >
+                      {goal.status}
+                    </span>
+                  </div>
                   {goal.description && (
                     <p className="text-sm text-[#6D7A99] mb-2">
                       {goal.description}
                     </p>
                   )}
                   <div className="flex items-center gap-4 text-xs text-[#6D7A99]">
-                    <span className="capitalize">{goal.category}</span>
+                    <span>
+                      {goal.category
+                        ? goal.category.replace(/_/g, " ").split(" ").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ")
+                        : "Unknown"}
+                    </span>
                     <span>•</span>
                     <span className="capitalize">
                       {goal.goalType
@@ -182,17 +205,6 @@ export function GoalTracking({ dateRange }: GoalTrackingProps) {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span
-                    className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      goal.status === "active"
-                        ? "bg-blue-100 text-blue-700"
-                        : goal.status === "completed"
-                        ? "bg-green-100 text-green-700"
-                        : "bg-gray-100 text-gray-700"
-                    }`}
-                  >
-                    {goal.status}
-                  </span>
                   {(goal.status === "active" ||
                     !goal.status ||
                     goal.status === "") && (
@@ -215,12 +227,40 @@ export function GoalTracking({ dateRange }: GoalTrackingProps) {
                           alert(err.message || "Failed to complete goal");
                         }
                       }}
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium text-sm shadow-sm"
+                      className="p-2 text-green-500 hover:text-green-600 transition-colors"
                       title="Complete Goal"
                       aria-label="Complete Goal"
                     >
                       <Icon icon="mingcute:check-circle-line" width={18} />
-                      Complete
+                    </button>
+                  )}
+                  {goal.status === "completed" && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          const response = await api.updateGoal(goal.id, {
+                            status: "active",
+                          });
+                          if (response.ok) {
+                            await fetchGoals();
+                            await fetchAnalytics();
+                          } else {
+                            console.error(
+                              "Failed to uncomplete goal:",
+                              response.error || response.data?.error
+                            );
+                            alert("Failed to uncomplete goal. Please try again.");
+                          }
+                        } catch (err: any) {
+                          console.error("Failed to uncomplete goal:", err);
+                          alert(err.message || "Failed to uncomplete goal");
+                        }
+                      }}
+                      className="p-2 text-gray-500 hover:text-gray-700 transition-colors"
+                      title="Uncomplete Goal"
+                      aria-label="Uncomplete Goal"
+                    >
+                      <Icon icon="mingcute:back-line" width={18} />
                     </button>
                   )}
                   <button
@@ -268,7 +308,7 @@ export function GoalTracking({ dateRange }: GoalTrackingProps) {
           </p>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="inline-flex items-center gap-2 rounded-full bg-[#3351FD] px-6 py-3 text-sm font-semibold text-white"
+            className="inline-flex items-center gap-2 rounded-full border-2 border-blue-500 px-6 py-3 text-sm font-medium text-blue-500 hover:bg-blue-50 transition-colors"
           >
             <Icon icon="mingcute:add-line" width={20} />
             Create Your First Goal

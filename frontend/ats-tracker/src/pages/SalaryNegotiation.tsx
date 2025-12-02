@@ -320,7 +320,7 @@ export function SalaryNegotiation() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">
+          <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4">
             Salary Negotiation
           </h1>
           <p className="text-slate-600">
@@ -854,7 +854,7 @@ export function SalaryNegotiation() {
                 <>
                   {/* Statistics Cards */}
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    <div className="flex flex-col justify-between rounded-2xl bg-gradient-to-b from-[#1E3097] to-[#3351FD] p-5 text-white border border-slate-300">
+                    <div className="flex flex-col justify-between rounded-2xl bg-gradient-to-b from-[#1E3097] to-[#3351FD] p-6 text-white border border-slate-300 min-h-[180px]">
                       <div className="flex items-start justify-between">
                         <p className="text-[22px] font-normal" style={{ fontFamily: "Poppins" }}>
                           Current Salary
@@ -862,14 +862,14 @@ export function SalaryNegotiation() {
                         <Icon icon="mingcute:dollar-line" width={24} height={24} className="text-white" />
                       </div>
                       <p
-                        className="text-4xl font-medium leading-none text-[#E7EFFF]"
+                        className="text-4xl font-medium leading-none text-[#E7EFFF] mt-2"
                         style={{ fontFamily: "Poppins" }}
                       >
                         ${lastEntry.salary.toLocaleString()}
                       </p>
                     </div>
 
-                    <div className="flex flex-col justify-between rounded-2xl bg-white p-5 border border-slate-300">
+                    <div className="flex flex-col justify-between rounded-2xl bg-white p-6 border border-slate-300 min-h-[180px]">
                       <div className="flex items-start justify-between">
                         <p
                           className="text-[22px] font-normal text-[#0F1D3A]"
@@ -880,14 +880,14 @@ export function SalaryNegotiation() {
                         <Icon icon="mingcute:trending-up-line" width={20} height={20} className="text-[#09244B]" />
                       </div>
                       <p
-                        className="text-3xl font-extralight text-[#5A87E6]"
+                        className="text-3xl font-extralight text-[#5A87E6] mt-2"
                         style={{ fontFamily: "Poppins", fontWeight: 200 }}
                       >
                         ${totalIncrease.toLocaleString()}
                       </p>
                     </div>
 
-                    <div className="flex flex-col justify-between rounded-2xl bg-white p-5 border border-slate-300">
+                    <div className="flex flex-col justify-between rounded-2xl bg-white p-6 border border-slate-300 min-h-[180px]">
                       <div className="flex items-start justify-between">
                         <p
                           className="text-[22px] font-normal text-[#0F1D3A]"
@@ -898,14 +898,14 @@ export function SalaryNegotiation() {
                         <Icon icon="mingcute:arrow-up-line" width={24} height={24} className="text-[#0F2B5C]" />
                       </div>
                       <p
-                        className="text-3xl font-extralight text-[#5A87E6]"
+                        className="text-3xl font-extralight text-[#5A87E6] mt-2"
                         style={{ fontFamily: "Poppins", fontWeight: 200 }}
                       >
                         ${avgIncrease > 0 ? `+${Math.round(avgIncrease).toLocaleString()}` : Math.round(avgIncrease).toLocaleString()}
                       </p>
                     </div>
 
-                    <div className="flex flex-col justify-between rounded-2xl bg-white p-5 border border-slate-300">
+                    <div className="flex flex-col justify-between rounded-2xl bg-white p-6 border border-slate-300 min-h-[180px]">
                       <div className="flex items-start justify-between">
                         <p
                           className="text-[22px] font-normal text-[#0F1D3A]"
@@ -916,7 +916,7 @@ export function SalaryNegotiation() {
                         <Icon icon="mingcute:file-line" width={24} height={24} className="text-[#0F2B5C] flex-shrink-0" style={{ display: 'inline-block' }} />
                       </div>
                       <p
-                        className="text-3xl font-extralight text-[#5A87E6]"
+                        className="text-3xl font-extralight text-[#5A87E6] mt-2"
                         style={{ fontFamily: "Poppins", fontWeight: 200 }}
                       >
                         {combinedData.length}
@@ -937,7 +937,7 @@ export function SalaryNegotiation() {
                         </h3>
                       </div>
                       {chartEntries.length > 0 ? (
-                        <div className="mt-2">
+                        <div className="flex-1 flex items-center justify-center mt-8">
                           <SalaryProgressionChart entries={chartEntries} />
                         </div>
                       ) : (
@@ -977,6 +977,20 @@ export function SalaryNegotiation() {
                                   : "bg-transparent border-slate-300 hover:border-slate-400"
                               }`}
                             >
+                              {/* Delete button - top right corner - only show for progression entries */}
+                              {item.source === "progression" && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDeleteProgressionEntryId(item.id);
+                                  }}
+                                  className="absolute top-2 right-2 text-slate-400 hover:text-red-500 transition-colors p-1.5 rounded-full hover:bg-red-50 z-10"
+                                  title="Delete entry"
+                                >
+                                  <Icon icon="mingcute:delete-line" width={18} height={18} />
+                                </button>
+                              )}
+                              
                               {/* Timeline connector */}
                               {index < combinedData.length - 1 && (
                                 <div className="absolute left-6 top-14 w-0.5 h-full bg-slate-300 -z-10" />
@@ -1016,19 +1030,6 @@ export function SalaryNegotiation() {
                                           )}
                                         </div>
                                       </div>
-                                      {/* Delete button - only show for progression entries */}
-                                      {item.source === "progression" && (
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setDeleteProgressionEntryId(item.id);
-                                          }}
-                                          className="flex-shrink-0 text-slate-400 hover:text-red-500 transition-colors p-1 rounded-full hover:bg-red-50"
-                                          title="Delete entry"
-                                        >
-                                          <Icon icon="mingcute:close-line" width={20} height={20} />
-                                        </button>
-                                      )}
                                     </div>
                                   </div>
                                   <div className="text-left sm:text-right">

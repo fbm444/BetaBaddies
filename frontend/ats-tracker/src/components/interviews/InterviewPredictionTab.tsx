@@ -90,7 +90,7 @@ export function InterviewPredictionTab({
   };
 
   const handleCompare = async () => {
-    // Compare ALL job opportunities, not just active ones
+    // Compare ALL job opportunities
     if (jobOpportunities.length < 2) {
       setError("You need at least 2 job opportunities to compare");
       return;
@@ -98,17 +98,22 @@ export function InterviewPredictionTab({
     setIsLoading(true);
     setError(null);
     try {
-      // Use all job opportunities, not just activeJobs
+      // Use all job opportunities
       const jobIds = jobOpportunities.map((job) => job.id);
       const response = await api.compareInterviewPredictions(jobIds);
       if (response.ok && response.data?.predictions) {
         const predictions = response.data.predictions;
         if (predictions.length === 0) {
-          setError("No predictions found. Please calculate predictions for at least one job opportunity first.");
+          setError(`No predictions found for any of the ${jobOpportunities.length} jobs. Please calculate predictions for at least one job opportunity first.`);
           setShowComparison(false);
         } else {
           setComparisonPredictions(predictions);
           setShowComparison(true);
+          // Show info if not all jobs have predictions
+          if (predictions.length < jobOpportunities.length) {
+            const missingCount = jobOpportunities.length - predictions.length;
+            setError(`Showing ${predictions.length} of ${jobOpportunities.length} jobs (${missingCount} job${missingCount !== 1 ? 's' : ''} don't have predictions yet). Calculate predictions for those jobs to include them in the comparison.`);
+          }
         }
       } else {
         const errorMsg = response.error?.message || response.error?.detail || "Failed to compare predictions";
@@ -177,6 +182,7 @@ export function InterviewPredictionTab({
             }}
             disabled={isLoading || isCalculating}
             className="px-4 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors"
+            title={`Compare all ${jobOpportunities.length} job opportunities`}
           >
             {isLoading ? (
               <>
@@ -184,7 +190,7 @@ export function InterviewPredictionTab({
                 Comparing...
               </>
             ) : (
-              <>Compare All</>
+              <>Compare All ({jobOpportunities.length})</>
             )}
           </button>
         )}
@@ -192,9 +198,14 @@ export function InterviewPredictionTab({
 
       {/* Job Selection */}
       <div className="bg-white rounded-lg border border-slate-200 p-4">
-        <label className="block text-sm font-medium text-slate-700 mb-2">
-          Select Job Opportunity
-        </label>
+        <div className="flex items-center justify-between mb-2">
+          <label className="block text-sm font-medium text-slate-700">
+            Select Job Opportunity
+          </label>
+          <span className="text-xs text-slate-500">
+            {jobOpportunities.length} total job{jobOpportunities.length !== 1 ? 's' : ''}
+          </span>
+        </div>
         <select
           value={selectedJobId || ""}
           onChange={(e) => {
@@ -205,21 +216,41 @@ export function InterviewPredictionTab({
           className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         >
           <option value="">Choose a job opportunity...</option>
-          {activeJobs.map((job) => (
+          {jobOpportunities.map((job) => (
             <option key={job.id} value={job.id}>
-              {job.title} at {job.company}
+              {job.title} at {job.company} {job.status ? `(${job.status})` : ''}
             </option>
           ))}
         </select>
       </div>
 
-      {/* Error Message */}
+      {/* Error/Info Message */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
-          <Icon icon="mingcute:alert-circle-line" className="text-red-600 mt-0.5" width={20} />
+        <div className={`rounded-lg p-4 flex items-start gap-3 ${
+          error.includes("Showing") || error.includes("don't have predictions") 
+            ? "bg-amber-50 border border-amber-200" 
+            : "bg-red-50 border border-red-200"
+        }`}>
+          <Icon 
+            icon={error.includes("Showing") || error.includes("don't have predictions") ? "mingcute:information-line" : "mingcute:alert-circle-line"} 
+            className={`mt-0.5 ${error.includes("Showing") || error.includes("don't have predictions") ? "text-amber-600" : "text-red-600"}`} 
+            width={20} 
+          />
           <div>
-            <p className="text-red-800 font-medium">Error</p>
-            <p className="text-red-600 text-sm">{error}</p>
+            <p className={`font-medium ${
+              error.includes("Showing") || error.includes("don't have predictions") 
+                ? "text-amber-800" 
+                : "text-red-800"
+            }`}>
+              {error.includes("Showing") || error.includes("don't have predictions") ? "Info" : "Error"}
+            </p>
+            <p className={`text-sm ${
+              error.includes("Showing") || error.includes("don't have predictions") 
+                ? "text-amber-700" 
+                : "text-red-600"
+            }`}>
+              {error}
+            </p>
           </div>
         </div>
       )}
@@ -228,11 +259,22 @@ export function InterviewPredictionTab({
       {showComparison && comparisonPredictions.length > 0 && (
         <div className="bg-white rounded-lg border border-slate-200 p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-bold text-slate-900">Prediction Comparison</h3>
+            <div>
+              <h3 className="text-xl font-bold text-slate-900">Prediction Comparison</h3>
+              <p className="text-sm text-slate-600 mt-1">
+                Comparing {comparisonPredictions.length} of {jobOpportunities.length} job{jobOpportunities.length !== 1 ? 's' : ''}
+                {comparisonPredictions.length < jobOpportunities.length && (
+                  <span className="text-amber-600 ml-1">
+                    ({jobOpportunities.length - comparisonPredictions.length} without predictions)
+                  </span>
+                )}
+              </p>
+            </div>
             <button
               onClick={() => {
                 setShowComparison(false);
                 setComparisonPredictions([]);
+                setError(null);
               }}
               className="text-slate-600 hover:text-slate-900"
             >

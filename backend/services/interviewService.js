@@ -185,7 +185,6 @@ class InterviewService {
         // Don't fail the interview creation if calendar sync fails
       }
 
-<<<<<<< HEAD
       // Log activity to all teams user is a member of
       try {
         const userTeams = await database.query(

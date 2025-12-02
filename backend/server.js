@@ -110,7 +110,8 @@ app.use(
       secure: false, // Set to false for local development, even in production mode
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      sameSite: "lax", // Use lax for local development
+      sameSite: "lax", // Use lax for local development - allows cookies on redirects
+      domain: undefined, // Let browser set domain automatically
     },
   })
 );

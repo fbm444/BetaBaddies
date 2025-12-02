@@ -444,6 +444,14 @@ class UserController {
     req.session.userId = req.user.id;
     req.session.userEmail = req.user.email;
 
+    // Save session before redirect
+    await new Promise((resolve, reject) => {
+      req.session.save((err) => {
+        if (err) reject(err);
+        else resolve(null);
+      });
+    });
+
     // Import LinkedIn profile data in the background (fire-and-forget)
     try {
       const accessToken = await linkedinService.getLinkedInAccessToken(req.user.id);
@@ -456,10 +464,9 @@ class UserController {
       console.error("❌ Error importing LinkedIn profile after login:", profileError);
     }
 
-    // Redirect to analytics networking page to show LinkedIn network
-    res.redirect(
-      `${process.env.FRONTEND_URL || "http://localhost:5173"}/analytics?linkedin=connected&tab=network`
-    );
+    // Redirect directly to analytics networking page to show LinkedIn network
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+    res.redirect(`${frontendUrl}/analytics?linkedin=connected&tab=network`);
   });
 
   // Import LinkedIn profile data (manual trigger)

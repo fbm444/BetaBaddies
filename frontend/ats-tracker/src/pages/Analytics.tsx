@@ -27,9 +27,7 @@ export function Analytics() {
   useEffect(() => {
     if (searchParams.get("linkedin") === "connected") {
       setActiveTab("network");
-      // Remove the query param after setting tab
-      searchParams.delete("linkedin");
-      setSearchParams(searchParams, { replace: true });
+      // Keep the query param so NetworkROI can also see it
     } else if (tabFromUrl && ["performance", "success", "network", "salary", "goals", "productivity"].includes(tabFromUrl)) {
       setActiveTab(tabFromUrl);
     }

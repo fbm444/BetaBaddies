@@ -160,7 +160,14 @@ function App() {
               path={ROUTES.INTERVIEW_ANALYTICS}
               element={<InterviewAnalytics />}
             />
-            <Route path={ROUTES.ANALYTICS} element={<Analytics />} />
+            <Route 
+              path={ROUTES.ANALYTICS} 
+              element={
+                <ProtectedRoute requireAuth={true}>
+                  <Analytics />
+                </ProtectedRoute>
+              } 
+            />
             <Route path={ROUTES.MARKET_INTELLIGENCE} element={<MarketIntelligence />} />
             <Route path={ROUTES.REPORT_GENERATOR} element={<ReportGenerator />} />
             <Route

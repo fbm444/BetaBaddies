@@ -9,7 +9,7 @@ interface NetworkROIProps {
   dateRange?: DateRange;
 }
 
-type TabType = "overview" | "recruiters" | "linkedin" | "coffee-chats" | "search";
+type TabType = "overview" | "recruiters" | "linkedin" | "coffee-chats" | "contacts" | "search";
 
 export function NetworkROI({ dateRange }: NetworkROIProps) {
   const [searchParams] = useSearchParams();
@@ -19,6 +19,7 @@ export function NetworkROI({ dateRange }: NetworkROIProps) {
   const [recruiters, setRecruiters] = useState<any[]>([]);
   const [linkedInContacts, setLinkedInContacts] = useState<any[]>([]);
   const [coffeeChats, setCoffeeChats] = useState<any[]>([]);
+  const [professionalContacts, setProfessionalContacts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,6 +59,10 @@ export function NetworkROI({ dateRange }: NetworkROIProps) {
   useEffect(() => {
     if (searchParams.get("linkedin") === "connected") {
       setActiveTab("linkedin");
+      // Remove the query param after handling
+      const newSearchParams = new URLSearchParams(searchParams);
+      newSearchParams.delete("linkedin");
+      window.history.replaceState({}, "", `${window.location.pathname}${newSearchParams.toString() ? '?' + newSearchParams.toString() : ''}`);
       // Fetch LinkedIn network immediately
       fetchData();
     }
@@ -119,6 +124,11 @@ export function NetworkROI({ dateRange }: NetworkROIProps) {
         const chatsResponse = await api.getCoffeeChats();
         if (chatsResponse.ok && chatsResponse.data?.chats) {
           setCoffeeChats(chatsResponse.data.chats);
+        }
+      } else if (activeTab === "contacts") {
+        const contactsResponse = await api.getContacts();
+        if (contactsResponse.ok && contactsResponse.data?.contacts) {
+          setProfessionalContacts(contactsResponse.data.contacts);
         }
       }
     } catch (err: any) {
@@ -204,6 +214,7 @@ export function NetworkROI({ dateRange }: NetworkROIProps) {
     { id: "recruiters" as TabType, label: "Recruiters", icon: "mingcute:user-line" },
     { id: "linkedin" as TabType, label: "LinkedIn Network", icon: "mingcute:linkedin-line" },
     { id: "coffee-chats" as TabType, label: "Coffee Chats", icon: "mingcute:chat-3-line" },
+    { id: "contacts" as TabType, label: "My Contacts", icon: "mingcute:user-3-line" },
     { id: "search" as TabType, label: "Search", icon: "mingcute:search-line" },
   ];
 
@@ -273,6 +284,17 @@ export function NetworkROI({ dateRange }: NetworkROIProps) {
           <CoffeeChatsTab
             chats={coffeeChats}
             isLoading={isLoading}
+            onCreateCoffeeChat={handleCreateCoffeeChat}
+            onRefresh={fetchData}
+            showToast={showToast}
+          />
+        )}
+
+        {activeTab === "contacts" && (
+          <ContactsTab
+            contacts={professionalContacts}
+            isLoading={isLoading}
+            onGenerateMessage={handleGenerateMessage}
             onCreateCoffeeChat={handleCreateCoffeeChat}
             onRefresh={fetchData}
             showToast={showToast}
@@ -1263,6 +1285,113 @@ function CoffeeChatsTab({ chats, isLoading, onCreateCoffeeChat, onRefresh, showT
               </button>
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Contacts Tab Component
+function ContactsTab({ contacts, isLoading, onGenerateMessage, onCreateCoffeeChat, onRefresh, showToast }: any) {
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-[#3351FD]" />
+          <p className="text-sm text-[#6D7A99]">Loading contacts...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <p className="text-slate-600">
+          View and manage all your professional contacts.
+        </p>
+      </div>
+
+      {contacts.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-[#E4E8F5] bg-[#F8F8F8] p-10 text-center">
+          <Icon icon="mingcute:user-3-line" className="mx-auto mb-3 text-[#6D7A99]" width={48} />
+          <p className="text-sm text-[#6D7A99]">
+            No contacts found. Start adding contacts to build your network.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {contacts.map((contact: any) => (
+            <div
+              key={contact.id}
+              className="rounded-xl bg-white p-6 border border-[#E4E8F5] hover:shadow-md transition-shadow"
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-start gap-3 flex-1">
+                  <div className="w-12 h-12 rounded-full bg-slate-200 flex-shrink-0 overflow-hidden flex items-center justify-center">
+                    {contact.profilePicture && !contact.profilePicture.includes('blank-profile-picture') ? (
+                      <img
+                        src={contact.profilePicture}
+                        alt={`${contact.firstName} ${contact.lastName}`}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-slate-500 text-lg font-semibold">
+                        {(contact.firstName?.[0] || '').toUpperCase()}{(contact.lastName?.[0] || '').toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-semibold text-slate-900">
+                      {contact.firstName} {contact.lastName}
+                    </h3>
+                    {contact.jobTitle && (
+                      <p className="text-sm text-slate-600 mt-1">{contact.jobTitle}</p>
+                    )}
+                    {contact.company && (
+                      <p className="text-sm text-slate-500 mt-1">{contact.company}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2 mb-4">
+                {contact.email && (
+                  <div className="flex items-center gap-2 text-sm text-slate-600">
+                    <Icon icon="mingcute:mail-line" width={16} />
+                    <span className="truncate">{contact.email}</span>
+                  </div>
+                )}
+                {contact.phone && (
+                  <div className="flex items-center gap-2 text-sm text-slate-600">
+                    <Icon icon="mingcute:phone-line" width={16} />
+                    <span>{contact.phone}</span>
+                  </div>
+                )}
+                {contact.industry && (
+                  <div className="flex items-center gap-2 text-sm text-slate-600">
+                    <Icon icon="mingcute:briefcase-line" width={16} />
+                    <span>{contact.industry}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-2 mt-4 pt-4 border-t border-[#E4E8F5]">
+                <button
+                  onClick={() => onGenerateMessage(contact, "coffee_chat")}
+                  className="flex-1 px-3 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#1E3097] transition-colors text-sm font-medium"
+                >
+                  Message
+                </button>
+                <button
+                  onClick={() => onCreateCoffeeChat(contact)}
+                  className="flex-1 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium"
+                >
+                  Add Chat
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

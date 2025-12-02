@@ -316,8 +316,8 @@ export function SalaryNegotiation() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 py-8 font-poppins">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-white font-poppins">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-slate-900 mb-2">
@@ -344,8 +344,8 @@ export function SalaryNegotiation() {
         )}
 
         {/* Tabs */}
-        <div className="mb-6 border-b border-slate-200">
-          <nav className="flex space-x-8">
+        <div className="border-b border-slate-200 mb-8">
+          <div className="flex gap-1 overflow-x-auto scrollbar-hide">
             {[
               { id: "overview", label: "Overview" },
               { id: "market-research", label: "Market Research" },
@@ -354,46 +354,53 @@ export function SalaryNegotiation() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as TabType)}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                className={`px-6 py-3 font-medium text-sm whitespace-nowrap flex items-center gap-2 flex-shrink-0 min-w-fit bg-transparent hover:bg-transparent focus:bg-transparent ${
                   activeTab === tab.id
-                    ? "border-blue-500 text-blue-600"
-                    : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+                    ? "text-blue-500 border-b-2 border-blue-500"
+                    : "text-slate-600"
                 }`}
+                style={{ 
+                  outline: 'none', 
+                  boxShadow: 'none',
+                  borderTop: 'none',
+                  borderLeft: 'none',
+                  borderRight: 'none',
+                  borderRadius: '0'
+                }}
+                onFocus={(e) => e.target.blur()}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
               >
-                {tab.label}
+                <span className="flex-shrink-0">{tab.label}</span>
               </button>
             ))}
-          </nav>
+          </div>
         </div>
 
         {/* Tab Content */}
-        {activeTab === "overview" && (
+        <div className="mt-8 bg-slate-50 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-10 rounded-t-2xl">
+          {activeTab === "overview" && (
           <div>
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <div className="bg-white rounded-xl p-6 border border-slate-200">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm text-slate-600">Active Negotiations</p>
-                  <Icon icon="mingcute:briefcase-line" width={24} className="text-blue-500" />
-                </div>
-                <p className="text-3xl font-bold text-slate-900">{stats.active}</p>
+              <div className="bg-gradient-to-b from-[#1E3097] to-[#3351FD] rounded-xl p-6 text-white">
+                <p className="text-sm text-white/90 mb-2">Active Negotiations</p>
+                <p className="text-3xl font-bold text-white">{stats.active}</p>
               </div>
 
               <div className="bg-white rounded-xl p-6 border border-slate-200">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm text-slate-600">Avg. Increase</p>
-                  <Icon icon="mingcute:trending-up-line" width={24} className="text-green-500" />
-                </div>
+                <p className="text-sm text-slate-600 mb-2">Avg. Increase</p>
                 <p className="text-3xl font-bold text-slate-900">
                   {stats.avgIncrease > 0 ? `+${stats.avgIncrease.toFixed(1)}%` : "0%"}
                 </p>
               </div>
 
               <div className="bg-white rounded-xl p-6 border border-slate-200">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm text-slate-600">Total Saved</p>
-                  <Icon icon="mingcute:dollar-line" width={24} className="text-emerald-500" />
-                </div>
+                <p className="text-sm text-slate-600 mb-2">Total Saved</p>
                 <p className="text-3xl font-bold text-slate-900">
                   ${stats.totalSaved.toLocaleString()}
                 </p>
@@ -407,9 +414,10 @@ export function SalaryNegotiation() {
                   <h2 className="text-xl font-semibold text-slate-900">Negotiations</h2>
                   <button
                     onClick={() => setShowCreateModal(true)}
-                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm font-medium"
+                    className="px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 text-sm font-medium flex items-center gap-2"
                   >
-                    Start New Negotiation
+                    <Icon icon="mingcute:add-line" width={18} />
+                    New Negotiation
                   </button>
                 </div>
                 
@@ -424,7 +432,7 @@ export function SalaryNegotiation() {
                     <button
                       key={filter.value}
                       onClick={() => setStatusFilter(filter.value as StatusFilter)}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
                         statusFilter === filter.value
                           ? "bg-blue-500 text-white"
                           : "bg-slate-100 text-slate-700 hover:bg-slate-200"
@@ -457,9 +465,10 @@ export function SalaryNegotiation() {
                           </p>
                           <button
                             onClick={() => setShowCreateModal(true)}
-                            className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium"
+                            className="px-6 py-3 bg-blue-500 text-white rounded-full hover:bg-blue-600 font-medium flex items-center gap-2"
                           >
-                            Start New Negotiation
+                            <Icon icon="mingcute:add-line" width={18} />
+                            New Negotiation
                           </button>
                         </>
                       )}
@@ -521,9 +530,9 @@ export function SalaryNegotiation() {
               })()}
             </div>
           </div>
-        )}
+          )}
 
-        {activeTab === "market-research" && (
+          {activeTab === "market-research" && (
           <div className="space-y-6">
             <div>
               <h2 className="text-2xl font-bold text-slate-900 mb-2">Market Research</h2>
@@ -710,7 +719,7 @@ export function SalaryNegotiation() {
                         setActiveTab("overview");
                         setStatusFilter("active");
                       }}
-                      className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium"
+                      className="px-6 py-3 bg-blue-500 text-white rounded-full hover:bg-blue-600 font-medium"
                     >
                       View Active Negotiations
                     </button>
@@ -719,9 +728,9 @@ export function SalaryNegotiation() {
               </div>
             )}
           </div>
-        )}
+          )}
 
-        {activeTab === "progression" && (
+          {activeTab === "progression" && (
           <div className="space-y-8">
             {/* Header Section */}
             <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl p-8 text-white">
@@ -734,7 +743,7 @@ export function SalaryNegotiation() {
                 </div>
                 <button
                   onClick={() => setShowAddProgressionModal(true)}
-                  className="px-6 py-3 bg-white text-blue-600 rounded-lg hover:bg-blue-50 text-sm font-semibold flex items-center gap-2 shadow-lg transition-all"
+                  className="px-6 py-3 bg-white text-blue-600 rounded-full hover:bg-blue-50 text-sm font-semibold flex items-center gap-2 shadow-lg transition-all"
                 >
                   <Icon icon="mingcute:add-line" width={18} />
                   Add Entry
@@ -839,7 +848,7 @@ export function SalaryNegotiation() {
                       </div>
                       <button
                         onClick={() => setShowAddProgressionModal(true)}
-                        className="px-8 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-semibold shadow-md hover:shadow-lg transition-all"
+                        className="px-8 py-3 bg-blue-500 text-white rounded-full hover:bg-blue-600 font-semibold shadow-md hover:shadow-lg transition-all"
                       >
                         <Icon icon="mingcute:add-line" width={18} className="inline mr-2" />
                         Add First Entry
@@ -1028,7 +1037,7 @@ export function SalaryNegotiation() {
                                             e.stopPropagation();
                                             setDeleteProgressionEntryId(item.id);
                                           }}
-                                          className="flex-shrink-0 text-slate-400 hover:text-red-500 transition-colors p-1 rounded hover:bg-red-50"
+                                          className="flex-shrink-0 text-slate-400 hover:text-red-500 transition-colors p-1 rounded-full hover:bg-red-50"
                                           title="Delete entry"
                                         >
                                           <Icon icon="mingcute:close-line" width={20} height={20} />
@@ -1094,8 +1103,8 @@ export function SalaryNegotiation() {
               );
             })()}
           </div>
-        )}
-      </div>
+          )}
+        </div>
 
       {/* Create Negotiation Modal */}
       {showCreateModal && (
@@ -1428,14 +1437,14 @@ export function SalaryNegotiation() {
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-6 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-medium"
+                  className="px-6 py-2 border border-slate-300 text-slate-700 rounded-full hover:bg-slate-50 font-medium"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={creatingNegotiation || !formData.jobOpportunityId || !formData.initialOffer.baseSalary}
-                  className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {creatingNegotiation ? "Creating..." : "Create Negotiation"}
                 </button>
@@ -1474,43 +1483,22 @@ export function SalaryNegotiation() {
       {deleteProgressionEntryId && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-xl">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                  <Icon icon="mingcute:alert-line" width={24} className="text-red-600" />
-                </div>
-                <h2 className="text-2xl font-bold text-slate-900">Delete Entry</h2>
-              </div>
-              <button
-                onClick={() => setDeleteProgressionEntryId(null)}
-                className="text-slate-400 hover:text-slate-600 transition-colors"
-                disabled={isDeleting}
-              >
-                <Icon icon="mingcute:close-line" width={24} />
-              </button>
-            </div>
-
-            <div className="mb-6">
-              <p className="text-slate-700 mb-2">
-                Are you sure you want to delete this salary progression entry?
-              </p>
-              <p className="text-sm text-slate-500">
-                This action cannot be undone. The entry will be permanently removed from your salary progression history.
-              </p>
-            </div>
-
+            <h3 className="text-xl font-bold text-slate-900 mb-4">Delete Progression Entry</h3>
+            <p className="text-slate-600 mb-6">
+              Are you sure you want to delete this progression entry? This action cannot be undone.
+            </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setDeleteProgressionEntryId(null)}
                 disabled={isDeleting}
-                className="flex-1 px-4 py-3 border border-slate-300 text-slate-700 rounded-lg font-medium hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-3 border border-slate-300 text-slate-700 rounded-full font-medium hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDeleteProgressionEntry}
                 disabled={isDeleting}
-                className="flex-1 px-4 py-3 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-3 bg-red-500 text-white rounded-full font-medium hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {isDeleting ? (
                   <>
@@ -1528,6 +1516,7 @@ export function SalaryNegotiation() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

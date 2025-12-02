@@ -174,7 +174,7 @@ export function AIPreparationCard({ dateRange }: AIPreparationCardProps) {
                   <div className="font-medium text-[#0F1D3A] text-sm">{activity.activity}</div>
                   <div className="text-xs text-[#6D7A99] mt-1">{activity.reasoning}</div>
                 </div>
-                <div className={`px-2 py-1 rounded text-xs font-medium ${
+                <div className={`px-2 py-1 rounded-full text-xs font-medium ${
                   activity.impact === 'high' ? 'bg-green-100 text-green-700' :
                   activity.impact === 'medium' ? 'bg-blue-100 text-blue-700' :
                   'bg-gray-100 text-gray-700'

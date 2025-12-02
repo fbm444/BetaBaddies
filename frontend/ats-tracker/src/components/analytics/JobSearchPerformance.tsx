@@ -64,6 +64,14 @@ export function JobSearchPerformance({ dateRange }: JobSearchPerformanceProps) {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h2 className="text-2xl font-bold text-slate-900 mb-4 font-poppins">Job Search Performance</h2>
+        <p className="text-slate-600 mb-6 font-poppins">
+          Track your overall job search metrics, conversion rates, and compare your performance against industry benchmarks.
+        </p>
+      </div>
+
       {/* Key Metrics Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="flex flex-col justify-between rounded-2xl bg-gradient-to-b from-[#1E3097] to-[#3351FD] p-6 text-white min-h-[160px]">

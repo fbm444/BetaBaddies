@@ -32,7 +32,7 @@ export function PredictiveScoresCard({ scores }: PredictiveScoresCardProps) {
                     {score.jobTitle}
                   </h4>
                   {(score as any).status && (
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                       (score as any).status === 'Offer' ? 'bg-green-100 text-green-700' :
                       (score as any).status === 'Rejected' ? 'bg-red-100 text-red-700' :
                       (score as any).status === 'Withdrawn' ? 'bg-gray-100 text-gray-700' :
@@ -45,7 +45,7 @@ export function PredictiveScoresCard({ scores }: PredictiveScoresCardProps) {
                 <p className="text-xs text-[#6D7A99]">{score.company}</p>
               </div>
               <div className="text-right">
-                <div className={`text-3xl font-bold ${
+                <div className={`text-3xl font-extralight font-poppins ${
                   score.successProbability >= 60 ? 'text-green-600' :
                   score.successProbability >= 40 ? 'text-yellow-600' :
                   'text-red-600'
@@ -57,16 +57,16 @@ export function PredictiveScoresCard({ scores }: PredictiveScoresCardProps) {
             </div>
             
             {/* Breakdown */}
-            <div className="grid grid-cols-2 gap-2 mb-3">
-              <div className="text-xs">
+            <div className="mb-3">
+              <div className="text-xs mb-1">
                 <span className="text-[#6D7A99]">Industry benchmark:</span>
-                <span className="ml-1 font-medium text-[#0F1D3A]">
+                <span className="ml-1 font-extralight text-[#0F1D3A] font-poppins">
                   {score.breakdown.industryBenchmark}%
                 </span>
               </div>
               <div className="text-xs">
                 <span className="text-[#6D7A99]">Your history:</span>
-                <span className="ml-1 font-medium text-[#0F1D3A]">
+                <span className="ml-1 font-extralight text-[#0F1D3A] font-poppins">
                   {score.breakdown.userHistoricalRate}%
                 </span>
               </div>
@@ -74,7 +74,7 @@ export function PredictiveScoresCard({ scores }: PredictiveScoresCardProps) {
 
             {/* Confidence */}
             <div className="mb-3">
-              <div className={`inline-flex px-2 py-1 rounded text-xs font-medium ${
+              <div className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
                 score.confidence === 'high' ? 'bg-green-100 text-green-700' :
                 score.confidence === 'medium' ? 'bg-yellow-100 text-yellow-700' :
                 score.confidence === 'low' ? 'bg-orange-100 text-orange-700' :

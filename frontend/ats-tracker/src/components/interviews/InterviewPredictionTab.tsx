@@ -100,19 +100,66 @@ export function InterviewPredictionTab({
     try {
       // Use all job opportunities
       const jobIds = jobOpportunities.map((job) => job.id);
+      
+      // Step 1: Check which jobs don't have predictions and calculate them
+      console.log("Checking which jobs need predictions calculated...");
+      setError("Checking which jobs need predictions...");
+      
+      const predictionChecks = await Promise.allSettled(
+        jobIds.map(async (jobId) => {
+          try {
+            const response = await api.getInterviewPrediction(jobId);
+            return { jobId, hasPrediction: response.ok && response.data?.prediction };
+          } catch (err: any) {
+            // 404 means no prediction exists
+            return { jobId, hasPrediction: false };
+          }
+        })
+      );
+
+      // Step 2: Calculate predictions for jobs that don't have them
+      const jobsNeedingPrediction = predictionChecks
+        .filter((result) => result.status === "fulfilled" && !result.value.hasPrediction)
+        .map((result) => (result as PromiseFulfilledResult<{ jobId: string; hasPrediction: boolean }>).value.jobId);
+
+      if (jobsNeedingPrediction.length > 0) {
+        console.log(`Calculating predictions for ${jobsNeedingPrediction.length} jobs...`);
+        setError(`Calculating predictions for ${jobsNeedingPrediction.length} job${jobsNeedingPrediction.length > 1 ? 's' : ''}... This may take a moment.`);
+        
+        // Calculate predictions in parallel
+        const calculateResults = await Promise.allSettled(
+          jobsNeedingPrediction.map((jobId) =>
+            api.calculateInterviewPrediction(jobId)
+          )
+        );
+        
+        // Check for any failures
+        const failures = calculateResults.filter((result) => result.status === "rejected");
+        if (failures.length > 0) {
+          console.warn(`${failures.length} prediction(s) failed to calculate`);
+        }
+        
+        console.log("Finished calculating predictions");
+      }
+
+      // Step 3: Now compare all predictions
+      setError(null);
       const response = await api.compareInterviewPredictions(jobIds);
       if (response.ok && response.data?.predictions) {
         const predictions = response.data.predictions;
         if (predictions.length === 0) {
-          setError(`No predictions found for any of the ${jobOpportunities.length} jobs. Please calculate predictions for at least one job opportunity first.`);
+          setError(`No predictions found after calculation. Please try again.`);
           setShowComparison(false);
         } else {
           setComparisonPredictions(predictions);
           setShowComparison(true);
-          // Show info if not all jobs have predictions
-          if (predictions.length < jobOpportunities.length) {
+          // Clear any error messages if we successfully got all predictions
+          if (predictions.length === jobOpportunities.length) {
+            setError(null);
+          } else {
+            // This shouldn't happen if calculations worked, but just in case
             const missingCount = jobOpportunities.length - predictions.length;
-            setError(`Showing ${predictions.length} of ${jobOpportunities.length} jobs (${missingCount} job${missingCount !== 1 ? 's' : ''} don't have predictions yet). Calculate predictions for those jobs to include them in the comparison.`);
+            setError(`Showing ${predictions.length} of ${jobOpportunities.length} jobs. ${missingCount} job${missingCount !== 1 ? 's' : ''} may have failed to calculate.`);
           }
         }
       } else {

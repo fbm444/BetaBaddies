@@ -1446,13 +1446,44 @@ export function Interviews() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {/* Thank-you Note Template */}
                   <div 
-                    className="bg-white border border-slate-200 rounded-xl p-6 hover:shadow-lg transition-all cursor-pointer"
-                    onClick={() => {
+                    className="bg-white border border-slate-200 rounded-xl p-6 hover:shadow-lg transition-all cursor-pointer relative"
+                    onClick={async () => {
                       const completedInterview = interviews.find(i => i.status === "completed" || i.outcome);
-                      if (completedInterview) {
-                        openThankYouModal(completedInterview);
-                      } else {
+                      if (!completedInterview) {
                         showMessage("Please complete an interview first to generate a thank-you note", "error");
+                        return;
+                      }
+
+                      try {
+                        // Open modal first
+                        await openThankYouModal(completedInterview);
+                        
+                        // Auto-generate standard thank-you note if none exists
+                        const notesResponse = await api.getThankYouNotes(completedInterview.id);
+                        if (notesResponse.ok && notesResponse.data?.notes && notesResponse.data.notes.length === 0) {
+                          setLoadingThankYou(true);
+                          try {
+                            const generateResponse = await api.generateThankYouNote(
+                              completedInterview.id,
+                              "standard"
+                            );
+                            if (generateResponse.ok && generateResponse.data?.note) {
+                              const updatedNotesResponse = await api.getThankYouNotes(completedInterview.id);
+                              if (updatedNotesResponse.ok && updatedNotesResponse.data?.notes) {
+                                setThankYouNotes(updatedNotesResponse.data.notes);
+                                showMessage("Thank-you note generated successfully! You can regenerate with different styles if needed.", "success");
+                              }
+                            }
+                          } catch (err: any) {
+                            console.error("Failed to auto-generate thank-you note:", err);
+                            // Don't show error - user can generate manually
+                          } finally {
+                            setLoadingThankYou(false);
+                          }
+                        }
+                      } catch (error) {
+                        console.error("Error opening thank-you modal:", error);
+                        showMessage("Failed to open thank-you note editor. Please try again.", "error");
                       }
                     }}
                   >
@@ -1485,50 +1516,100 @@ export function Interviews() {
                         Thank you for taking the time to speak with me about the [Role] position at [Company]. I appreciated our discussion about [specific topic from interview notes]...
                       </div>
                     </div>
+                    {loadingThankYou && (
+                      <div className="absolute inset-0 bg-white/90 rounded-xl flex items-center justify-center z-10">
+                        <div className="flex items-center gap-2 text-blue-600">
+                          <Icon icon="mingcute:loading-line" width={20} className="animate-spin" />
+                          <span className="text-sm font-medium">Generating thank-you note...</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Status Inquiry Template */}
                   <div 
-                    className="bg-white border border-slate-200 rounded-xl p-6 hover:shadow-lg transition-all cursor-pointer"
-                    onClick={() => {
+                    className="bg-white border border-slate-200 rounded-xl p-6 hover:shadow-lg transition-all cursor-pointer relative"
+                    onClick={async () => {
                       const completedInterview = interviews.find(i => i.status === "completed" || i.outcome);
-                      if (completedInterview) {
-                        // Find or create a status inquiry follow-up for this interview
-                        const statusFollowUp = pendingFollowUps.find(fu => 
-                          fu.interviewId === completedInterview.id && 
+                      if (!completedInterview) {
+                        showMessage("Please complete an interview first", "error");
+                        return;
+                      }
+
+                      try {
+                        // Find existing status inquiry follow-up
+                        let statusFollowUp = pendingFollowUps.find(fu => 
+                          (fu.interviewId === completedInterview.id || fu.interview_id === completedInterview.id) && 
                           (fu.actionType === "status_inquiry" || fu.action_type === "status_inquiry")
                         );
-                        if (statusFollowUp) {
-                          // Generate draft for existing follow-up
-                          setDraftLoadingId(statusFollowUp.id);
-                          api.getFollowUpEmailDraft(completedInterview.id, statusFollowUp.id)
-                            .then(response => {
-                              if (response.ok && response.data?.draft) {
-                                const draft = response.data.draft;
-                                setStoredFollowUpDrafts(prev => {
-                                  const updated = new Map(prev);
-                                  const existing = updated.get(statusFollowUp.id) || [];
-                                  updated.set(statusFollowUp.id, [
-                                    { ...draft, createdAt: new Date().toISOString() },
-                                    ...existing,
-                                  ]);
-                                  return updated;
-                                });
-                                setActiveFollowUpDraft({
-                                  id: statusFollowUp.id,
-                                  interviewId: completedInterview.id,
-                                  subject: draft.subject,
-                                  body: draft.body,
-                                  generatedBy: draft.generatedBy,
-                                });
-                              }
-                            })
-                            .finally(() => setDraftLoadingId(null));
-                        } else {
-                          showMessage("Status inquiry follow-up will be created automatically after your interview. Check back later!", "info");
+
+                        // If doesn't exist, create it
+                        if (!statusFollowUp) {
+                          setDraftLoadingId("creating");
+                          const dueDate = new Date();
+                          dueDate.setDate(dueDate.getDate() + 14); // 2 weeks from now
+                          
+                          try {
+                            const createResponse = await api.createFollowUpAction(completedInterview.id, {
+                              actionType: "status_inquiry",
+                              dueDate: dueDate.toISOString(),
+                              notes: "Follow-up on interview status and hiring timeline",
+                            });
+
+                            if (createResponse.ok && (createResponse.data?.followUp || createResponse.data?.action)) {
+                              statusFollowUp = createResponse.data?.followUp || createResponse.data?.action;
+                              // Add to pending follow-ups list
+                              setPendingFollowUps(prev => [...prev, statusFollowUp]);
+                              // Reload follow-ups to get updated list
+                              fetchPendingFollowUps();
+                            } else {
+                              console.error("Failed to create follow-up action - Response:", createResponse);
+                              const errorMsg = createResponse.error?.message || createResponse.data?.message || "Failed to create follow-up action. Please try again.";
+                              showMessage(errorMsg, "error");
+                              setDraftLoadingId(null);
+                              return;
+                            }
+                          } catch (createError: any) {
+                            console.error("Error creating follow-up action:", createError);
+                            const errorMsg = createError.response?.data?.error?.message || createError.message || "Failed to create follow-up action. Please try again.";
+                            showMessage(errorMsg, "error");
+                            setDraftLoadingId(null);
+                            return;
+                          }
                         }
-                      } else {
-                        showMessage("Please complete an interview first", "error");
+
+                        // Generate draft for follow-up
+                        const followUpId = statusFollowUp.id;
+                        setDraftLoadingId(followUpId);
+                        try {
+                          const response = await api.getFollowUpEmailDraft(completedInterview.id, followUpId);
+                          
+                          if (response.ok && response.data?.draft) {
+                            const draft = response.data.draft;
+                            setStoredFollowUpDrafts(prev => {
+                              const updated = new Map(prev);
+                              const existing = updated.get(followUpId) || [];
+                              updated.set(followUpId, [
+                                { ...draft, createdAt: new Date().toISOString() },
+                                ...existing,
+                              ]);
+                              return updated;
+                            });
+                            // Cache the draft but don't open modal - stay in current tab
+                            // The draft will be available to view in the cached drafts section
+                            showMessage("Follow-up email draft generated successfully! View it in 'Cached Drafts' below.", "success");
+                          } else {
+                            showMessage("Failed to generate email draft. Please try again.", "error");
+                          }
+                        } catch (draftError) {
+                          console.error("Error generating draft:", draftError);
+                          showMessage("Failed to generate email draft. Please try again.", "error");
+                        }
+                      } catch (error) {
+                        console.error("Error handling status inquiry:", error);
+                        showMessage("An error occurred. Please try again.", "error");
+                      } finally {
+                        setDraftLoadingId(null);
                       }
                     }}
                   >
@@ -1561,49 +1642,103 @@ export function Interviews() {
                         I hope this email finds you well. I wanted to follow up regarding the [Role] position at [Company] for which we spoke on [date]...
                       </div>
                     </div>
+                    {(draftLoadingId === "creating" || (draftLoadingId && draftLoadingId !== "creating" && pendingFollowUps.some(fu => fu.id === draftLoadingId && (fu.actionType === "status_inquiry" || fu.action_type === "status_inquiry")))) && (
+                      <div className="absolute inset-0 bg-white/90 rounded-xl flex items-center justify-center z-10">
+                        <div className="flex items-center gap-2 text-orange-600">
+                          <Icon icon="mingcute:loading-line" width={20} className="animate-spin" />
+                          <span className="text-sm font-medium">
+                            {draftLoadingId === "creating" ? "Creating follow-up..." : "Generating draft..."}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Feedback Request Template */}
                   <div 
-                    className="bg-white border border-slate-200 rounded-xl p-6 hover:shadow-lg transition-all cursor-pointer"
-                    onClick={() => {
+                    className="bg-white border border-slate-200 rounded-xl p-6 hover:shadow-lg transition-all cursor-pointer relative"
+                    onClick={async () => {
                       const rejectedInterview = interviews.find(i => i.outcome === "rejected");
-                      if (rejectedInterview) {
-                        // Find or create a feedback request follow-up
-                        const feedbackFollowUp = pendingFollowUps.find(fu => 
-                          fu.interviewId === rejectedInterview.id && 
-                          (fu.actionType === "feedback_request" || fu.action_type === "feedback_request")
-                        );
-                        if (feedbackFollowUp) {
-                          setDraftLoadingId(feedbackFollowUp.id);
-                          api.getFollowUpEmailDraft(rejectedInterview.id, feedbackFollowUp.id)
-                            .then(response => {
-                              if (response.ok && response.data?.draft) {
-                                const draft = response.data.draft;
-                                setStoredFollowUpDrafts(prev => {
-                                  const updated = new Map(prev);
-                                  const existing = updated.get(feedbackFollowUp.id) || [];
-                                  updated.set(feedbackFollowUp.id, [
-                                    { ...draft, createdAt: new Date().toISOString() },
-                                    ...existing,
-                                  ]);
-                                  return updated;
-                                });
-                                setActiveFollowUpDraft({
-                                  id: feedbackFollowUp.id,
-                                  interviewId: rejectedInterview.id,
-                                  subject: draft.subject,
-                                  body: draft.body,
-                                  generatedBy: draft.generatedBy,
-                                });
-                              }
-                            })
-                            .finally(() => setDraftLoadingId(null));
-                        } else {
-                          showMessage("Feedback request follow-up will be created automatically for rejected interviews. Check back later!", "info");
-                        }
-                      } else {
+                      if (!rejectedInterview) {
                         showMessage("This template is available for interviews with rejected outcomes", "info");
+                        return;
+                      }
+
+                      try {
+                        // Find existing feedback request follow-up (using "other" type with notes indicating feedback request)
+                        let feedbackFollowUp = pendingFollowUps.find(fu => 
+                          (fu.interviewId === rejectedInterview.id || fu.interview_id === rejectedInterview.id) && 
+                          ((fu.actionType === "other" || fu.action_type === "other") && 
+                           (fu.notes?.toLowerCase().includes("feedback") || fu.notes?.toLowerCase().includes("feedback request")))
+                        );
+
+                        // If doesn't exist, create it
+                        if (!feedbackFollowUp) {
+                          setDraftLoadingId("creating");
+                          const dueDate = new Date();
+                          dueDate.setDate(dueDate.getDate() + 1); // 1 day from now
+                          
+                          try {
+                            const createResponse = await api.createFollowUpAction(rejectedInterview.id, {
+                              actionType: "other", // Using "other" since "feedback_request" is not a valid action_type
+                              dueDate: dueDate.toISOString(),
+                              notes: "Request feedback on interview performance to improve for future opportunities",
+                            });
+
+                            if (createResponse.ok && (createResponse.data?.followUp || createResponse.data?.action)) {
+                              feedbackFollowUp = createResponse.data?.followUp || createResponse.data?.action;
+                              // Add to pending follow-ups list
+                              setPendingFollowUps(prev => [...prev, feedbackFollowUp]);
+                              // Reload follow-ups to get updated list
+                              fetchPendingFollowUps();
+                            } else {
+                              console.error("Failed to create follow-up action - Response:", createResponse);
+                              const errorMsg = createResponse.error?.message || createResponse.data?.message || "Failed to create follow-up action. Please try again.";
+                              showMessage(errorMsg, "error");
+                              setDraftLoadingId(null);
+                              return;
+                            }
+                          } catch (createError: any) {
+                            console.error("Error creating follow-up action:", createError);
+                            const errorMsg = createError.response?.data?.error?.message || createError.message || "Failed to create follow-up action. Please try again.";
+                            showMessage(errorMsg, "error");
+                            setDraftLoadingId(null);
+                            return;
+                          }
+                        }
+
+                        // Generate draft for follow-up
+                        const followUpId = feedbackFollowUp.id;
+                        setDraftLoadingId(followUpId);
+                        try {
+                          const response = await api.getFollowUpEmailDraft(rejectedInterview.id, followUpId);
+                          
+                          if (response.ok && response.data?.draft) {
+                            const draft = response.data.draft;
+                            setStoredFollowUpDrafts(prev => {
+                              const updated = new Map(prev);
+                              const existing = updated.get(followUpId) || [];
+                              updated.set(followUpId, [
+                                { ...draft, createdAt: new Date().toISOString() },
+                                ...existing,
+                              ]);
+                              return updated;
+                            });
+                            // Cache the draft but don't open modal - stay in current tab
+                            // The draft will be available to view in the cached drafts section
+                            showMessage("Follow-up email draft generated successfully! View it in 'Cached Drafts' below.", "success");
+                          } else {
+                            showMessage("Failed to generate email draft. Please try again.", "error");
+                          }
+                        } catch (draftError) {
+                          console.error("Error generating draft:", draftError);
+                          showMessage("Failed to generate email draft. Please try again.", "error");
+                        }
+                      } catch (error) {
+                        console.error("Error handling feedback request:", error);
+                        showMessage("An error occurred. Please try again.", "error");
+                      } finally {
+                        setDraftLoadingId(null);
                       }
                     }}
                   >
@@ -1636,8 +1771,149 @@ export function Interviews() {
                         Thank you again for the opportunity to interview for the [Role] position at [Company]. While I understand the outcome was not favorable, I am committed to continuous improvement...
                       </div>
                     </div>
+                    {(draftLoadingId === "creating" || (draftLoadingId && draftLoadingId !== "creating" && pendingFollowUps.some(fu => fu.id === draftLoadingId && (fu.actionType === "feedback_request" || fu.action_type === "feedback_request")))) && (
+                      <div className="absolute inset-0 bg-white/90 rounded-xl flex items-center justify-center z-10">
+                        <div className="flex items-center gap-2 text-purple-600">
+                          <Icon icon="mingcute:loading-line" width={20} className="animate-spin" />
+                          <span className="text-sm font-medium">
+                            {draftLoadingId === "creating" ? "Creating follow-up..." : "Generating draft..."}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
+
+                {/* Cached Follow-up Drafts Section */}
+                {storedFollowUpDrafts.size > 0 && (
+                  <div className="mt-10">
+                    <h3 className="text-xl font-semibold text-slate-900 mb-3">
+                      Cached Follow-up Drafts
+                    </h3>
+                    <p className="text-slate-600 text-sm mb-4">
+                      Your generated follow-up email drafts are saved here. Click to view or regenerate.
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {Array.from(storedFollowUpDrafts.entries()).map(([followUpId, drafts]) => {
+                        if (!drafts || drafts.length === 0) return null;
+                        const latestDraft = drafts[0];
+                        const followUp = pendingFollowUps.find(fu => fu.id === followUpId) || 
+                                       completedFollowUps.find(fu => fu.id === followUpId);
+                        const interview = followUp ? interviews.find(i => i.id === (followUp.interviewId || followUp.interview_id)) : null;
+                        const actionType = followUp?.actionType || followUp?.action_type || "follow-up";
+                        
+                        return (
+                          <div
+                            key={followUpId}
+                            className="bg-white border border-slate-200 rounded-xl p-6 hover:shadow-lg transition-all"
+                          >
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <Icon 
+                                    icon={
+                                      actionType === "status_inquiry" ? "mingcute:question-line" :
+                                      actionType === "other" ? "mingcute:feedback-line" :
+                                      "mingcute:mail-line"
+                                    } 
+                                    width={18} 
+                                    className={
+                                      actionType === "status_inquiry" ? "text-orange-500" :
+                                      actionType === "other" ? "text-purple-500" :
+                                      "text-blue-500"
+                                    }
+                                  />
+                                  <p className="text-xs font-semibold uppercase text-slate-600 tracking-wide">
+                                    {actionType.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}
+                                  </p>
+                                </div>
+                                {interview && (
+                                  <p className="text-sm font-medium text-slate-900">
+                                    {interview.title || interview.position} at {interview.company}
+                                  </p>
+                                )}
+                                <p className="text-xs text-slate-500 mt-1">
+                                  {latestDraft.createdAt && new Date(latestDraft.createdAt).toLocaleDateString()}
+                                </p>
+                              </div>
+                              {drafts.length > 1 && (
+                                <span className="px-2 py-1 rounded-full text-[10px] bg-blue-50 text-blue-700">
+                                  {drafts.length} drafts
+                                </span>
+                              )}
+                            </div>
+                            
+                            <div className="mb-3">
+                              <p className="text-xs font-semibold text-slate-700 mb-1 truncate">
+                                {latestDraft.subject || "No subject"}
+                              </p>
+                              <p className="text-xs text-slate-600 line-clamp-2">
+                                {latestDraft.body?.substring(0, 100)}...
+                              </p>
+                            </div>
+
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => {
+                                  setActiveFollowUpDraft({
+                                    id: followUpId,
+                                    interviewId: interview?.id || "",
+                                    subject: latestDraft.subject,
+                                    body: latestDraft.body,
+                                    generatedBy: latestDraft.generatedBy,
+                                  });
+                                }}
+                                className="flex-1 px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-xs font-medium transition-colors"
+                              >
+                                View Draft
+                              </button>
+                              {drafts.length > 1 && (
+                                <button
+                                  onClick={() => {
+                                    const showAll = showAllFollowUpDrafts.get(followUpId) || false;
+                                    setShowAllFollowUpDrafts(prev => {
+                                      const updated = new Map(prev);
+                                      updated.set(followUpId, !showAll);
+                                      return updated;
+                                    });
+                                  }}
+                                  className="px-3 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 text-xs font-medium transition-colors"
+                                >
+                                  {showAllFollowUpDrafts.get(followUpId) ? "Less" : "More"}
+                                </button>
+                              )}
+                            </div>
+
+                            {showAllFollowUpDrafts.get(followUpId) && drafts.length > 1 && (
+                              <div className="mt-3 pt-3 border-t border-slate-200 space-y-2 max-h-40 overflow-y-auto">
+                                {drafts.slice(1).map((draft, idx) => (
+                                  <button
+                                    key={idx}
+                                    onClick={() => {
+                                      setActiveFollowUpDraft({
+                                        id: followUpId,
+                                        interviewId: interview?.id || "",
+                                        subject: draft.subject,
+                                        body: draft.body,
+                                        generatedBy: draft.generatedBy,
+                                      });
+                                    }}
+                                    className="w-full text-left px-2 py-1 rounded border border-slate-200 hover:border-blue-300 hover:bg-blue-50 transition-colors"
+                                  >
+                                    <p className="text-xs font-medium text-slate-700 truncate">{draft.subject}</p>
+                                    <p className="text-[10px] text-slate-500">
+                                      {new Date(draft.createdAt).toLocaleDateString()}
+                                    </p>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

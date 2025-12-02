@@ -151,19 +151,38 @@ class FollowUpController {
       });
     }
 
-    const action = await followUpService.createFollowUpAction(interviewId, userId, {
-      actionType,
-      dueDate,
-      notes,
-    });
+    // Validate action type
+    const allowedActionTypes = ['thank_you_note', 'follow_up_email', 'status_inquiry', 'references_sent', 'portfolio_sent', 'other'];
+    if (!allowedActionTypes.includes(actionType)) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: "INVALID_ACTION_TYPE",
+          message: `Invalid action type: ${actionType}. Allowed types: ${allowedActionTypes.join(', ')}`,
+        },
+      });
+    }
 
-    res.status(201).json({
-      ok: true,
-      data: {
-        action,
-        message: "Follow-up action created successfully",
-      },
-    });
+    try {
+      const action = await followUpService.createFollowUpAction(interviewId, userId, {
+        actionType,
+        dueDate,
+        notes,
+      });
+
+      res.status(201).json({
+        ok: true,
+        data: {
+          followUp: action,
+          action: action, // Keep both for compatibility
+          message: "Follow-up action created successfully",
+        },
+      });
+    } catch (error) {
+      // Error will be caught by asyncHandler, but log it here for debugging
+      console.error("❌ Error in createFollowUpAction controller:", error);
+      throw error; // Re-throw to let asyncHandler handle it
+    }
   });
 }
 

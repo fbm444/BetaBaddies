@@ -9,17 +9,26 @@ import nodemailer from "nodemailer";
 class EmailService {
   constructor() {
     this.transporter = null;
+    this.initializationPromise = null;
     this.initializeTransporter();
   }
 
   async initializeTransporter() {
-    // Only initialize in production
-    if (process.env.NODE_ENV === "production") {
+    // Initialize if SMTP credentials are provided (not just in production)
+    if (
+      process.env.SMTP_HOST &&
+      process.env.SMTP_USER &&
+      process.env.SMTP_PASS
+    ) {
       try {
+        const port = parseInt(process.env.SMTP_PORT) || 587;
+        // Port 465 uses SSL/TLS directly, other ports use STARTTLS
+        const secure = port === 465;
+
         this.transporter = nodemailer.createTransport({
           host: process.env.SMTP_HOST,
-          port: parseInt(process.env.SMTP_PORT) || 587,
-          secure: true, // true for 465, false for other ports
+          port: port,
+          secure: secure, // true for 465, false for other ports (uses STARTTLS)
           auth: {
             user: process.env.SMTP_USER,
             pass: process.env.SMTP_PASS,
@@ -34,9 +43,74 @@ class EmailService {
         console.log("✅ Email service initialized successfully");
       } catch (error) {
         console.error("❌ Email service initialization failed:", error);
+        console.error("Error details:", error.message);
         this.transporter = null;
+        // Don't throw - allow app to continue, emails will just log to console
+      }
+    } else {
+      console.warn(
+        "⚠️ Email service: SMTP credentials not configured. Emails will only be logged to console."
+      );
+    }
+  }
+
+  /**
+   * Ensure transporter is initialized before sending emails
+   */
+  async ensureInitialized() {
+    if (
+      !this.transporter &&
+      process.env.SMTP_HOST &&
+      process.env.SMTP_USER &&
+      process.env.SMTP_PASS
+    ) {
+      if (!this.initializationPromise) {
+        this.initializationPromise = this.initializeTransporter().catch(
+          (error) => {
+            // Reset promise on failure so we can retry later
+            this.initializationPromise = null;
+            console.error(
+              "Failed to initialize email transporter:",
+              error.message
+            );
+          }
+        );
+      }
+      try {
+        await this.initializationPromise;
+      } catch (error) {
+        // Already handled in catch above, just ensure we don't throw
       }
     }
+  }
+
+  /**
+   * Check if an error is a Gmail quota/rate limit error
+   * @param {Error} error - The error to check
+   * @returns {boolean} - True if it's a quota error
+   */
+  isQuotaError(error) {
+    const errorMessage = error?.message || error?.response || String(error);
+    return (
+      errorMessage?.toLowerCase().includes("quota") ||
+      errorMessage?.toLowerCase().includes("daily sending limit") ||
+      errorMessage?.toLowerCase().includes("rate limit") ||
+      error?.responseCode === 550 ||
+      error?.code === "EAUTH" ||
+      error?.code === "EENVELOPE"
+    );
+  }
+
+  /**
+   * Create a quota exceeded error with helpful message
+   * @returns {Error} - A formatted quota error
+   */
+  createQuotaError() {
+    const quotaError = new Error(
+      "Gmail daily sending quota exceeded. Please try again tomorrow or use a different email account."
+    );
+    quotaError.code = "EMAIL_QUOTA_EXCEEDED";
+    return quotaError;
   }
 
   /**
@@ -45,8 +119,11 @@ class EmailService {
    * @returns {Promise<void>}
    */
   async sendAccountDeletionConfirmation(email) {
-    // Development mode - log to console
-    if (process.env.NODE_ENV !== "production") {
+    // Ensure transporter is initialized
+    await this.ensureInitialized();
+
+    // If no transporter configured, log to console (development mode)
+    if (!this.transporter) {
       console.log("\n========== ACCOUNT DELETION EMAIL ==========");
       console.log(`To: ${email}`);
       console.log("Subject: Account Deletion Confirmation - ATS Tracker");
@@ -60,7 +137,7 @@ class EmailService {
       return;
     }
 
-    // Production mode - use nodemailer
+    // Use nodemailer to send email
     if (!this.transporter) {
       console.error("❌ Email service not initialized");
       return;
@@ -114,8 +191,11 @@ class EmailService {
       process.env.FRONTEND_URL || "http://localhost:3000"
     }/reset-password?token=${resetToken}`;
 
-    // Development mode - log to console
-    if (process.env.NODE_ENV !== "production") {
+    // Ensure transporter is initialized
+    await this.ensureInitialized();
+
+    // If no transporter configured, log to console (development mode)
+    if (!this.transporter) {
       console.log("\n========== PASSWORD RESET EMAIL ==========");
       console.log(`To: ${email}`);
       console.log("Subject: Password Reset Request - ATS Tracker");
@@ -133,7 +213,7 @@ class EmailService {
       return;
     }
 
-    // Production mode - use nodemailer
+    // Use nodemailer to send email
     if (!this.transporter) {
       console.error("❌ Email service not initialized");
       return;
@@ -178,6 +258,12 @@ class EmailService {
       console.log("✅ Password reset email sent to:", email);
     } catch (error) {
       console.error("❌ Error sending password reset email:", error);
+
+      // Check for Gmail quota/rate limit errors
+      if (this.isQuotaError(error)) {
+        throw this.createQuotaError();
+      }
+
       throw error;
     }
   }
@@ -199,8 +285,11 @@ class EmailService {
     const appUrl = process.env.FRONTEND_URL || "http://localhost:3000";
     const acceptUrl = `${appUrl}/collaboration/teams/accept-invite?token=${invitationToken}`;
 
-    // Development mode - log to console
-    if (process.env.NODE_ENV !== "production") {
+    // Ensure transporter is initialized
+    await this.ensureInitialized();
+
+    // If no transporter configured, log to console (development mode)
+    if (!this.transporter) {
       console.log("\n========== TEAM INVITATION EMAIL ==========");
       console.log(`To: ${email}`);
       console.log("Subject: Team Invitation - ATS Tracker");
@@ -218,7 +307,7 @@ class EmailService {
       return;
     }
 
-    // Production mode - use nodemailer
+    // Use nodemailer to send email
     if (!this.transporter) {
       console.error("❌ Email service not initialized");
       return;
@@ -272,130 +361,14 @@ class EmailService {
       console.log("✅ Team invitation email sent to:", email);
     } catch (error) {
       console.error("❌ Error sending team invitation email:", error);
-      // Don't throw - invitation is still created even if email fails
-    }
-  }
 
-  async sendFamilyInvitation(email, invitationData) {
-    const {
-      inviterName,
-      inviterEmail,
-      familyMemberName,
-      relationship,
-      invitationToken,
-    } = invitationData;
-    const appUrl = process.env.FRONTEND_URL || "http://localhost:3000";
-    const acceptUrl = `${appUrl}/collaboration/family/accept-invite?token=${invitationToken}`;
-
-    // Development mode - log to console (same as team invitations)
-    // Also check if transporter is not available (same logic as team invitations)
-    if (process.env.NODE_ENV !== "production" || !this.transporter) {
-      console.log("\n========== FAMILY INVITATION EMAIL ==========");
-      console.log(`To: ${email}`);
-      console.log("Subject: Family Support Invitation - ATS Tracker");
-      console.log(
-        `\n${
-          inviterName || inviterEmail
-        } has invited you to support their job search journey.`
-      );
-      if (relationship) {
-        console.log(`Relationship: ${relationship}`);
-      }
-      console.log("\nClick the link below to accept the invitation:");
-      console.log(acceptUrl);
-      console.log("\nThis invitation will expire in 14 days.");
-      console.log("==========================================\n");
-      return;
-    }
-
-    // Production mode - use nodemailer
-    if (!this.transporter) {
-      console.error("❌ Email service not initialized");
-      return;
-    }
-
-    const mailOptions = {
-      from: process.env.EMAIL_FROM || "noreply@atstracker.com",
-      to: email,
-      subject: `Family Support Invitation - ATS Tracker`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #6A94EE;">You've Been Invited to Support a Job Search Journey</h2>
-          <p>${
-            inviterName || inviterEmail
-          } has invited you to provide support and encouragement during their job search.</p>
-          
-          <div style="background: #F3F4F6; border-left: 4px solid #6A94EE; padding: 20px; margin: 20px 0; border-radius: 8px;">
-            <p style="color: #1F2937; font-size: 16px; margin: 8px 0;"><strong>Invited by:</strong> ${
-              inviterName || inviterEmail
-            }</p>
-            ${
-              relationship
-                ? `<p style="color: #4B5563; font-size: 16px; margin: 8px 0;"><strong>Relationship:</strong> ${relationship}</p>`
-                : ""
-            }
-          </div>
-          
-          <p style="color: #374151; font-size: 16px; line-height: 1.6;">
-            As a family supporter, you'll be able to:
-          </p>
-          <ul style="color: #4B5563; font-size: 15px; line-height: 1.8;">
-            <li>View family-friendly progress summaries</li>
-            <li>Celebrate milestones and achievements</li>
-            <li>Access educational resources on how to provide effective support</li>
-            <li>Stay updated on their job search journey</li>
-          </ul>
-          
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${acceptUrl}" 
-               style="background-color: #6A94EE; 
-                      color: white; 
-                      font-size: 16px; 
-                      font-weight: bold; 
-                      padding: 12px 30px; 
-                      text-decoration: none; 
-                      border-radius: 8px; 
-                      display: inline-block;">
-              Accept Invitation
-            </a>
-          </div>
-          
-          <p style="color: #6B7280; font-size: 14px;">
-            This invitation will expire in 14 days. If you don't have an account yet, you'll be prompted to create one when you accept.
-          </p>
-          
-          <hr style="border: 1px solid #E5E7EB; margin: 20px 0;">
-          <p style="color: #6B7280; font-size: 12px;">
-            If you did not expect this invitation, you can safely ignore this email.
-          </p>
-        </div>
-      `,
-    };
-
-    try {
-      await this.transporter.sendMail(mailOptions);
-      console.log("✅ Family invitation email sent to:", email);
-    } catch (error) {
-      console.error("❌ Error sending family invitation email:", error);
-      // If SMTP fails (e.g., rate limit), log to console as fallback
-      if (error.code === "EENVELOPE" || error.responseCode === 550) {
-        console.log(
-          "\n========== FAMILY INVITATION EMAIL (FALLBACK - SMTP FAILED) =========="
+      // Check for Gmail quota/rate limit errors
+      if (this.isQuotaError(error)) {
+        console.error(
+          "⚠️ Gmail daily sending quota exceeded. The invitation was created but the email could not be sent."
         );
-        console.log(`To: ${email}`);
-        console.log("Subject: Family Support Invitation - ATS Tracker");
-        console.log(
-          `\n${
-            inviterName || inviterEmail
-          } has invited you to support their job search journey.`
-        );
-        if (relationship) {
-          console.log(`Relationship: ${relationship}`);
-        }
-        console.log("\nClick the link below to accept the invitation:");
-        console.log(acceptUrl);
-        console.log("\nThis invitation will expire in 14 days.");
-        console.log("==========================================\n");
+        // Don't throw - invitation is still created even if email fails
+        // But log a warning so the user knows
       }
       // Don't throw - invitation is still created even if email fails
     }
@@ -447,8 +420,11 @@ class EmailService {
       daysRemainingText = `<p style="color: #F59E0B; font-weight: bold; font-size: 16px;">⏰ ${daysRemaining} days remaining</p>`;
     }
 
-    // Development mode - log to console
-    if (process.env.NODE_ENV !== "production") {
+    // Ensure transporter is initialized
+    await this.ensureInitialized();
+
+    // If no transporter configured, log to console (development mode)
+    if (!this.transporter) {
       console.log("\n========== DEADLINE REMINDER EMAIL ==========");
       console.log(`To: ${email}`);
       console.log("Subject: Application Deadline Reminder - ATS Tracker");
@@ -466,7 +442,7 @@ class EmailService {
       return;
     }
 
-    // Production mode - use nodemailer
+    // Use nodemailer to send email
     if (!this.transporter) {
       console.error("❌ Email service not initialized");
       return;
@@ -539,6 +515,12 @@ class EmailService {
       console.log("✅ Deadline reminder email sent to:", email);
     } catch (error) {
       console.error("❌ Error sending deadline reminder email:", error);
+
+      // Check for Gmail quota/rate limit errors
+      if (this.isQuotaError(error)) {
+        throw this.createQuotaError();
+      }
+
       throw error;
     }
   }
@@ -592,8 +574,11 @@ class EmailService {
       interviewerInfo += "</p>";
     }
 
-    // Development mode - log to console
-    if (process.env.NODE_ENV !== "production") {
+    // Ensure transporter is initialized
+    await this.ensureInitialized();
+
+    // If no transporter configured, log to console (development mode)
+    if (!this.transporter) {
       console.log("\n========== INTERVIEW REMINDER EMAIL ==========");
       console.log(`To: ${email}`);
       console.log(
@@ -615,7 +600,7 @@ class EmailService {
       return;
     }
 
-    // Production mode - use nodemailer
+    // Use nodemailer to send email
     if (!this.transporter) {
       console.error("❌ Email service not initialized");
       return;
@@ -683,6 +668,12 @@ class EmailService {
       );
     } catch (error) {
       console.error("❌ Error sending interview reminder email:", error);
+
+      // Check for Gmail quota/rate limit errors
+      if (this.isQuotaError(error)) {
+        throw this.createQuotaError();
+      }
+
       throw error;
     }
   }
@@ -703,8 +694,11 @@ class EmailService {
       personalizedMessage,
     } = referralDetails;
 
-    // Development mode - log to console
-    if (process.env.NODE_ENV !== "production") {
+    // Ensure transporter is initialized
+    await this.ensureInitialized();
+
+    // If no transporter configured, log to console (development mode)
+    if (!this.transporter) {
       console.log("\n========== REFERRAL REQUEST EMAIL ==========");
       console.log(`To: ${contactEmail}`);
       console.log(`Subject: Referral Request: ${jobTitle} at ${jobCompany}`);
@@ -726,7 +720,7 @@ class EmailService {
       return;
     }
 
-    // Production mode - use nodemailer
+    // Use nodemailer to send email
     if (!this.transporter) {
       console.error("❌ Email service not initialized");
       return;
@@ -800,21 +794,8 @@ class EmailService {
       console.error("❌ Error sending referral request email:", error);
 
       // Check for Gmail quota/rate limit errors
-      const errorMessage = error?.message || error?.response || String(error);
-      const isQuotaError =
-        errorMessage?.toLowerCase().includes("quota") ||
-        errorMessage?.toLowerCase().includes("daily sending limit") ||
-        errorMessage?.toLowerCase().includes("rate limit") ||
-        error?.responseCode === 550 ||
-        error?.code === "EAUTH" ||
-        error?.code === "EENVELOPE";
-
-      if (isQuotaError) {
-        const quotaError = new Error(
-          "Gmail daily sending quota exceeded. Please try again tomorrow or use a different email account."
-        );
-        quotaError.code = "EMAIL_QUOTA_EXCEEDED";
-        throw quotaError;
+      if (this.isQuotaError(error)) {
+        throw this.createQuotaError();
       }
 
       throw error;
@@ -834,8 +815,11 @@ class EmailService {
   async sendThankYouNoteEmail(emailData) {
     const { to, recipientName, subject, body, senderEmail } = emailData;
 
-    // Development mode - log to console
-    if (process.env.NODE_ENV !== "production") {
+    // Ensure transporter is initialized
+    await this.ensureInitialized();
+
+    // If no transporter configured, log to console (development mode)
+    if (!this.transporter) {
       console.log("\n========== THANK-YOU NOTE EMAIL ==========");
       console.log(`To: ${to}`);
       console.log(`Subject: ${subject}`);
@@ -844,7 +828,7 @@ class EmailService {
       return;
     }
 
-    // Production mode - use nodemailer
+    // Use nodemailer to send email
     if (!this.transporter) {
       console.error("❌ Email service not initialized");
       return;
@@ -873,6 +857,12 @@ class EmailService {
       console.log(`✅ Thank-you note email sent to: ${to}`);
     } catch (error) {
       console.error("❌ Error sending thank-you note email:", error);
+
+      // Check for Gmail quota/rate limit errors
+      if (this.isQuotaError(error)) {
+        throw this.createQuotaError();
+      }
+
       throw error;
     }
   }
@@ -887,8 +877,11 @@ class EmailService {
     const { contactName, requesterName, jobTitle, jobCompany, message } =
       gratitudeDetails;
 
-    // Development mode - log to console
-    if (process.env.NODE_ENV !== "production") {
+    // Ensure transporter is initialized
+    await this.ensureInitialized();
+
+    // If no transporter configured, log to console (development mode)
+    if (!this.transporter) {
       console.log("\n========== GRATITUDE MESSAGE EMAIL ==========");
       console.log(`To: ${contactEmail}`);
       console.log(`Subject: Thank You for Your Referral`);
@@ -898,7 +891,7 @@ class EmailService {
       return;
     }
 
-    // Production mode - use nodemailer
+    // Use nodemailer to send email
     if (!this.transporter) {
       console.error("❌ Email service not initialized");
       return;
@@ -953,21 +946,8 @@ class EmailService {
       console.error("❌ Error sending gratitude message email:", error);
 
       // Check for Gmail quota/rate limit errors
-      const errorMessage = error?.message || error?.response || String(error);
-      const isQuotaError =
-        errorMessage?.toLowerCase().includes("quota") ||
-        errorMessage?.toLowerCase().includes("daily sending limit") ||
-        errorMessage?.toLowerCase().includes("rate limit") ||
-        error?.responseCode === 550 ||
-        error?.code === "EAUTH" ||
-        error?.code === "EENVELOPE";
-
-      if (isQuotaError) {
-        const quotaError = new Error(
-          "Gmail daily sending quota exceeded. Please try again tomorrow or use a different email account."
-        );
-        quotaError.code = "EMAIL_QUOTA_EXCEEDED";
-        throw quotaError;
+      if (this.isQuotaError(error)) {
+        throw this.createQuotaError();
       }
 
       throw error;
@@ -984,8 +964,11 @@ class EmailService {
     const { writerName, jobTitle, jobCompany, referralLetter } =
       referralDetails;
 
-    // Development mode - log to console
-    if (process.env.NODE_ENV !== "production") {
+    // Ensure transporter is initialized
+    await this.ensureInitialized();
+
+    // If no transporter configured, log to console (development mode)
+    if (!this.transporter) {
       console.log("\n========== REFERRAL LETTER EMAIL ==========");
       console.log(`To: ${requesterEmail}`);
       console.log(`Subject: Referral Letter for ${jobTitle} at ${jobCompany}`);
@@ -1004,7 +987,7 @@ class EmailService {
       return;
     }
 
-    // Production mode - use nodemailer
+    // Use nodemailer to send email
     if (!this.transporter) {
       console.error("❌ Email service not initialized");
       return;
@@ -1070,6 +1053,12 @@ class EmailService {
       console.log("✅ Referral letter email sent to:", requesterEmail);
     } catch (error) {
       console.error("❌ Error sending referral letter email:", error);
+
+      // Check for Gmail quota/rate limit errors
+      if (this.isQuotaError(error)) {
+        throw this.createQuotaError();
+      }
+
       throw error;
     }
   }

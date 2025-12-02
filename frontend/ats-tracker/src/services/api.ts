@@ -1357,6 +1357,123 @@ class ApiService {
     );
   }
 
+  // Networking endpoints
+  async getRecruiters() {
+    return this.request<ApiResponse<{ recruiters: Array<{ name: string; email?: string; phone?: string; company?: string; opportunityCount: number }> }>>(
+      `/networking/recruiters`
+    );
+  }
+
+  async searchCompanies(industry: string) {
+    return this.request<ApiResponse<{ companies: Array<{ name: string; industry: string; type: string; linkedInUrl?: string }> }>>(
+      `/networking/companies/search?industry=${encodeURIComponent(industry)}`
+    );
+  }
+
+  async searchContactsByCompany(company: string) {
+    return this.request<ApiResponse<{ recruiters: Array<any>; contacts: Array<any>; total: number }>>(
+      `/networking/contacts/search?company=${encodeURIComponent(company)}`
+    );
+  }
+
+  async getLinkedInNetwork(options?: { company?: string; industry?: string; limit?: number }) {
+    const params = new URLSearchParams();
+    if (options?.company) params.append("company", options.company);
+    if (options?.industry) params.append("industry", options.industry);
+    if (options?.limit) params.append("limit", options.limit.toString());
+    const queryString = params.toString();
+    return this.request<ApiResponse<{ contacts: any[] }>>(
+      `/networking/linkedin/network${queryString ? `?${queryString}` : ""}`
+    );
+  }
+
+  async generateNetworkingMessage(messageData: {
+    recipientName: string;
+    recipientTitle?: string;
+    recipientCompany?: string;
+    messageType?: "coffee_chat" | "interview_request" | "referral_request";
+    jobOpportunityId?: string;
+    personalContext?: string;
+  }) {
+    return this.request<ApiResponse<{ message: { subject: string; messageBody: string; messageType: string } }>>(
+      `/networking/messages/generate`,
+      {
+        method: "POST",
+        body: JSON.stringify(messageData),
+      }
+    );
+  }
+
+  async createCoffeeChat(chatData: {
+    contactId?: string;
+    jobOpportunityId?: string;
+    contactName: string;
+    contactEmail?: string;
+    contactLinkedInUrl?: string;
+    contactCompany?: string;
+    contactTitle?: string;
+    chatType?: "coffee_chat" | "interview_request" | "informational" | "referral_request";
+    scheduledDate?: string;
+    notes?: string;
+  }) {
+    return this.request<ApiResponse<{ chat: any }>>(
+      `/networking/coffee-chats`,
+      {
+        method: "POST",
+        body: JSON.stringify(chatData),
+      }
+    );
+  }
+
+  async getCoffeeChats(filters?: { status?: string; jobOpportunityId?: string }) {
+    const params = new URLSearchParams();
+    if (filters?.status) params.append("status", filters.status);
+    if (filters?.jobOpportunityId) params.append("jobOpportunityId", filters.jobOpportunityId);
+    const queryString = params.toString();
+    return this.request<ApiResponse<{ chats: any[] }>>(
+      `/networking/coffee-chats${queryString ? `?${queryString}` : ""}`
+    );
+  }
+
+  async updateCoffeeChat(chatId: string, updateData: any) {
+    return this.request<ApiResponse<{ chat: any }>>(
+      `/networking/coffee-chats/${chatId}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(updateData),
+      }
+    );
+  }
+
+  async saveNetworkingMessage(messageData: {
+    coffeeChatId?: string;
+    messageType: string;
+    recipientName: string;
+    recipientEmail?: string;
+    recipientLinkedInUrl?: string;
+    subject: string;
+    messageBody: string;
+    generatedBy?: string;
+  }) {
+    return this.request<ApiResponse<{ message: any }>>(
+      `/networking/messages`,
+      {
+        method: "POST",
+        body: JSON.stringify(messageData),
+      }
+    );
+  }
+
+  async getNetworkingAnalytics(dateRange?: DateRange) {
+    const params = new URLSearchParams();
+    if (dateRange?.startDate) params.append("startDate", dateRange.startDate);
+    if (dateRange?.endDate) params.append("endDate", dateRange.endDate);
+    const queryString = params.toString();
+    return this.request<ApiResponse<{ analytics: any }>>(
+      `/networking/analytics${queryString ? `?${queryString}` : ""}`
+    );
+  }
+
   async getSalaryProgression(dateRange?: DateRange) {
     const params = new URLSearchParams();
     if (dateRange?.startDate) params.append("startDate", dateRange.startDate);

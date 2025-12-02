@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Icon } from "@iconify/react";
 import { DashboardProfileData } from "../types";
 import { dashboardService } from "../services/dashboardService";
@@ -22,6 +22,7 @@ function MingcuteIcon({ type }: { type: string }) {
 
 export function Dashboard() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [profileData, setProfileData] = useState<DashboardProfileData | null>(
     null
   );
@@ -75,6 +76,17 @@ export function Dashboard() {
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
+
+  // Handle LinkedIn redirect - navigate to analytics after dashboard loads
+  useEffect(() => {
+    const linkedinRedirect = searchParams.get("linkedin_redirect");
+    if (linkedinRedirect && !isLoading) {
+      // Small delay to ensure dashboard loads, then navigate
+      setTimeout(() => {
+        navigate(linkedinRedirect);
+      }, 500);
+    }
+  }, [searchParams, navigate, isLoading]);
 
   useEffect(() => {
     const handleDashboardRefresh = (event: Event) => {

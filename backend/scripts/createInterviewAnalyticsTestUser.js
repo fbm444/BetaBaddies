@@ -31,6 +31,9 @@ const TEST_USER_PASSWORD = "Test123!";
 async function createTestUser() {
   try {
     console.log("🚀 Creating Interview Analytics Test User\n");
+    
+    // Get current date for use throughout the script
+    const now = new Date();
 
     // Step 1: Create or get test user
     console.log("📝 Step 1: Creating test user...");
@@ -364,7 +367,7 @@ async function createTestUser() {
     console.log(`   ✓ Added ${certifications.length} certifications`);
 
     // Step 8: Create job opportunities (needed for interviews) - Using real MAANG companies
-    console.log("\n📝 Step 8: Creating job opportunities...");
+    console.log("\n📝 Step 8: Creating job opportunities with recruiter data...");
     const jobOpportunities = [
       {
         title: "Senior Software Engineer",
@@ -374,6 +377,9 @@ async function createTestUser() {
         status: "Offer", // Changed to Offer for salary negotiation testing
         salary_min: 180000,
         salary_max: 250000,
+        recruiter_name: "Sarah Johnson",
+        recruiter_email: "sarah.johnson@meta.com",
+        recruiter_phone: "+1 (650) 555-0123",
       },
       {
         title: "Software Development Engineer II",
@@ -383,6 +389,9 @@ async function createTestUser() {
         status: "Offer", // Changed to Offer for salary negotiation testing
         salary_min: 175000,
         salary_max: 240000,
+        recruiter_name: "Michael Chen",
+        recruiter_email: "mchen@amazon.com",
+        recruiter_phone: "+1 (206) 555-0145",
       },
       {
         title: "Senior Software Engineer",
@@ -392,6 +401,9 @@ async function createTestUser() {
         status: "Offer", // Changed to Offer for salary negotiation testing
         salary_min: 190000,
         salary_max: 260000,
+        recruiter_name: "Emily Rodriguez",
+        recruiter_email: "emily.rodriguez@apple.com",
+        recruiter_phone: "+1 (408) 555-0167",
       },
       {
         title: "Senior Software Engineer",
@@ -401,6 +413,9 @@ async function createTestUser() {
         status: "Interview",
         salary_min: 200000,
         salary_max: 280000,
+        recruiter_name: "David Kim",
+        recruiter_email: "david.kim@netflix.com",
+        recruiter_phone: "+1 (408) 555-0189",
       },
       {
         title: "Software Engineer L4",
@@ -410,6 +425,9 @@ async function createTestUser() {
         status: "Interview",
         salary_min: 185000,
         salary_max: 255000,
+        recruiter_name: "Jessica Williams",
+        recruiter_email: "jwilliams@google.com",
+        recruiter_phone: "+1 (650) 555-0201",
       },
       {
         title: "Senior Backend Engineer",
@@ -419,14 +437,17 @@ async function createTestUser() {
         status: "Interview",
         salary_min: 175000,
         salary_max: 245000,
+        recruiter_name: "Robert Martinez",
+        recruiter_email: "robert.martinez@microsoft.com",
+        recruiter_phone: "+1 (425) 555-0223",
       },
     ];
 
     const jobOppIds = [];
     for (const jobOpp of jobOpportunities) {
       const result = await database.query(
-        `INSERT INTO job_opportunities (id, user_id, title, company, location, industry, status, salary_min, salary_max)
-         VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8)
+        `INSERT INTO job_opportunities (id, user_id, title, company, location, industry, status, salary_min, salary_max, recruiter_name, recruiter_email, recruiter_phone)
+         VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
          RETURNING id`,
         [
           userId,
@@ -437,17 +458,19 @@ async function createTestUser() {
           jobOpp.status,
           jobOpp.salary_min || null,
           jobOpp.salary_max || null,
+          jobOpp.recruiter_name || null,
+          jobOpp.recruiter_email || null,
+          jobOpp.recruiter_phone || null,
         ]
       );
       jobOppIds.push(result.rows[0].id);
     }
-    console.log(`   ✓ Created ${jobOpportunities.length} job opportunities with real MAANG companies`);
+    console.log(`   ✓ Created ${jobOpportunities.length} job opportunities with recruiter data`);
 
     // Step 9: Create interviews with different formats and outcomes (including practice and scheduled)
     console.log("\n📝 Step 9: Creating interviews...");
     
     // Calculate dates - spread interviews over the past 12 months and future dates
-    const now = new Date();
     
     // First create some practice interviews
     const practiceInterviewsData = [
@@ -1478,6 +1501,423 @@ async function createTestUser() {
     console.log(`     - Mix of interview responses, thank-you notes, and follow-ups`);
     console.log(`     - Realistic word counts and time spent per session`);
 
+    // Step 13: Create resumes
+    console.log("\n📝 Step 13: Creating resumes...");
+    const resumesData = [
+      {
+        versionName: "Sarah Chen Resume 2024",
+        name: "Current Resume",
+        description: "Current resume - Software Engineering focus",
+        file: "/uploads/resumes/Sarah_Chen_Resume_2024.pdf",
+        isMaster: true,
+      },
+      {
+        versionName: "Backend-Focused Resume",
+        name: "Backend Resume",
+        description: "Backend-focused resume variant",
+        file: "/uploads/resumes/Sarah_Chen_Resume_Backend.pdf",
+        isMaster: false,
+      },
+      {
+        versionName: "Full-Stack Developer Resume",
+        name: "Full-Stack Resume",
+        description: "Full-stack developer resume",
+        file: "/uploads/resumes/Sarah_Chen_Resume_Full_Stack.pdf",
+        isMaster: false,
+      },
+    ];
+
+    const resumeIds = [];
+    for (const resume of resumesData) {
+      const result = await database.query(
+        `INSERT INTO resume (id, user_id, version_name, name, description, file, is_master, created_at, updated_at)
+         VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+         RETURNING id`,
+        [
+          userId,
+          resume.versionName,
+          resume.name,
+          resume.description,
+          resume.file,
+          resume.isMaster || false,
+        ]
+      );
+      resumeIds.push(result.rows[0].id);
+    }
+    console.log(`   ✓ Created ${resumesData.length} resume records`);
+
+    // Step 14: Create cover letters
+    console.log("\n📝 Step 14: Creating cover letters...");
+    const coverLettersData = [
+      {
+        versionName: "Meta - Senior Software Engineer",
+        description: "Cover letter for Meta position",
+        content: `Dear Hiring Manager,
+
+I am writing to express my strong interest in the Senior Software Engineer position at Meta. With over 5 years of experience in full-stack development and a passion for building scalable systems, I am excited about the opportunity to contribute to Meta's innovative products.
+
+In my current role at TechCorp, I have led the development of distributed systems serving millions of users, improved system performance by 40%, and mentored junior developers. My expertise in React, Node.js, and cloud architecture aligns perfectly with Meta's technology stack.
+
+I am particularly drawn to Meta's mission of connecting people globally and would be thrilled to help shape the future of social technology.
+
+Thank you for considering my application.
+
+Best regards,
+Sarah Chen`,
+        jobId: jobOppIds[0], // Meta
+      },
+      {
+        versionName: "Amazon - SDE II",
+        description: "Cover letter for Amazon SDE II position",
+        content: `Dear Amazon Recruiting Team,
+
+I am excited to apply for the Software Development Engineer II position at Amazon. Your commitment to innovation and customer obsession resonates deeply with my professional values.
+
+Throughout my career, I have focused on building reliable, scalable systems. At TechCorp, I designed and implemented microservices architecture that reduced latency by 35% and improved system reliability. My experience with AWS, distributed systems, and data structures would allow me to contribute meaningfully to Amazon's engineering culture.
+
+I am eager to join a team that solves complex technical challenges while maintaining high standards of quality and customer focus.
+
+Sincerely,
+Sarah Chen`,
+        jobId: jobOppIds[1], // Amazon
+      },
+      {
+        versionName: "Google - Software Engineer L4",
+        description: "Cover letter for Google position",
+        content: `Dear Google Hiring Committee,
+
+I am writing to apply for the Software Engineer L4 position at Google. As a software engineer passionate about solving complex problems and building products that impact billions of users, Google represents an ideal environment for my career growth.
+
+My experience includes developing high-performance backend systems, optimizing algorithms for scale, and contributing to open-source projects. I am particularly interested in Google's work in distributed systems and machine learning infrastructure.
+
+I am confident that my technical skills, problem-solving ability, and collaborative approach would make me a valuable addition to your team.
+
+Best regards,
+Sarah Chen`,
+        jobId: jobOppIds[4], // Google
+      },
+      {
+        versionName: "General Purpose Cover Letter",
+        description: "Template cover letter for software engineering roles",
+        content: `Dear Hiring Manager,
+
+I am writing to express my interest in software engineering opportunities at your company. With a strong background in full-stack development, system design, and cloud technologies, I am excited about the possibility of contributing to your team.
+
+My experience includes leading technical projects, mentoring developers, and delivering scalable solutions that drive business impact. I am particularly interested in roles that allow me to work on challenging problems while collaborating with talented engineers.
+
+Thank you for your consideration. I look forward to discussing how I can contribute to your team.
+
+Sincerely,
+Sarah Chen`,
+        jobId: null,
+      },
+    ];
+
+    const coverLetterIds = [];
+    for (const coverLetter of coverLettersData) {
+      const result = await database.query(
+        `INSERT INTO coverletter (id, user_id, version_name, description, content, job_id, created_at, updated_at)
+         VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+         RETURNING id`,
+        [
+          userId,
+          coverLetter.versionName,
+          coverLetter.description,
+          coverLetter.content,
+          coverLetter.jobId || null,
+        ]
+      );
+      coverLetterIds.push(result.rows[0].id);
+    }
+    console.log(`   ✓ Created ${coverLettersData.length} cover letters (3 job-specific, 1 general)`);
+
+    // Step 14.5: Link job opportunities to resumes and cover letters
+    console.log("\n📝 Step 14.5: Linking job opportunities to resumes and cover letters...");
+    
+    // Link Meta job (index 0) to first resume and first cover letter
+    if (jobOppIds[0] && resumeIds[0] && coverLetterIds[0]) {
+      await database.query(
+        `UPDATE job_opportunities 
+         SET resume_id = $1, coverletter_id = $2 
+         WHERE id = $3`,
+        [resumeIds[0], coverLetterIds[0], jobOppIds[0]]
+      );
+    }
+    
+    // Link Amazon job (index 1) to second resume and second cover letter
+    if (jobOppIds[1] && resumeIds[1] && coverLetterIds[1]) {
+      await database.query(
+        `UPDATE job_opportunities 
+         SET resume_id = $1, coverletter_id = $2 
+         WHERE id = $3`,
+        [resumeIds[1], coverLetterIds[1], jobOppIds[1]]
+      );
+    }
+    
+    // Link Google job (index 4) to first resume and third cover letter
+    if (jobOppIds[4] && resumeIds[0] && coverLetterIds[2]) {
+      await database.query(
+        `UPDATE job_opportunities 
+         SET resume_id = $1, coverletter_id = $2 
+         WHERE id = $3`,
+        [resumeIds[0], coverLetterIds[2], jobOppIds[4]]
+      );
+    }
+    
+    console.log(`   ✓ Linked 3 job opportunities to resumes and cover letters`);
+
+    // Step 15: Create professional contacts
+    console.log("\n📝 Step 15: Creating professional contacts...");
+    const contactsData = [
+      {
+        firstName: "Alex",
+        lastName: "Thompson",
+        email: "alex.thompson@techcorp.com",
+        phone: "+1 (415) 555-0100",
+        company: "TechCorp",
+        jobTitle: "Senior Software Engineer",
+        industry: "Technology",
+        location: "San Francisco, CA",
+        relationshipType: "Colleague",
+        relationshipStrength: "Strong",
+        relationshipContext: "Former coworker from previous role",
+        linkedinUrl: "https://linkedin.com/in/alexthompson",
+      },
+      {
+        firstName: "Maria",
+        lastName: "Garcia",
+        email: "maria.garcia@google.com",
+        phone: "+1 (650) 555-0101",
+        company: "Google",
+        jobTitle: "Engineering Manager",
+        industry: "Technology",
+        location: "Mountain View, CA",
+        relationshipType: "Mentor",
+        relationshipStrength: "Very Strong",
+        relationshipContext: "Met at tech conference, became mentor",
+        linkedinUrl: "https://linkedin.com/in/mariagarcia",
+      },
+      {
+        firstName: "James",
+        lastName: "Wilson",
+        email: "james.wilson@meta.com",
+        phone: "+1 (650) 555-0102",
+        company: "Meta",
+        jobTitle: "Technical Recruiter",
+        industry: "Technology",
+        location: "Menlo Park, CA",
+        relationshipType: "Recruiter",
+        relationshipStrength: "Medium",
+        relationshipContext: "Connected through LinkedIn",
+        linkedinUrl: "https://linkedin.com/in/jameswilson",
+      },
+      {
+        firstName: "Priya",
+        lastName: "Patel",
+        email: "priya.patel@amazon.com",
+        phone: "+1 (206) 555-0103",
+        company: "Amazon",
+        jobTitle: "Software Development Manager",
+        industry: "Technology",
+        location: "Seattle, WA",
+        relationshipType: "Industry Contact",
+        relationshipStrength: "Weak",
+        relationshipContext: "Met at AWS conference",
+        linkedinUrl: "https://linkedin.com/in/priyapatel",
+      },
+      {
+        firstName: "Robert",
+        lastName: "Chen",
+        email: "robert.chen@apple.com",
+        phone: "+1 (408) 555-0104",
+        company: "Apple",
+        jobTitle: "Senior iOS Engineer",
+        industry: "Technology",
+        location: "Cupertino, CA",
+        relationshipType: "College Classmate",
+        relationshipStrength: "Strong",
+        relationshipContext: "University computer science program",
+        linkedinUrl: "https://linkedin.com/in/robertchen",
+      },
+      {
+        firstName: "Lisa",
+        lastName: "Anderson",
+        email: "lisa.anderson@netflix.com",
+        phone: "+1 (408) 555-0105",
+        company: "Netflix",
+        jobTitle: "Backend Engineer",
+        industry: "Technology",
+        location: "Los Gatos, CA",
+        relationshipType: "Industry Contact",
+        relationshipStrength: "Medium",
+        relationshipContext: "Met through mutual connections",
+        linkedinUrl: "https://linkedin.com/in/lisaanderson",
+      },
+      {
+        firstName: "David",
+        lastName: "Martinez",
+        email: "david.martinez@microsoft.com",
+        phone: "+1 (425) 555-0106",
+        company: "Microsoft",
+        jobTitle: "Principal Software Engineer",
+        industry: "Technology",
+        location: "Redmond, WA",
+        relationshipType: "Mentor",
+        relationshipStrength: "Very Strong",
+        relationshipContext: "Former manager, stayed in touch",
+        linkedinUrl: "https://linkedin.com/in/davidmartinez",
+      },
+      {
+        firstName: "Jennifer",
+        lastName: "Lee",
+        email: "jennifer.lee@startup.io",
+        phone: "+1 (510) 555-0107",
+        company: "StartupIO",
+        jobTitle: "CTO",
+        industry: "Technology",
+        location: "Oakland, CA",
+        relationshipType: "Alumni",
+        relationshipStrength: "Medium",
+        relationshipContext: "Same university, different years",
+        linkedinUrl: "https://linkedin.com/in/jenniferlee",
+      },
+    ];
+
+    for (const contact of contactsData) {
+      await database.query(
+        `INSERT INTO professional_contacts (
+          id, user_id, first_name, last_name, email, phone, company,
+          job_title, industry, location, relationship_type, relationship_strength,
+          relationship_context, linkedin_url, created_at, updated_at
+        )
+        VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+        [
+          userId,
+          contact.firstName,
+          contact.lastName,
+          contact.email,
+          contact.phone,
+          contact.company,
+          contact.jobTitle,
+          contact.industry,
+          contact.location,
+          contact.relationshipType,
+          contact.relationshipStrength,
+          contact.relationshipContext,
+          contact.linkedinUrl,
+        ]
+      );
+    }
+    console.log(`   ✓ Created ${contactsData.length} professional contacts`);
+    console.log(`     - Mix of recruiters, mentors, colleagues, and industry contacts`);
+    console.log(`     - Contacts from MAANG companies and other tech companies`);
+
+    // Step 16: Create career goals
+    console.log("\n📝 Step 16: Creating career goals...");
+    const goalsData = [
+      {
+        goalType: "Application",
+        goalCategory: "Job Search",
+        goalDescription: "Apply to 25+ software engineering positions",
+        specificMetric: "Number of applications",
+        targetValue: 25,
+        currentValue: jobOpportunities.length,
+        targetDate: new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000), // 90 days from now
+        status: "active",
+      },
+      {
+        goalType: "Interview",
+        goalCategory: "Interview Performance",
+        goalDescription: "Complete 15 technical interviews with 70%+ pass rate",
+        specificMetric: "Interview pass rate",
+        targetValue: 70,
+        currentValue: 65,
+        targetDate: new Date(now.getTime() + 120 * 24 * 60 * 60 * 1000), // 120 days from now
+        status: "active",
+      },
+      {
+        goalType: "Offer",
+        goalCategory: "Job Search",
+        goalDescription: "Receive 3+ job offers from top tech companies",
+        specificMetric: "Number of offers",
+        targetValue: 3,
+        currentValue: 2, // Meta and Amazon already have "Offer" status
+        targetDate: new Date(now.getTime() + 150 * 24 * 60 * 60 * 1000), // 150 days from now
+        status: "active",
+      },
+      {
+        goalType: "Salary",
+        goalCategory: "Compensation",
+        goalDescription: "Negotiate starting salary of $200K+",
+        specificMetric: "Starting salary (USD)",
+        targetValue: 200000,
+        currentValue: 190000,
+        targetDate: new Date(now.getTime() + 180 * 24 * 60 * 60 * 1000), // 180 days from now
+        status: "active",
+      },
+      {
+        goalType: "Networking",
+        goalCategory: "Professional Growth",
+        goalDescription: "Connect with 50+ professionals in the tech industry",
+        specificMetric: "Number of connections",
+        targetValue: 50,
+        currentValue: contactsData.length + 10, // Contacts plus some network
+        targetDate: new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000), // 90 days from now
+        status: "active",
+      },
+      {
+        goalType: "Coffee Chat",
+        goalCategory: "Networking",
+        goalDescription: "Complete 10 informational interviews or coffee chats",
+        specificMetric: "Number of coffee chats",
+        targetValue: 10,
+        currentValue: 3,
+        targetDate: new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000), // 60 days from now
+        status: "active",
+      },
+      {
+        goalType: "Skill",
+        goalCategory: "Professional Development",
+        goalDescription: "Master system design concepts and pass design interviews",
+        specificMetric: "System design interview pass rate",
+        targetValue: 80,
+        currentValue: 75,
+        targetDate: new Date(now.getTime() + 100 * 24 * 60 * 60 * 1000), // 100 days from now
+        status: "active",
+      },
+    ];
+
+    for (const goal of goalsData) {
+      const progressPercentage = Math.min(
+        100,
+        Math.round((goal.currentValue / goal.targetValue) * 100)
+      );
+      
+      await database.query(
+        `INSERT INTO career_goals (
+          id, user_id, goal_type, goal_category, goal_description, specific_metric,
+          target_value, current_value, target_date, progress_percentage, status,
+          created_at, updated_at
+        )
+        VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+        [
+          userId,
+          goal.goalType,
+          goal.goalCategory,
+          goal.goalDescription,
+          goal.specificMetric,
+          goal.targetValue,
+          goal.currentValue,
+          goal.targetDate.toISOString().split("T")[0],
+          progressPercentage,
+          goal.status,
+        ]
+      );
+    }
+    console.log(`   ✓ Created ${goalsData.length} career goals`);
+    console.log(`     - Mix of application, interview, offer, salary, networking, and skill goals`);
+    console.log(`     - Goals show realistic progress and target dates`);
+
     // Summary
     console.log("\n" + "=".repeat(60));
     console.log("✅ SUCCESS! Test user created with complete data");
@@ -1494,6 +1934,12 @@ async function createTestUser() {
     console.log(`   ✓ ${certifications.length} Certifications`);
     console.log(`   ✓ ${jobOpportunities.length} Job Opportunities (Meta, Amazon, Apple, Netflix, Google, Microsoft)`);
     console.log(`     - 3 with "Offer" status for salary negotiation testing`);
+    console.log(`     - All with recruiter contact information`);
+    console.log(`     - 3 linked to resumes and cover letters`);
+    console.log(`   ✓ ${resumeIds.length} Resumes (with master resume)`);
+    console.log(`   ✓ ${coverLetterIds.length} Cover Letters (3 job-specific, 1 general)`);
+    console.log(`   ✓ ${contactsData.length} Professional Contacts`);
+    console.log(`   ✓ ${goalsData.length} Career Goals (application, interview, offer, salary, networking, skills)`);
     console.log(`   ✓ ${allInterviewsData.length} Interviews:`);
     console.log(`     - ${practiceInterviewsData.length} practice interviews`);
     console.log(`     - ${pastInterviewsData.length} past completed interviews`);

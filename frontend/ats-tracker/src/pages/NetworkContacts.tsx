@@ -28,6 +28,9 @@ export function NetworkContacts() {
   const [industryFilter, setIndustryFilter] = useState<string>("");
   const [roleFilter, setRoleFilter] = useState<string>("");
   const [sourceFilter, setSourceFilter] = useState<string>("");
+  const [companyFilter, setCompanyFilter] = useState<string>("");
+  const [linkedInContacts, setLinkedInContacts] = useState<any[]>([]);
+  const [isLoadingLinkedIn, setIsLoadingLinkedIn] = useState(false);
   const [googleStatus, setGoogleStatus] = useState<GoogleContactsStatus | null>(null);
   const [isGoogleModalOpen, setIsGoogleModalOpen] = useState(false);
   const [importSummary, setImportSummary] = useState<GoogleContactsImportSummary | null>(null);
@@ -72,6 +75,29 @@ export function NetworkContacts() {
     fetchUserEmail();
   }, []);
 
+  // Fetch LinkedIn contacts when company filter is set
+  useEffect(() => {
+    if (companyFilter && companyFilter.trim()) {
+      fetchLinkedInContactsByCompany(companyFilter.trim());
+    } else {
+      setLinkedInContacts([]);
+    }
+  }, [companyFilter]);
+
+  const fetchLinkedInContactsByCompany = async (company: string) => {
+    try {
+      setIsLoadingLinkedIn(true);
+      const response = await api.getLinkedInNetwork({ company, limit: 100 });
+      if (response.ok && response.data?.contacts) {
+        setLinkedInContacts(response.data.contacts);
+      }
+    } catch (err: any) {
+      console.error("Failed to fetch LinkedIn contacts:", err);
+    } finally {
+      setIsLoadingLinkedIn(false);
+    }
+  };
+
   const fetchContacts = async () => {
     try {
       setIsLoading(true);
@@ -79,9 +105,11 @@ export function NetworkContacts() {
       const filters: {
         search?: string;
         industry?: string;
+        company?: string;
       } = {};
       if (searchTerm) filters.search = searchTerm;
       if (industryFilter) filters.industry = industryFilter;
+      if (companyFilter) filters.company = companyFilter;
       const response = await api.getContacts(filters);
       if (response.ok && response.data) {
         setContacts(response.data.contacts);
@@ -738,6 +766,15 @@ export function NetworkContacts() {
       }
     }
 
+    // Apply company filter
+    if (companyFilter) {
+      const company = companyFilter.toLowerCase();
+      const contactCompany = contact.company?.toLowerCase() || "";
+      if (!contactCompany.includes(company)) {
+        return false;
+      }
+    }
+
     return true;
   });
 
@@ -840,7 +877,17 @@ export function NetworkContacts() {
                 ))}
               </select>
             </div>
-            {(industryFilter || roleFilter || sourceFilter) && (
+            <div className="flex-1 min-w-[150px]">
+              <label className="block text-xs font-medium text-slate-700 mb-1">Company</label>
+              <input
+                type="text"
+                placeholder="Search by company..."
+                value={companyFilter}
+                onChange={(e) => setCompanyFilter(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#3351FD] focus:border-transparent bg-white"
+              />
+            </div>
+            {(industryFilter || roleFilter || sourceFilter || companyFilter) && (
               <div className="flex items-end">
                 <button
                   onClick={() => {
@@ -1044,6 +1091,100 @@ export function NetworkContacts() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* LinkedIn Contacts Section - shown when company filter is active */}
+      {companyFilter && companyFilter.trim() && (
+        <div className="mt-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-slate-900 flex items-center gap-2">
+              <Icon icon="mingcute:linkedin-fill" width={24} height={24} className="text-[#0077B5]" />
+              LinkedIn Contacts at {companyFilter}
+            </h2>
+          </div>
+          {isLoadingLinkedIn ? (
+            <div className="text-center py-12">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#3351FD]"></div>
+              <p className="mt-4 text-slate-600">Loading LinkedIn contacts...</p>
+            </div>
+          ) : linkedInContacts.length === 0 ? (
+            <div className="bg-white rounded-lg border border-slate-200 p-12 text-center">
+              <Icon icon="mingcute:linkedin-line" width={64} height={64} className="mx-auto text-slate-400 mb-4" />
+              <h3 className="text-lg font-semibold text-slate-900 mb-2">No LinkedIn contacts found</h3>
+              <p className="text-slate-600 mb-4">
+                No LinkedIn contacts found for this company. Make sure you're connected to LinkedIn.
+              </p>
+              <button
+                onClick={() => {
+                  window.location.href = "/api/v1/users/auth/linkedin";
+                }}
+                className="px-4 py-2 bg-[#0077B5] text-white rounded-full hover:bg-[#005885] transition-colors flex items-center gap-2 mx-auto"
+              >
+                <Icon icon="mingcute:linkedin-fill" width={20} />
+                Connect LinkedIn
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {linkedInContacts.map((contact: any, index: number) => (
+                <div
+                  key={index}
+                  className="bg-white rounded-lg border border-slate-200 p-6 hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-start gap-3 mb-4">
+                    {contact.profilePictureUrl && (
+                      <img
+                        src={contact.profilePictureUrl}
+                        alt={contact.fullName || contact.firstName}
+                        className="w-12 h-12 rounded-full object-cover"
+                      />
+                    )}
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-slate-900">
+                        {contact.fullName || `${contact.firstName || ""} ${contact.lastName || ""}`.trim()}
+                      </h3>
+                      {contact.headline && (
+                        <p className="text-sm text-slate-600 mt-1 line-clamp-2">{contact.headline}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="space-y-2 mb-4">
+                    {contact.company && (
+                      <div className="flex items-center gap-2 text-sm text-slate-600">
+                        <Icon icon="mingcute:building-2-line" width={16} />
+                        <span>{contact.company}</span>
+                      </div>
+                    )}
+                    {contact.title && (
+                      <div className="flex items-center gap-2 text-sm text-slate-600">
+                        <Icon icon="mingcute:briefcase-line" width={16} />
+                        <span>{contact.title}</span>
+                      </div>
+                    )}
+                    {contact.connectionDegree && (
+                      <div className="flex items-center gap-2 text-sm text-blue-600">
+                        <Icon icon="mingcute:user-2-line" width={16} />
+                        <span>{contact.connectionDegree} connection</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    {contact.profileUrl && (
+                      <a
+                        href={contact.profileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 px-3 py-2 bg-[#0077B5] text-white rounded-lg hover:bg-[#005885] transition-colors text-sm font-medium text-center"
+                      >
+                        View Profile
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

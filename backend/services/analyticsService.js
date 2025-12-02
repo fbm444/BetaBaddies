@@ -71,11 +71,17 @@ class AnalyticsService {
         queryParams.push(endDate + " 23:59:59");
       }
 
-      // Key metrics query
+      // Key metrics query - applications_sent should be CUMULATIVE (all that have been applied to)
+      // Count ALL opportunities where status is beyond 'Interested' OR application_submitted_at is not null
+      const hasSubmittedAt = await this.columnExists("job_opportunities", "application_submitted_at");
+      const applicationsSentCondition = hasSubmittedAt 
+        ? `(status != 'Interested' OR application_submitted_at IS NOT NULL)`
+        : `status IN ('Applied', 'Phone Screen', 'Interview', 'Offer', 'Rejected')`;
+      
       const metricsQuery = `
         SELECT 
-          COUNT(*) as total_applications,
-          COUNT(CASE WHEN status = 'Applied' THEN 1 END) as applications_sent,
+          COUNT(*) as total_opportunities,
+          COUNT(CASE WHEN ${applicationsSentCondition} THEN 1 END) as applications_sent,
           COUNT(CASE WHEN status IN ('Phone Screen', 'Interview') THEN 1 END) as interviews_scheduled,
           COUNT(CASE WHEN status = 'Offer' THEN 1 END) as offers_received,
           COUNT(CASE WHEN status = 'Rejected' THEN 1 END) as rejections,
@@ -87,7 +93,7 @@ class AnalyticsService {
       const metricsResult = await database.query(metricsQuery, queryParams);
       const metrics = metricsResult.rows[0];
 
-      // Calculate conversion rates
+      // Calculate conversion rates - applications sent is CUMULATIVE (all applied)
       const applicationsSent = parseInt(metrics.applications_sent) || 0;
       const interviewsScheduled = parseInt(metrics.interviews_scheduled) || 0;
       const offersReceived = parseInt(metrics.offers_received) || 0;
@@ -100,6 +106,7 @@ class AnalyticsService {
         interviewsScheduled > 0
           ? Math.round((offersReceived / interviewsScheduled) * 100 * 10) / 10
           : 0;
+      // Overall success rate: offers / applications (cumulative)
       const overallSuccessRate =
         applicationsSent > 0
           ? Math.round((offersReceived / applicationsSent) * 100 * 10) / 10
@@ -172,13 +179,34 @@ class AnalyticsService {
         }
       }
 
-      // Monthly volume trends
-      const monthlyVolume = await this.getMonthlyVolume(userId, startDate, endDate);
+      // Monthly volume trends - count applications sent per month (not just created)
+      const monthlyVolume = await this.getMonthlyVolume(userId, startDate, endDate, applicationsSentCondition);
+
+      // Get time investment metrics (cumulative hours from time logs)
+      const timeInvestment = await this.getTimeInvestmentMetrics(userId, dateRange);
+
+      // Calculate efficiency metrics
+      const efficiencyMetrics = this.calculateEfficiencyMetrics({
+        applicationsSent,
+        totalHours: timeInvestment.totalHours,
+        interviewsScheduled,
+        offersReceived,
+      });
+
+      // Calculate dynamic industry benchmarks based on actual data
+      const industryBenchmarks = await this.calculateDynamicBenchmarks(userId, dateRange, {
+        applicationsSent,
+        interviewsScheduled,
+        offersReceived,
+        responsesReceived,
+        avgDaysToResponse,
+        avgDaysToInterview,
+      });
 
       return {
         keyMetrics: {
-          totalApplications: parseInt(metrics.total_applications) || 0,
-          applicationsSent,
+          totalApplications: parseInt(metrics.total_opportunities) || 0,
+          applicationsSent, // CUMULATIVE: all opportunities that have been applied to
           interviewsScheduled,
           offersReceived,
           rejections: parseInt(metrics.rejections) || 0,
@@ -187,16 +215,18 @@ class AnalyticsService {
         conversionRates: {
           applicationToInterview: applicationToInterviewRate,
           interviewToOffer: interviewToOfferRate,
-          overallSuccess: overallSuccessRate,
+          overallSuccess: overallSuccessRate, // Cumulative: offers/applications
         },
         timeMetrics: {
           avgDaysToResponse,
           responsesReceived,
           avgDaysToInterview,
           interviewsScheduledCount,
+          ...timeInvestment, // Add cumulative time investment
         },
+        efficiencyMetrics, // Add efficiency metrics
         monthlyVolume,
-        benchmarks: this.industryBenchmarks,
+        benchmarks: industryBenchmarks, // Use dynamic benchmarks
       };
     } catch (error) {
       console.error("❌ Error getting job search performance:", error);
@@ -205,9 +235,9 @@ class AnalyticsService {
   }
 
   /**
-   * Get monthly application volume
+   * Get monthly application volume - count applications sent per month (not just created)
    */
-  async getMonthlyVolume(userId, startDate, endDate) {
+  async getMonthlyVolume(userId, startDate, endDate, applicationsSentCondition = null) {
     try {
       let dateFilter = "";
       const params = [userId];
@@ -221,10 +251,16 @@ class AnalyticsService {
         params.push(endDate + " 23:59:59");
       }
 
+      // If applicationsSentCondition is provided, count applications sent per month
+      // Otherwise count all opportunities created per month
+      const countCondition = applicationsSentCondition 
+        ? `COUNT(CASE WHEN ${applicationsSentCondition} THEN 1 END)`
+        : `COUNT(*)`;
+
       const query = `
         SELECT 
           TO_CHAR(created_at, 'YYYY-MM') as month,
-          COUNT(*) as count
+          ${countCondition} as count
         FROM job_opportunities
         WHERE user_id = $1 AND (archived = false OR archived IS NULL) ${dateFilter}
         GROUP BY TO_CHAR(created_at, 'YYYY-MM')
@@ -238,6 +274,349 @@ class AnalyticsService {
       }));
     } catch (error) {
       console.error("❌ Error getting monthly volume:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Get time investment metrics (cumulative hours from time logs)
+   */
+  async getTimeInvestmentMetrics(userId, dateRange = {}) {
+    try {
+      const { startDate, endDate } = this.parseDateRange(dateRange);
+      
+      // Check if time_logs table exists
+      const hasTimeLogs = await this.columnExists("time_logs", "id");
+      if (!hasTimeLogs) {
+        return {
+          totalHours: 0,
+          hoursByActivity: [],
+          avgHoursPerApplication: 0,
+        };
+      }
+
+      let dateFilter = "";
+      const params = [userId];
+      if (startDate) {
+        dateFilter += " AND activity_date >= $" + (params.length + 1);
+        params.push(startDate);
+      }
+      if (endDate) {
+        dateFilter += " AND activity_date <= $" + (params.length + 1);
+        params.push(endDate);
+      }
+
+      // Get total hours by activity type
+      const query = `
+        SELECT 
+          activity_type,
+          SUM(hours_spent) as total_hours
+        FROM time_logs
+        WHERE user_id = $1 ${dateFilter}
+        GROUP BY activity_type
+        ORDER BY total_hours DESC
+      `;
+
+      const result = await database.query(query, params);
+      const hoursByActivity = result.rows.map((row) => ({
+        activityType: row.activity_type,
+        hours: parseFloat(row.total_hours || 0),
+      }));
+
+      const totalHours = hoursByActivity.reduce((sum, item) => sum + item.hours, 0);
+
+      return {
+        totalHours: Math.round(totalHours * 10) / 10,
+        hoursByActivity,
+        avgHoursPerApplication: 0, // Will be calculated separately with applications count
+      };
+    } catch (error) {
+      console.warn("Error getting time investment metrics:", error.message);
+      return {
+        totalHours: 0,
+        hoursByActivity: [],
+        avgHoursPerApplication: 0,
+      };
+    }
+  }
+
+  /**
+   * Calculate efficiency metrics
+   */
+  calculateEfficiencyMetrics({ applicationsSent, totalHours, interviewsScheduled, offersReceived }) {
+    const applicationsPerHour = totalHours > 0 
+      ? Math.round((applicationsSent / totalHours) * 10) / 10 
+      : 0;
+    
+    const hoursPerApplication = applicationsSent > 0
+      ? Math.round((totalHours / applicationsSent) * 10) / 10
+      : 0;
+
+    const hoursPerInterview = interviewsScheduled > 0
+      ? Math.round((totalHours / interviewsScheduled) * 10) / 10
+      : 0;
+
+    const hoursPerOffer = offersReceived > 0
+      ? Math.round((totalHours / offersReceived) * 10) / 10
+      : 0;
+
+    return {
+      applicationsPerHour,
+      hoursPerApplication,
+      hoursPerInterview,
+      hoursPerOffer,
+    };
+  }
+
+  /**
+   * Calculate dynamic industry benchmarks based on user's actual performance
+   */
+  async calculateDynamicBenchmarks(userId, dateRange = {}, userMetrics = {}) {
+    try {
+      const {
+        applicationsSent = 0,
+        interviewsScheduled = 0,
+        offersReceived = 0,
+        responsesReceived = 0,
+        avgDaysToResponse = null,
+        avgDaysToInterview = null,
+      } = userMetrics;
+
+      // Calculate user's actual rates
+      const userResponseRate = applicationsSent > 0 
+        ? Math.round((responsesReceived / applicationsSent) * 100 * 10) / 10 
+        : 0;
+      
+      const userInterviewRate = applicationsSent > 0
+        ? Math.round((interviewsScheduled / applicationsSent) * 100 * 10) / 10
+        : 0;
+
+      const userOfferRate = applicationsSent > 0
+        ? Math.round((offersReceived / applicationsSent) * 100 * 10) / 10
+        : 0;
+
+      // Use industry benchmarks, but if user has data, blend with user performance
+      // For now, return industry benchmarks (can be enhanced with real industry data later)
+      return {
+        responseRate: Math.max(userResponseRate || 0, this.industryBenchmarks.responseRate),
+        interviewRate: Math.max(userInterviewRate || 0, this.industryBenchmarks.interviewRate),
+        offerRate: Math.max(userOfferRate || 0, this.industryBenchmarks.offerRate),
+        timeToResponse: avgDaysToResponse || this.industryBenchmarks.timeToResponse,
+        timeToInterview: avgDaysToInterview || this.industryBenchmarks.timeToInterview,
+        timeToOffer: this.industryBenchmarks.timeToOffer,
+      };
+    } catch (error) {
+      console.warn("Error calculating dynamic benchmarks:", error.message);
+      return this.industryBenchmarks;
+    }
+  }
+
+  /**
+   * Get success rate by resume used
+   * Tracks which resumes perform best by comparing success rates
+   */
+  async getSuccessByResume(userId, dateRange = {}) {
+    try {
+      const { startDate, endDate } = this.parseDateRange(dateRange);
+      
+      let dateFilter = "";
+      const params = [userId];
+      if (startDate) {
+        dateFilter += " AND jo.created_at >= $" + (params.length + 1);
+        params.push(startDate);
+      }
+      if (endDate) {
+        dateFilter += " AND jo.created_at <= $" + (params.length + 1);
+        params.push(endDate + " 23:59:59");
+      }
+
+      // Check if job_opportunities has resume_id column (preferred method)
+      const hasJobResumeId = await this.columnExists("job_opportunities", "resume_id");
+      
+      let query;
+      if (hasJobResumeId) {
+        // Use resume_id from job_opportunities - tracks which resume was actually used
+        query = `
+          SELECT 
+            r.id as resume_id,
+            COALESCE(r.version_name, r.name, 'Untitled Resume') as resume_name,
+            COUNT(*) as total,
+            COUNT(CASE WHEN jo.status IN ('Applied', 'Phone Screen', 'Interview', 'Offer', 'Rejected') THEN 1 END) as applied,
+            COUNT(CASE WHEN jo.status IN ('Phone Screen', 'Interview') THEN 1 END) as interviews,
+            COUNT(CASE WHEN jo.status = 'Offer' THEN 1 END) as offers,
+            COUNT(CASE WHEN jo.status = 'Rejected' THEN 1 END) as rejected
+          FROM job_opportunities jo
+          INNER JOIN resume r ON jo.resume_id = r.id
+          WHERE jo.user_id = $1 
+            AND r.user_id = $1
+            AND jo.resume_id IS NOT NULL
+            AND (jo.archived = false OR jo.archived IS NULL)
+            ${dateFilter}
+          GROUP BY r.id, r.version_name, r.name
+          HAVING COUNT(*) > 0
+          ORDER BY total DESC
+        `;
+      } else {
+        // Fallback: use resume.job_id to link resumes to jobs
+        const hasResumeJobId = await this.columnExists("resume", "job_id");
+        if (!hasResumeJobId) {
+          return [];
+        }
+
+        query = `
+          SELECT 
+            r.id as resume_id,
+            COALESCE(r.version_name, r.name, 'Untitled Resume') as resume_name,
+            COUNT(*) as total,
+            COUNT(CASE WHEN jo.status IN ('Applied', 'Phone Screen', 'Interview', 'Offer', 'Rejected') THEN 1 END) as applied,
+            COUNT(CASE WHEN jo.status IN ('Phone Screen', 'Interview') THEN 1 END) as interviews,
+            COUNT(CASE WHEN jo.status = 'Offer' THEN 1 END) as offers,
+            COUNT(CASE WHEN jo.status = 'Rejected' THEN 1 END) as rejected
+          FROM resume r
+          INNER JOIN job_opportunities jo ON r.job_id = jo.id
+          WHERE r.user_id = $1 
+            AND jo.user_id = $1
+            AND (jo.archived = false OR jo.archived IS NULL)
+            ${dateFilter}
+          GROUP BY r.id, r.version_name, r.name
+          HAVING COUNT(*) > 0
+          ORDER BY total DESC
+        `;
+      }
+
+      const result = await database.query(query, params);
+      return result.rows.map((row) => {
+        const total = parseInt(row.total) || 0;
+        const applied = parseInt(row.applied) || 0;
+        const interviews = parseInt(row.interviews) || 0;
+        const offers = parseInt(row.offers) || 0;
+
+        return {
+          resumeId: row.resume_id,
+          resumeName: row.resume_name || "Untitled Resume",
+          total,
+          applied,
+          interviews,
+          offers,
+          rejected: parseInt(row.rejected) || 0,
+          interviewRate: applied > 0 ? Math.round((interviews / applied) * 1000) / 10 : 0,
+          offerRate: applied > 0 ? Math.round((offers / applied) * 1000) / 10 : 0,
+          successRate: applied > 0 ? Math.round((offers / applied) * 1000) / 10 : 0, // For comparison
+        };
+      }).sort((a, b) => {
+        // Sort by success rate first, then by total applications
+        if (b.successRate !== a.successRate) {
+          return b.successRate - a.successRate;
+        }
+        return b.total - a.total;
+      });
+    } catch (error) {
+      console.warn("Error getting success by resume:", error.message);
+      return [];
+    }
+  }
+
+  /**
+   * Get success rate by cover letter used
+   * Tracks which cover letters perform best by comparing success rates
+   */
+  async getSuccessByCoverLetter(userId, dateRange = {}) {
+    try {
+      const { startDate, endDate } = this.parseDateRange(dateRange);
+      
+      let dateFilter = "";
+      const params = [userId];
+      if (startDate) {
+        dateFilter += " AND jo.created_at >= $" + (params.length + 1);
+        params.push(startDate);
+      }
+      if (endDate) {
+        dateFilter += " AND jo.created_at <= $" + (params.length + 1);
+        params.push(endDate + " 23:59:59");
+      }
+
+      // Check if job_opportunities has coverletter_id column (preferred method)
+      const hasJobCoverLetterId = await this.columnExists("job_opportunities", "coverletter_id");
+      
+      let query;
+      if (hasJobCoverLetterId) {
+        // Use coverletter_id from job_opportunities - tracks which cover letter was actually used
+        query = `
+          SELECT 
+            cl.id as coverletter_id,
+            COALESCE(cl.version_name, 'Untitled Cover Letter') as coverletter_name,
+            COUNT(*) as total,
+            COUNT(CASE WHEN jo.status IN ('Applied', 'Phone Screen', 'Interview', 'Offer', 'Rejected') THEN 1 END) as applied,
+            COUNT(CASE WHEN jo.status IN ('Phone Screen', 'Interview') THEN 1 END) as interviews,
+            COUNT(CASE WHEN jo.status = 'Offer' THEN 1 END) as offers,
+            COUNT(CASE WHEN jo.status = 'Rejected' THEN 1 END) as rejected
+          FROM job_opportunities jo
+          INNER JOIN coverletter cl ON jo.coverletter_id = cl.id
+          WHERE jo.user_id = $1 
+            AND cl.user_id = $1
+            AND jo.coverletter_id IS NOT NULL
+            AND (jo.archived = false OR jo.archived IS NULL)
+            ${dateFilter}
+          GROUP BY cl.id, cl.version_name
+          HAVING COUNT(*) > 0
+          ORDER BY total DESC
+        `;
+      } else {
+        // Fallback: use coverletter.job_id to link cover letters to jobs
+        const hasCoverLetterJobId = await this.columnExists("coverletter", "job_id");
+        if (!hasCoverLetterJobId) {
+          return [];
+        }
+
+        query = `
+          SELECT 
+            cl.id as coverletter_id,
+            COALESCE(cl.version_name, 'Untitled Cover Letter') as coverletter_name,
+            COUNT(*) as total,
+            COUNT(CASE WHEN jo.status IN ('Applied', 'Phone Screen', 'Interview', 'Offer', 'Rejected') THEN 1 END) as applied,
+            COUNT(CASE WHEN jo.status IN ('Phone Screen', 'Interview') THEN 1 END) as interviews,
+            COUNT(CASE WHEN jo.status = 'Offer' THEN 1 END) as offers,
+            COUNT(CASE WHEN jo.status = 'Rejected' THEN 1 END) as rejected
+          FROM coverletter cl
+          INNER JOIN job_opportunities jo ON cl.job_id = jo.id
+          WHERE cl.user_id = $1 
+            AND jo.user_id = $1
+            AND (jo.archived = false OR jo.archived IS NULL)
+            ${dateFilter}
+          GROUP BY cl.id, cl.version_name
+          HAVING COUNT(*) > 0
+          ORDER BY total DESC
+        `;
+      }
+
+      const result = await database.query(query, params);
+      return result.rows.map((row) => {
+        const total = parseInt(row.total) || 0;
+        const applied = parseInt(row.applied) || 0;
+        const interviews = parseInt(row.interviews) || 0;
+        const offers = parseInt(row.offers) || 0;
+
+        return {
+          coverLetterId: row.coverletter_id,
+          coverLetterName: row.coverletter_name || "Untitled Cover Letter",
+          total,
+          applied,
+          interviews,
+          offers,
+          rejected: parseInt(row.rejected) || 0,
+          interviewRate: applied > 0 ? Math.round((interviews / applied) * 1000) / 10 : 0,
+          offerRate: applied > 0 ? Math.round((offers / applied) * 1000) / 10 : 0,
+          successRate: applied > 0 ? Math.round((offers / applied) * 1000) / 10 : 0, // For comparison
+        };
+      }).sort((a, b) => {
+        // Sort by success rate first, then by total applications
+        if (b.successRate !== a.successRate) {
+          return b.successRate - a.successRate;
+        }
+        return b.total - a.total;
+      });
+    } catch (error) {
+      console.warn("Error getting success by cover letter:", error.message);
       return [];
     }
   }
@@ -380,17 +759,25 @@ class AnalyticsService {
         }
       }
 
+      // Success rate by resume/cover letter - track which materials were used
+      const byResume = await this.getSuccessByResume(userId, dateRange);
+      const byCoverLetter = await this.getSuccessByCoverLetter(userId, dateRange);
+
       // Generate recommendations
       const recommendations = this.generateSuccessRecommendations({
         byIndustry,
         bySource,
         byMethod,
+        byResume,
+        byCoverLetter,
       });
 
       return {
         byIndustry,
         bySource,
         byMethod,
+        byResume,
+        byCoverLetter,
         recommendations,
       };
     } catch (error) {
@@ -746,13 +1133,21 @@ class AnalyticsService {
         params.push(endDate + " 23:59:59");
       }
 
-      // Salary offers over time
+      // Salary progression: Include both offers and employment history
+      // Get offers over time with location and negotiation status
+      const hasNegotiationStatus = await this.columnExists("job_opportunities", "negotiation_status");
+      const negotiationStatusField = hasNegotiationStatus 
+        ? `STRING_AGG(DISTINCT negotiation_status, ', ') FILTER (WHERE negotiation_status IS NOT NULL) as negotiation_statuses`
+        : `NULL as negotiation_statuses`;
+      
       const salaryOffersQuery = `
         SELECT 
           TO_CHAR(created_at, 'YYYY-MM') as month,
           AVG(salary_min) as avg_min,
           AVG(salary_max) as avg_max,
-          COUNT(*) as offer_count
+          COUNT(*) as offer_count,
+          STRING_AGG(DISTINCT location, ', ') FILTER (WHERE location IS NOT NULL) as locations,
+          ${negotiationStatusField}
         FROM job_opportunities
         WHERE user_id = $1 
           AND status = 'Offer' 
@@ -763,18 +1158,113 @@ class AnalyticsService {
         ORDER BY month ASC
       `;
 
-      const salaryResult = await database.query(salaryOffersQuery, params);
-      const salaryProgression = salaryResult.rows.map((row) => ({
-        month: row.month,
-        avgMin: row.avg_min ? Math.round(row.avg_min) : null,
-        avgMax: row.avg_max ? Math.round(row.avg_max) : null,
-        offerCount: parseInt(row.offer_count) || 0,
-      }));
+      const offersResult = await database.query(salaryOffersQuery, params);
+      const offersByMonth = {};
+      offersResult.rows.forEach((row) => {
+        offersByMonth[row.month] = {
+          avgMin: row.avg_min ? Math.round(row.avg_min) : null,
+          avgMax: row.avg_max ? Math.round(row.avg_max) : null,
+          offerCount: parseInt(row.offer_count) || 0,
+          locations: row.locations || null,
+          negotiationStatus: row.negotiation_statuses && row.negotiation_statuses !== 'null' && row.negotiation_statuses !== null ? row.negotiation_statuses : null,
+        };
+      });
 
-      // Salary by industry
-      const byIndustryQuery = `
+      // Get employment salaries over time
+      let employmentParams = [userId];
+      let employmentDateFilter = "";
+      if (startDate) {
+        employmentDateFilter += ` AND start_date >= $${employmentParams.length + 1}`;
+        employmentParams.push(startDate);
+      }
+      if (endDate) {
+        employmentDateFilter += ` AND start_date <= $${employmentParams.length + 1}`;
+        employmentParams.push(endDate);
+      }
+
+      const employmentQuery = `
+        SELECT 
+          TO_CHAR(start_date, 'YYYY-MM') as month,
+          AVG(salary) as avg_salary,
+          COUNT(*) as employment_count
+        FROM jobs
+        WHERE user_id = $1 
+          AND salary IS NOT NULL
+          ${employmentDateFilter}
+        GROUP BY TO_CHAR(start_date, 'YYYY-MM')
+        ORDER BY month ASC
+      `;
+
+      const employmentResult = await database.query(employmentQuery, employmentParams);
+      const employmentByMonth = {};
+      employmentResult.rows.forEach((row) => {
+        employmentByMonth[row.month] = {
+          avgSalary: row.avg_salary ? Math.round(row.avg_salary) : null,
+          employmentCount: parseInt(row.employment_count) || 0,
+        };
+      });
+
+      // Combine offers and employment data by month, keeping them separate
+      const allMonths = new Set([
+        ...Object.keys(offersByMonth),
+        ...Object.keys(employmentByMonth),
+      ]);
+
+      // Separate progression entries for offers and employment
+      const salaryProgression = [];
+      
+      // Add offers (most recent first)
+      Object.keys(offersByMonth)
+        .sort()
+        .reverse()
+        .forEach((month) => {
+          const offerData = offersByMonth[month];
+          salaryProgression.push({
+            month,
+            type: 'offer',
+            avgMin: offerData.avgMin,
+            avgMax: offerData.avgMax,
+            count: offerData.offerCount || 0,
+            location: offerData.locations || null,
+            negotiationStatus: offerData.negotiationStatus || null,
+          });
+        });
+
+      // Add employment history (most recent first)
+      Object.keys(employmentByMonth)
+        .sort()
+        .reverse()
+        .forEach((month) => {
+          const employmentData = employmentByMonth[month];
+          // Only add if not already added as an offer for the same month
+          const existingOffer = offersByMonth[month];
+          if (!existingOffer) {
+            salaryProgression.push({
+              month,
+              type: 'employment',
+              avgMin: employmentData.avgSalary,
+              avgMax: employmentData.avgSalary,
+              count: employmentData.employmentCount || 0,
+              location: null,
+              negotiationStatus: null,
+            });
+          }
+        });
+
+      // Sort all entries by month (most recent first)
+      salaryProgression.sort((a, b) => {
+        if (a.month !== b.month) {
+          return b.month.localeCompare(a.month);
+        }
+        // If same month, show offers first, then employment
+        return a.type === 'offer' ? -1 : 1;
+      });
+
+      // Salary by industry - include both offers and employment, with location
+      const offersByIndustryQuery = `
         SELECT 
           industry,
+          STRING_AGG(DISTINCT location, ', ') FILTER (WHERE location IS NOT NULL) as locations,
           AVG(salary_min) as avg_min,
           AVG(salary_max) as avg_max,
           COUNT(*) as count
@@ -786,16 +1276,130 @@ class AnalyticsService {
           AND (archived = false OR archived IS NULL)
           ${dateFilter}
         GROUP BY industry
-        ORDER BY avg_max DESC NULLS LAST
       `;
 
-      const industryResult = await database.query(byIndustryQuery, params);
-      const byIndustry = industryResult.rows.map((row) => ({
-        industry: row.industry,
-        avgMin: row.avg_min ? Math.round(row.avg_min) : null,
-        avgMax: row.avg_max ? Math.round(row.avg_max) : null,
-        count: parseInt(row.count) || 0,
-      }));
+      const offersByIndustryResult = await database.query(offersByIndustryQuery, params);
+      
+      // Get user's profile industry for employment data
+      const profileQuery = `SELECT industry FROM profiles WHERE user_id = $1`;
+      const profileResult = await database.query(profileQuery, [userId]);
+      const userIndustry = profileResult.rows[0]?.industry || null;
+
+      // Get employment salaries by industry (using profile industry)
+      const employmentByIndustryQuery = `
+        SELECT 
+          COUNT(*) as count,
+          AVG(salary) as avg_salary
+        FROM jobs
+        WHERE user_id = $1 
+          AND salary IS NOT NULL
+      `;
+      const employmentByIndustryResult = await database.query(employmentByIndustryQuery, [userId]);
+
+      // Group by industry and location
+      const industryData = {};
+      const locationAverages = {}; // Track location-based averages
+      
+      // Add offer data
+      offersByIndustryResult.rows.forEach((row) => {
+        const industry = row.industry;
+        const locations = row.locations ? row.locations.split(', ') : [];
+        
+        if (!industryData[industry]) {
+          industryData[industry] = {
+            industry,
+            salaries: [],
+            locations: [],
+            count: 0,
+          };
+        }
+        industryData[industry].salaries.push({
+          min: row.avg_min ? Math.round(row.avg_min) : null,
+          max: row.avg_max ? Math.round(row.avg_max) : null,
+        });
+        locations.forEach(loc => {
+          if (loc && !industryData[industry].locations.includes(loc)) {
+            industryData[industry].locations.push(loc);
+          }
+        });
+        industryData[industry].count += parseInt(row.count) || 0;
+        
+        // Track location averages for comparison (simplified - using industry average as location average)
+        locations.forEach(location => {
+          if (location) {
+            if (!locationAverages[location]) {
+              locationAverages[location] = {
+                salaries: [],
+                count: 0,
+              };
+            }
+            locationAverages[location].salaries.push(row.avg_max || row.avg_min || 0);
+            locationAverages[location].count += parseInt(row.count) || 0;
+          }
+        });
+      });
+
+      // Add employment data if industry matches
+      if (userIndustry && employmentByIndustryResult.rows[0]?.avg_salary) {
+        if (!industryData[userIndustry]) {
+          industryData[userIndustry] = {
+            industry: userIndustry,
+            salaries: [],
+            count: 0,
+          };
+        }
+        const avgSalary = Math.round(employmentByIndustryResult.rows[0].avg_salary);
+        industryData[userIndustry].salaries.push({
+          min: avgSalary,
+          max: avgSalary,
+        });
+        industryData[userIndustry].count += parseInt(employmentByIndustryResult.rows[0].count) || 0;
+      }
+
+      const byIndustry = Object.values(industryData).map((data) => {
+        const validSalaries = data.salaries.filter(s => s.min !== null || s.max !== null);
+        const avgMin = validSalaries.length > 0
+          ? Math.round(validSalaries.reduce((sum, s) => sum + (s.min || s.max || 0), 0) / validSalaries.length)
+          : null;
+        const avgMax = validSalaries.length > 0
+          ? Math.round(Math.max(...validSalaries.map(s => s.max || s.min || 0)))
+          : null;
+
+        // Calculate industry average (placeholder - can be enhanced with real industry data)
+        const industryAverage = this.getIndustryAverageSalary(data.industry);
+        
+        // Calculate location average for this industry's locations
+        let locationAverage = null;
+        let vsLocation = null;
+        if (data.locations && data.locations.length > 0) {
+          // Get average salary for the primary location
+          const primaryLocation = data.locations[0];
+          if (locationAverages[primaryLocation]) {
+            const locSalaries = locationAverages[primaryLocation].salaries;
+            locationAverage = locSalaries.length > 0
+              ? Math.round(locSalaries.reduce((sum, s) => sum + s, 0) / locSalaries.length)
+              : null;
+            
+            if (avgMax && locationAverage) {
+              vsLocation = Math.round(((avgMax - locationAverage) / locationAverage) * 100 * 10) / 10;
+            }
+          }
+        }
+
+        return {
+          industry: data.industry,
+          avgMin,
+          avgMax,
+          count: data.count,
+          industryAverage, // Industry benchmark for comparison
+          vsIndustry: avgMax && industryAverage 
+            ? Math.round(((avgMax - industryAverage) / industryAverage) * 100 * 10) / 10 
+            : null, // Percentage above/below industry average
+          location: data.locations && data.locations.length > 0 ? data.locations.join(', ') : null,
+          locationAverage,
+          vsLocation, // Percentage above/below location average
+        };
+      }).sort((a, b) => (b.avgMax || 0) - (a.avgMax || 0));
 
       return {
         progression: salaryProgression,
@@ -1372,6 +1976,40 @@ class AnalyticsService {
   // ============================================
   // Helper Methods
   // ============================================
+
+  /**
+   * Get industry average salary (placeholder - can be enhanced with real industry data)
+   */
+  getIndustryAverageSalary(industry) {
+    // Placeholder industry averages - can be replaced with real industry data
+    const industryAverages = {
+      "Technology": 120000,
+      "Finance": 110000,
+      "Healthcare": 95000,
+      "Education": 60000,
+      "Manufacturing": 75000,
+      "Retail": 45000,
+      "Consulting": 130000,
+      "Engineering": 115000,
+      "Sales": 70000,
+      "Marketing": 80000,
+      "Design": 75000,
+    };
+
+    // Normalize industry name for lookup
+    const normalizedIndustry = industry 
+      ? industry.toLowerCase().replace(/[^a-z0-9]/g, '')
+      : '';
+
+    for (const [key, value] of Object.entries(industryAverages)) {
+      if (normalizedIndustry.includes(key.toLowerCase())) {
+        return value;
+      }
+    }
+
+    // Default average if industry not found
+    return 75000;
+  }
 
   /**
    * Parse date range object

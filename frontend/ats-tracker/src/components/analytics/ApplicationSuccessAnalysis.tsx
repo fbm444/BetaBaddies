@@ -148,6 +148,98 @@ export function ApplicationSuccessAnalysis({ dateRange }: ApplicationSuccessAnal
         </div>
       )}
 
+      {/* Success by Resume */}
+      {data.byResume && data.byResume.length > 0 && (
+        <div className="rounded-3xl bg-white p-6 border border-[#E4E8F5]">
+          <h3 className="text-[25px] font-normal text-[#0F1D3A] mb-4">Success by Resume</h3>
+          <p className="text-sm text-[#6D7A99] mb-4">
+            Track which resumes perform best in your job applications
+          </p>
+          <div className="space-y-3">
+            {data.byResume
+              .sort((a, b) => b.offerRate - a.offerRate) // Sort by best performance first
+              .map((item, index) => (
+                <div key={index} className="p-4 rounded-xl border border-[#E8EBF8] bg-[#FDFDFF]">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-[#0F1D3A] mb-1">{item.resumeName}</p>
+                      <p className="text-xs text-[#6D7A99]">
+                        {item.total} applications • {item.applied} sent • {item.interviews} interviews
+                      </p>
+                    </div>
+                    <div className="text-right ml-4">
+                      <p className="text-lg font-semibold text-[#3351FD]">{item.offerRate}%</p>
+                      <p className="text-xs text-[#6D7A99]">offer rate</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 mt-2">
+                    <div className="flex-1">
+                      <div className="h-2 w-full overflow-hidden rounded-full bg-[#EEF0FB]">
+                        <div
+                          className="h-full rounded-full bg-[#3351FD] transition-all"
+                          style={{ width: `${Math.min(item.offerRate, 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs">
+                      <span className="text-[#6D7A99]">{item.offers} offers</span>
+                      {item.rejected > 0 && (
+                        <span className="text-[#6D7A99]">• {item.rejected} rejected</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+
+      {/* Success by Cover Letter */}
+      {data.byCoverLetter && data.byCoverLetter.length > 0 && (
+        <div className="rounded-3xl bg-white p-6 border border-[#E4E8F5]">
+          <h3 className="text-[25px] font-normal text-[#0F1D3A] mb-4">Success by Cover Letter</h3>
+          <p className="text-sm text-[#6D7A99] mb-4">
+            Track which cover letters perform best in your job applications
+          </p>
+          <div className="space-y-3">
+            {data.byCoverLetter
+              .sort((a, b) => b.offerRate - a.offerRate) // Sort by best performance first
+              .map((item, index) => (
+                <div key={index} className="p-4 rounded-xl border border-[#E8EBF8] bg-[#FDFDFF]">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-[#0F1D3A] mb-1">{item.coverLetterName}</p>
+                      <p className="text-xs text-[#6D7A99]">
+                        {item.total} applications • {item.applied} sent • {item.interviews} interviews
+                      </p>
+                    </div>
+                    <div className="text-right ml-4">
+                      <p className="text-lg font-semibold text-[#3351FD]">{item.offerRate}%</p>
+                      <p className="text-xs text-[#6D7A99]">offer rate</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 mt-2">
+                    <div className="flex-1">
+                      <div className="h-2 w-full overflow-hidden rounded-full bg-[#EEF0FB]">
+                        <div
+                          className="h-full rounded-full bg-[#3351FD] transition-all"
+                          style={{ width: `${Math.min(item.offerRate, 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs">
+                      <span className="text-[#6D7A99]">{item.offers} offers</span>
+                      {item.rejected > 0 && (
+                        <span className="text-[#6D7A99]">• {item.rejected} rejected</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+
       {/* Recommendations */}
       {data.recommendations.length > 0 && (
         <div className="rounded-3xl bg-gradient-to-br from-[#F8F9FF] to-[#EEF0FB] p-6 border border-[#E4E8F5]">
@@ -188,7 +280,9 @@ export function ApplicationSuccessAnalysis({ dateRange }: ApplicationSuccessAnal
       {/* Empty State */}
       {data.byIndustry.length === 0 &&
         data.bySource.length === 0 &&
-        data.byMethod.length === 0 && (
+        data.byMethod.length === 0 &&
+        (!data.byResume || data.byResume.length === 0) &&
+        (!data.byCoverLetter || data.byCoverLetter.length === 0) && (
           <div className="rounded-2xl border border-dashed border-[#E4E8F5] bg-[#F8F8F8] p-10 text-center">
             <Icon icon="mingcute:chart-line" className="mx-auto mb-3 text-[#6D7A99]" width={48} />
             <p className="text-sm text-[#6D7A99]">

@@ -221,6 +221,41 @@ class GoalService {
     }
   }
 
+  // Complete goal (marks goal as completed)
+  async completeGoal(goalId, userId) {
+    try {
+      const existing = await this.getGoalById(goalId, userId);
+      if (!existing) {
+        throw new Error("Goal not found");
+      }
+
+      if (existing.status === "completed") {
+        return existing; // Already completed
+      }
+
+      // Update goal to completed status
+      const query = `
+        UPDATE career_goals
+        SET status = 'completed',
+            achievement_date = CURRENT_DATE,
+            updated_at = NOW()
+        WHERE id = $1 AND user_id = $2
+        RETURNING *
+      `;
+
+      const result = await database.query(query, [goalId, userId]);
+
+      if (result.rows.length === 0) {
+        throw new Error("Goal not found");
+      }
+
+      return this.mapRowToGoal(result.rows[0]);
+    } catch (error) {
+      console.error("❌ Error completing goal:", error);
+      throw error;
+    }
+  }
+
   // Delete goal
   async deleteGoal(goalId, userId) {
     try {
@@ -251,38 +286,49 @@ class GoalService {
   // Get goal analytics
   async getGoalAnalytics(userId) {
     try {
-      const query = `
+      // Get overall totals first (not grouped)
+      const totalsQuery = `
         SELECT 
           COUNT(*) as total_goals,
           COUNT(CASE WHEN status = 'active' THEN 1 END) as active_goals,
-          COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_goals,
+          COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_goals
+        FROM career_goals
+        WHERE user_id = $1
+      `;
+
+      const totalsResult = await database.query(totalsQuery, [userId]);
+      const totalGoals = parseInt(totalsResult.rows[0]?.total_goals || 0);
+      const activeGoals = parseInt(totalsResult.rows[0]?.active_goals || 0);
+      const completedGoals = parseInt(totalsResult.rows[0]?.completed_goals || 0);
+      const achievementRate = totalGoals > 0 ? Math.round((completedGoals / totalGoals) * 100 * 10) / 10 : 0;
+
+      // Get breakdown by category
+      const categoryQuery = `
+        SELECT 
           goal_category,
           COUNT(*) as category_total,
-          COUNT(CASE WHEN status = 'completed' THEN 1 END) as category_completed
+          COUNT(CASE WHEN status = 'completed' THEN 1 END) as category_completed,
+          COUNT(CASE WHEN status = 'active' THEN 1 END) as category_active
         FROM career_goals
         WHERE user_id = $1
         GROUP BY goal_category
+        ORDER BY category_total DESC
       `;
 
-      const result = await database.query(query, [userId]);
-
-      const totalGoals = result.rows.reduce((sum, row) => sum + parseInt(row.total_goals || 0), 0);
-      const completedGoals = result.rows.reduce((sum, row) => sum + parseInt(row.category_completed || 0), 0);
-      const achievementRate = totalGoals > 0 ? Math.round((completedGoals / totalGoals) * 100 * 10) / 10 : 0;
-
-      const byCategory = result.rows.map((row) => ({
+      const categoryResult = await database.query(categoryQuery, [userId]);
+      const byCategory = categoryResult.rows.map((row) => ({
         category: row.goal_category,
         total: parseInt(row.category_total || 0),
         completed: parseInt(row.category_completed || 0),
-        active: parseInt(row.category_total || 0) - parseInt(row.category_completed || 0),
+        active: parseInt(row.category_active || 0),
       }));
 
       // Get recent progress (active goals with progress)
       const progressQuery = `
-        SELECT id, goal_description, current_value, target_value, progress_percentage
+        SELECT id, goal_description, current_value, target_value, progress_percentage, updated_at
         FROM career_goals
         WHERE user_id = $1 AND status = 'active' AND target_value IS NOT NULL
-        ORDER BY updated_at DESC
+        ORDER BY updated_at DESC, created_at DESC
         LIMIT 5
       `;
 
@@ -297,7 +343,7 @@ class GoalService {
 
       return {
         totalGoals,
-        activeGoals: totalGoals - completedGoals,
+        activeGoals,
         completedGoals,
         achievementRate,
         byCategory,

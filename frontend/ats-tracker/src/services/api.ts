@@ -1268,6 +1268,12 @@ class ApiService {
     });
   }
 
+  async completeGoal(id: string) {
+    return this.request<ApiResponse<{ goal: Goal; message: string }>>(`/goals/${id}/complete`, {
+      method: "PUT",
+    });
+  }
+
   async deleteGoal(id: string) {
     return this.request<ApiResponse<{ message: string }>>(`/goals/${id}`, {
       method: "DELETE",

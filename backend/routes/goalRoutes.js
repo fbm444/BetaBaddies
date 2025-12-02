@@ -11,6 +11,7 @@ router.use(isAuthenticated);
 router.post("/", goalController.createGoal);
 router.get("/", goalController.getGoals);
 router.get("/analytics", goalController.getGoalAnalytics);
+router.put("/:id/complete", goalController.completeGoal); // Complete goal route (must be before /:id)
 router.get("/:id", goalController.getGoalById);
 router.put("/:id", goalController.updateGoal);
 router.delete("/:id", goalController.deleteGoal);

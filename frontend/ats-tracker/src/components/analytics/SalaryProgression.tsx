@@ -87,16 +87,37 @@ export function SalaryProgression({ dateRange }: SalaryProgressionProps) {
                 >
                   <div className="flex-1">
                     <p className="text-sm font-semibold text-[#0F1D3A] mb-1">{monthLabel}</p>
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-4 flex-wrap">
                       {item.avgMin !== null && item.avgMax !== null && (
                         <p className="text-xs text-[#6D7A99]">
                           Range: {formatCurrency(item.avgMin)} - {formatCurrency(item.avgMax)}
                         </p>
                       )}
-                      {item.offerCount > 0 && (
+                      {item.type === 'offer' && item.count > 0 && (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                          {item.count} offer{item.count !== 1 ? "s" : ""}
+                        </span>
+                      )}
+                      {item.type === 'employment' && item.count > 0 && (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                          {item.count} employment record{item.count !== 1 ? "s" : ""}
+                        </span>
+                      )}
+                      {item.location && (
                         <p className="text-xs text-[#6D7A99]">
-                          {item.offerCount} offer{item.offerCount !== 1 ? "s" : ""}
+                          📍 {item.location.split(', ')[0]}
+                          {item.location.split(', ').length > 1 && ` +${item.location.split(', ').length - 1}`}
                         </p>
+                      )}
+                      {item.negotiationStatus && (
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                          item.negotiationStatus.includes('accepted') ? 'bg-green-100 text-green-700' :
+                          item.negotiationStatus.includes('negotiating') ? 'bg-blue-100 text-blue-700' :
+                          item.negotiationStatus.includes('rejected') ? 'bg-red-100 text-red-700' :
+                          'bg-gray-100 text-gray-700'
+                        }`}>
+                          {item.negotiationStatus.split(', ')[0]}
+                        </span>
                       )}
                     </div>
                   </div>
@@ -134,25 +155,70 @@ export function SalaryProgression({ dateRange }: SalaryProgressionProps) {
                   <span className="text-xs text-[#6D7A99]">{item.count} offer{item.count !== 1 ? "s" : ""}</span>
                 </div>
                 {item.avgMin !== null && item.avgMax !== null ? (
-                  <div className="flex items-center gap-4">
-                    <div>
-                      <p className="text-xs text-[#6D7A99] mb-1">Min</p>
-                      <p className="text-lg font-semibold text-[#0F1D3A]">
-                        {formatCurrency(item.avgMin)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-[#6D7A99] mb-1">Max</p>
-                      <p className="text-lg font-semibold text-[#3351FD]">
-                        {formatCurrency(item.avgMax)}
-                      </p>
-                    </div>
-                    {item.avgMin !== null && item.avgMax !== null && (
-                      <div className="ml-auto">
-                        <p className="text-xs text-[#6D7A99] mb-1">Range</p>
-                        <p className="text-sm font-medium text-[#0F1D3A]">
-                          {formatCurrency(item.avgMax - item.avgMin)}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-4">
+                      <div>
+                        <p className="text-xs text-[#6D7A99] mb-1">Min</p>
+                        <p className="text-lg font-semibold text-[#0F1D3A]">
+                          {formatCurrency(item.avgMin)}
                         </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-[#6D7A99] mb-1">Max</p>
+                        <p className="text-lg font-semibold text-[#3351FD]">
+                          {formatCurrency(item.avgMax)}
+                        </p>
+                      </div>
+                      {item.avgMin !== null && item.avgMax !== null && (
+                        <div className="ml-auto">
+                          <p className="text-xs text-[#6D7A99] mb-1">Range</p>
+                          <p className="text-sm font-medium text-[#0F1D3A]">
+                            {formatCurrency(item.avgMax - item.avgMin)}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                    {/* Industry and Location Comparison */}
+                    {(item.industryAverage !== null || item.locationAverage !== null) && (
+                      <div className="pt-2 border-t border-[#E8EBF8] flex items-center gap-4 flex-wrap">
+                        {item.industryAverage !== null && (
+                          <div>
+                            <p className="text-xs text-[#6D7A99] mb-1">vs Industry Avg</p>
+                            <p className={`text-sm font-medium ${
+                              item.vsIndustry && item.vsIndustry > 0 ? 'text-green-600' : 
+                              item.vsIndustry && item.vsIndustry < 0 ? 'text-red-600' : 
+                              'text-[#6D7A99]'
+                            }`}>
+                              {item.vsIndustry !== null 
+                                ? `${item.vsIndustry > 0 ? '+' : ''}${item.vsIndustry}%`
+                                : 'N/A'
+                              }
+                            </p>
+                          </div>
+                        )}
+                        {item.locationAverage !== null && (
+                          <div>
+                            <p className="text-xs text-[#6D7A99] mb-1">vs Location Avg</p>
+                            <p className={`text-sm font-medium ${
+                              item.vsLocation && item.vsLocation > 0 ? 'text-green-600' : 
+                              item.vsLocation && item.vsLocation < 0 ? 'text-red-600' : 
+                              'text-[#6D7A99]'
+                            }`}>
+                              {item.vsLocation !== null 
+                                ? `${item.vsLocation > 0 ? '+' : ''}${item.vsLocation}%`
+                                : 'N/A'
+                              }
+                            </p>
+                          </div>
+                        )}
+                        {item.location && (
+                          <div className="ml-auto">
+                            <p className="text-xs text-[#6D7A99] mb-1">Location</p>
+                            <p className="text-sm font-medium text-[#0F1D3A]">
+                              {item.location.split(', ')[0]}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

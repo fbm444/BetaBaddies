@@ -70,6 +70,19 @@ class GoalController {
     });
   });
 
+  // Complete goal
+  completeGoal = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { id } = req.params;
+
+    const goal = await goalService.completeGoal(id, userId);
+
+    res.status(200).json({
+      ok: true,
+      data: { goal, message: "Goal completed successfully" },
+    });
+  });
+
   // Delete goal
   deleteGoal = asyncHandler(async (req, res) => {
     const userId = req.session.userId;

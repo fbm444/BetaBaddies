@@ -36,6 +36,35 @@ class JobOpportunityService {
       "Offer",
       "Rejected",
     ];
+    // Cache column existence checks
+    this.columnCache = {};
+  }
+
+  // Helper to check if column exists
+  async columnExists(tableName, columnName) {
+    const cacheKey = `${tableName}.${columnName}`;
+    if (this.columnCache[cacheKey] !== undefined) {
+      return this.columnCache[cacheKey];
+    }
+
+    try {
+      const query = `
+        SELECT EXISTS (
+          SELECT 1 
+          FROM information_schema.columns 
+          WHERE table_schema = 'public' 
+          AND table_name = $1 
+          AND column_name = $2
+        ) as exists;
+      `;
+      const result = await database.query(query, [tableName, columnName]);
+      const exists = result.rows[0]?.exists || false;
+      this.columnCache[cacheKey] = exists;
+      return exists;
+    } catch (error) {
+      console.warn(`Error checking column ${tableName}.${columnName}:`, error);
+      return false;
+    }
   }
 
   // Validate status
@@ -708,10 +737,26 @@ class JobOpportunityService {
         applicationSubmittedAt: "application_submitted_at",
         firstResponseAt: "first_response_at",
         interviewScheduledAt: "interview_scheduled_at",
+        resumeId: "resume_id",
+        coverletterId: "coverletter_id",
       };
 
       for (const [key, column] of Object.entries(fields)) {
         if (updatePayload[key] !== undefined) {
+          // Check column existence for resume_id/coverletter_id before adding to update
+          if (key === "resumeId") {
+            const hasResumeIdColumn = await this.columnExists("job_opportunities", "resume_id");
+            if (!hasResumeIdColumn) {
+              continue; // Skip this field if column doesn't exist
+            }
+          }
+          if (key === "coverletterId") {
+            const hasCoverLetterIdColumn = await this.columnExists("job_opportunities", "coverletter_id");
+            if (!hasCoverLetterIdColumn) {
+              continue; // Skip this field if column doesn't exist
+            }
+          }
+
           if (key === "title" || key === "company" || key === "location") {
             // Required fields - must not be empty
             if (!updatePayload[key] || updatePayload[key].trim() === "") {
@@ -769,6 +814,10 @@ class JobOpportunityService {
                 ? JSON.stringify(updatePayload[key])
                 : '[]'
             );
+          } else if (key === "resumeId" || key === "coverletterId") {
+            // UUID fields - can be null to unlink
+            updates.push(`${column} = $${paramIndex++}`);
+            values.push(updatePayload[key] || null);
           }
         }
       }

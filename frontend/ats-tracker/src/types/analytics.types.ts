@@ -69,6 +69,28 @@ export interface ApplicationSuccessAnalysis {
     interviewRate: number;
     offerRate: number;
   }>;
+  byResume?: Array<{
+    resumeId: string;
+    resumeName: string;
+    total: number;
+    applied: number;
+    interviews: number;
+    offers: number;
+    rejected: number;
+    interviewRate: number;
+    offerRate: number;
+  }>;
+  byCoverLetter?: Array<{
+    coverLetterId: string;
+    coverLetterName: string;
+    total: number;
+    applied: number;
+    interviews: number;
+    offers: number;
+    rejected: number;
+    interviewRate: number;
+    offerRate: number;
+  }>;
   recommendations: Array<{
     type: string;
     priority: "high" | "medium" | "low";
@@ -129,15 +151,24 @@ export interface NetworkROI {
 export interface SalaryProgression {
   progression: Array<{
     month: string;
+    type: 'offer' | 'employment'; // Distinguishes between job offers and actual employment
     avgMin: number | null;
     avgMax: number | null;
-    offerCount: number;
+    count: number; // Number of offers or employment records for this month
+    negotiationStatus?: string | null;
+    location?: string | null;
   }>;
   byIndustry: Array<{
     industry: string;
     avgMin: number | null;
     avgMax: number | null;
     count: number;
+    industryAverage?: number | null; // Industry benchmark for comparison
+    vsIndustry?: number | null; // Percentage above/below industry average
+    location?: string | null;
+    locationAverage?: number | null; // Location-specific average
+    vsLocation?: number | null; // Percentage above/below location average
+    negotiationStatus?: string | null;
   }>;
 }
 
@@ -158,6 +189,7 @@ export interface Goal {
   startDate: string;
   status: "active" | "completed" | "paused" | "cancelled";
   priority: "low" | "medium" | "high";
+  progressPercentage: number;
   createdAt: string;
   updatedAt: string;
   completedAt?: string;

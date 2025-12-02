@@ -28,10 +28,37 @@ export function NetworkROI({ dateRange }: NetworkROIProps) {
   const [searchIndustry, setSearchIndustry] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  
+  // Contact search modal state
+  const [showContactSearchModal, setShowContactSearchModal] = useState(false);
+  const [contactSearchCompany, setContactSearchCompany] = useState("");
+  const [contactSearchResults, setContactSearchResults] = useState<{ recruiters: any[]; contacts: any[] }>({ recruiters: [], contacts: [] });
+  const [isSearchingContacts, setIsSearchingContacts] = useState(false);
 
   useEffect(() => {
     fetchData();
   }, [dateRange, activeTab]);
+
+  // Listen for job opportunity updates to refresh recruiters
+  useEffect(() => {
+    const handleJobOpportunityUpdate = async () => {
+      if (activeTab === "recruiters") {
+        try {
+          const recruitersResponse = await api.getRecruiters();
+          if (recruitersResponse.ok && recruitersResponse.data?.recruiters) {
+            setRecruiters(recruitersResponse.data.recruiters);
+          }
+        } catch (err: any) {
+          console.error("Failed to refresh recruiters:", err);
+        }
+      }
+    };
+
+    window.addEventListener("jobOpportunityUpdated", handleJobOpportunityUpdate);
+    return () => {
+      window.removeEventListener("jobOpportunityUpdated", handleJobOpportunityUpdate);
+    };
+  }, [activeTab]);
 
   const fetchData = async () => {
     try {
@@ -511,17 +538,25 @@ function LinkedInTab({ contacts, isLoading, onGenerateMessage, onCreateCoffeeCha
         <p className="text-slate-600">
           Your LinkedIn network contacts. Connect with them for coffee chats and networking.
         </p>
-        <button
-          onClick={() => {
-            // TODO: Implement LinkedIn sync
-            alert("LinkedIn sync feature coming soon!");
-          }}
-          className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium"
-        >
-          <Icon icon="mingcute:refresh-line" width={16} className="inline mr-2" />
-          Sync Network
-        </button>
-      </div>
+          <button
+            onClick={async () => {
+              try {
+                // Refresh LinkedIn network
+                const response = await api.getLinkedInNetwork();
+                if (response.ok && response.data?.contacts) {
+                  setLinkedInContacts(response.data.contacts);
+                }
+              } catch (err: any) {
+                console.error("Failed to sync LinkedIn network:", err);
+                alert("Failed to sync LinkedIn network. Please try again.");
+              }
+            }}
+            className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium"
+          >
+            <Icon icon="mingcute:refresh-line" width={16} className="inline mr-2" />
+            Sync Network
+          </button>
+        </div>
 
       {contacts.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-[#E4E8F5] bg-[#F8F8F8] p-10 text-center">
@@ -531,11 +566,12 @@ function LinkedInTab({ contacts, isLoading, onGenerateMessage, onCreateCoffeeCha
           </p>
           <button
             onClick={() => {
-              // TODO: Implement LinkedIn OAuth
-              alert("LinkedIn connection feature coming soon!");
+              // Redirect to LinkedIn OAuth
+              window.location.href = "/api/v1/users/auth/linkedin";
             }}
-            className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#1E3097] transition-colors"
+            className="px-4 py-2 bg-[#0077B5] text-white rounded-lg hover:bg-[#005885] transition-colors flex items-center gap-2 mx-auto"
           >
+            <Icon icon="mingcute:linkedin-fill" width={20} />
             Connect LinkedIn
           </button>
         </div>
@@ -777,6 +813,17 @@ function SearchTab({
                 <h4 className="text-lg font-semibold text-[#0F1D3A] mb-2">{company.name}</h4>
                 <p className="text-sm text-[#6D7A99] mb-4">{company.industry}</p>
                 <div className="flex gap-2">
+                  {company.linkedInUrl && (
+                    <a
+                      href={company.linkedInUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 px-3 py-2 bg-[#0077B5] text-white rounded-lg hover:bg-[#005885] transition-colors text-sm font-medium flex items-center justify-center gap-2"
+                    >
+                      <Icon icon="mingcute:linkedin-fill" width={16} />
+                      LinkedIn Page
+                    </a>
+                  )}
                   <button
                     onClick={() => {
                       // TODO: Search for contacts at this company

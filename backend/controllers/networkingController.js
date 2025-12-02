@@ -28,6 +28,23 @@ class NetworkingController {
     });
   });
 
+  // Search contacts and recruiters by company
+  searchContactsByCompany = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { company } = req.query;
+    if (!company) {
+      return res.status(400).json({
+        ok: false,
+        error: { message: "Company parameter is required" },
+      });
+    }
+    const results = await networkingService.searchContactsByCompany(userId, company);
+    res.status(200).json({
+      ok: true,
+      data: results,
+    });
+  });
+
   // Get LinkedIn network
   getLinkedInNetwork = asyncHandler(async (req, res) => {
     const userId = req.session.userId;

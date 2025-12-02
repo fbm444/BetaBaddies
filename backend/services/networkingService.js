@@ -50,6 +50,85 @@ class NetworkingService {
   }
 
   /**
+   * Search for contacts and recruiters by company name
+   */
+  async searchContactsByCompany(userId, companyName) {
+    try {
+      // Search for recruiters from job opportunities
+      const recruiterQuery = `
+        SELECT DISTINCT
+          recruiter_name as name,
+          recruiter_email as email,
+          recruiter_phone as phone,
+          company,
+          'recruiter' as contact_type,
+          COUNT(*) as opportunity_count
+        FROM job_opportunities
+        WHERE user_id = $1
+          AND company ILIKE $2
+          AND recruiter_name IS NOT NULL
+          AND recruiter_name != ''
+        GROUP BY recruiter_name, recruiter_email, recruiter_phone, company
+        ORDER BY opportunity_count DESC
+        LIMIT 20
+      `;
+
+      // Search for contacts from professional_contacts
+      const contactQuery = `
+        SELECT 
+          id,
+          contact_name as name,
+          contact_email as email,
+          contact_phone as phone,
+          contact_company as company,
+          contact_title as title,
+          contact_linkedin_url as linkedin_url,
+          'contact' as contact_type
+        FROM professional_contacts
+        WHERE user_id = $1
+          AND contact_company ILIKE $2
+        ORDER BY created_at DESC
+        LIMIT 20
+      `;
+
+      const companyPattern = `%${companyName}%`;
+      const [recruitersResult, contactsResult] = await Promise.all([
+        database.query(recruiterQuery, [userId, companyPattern]),
+        database.query(contactQuery, [userId, companyPattern]),
+      ]);
+
+      const recruiters = recruitersResult.rows.map((row) => ({
+        name: row.name,
+        email: row.email,
+        phone: row.phone,
+        company: row.company,
+        type: row.contact_type,
+        opportunityCount: parseInt(row.opportunity_count) || 0,
+      }));
+
+      const contacts = contactsResult.rows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        email: row.email,
+        phone: row.phone,
+        company: row.company,
+        title: row.title,
+        linkedinUrl: row.linkedin_url,
+        type: row.contact_type,
+      }));
+
+      return {
+        recruiters,
+        contacts,
+        total: recruiters.length + contacts.length,
+      };
+    } catch (error) {
+      console.error("❌ Error searching contacts by company:", error);
+      throw error;
+    }
+  }
+
+  /**
    * Search for companies by industry (returns large companies in that industry)
    */
   async searchCompaniesByIndustry(industry) {
@@ -79,10 +158,39 @@ class NetworkingService {
         companies = industryMap.technology;
       }
 
+      // Map company names to LinkedIn URLs (standard format)
+      const linkedInUrlMap = {
+        "NVIDIA": "https://www.linkedin.com/company/nvidia",
+        "AMD": "https://www.linkedin.com/company/amd",
+        "Intel": "https://www.linkedin.com/company/intel",
+        "TSMC": "https://www.linkedin.com/company/tsmc",
+        "Qualcomm": "https://www.linkedin.com/company/qualcomm",
+        "Broadcom": "https://www.linkedin.com/company/broadcom",
+        "Google": "https://www.linkedin.com/company/google",
+        "Microsoft": "https://www.linkedin.com/company/microsoft",
+        "Apple": "https://www.linkedin.com/company/apple",
+        "Amazon": "https://www.linkedin.com/company/amazon",
+        "Meta": "https://www.linkedin.com/company/meta",
+        "Netflix": "https://www.linkedin.com/company/netflix",
+        "JPMorgan Chase": "https://www.linkedin.com/company/jpmorgan-chase",
+        "Goldman Sachs": "https://www.linkedin.com/company/goldman-sachs",
+        "Morgan Stanley": "https://www.linkedin.com/company/morgan-stanley",
+        "Bank of America": "https://www.linkedin.com/company/bank-of-america",
+        "Johnson & Johnson": "https://www.linkedin.com/company/johnson-&-johnson",
+        "Pfizer": "https://www.linkedin.com/company/pfizer",
+        "UnitedHealth Group": "https://www.linkedin.com/company/unitedhealth-group",
+        "Merck": "https://www.linkedin.com/company/merck",
+        "Tesla": "https://www.linkedin.com/company/tesla-motors",
+        "Ford": "https://www.linkedin.com/company/ford-motor-company",
+        "General Motors": "https://www.linkedin.com/company/general-motors",
+        "Toyota": "https://www.linkedin.com/company/toyota",
+      };
+
       return companies.map((company) => ({
         name: company,
         industry: industry,
         type: "large_company",
+        linkedInUrl: linkedInUrlMap[company] || `https://www.linkedin.com/company/${company.toLowerCase().replace(/\s+/g, '-')}`,
       }));
     } catch (error) {
       console.error("❌ Error searching companies:", error);

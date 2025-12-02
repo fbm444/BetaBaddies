@@ -213,6 +213,19 @@ export const errorHandler = (err, req, res, next) => {
   const statusCode = err.statusCode || err.status || 500;
   const errorMessage = err.message || "An unexpected error occurred";
   
+  // Log full error details for debugging
+  if (errorMessage.includes("is_default") || errorMessage.includes("column") || errorMessage.includes("does not exist")) {
+    console.error("🚨 Database column error detected:", {
+      message: errorMessage,
+      code: err.code,
+      detail: err.detail,
+      hint: err.hint,
+      stack: err.stack,
+      query: err.query,
+      position: err.position,
+    });
+  }
+  
   res.status(statusCode).json({
     ok: false,
     error: {

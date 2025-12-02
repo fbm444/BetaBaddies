@@ -13,6 +13,8 @@ export const ROUTES = {
   COMPANY_RESEARCH: "/company-research",
   INTERVIEWS: "/interviews",
   INTERVIEW_SCHEDULING: "/interview-scheduling",
+  INTERVIEW_PREPARATION: "/interview-preparation",
+  INTERVIEW_PREPARATION_WITH_ID: "/interview-preparation/:interviewId",
   INTERVIEW_ANALYTICS: "/interview-analytics",
   SKILLS: "/skills",
   EDUCATION: "/education",
@@ -27,6 +29,16 @@ export const ROUTES = {
   COVER_LETTERS: "/coverletter",
   COVER_LETTER_BUILDER: "/coverletter/builder",
   COVER_LETTER_TEMPLATES: "/coverletter/templates",
+  // Collaboration
+  TEAMS: "/collaboration/teams",
+  TEAM_DETAIL: "/collaboration/teams/:teamId",
+  MENTOR_DASHBOARD: "/collaboration/mentor",
+  MENTEE_DASHBOARD: "/collaboration/mentee",
+  MENTEE_PROGRESS: "/collaboration/mentor/mentees/:menteeId",
+  DOCUMENT_REVIEWS: "/collaboration/reviews",
+  PROGRESS_SHARING: "/collaboration/progress",
+  SUPPORT_GROUPS: "/collaboration/groups",
+  TEAM_INVITE_ACCEPT: "/collaboration/teams/accept-invite",
   SALARY_NEGOTIATION: "/salary-negotiation",
   WRITING_PRACTICE: "/writing-practice",
 } as const;
@@ -91,6 +103,13 @@ export const navigationGroups: NavigationGroup[] = [
         icon: "mdi:office-building",
         path: ROUTES.COMPANY_RESEARCH,
       },
+    ],
+  },
+  {
+    id: "interviews",
+    label: "Interviews",
+    icon: "mingcute:calendar-line",
+    items: [
       {
         id: "interviews",
         label: "Interviews",
@@ -108,6 +127,12 @@ export const navigationGroups: NavigationGroup[] = [
         label: "Writing Practice",
         icon: "mingcute:edit-line",
         path: ROUTES.WRITING_PRACTICE,
+      },
+      {
+        id: "interview-preparation",
+        label: "Interview Preparation",
+        icon: "mingcute:book-line",
+        path: ROUTES.INTERVIEW_PREPARATION,
       },
     ],
   },
@@ -168,7 +193,37 @@ export const navigationGroups: NavigationGroup[] = [
       },
     ],
   },
-
+  {
+    id: "collaboration",
+    label: "Collaboration",
+    icon: "mingcute:user-group-line",
+    items: [
+      {
+        id: "teams",
+        label: "Teams",
+        icon: "mingcute:user-group-line",
+        path: ROUTES.TEAMS,
+      },
+      {
+        id: "mentor-dashboard",
+        label: "Mentor Dashboard",
+        icon: "mingcute:award-line",
+        path: ROUTES.MENTOR_DASHBOARD,
+      },
+      {
+        id: "mentee-dashboard",
+        label: "Mentee Dashboard",
+        icon: "mingcute:user-3-line",
+        path: ROUTES.MENTEE_DASHBOARD,
+      },
+      {
+        id: "support-groups",
+        label: "Support Groups",
+        icon: "mingcute:users-line",
+        path: ROUTES.SUPPORT_GROUPS,
+      },
+    ],
+  },
 ] as const;
 
 // Flattened navigation items for backward compatibility

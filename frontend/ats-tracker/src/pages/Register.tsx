@@ -1,18 +1,78 @@
-import { useState, FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, FormEvent, useEffect } from 'react'
+import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import { Icon } from '@iconify/react'
 import { api } from '@/services/api'
 import { ROUTES } from '@/config/routes'
 import loginSvg from '@/assets/login.svg'
 
 export function Register() {
-  const [email, setEmail] = useState('')
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const inviteToken = searchParams.get('invite') || sessionStorage.getItem('pendingInvitationToken')
+  const emailFromInvite = searchParams.get('email')
+  
+  const [email, setEmail] = useState(emailFromInvite || '')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [invitationInfo, setInvitationInfo] = useState<any>(null)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null)
+
+  useEffect(() => {
+    // Check if user is logged in
+    const checkAuth = async () => {
+      try {
+        const response = await api.getUserAuth()
+        if (response.ok && response.data?.user) {
+          setIsLoggedIn(true)
+          setCurrentUserEmail(response.data.user.email)
+          
+          // If logged in and there's an invitation token, check email match
+          if (inviteToken) {
+            const invitation = await api.getInvitationByToken(inviteToken)
+            if (invitation.ok && invitation.data?.invitation) {
+              const invitationEmail = invitation.data.invitation.email?.toLowerCase()
+              const currentEmail = response.data.user.email.toLowerCase()
+              
+              // If emails don't match, redirect to invitation accept page which handles this properly
+              if (invitationEmail && currentEmail !== invitationEmail) {
+                navigate(`${ROUTES.TEAM_INVITE_ACCEPT}?token=${inviteToken}`)
+                return
+              }
+            }
+          }
+        }
+      } catch (err) {
+        // User is not logged in
+        setIsLoggedIn(false)
+      }
+    }
+    checkAuth()
+
+    // If there's an invitation token, fetch invitation details
+    if (inviteToken) {
+      fetchInvitationInfo()
+    }
+  }, [inviteToken, navigate])
+
+  const fetchInvitationInfo = async () => {
+    try {
+      const response = await api.getInvitationByToken(inviteToken!)
+      if (response.ok && response.data) {
+        setInvitationInfo(response.data.invitation)
+        // Pre-fill email if not already set
+        if (!email && response.data.invitation.email) {
+          setEmail(response.data.invitation.email)
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch invitation info:', err)
+    }
+  }
 
   // Password strength indicator
   const getPasswordStrength = (pwd: string) => {
@@ -51,12 +111,53 @@ export function Register() {
       return
     }
 
+    // CRITICAL: If user is logged in with different email and there's an invitation, prevent registration
+    if (isLoggedIn && currentUserEmail && inviteToken && invitationInfo) {
+      const emailMatches = currentUserEmail.toLowerCase() === invitationInfo.email?.toLowerCase()
+      if (!emailMatches) {
+        setError(`You're currently logged in as ${currentUserEmail}, but this invitation is for ${invitationInfo.email}. Please log out first before creating a new account.`)
+        setIsLoading(false)
+        return
+      }
+    }
+
     try {
       // Register the user
       await api.register(email, password)
       
       // Automatically log them in after registration
       await api.login(email, password)
+      
+      // If there's a pending invitation, accept it
+      if (inviteToken) {
+        try {
+          // Verify email matches invitation before accepting
+          if (invitationInfo && email.toLowerCase() !== invitationInfo.email?.toLowerCase()) {
+            setError(`Email mismatch: This invitation is for ${invitationInfo.email}, but you registered with ${email}. Please register with the correct email.`)
+            setIsLoading(false)
+            return
+          }
+          
+          const inviteResponse = await api.acceptTeamInvitation(inviteToken)
+          sessionStorage.removeItem('pendingInvitationToken')
+          // Check if the invitation role is mentor/career_coach and redirect to mentor dashboard
+          if (inviteResponse?.data?.team?.userRole === "mentor" || inviteResponse?.data?.team?.userRole === "career_coach") {
+            window.location.href = ROUTES.MENTOR_DASHBOARD
+          } else {
+            window.location.href = ROUTES.TEAMS
+          }
+          return
+        } catch (inviteErr: any) {
+          console.error('Failed to accept invitation:', inviteErr)
+          // If email mismatch error, show it to user
+          if (inviteErr.message?.includes('Email does not match invitation')) {
+            setError(`Email mismatch: This invitation is for ${invitationInfo?.email}, but you registered with ${email}. Please register with the correct email.`)
+            setIsLoading(false)
+            return
+          }
+          // Continue to dashboard even if invitation acceptance fails for other reasons
+        }
+      }
       
       // Redirect to dashboard on success
       console.log('Registration successful, redirecting to:', ROUTES.DASHBOARD)
@@ -115,11 +216,85 @@ export function Register() {
             Sign Up
           </h2>
 
+          {/* Logged in warning */}
+          {isLoggedIn && currentUserEmail && inviteToken && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+              <div className="flex items-start gap-3">
+                <Icon icon="mingcute:alert-line" width={24} className="text-amber-600 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-amber-900 mb-1">
+                    You're currently logged in as {currentUserEmail}
+                  </p>
+                  <p className="text-xs text-amber-700 mb-3">
+                    {invitationInfo && currentUserEmail.toLowerCase() !== invitationInfo.email?.toLowerCase()
+                      ? `This invitation is for ${invitationInfo.email}. Please log out to create a new account.`
+                      : 'Please log out to create a new account for this invitation.'}
+                  </p>
+                  <button
+                    onClick={async () => {
+                      try {
+                        await api.logout()
+                        setIsLoggedIn(false)
+                        setCurrentUserEmail(null)
+                        // Reload to clear any cached state
+                        window.location.reload()
+                      } catch (err: any) {
+                        setError(err.message || 'Failed to log out. Please try again.')
+                      }
+                    }}
+                    className="text-xs bg-amber-500 text-white px-3 py-1.5 rounded hover:bg-amber-600 transition"
+                  >
+                    Log Out
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Error Message */}
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 flex items-center gap-2">
               <Icon icon="mingcute:alert-line" width={20} height={20} />
               <span className="text-sm">{error}</span>
+            </div>
+          )}
+
+          {/* Invitation Banner - Enhanced */}
+          {invitationInfo && (
+            <div className="bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-300 rounded-lg p-5 mb-6">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0">
+                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                    <Icon icon="mingcute:user-group-line" width={24} className="text-blue-600" />
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-base font-bold text-blue-900 mb-2">
+                    Team Invitation
+                  </h3>
+                  <p className="text-sm font-semibold text-slate-900 mb-2">
+                    You've been invited to join <span className="text-blue-700">{invitationInfo.teamName}</span>
+                  </p>
+                  <div className="space-y-1.5 text-xs text-slate-700">
+                    {invitationInfo.inviterName && (
+                      <div className="flex items-center gap-2">
+                        <Icon icon="mingcute:user-line" width={14} className="text-slate-500" />
+                        <span>Invited by <span className="font-medium">{invitationInfo.inviterName}</span></span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <Icon icon="mingcute:briefcase-line" width={14} className="text-slate-500" />
+                      <span>Role: <span className="font-medium capitalize">{invitationInfo.role}</span></span>
+                    </div>
+                    {invitationInfo.expiresAt && (
+                      <div className="flex items-center gap-2">
+                        <Icon icon="mingcute:time-line" width={14} className="text-slate-500" />
+                        <span>Expires: {new Date(invitationInfo.expiresAt).toLocaleDateString()}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 

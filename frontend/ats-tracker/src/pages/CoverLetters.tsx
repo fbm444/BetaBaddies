@@ -5,6 +5,7 @@ import { ROUTES } from "../config/routes";
 import { CoverLetter, JobOpportunityData } from "../types";
 import { coverLetterService } from "../services/coverLetterService";
 import { api } from "../services/api";
+import { ShareDocumentModal } from "../components/team/ShareDocumentModal";
 
 export function CoverLetters() {
   const navigate = useNavigate();
@@ -15,6 +16,7 @@ export function CoverLetters() {
   const [searchQuery, setSearchQuery] = useState("");
   const [exportingId, setExportingId] = useState<string | null>(null);
   const [showExportMenu, setShowExportMenu] = useState<string | null>(null);
+  const [showShareModal, setShowShareModal] = useState<string | null>(null);
   
   // AI Generation state
   const [showGenerateModal, setShowGenerateModal] = useState(false);
@@ -362,6 +364,16 @@ export function CoverLetters() {
                     <Icon icon="mingcute:edit-line" className="w-4 h-4" />
                     Edit
                   </button>
+                  <button
+                    onClick={() => setShowShareModal(coverLetter.id)}
+                    className="px-3 py-2.5 border border-[#DDE2F2] rounded-full hover:bg-white transition-colors"
+                    title="Share with Team"
+                  >
+                    <Icon
+                      icon="lucide:share-2"
+                      className="w-4 h-4 text-[#1B2559]"
+                    />
+                  </button>
                   <div className="relative">
                     <button
                       onClick={() =>
@@ -499,6 +511,22 @@ export function CoverLetters() {
           </div>
         </div>
       )}
+
+      {/* Share Document Modal */}
+      {showShareModal && (() => {
+        const coverLetter = coverLetters.find((cl) => cl.id === showShareModal);
+        return coverLetter ? (
+          <ShareDocumentModal
+            documentType="cover_letter"
+            documentId={coverLetter.id}
+            documentName={coverLetter.name || coverLetter.versionName || coverLetter.title || "Untitled Cover Letter"}
+            onClose={() => setShowShareModal(null)}
+            onShared={() => {
+              setShowShareModal(null);
+            }}
+          />
+        ) : null;
+      })()}
     </div>
   );
 }

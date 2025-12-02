@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Icon } from "@iconify/react";
 import { CoverLetter } from "../../types";
 import { api } from "../../services/api";
@@ -10,6 +11,8 @@ interface CoverLetterPreviewModalProps {
   onExport: (format: "pdf" | "docx" | "txt" | "html") => void;
   onShowAdvancedExport?: () => void;
   isExporting?: boolean;
+  showComments?: boolean;
+  commentsSection?: React.ReactNode;
 }
 
 export function CoverLetterPreviewModal({
@@ -19,6 +22,8 @@ export function CoverLetterPreviewModal({
   onExport,
   onShowAdvancedExport,
   isExporting = false,
+  showComments = false,
+  commentsSection,
 }: CoverLetterPreviewModalProps) {
   const [userName, setUserName] = useState<string>("Your Name");
   const [jobDetails, setJobDetails] = useState<any>(null);
@@ -82,8 +87,8 @@ export function CoverLetterPreviewModal({
     ? parseFloat(fonts.size.body.replace("pt", "")) || 11
     : 11;
 
-    return (
-      <div className={`fixed inset-0 bg-black/60 backdrop-blur-sm ${isExporting ? 'z-[45]' : 'z-50'} flex items-center justify-center p-4 transition-opacity duration-200`}>
+    const modalContent = (
+      <div className={`fixed inset-0 bg-black/60 backdrop-blur-sm ${isExporting ? 'z-[45]' : 'z-[110]'} flex items-center justify-center p-4 transition-opacity duration-200`}>
       <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
@@ -249,8 +254,22 @@ export function CoverLetterPreviewModal({
             </div>
           </div>
         </div>
+
+        {/* Comments Section */}
+        {showComments && commentsSection && (
+          <div className="border-t border-gray-200 bg-white">
+            {commentsSection}
+          </div>
+        )}
       </div>
     </div>
   );
+
+  // Render modal using portal to document body to avoid z-index issues
+  if (typeof window !== 'undefined' && window.document) {
+    return createPortal(modalContent, window.document.body);
+  }
+
+  return null;
 }
 

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Icon } from "@iconify/react";
 import { api } from "../services/api";
 import type {
@@ -23,6 +24,7 @@ import {
 import { BackButton } from "../components/common/BackButton";
 
 export function InterviewScheduling() {
+  const navigate = useNavigate();
   const [interviews, setInterviews] = useState<InterviewData[]>([]);
   const [jobOpportunities, setJobOpportunities] = useState<JobOpportunityData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -874,6 +876,20 @@ function InterviewCard({
           </div>
         </div>
       )}
+
+      {/* Prepare Button */}
+      <div className="mt-4 pt-4 border-t border-slate-200">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            window.location.href = `/interview-preparation/${interview.id}`;
+          }}
+          className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
+        >
+          <Icon icon="mingcute:book-line" width={20} />
+          <span>Prepare for Interview</span>
+        </button>
+      </div>
     </div>
   );
 }
@@ -1692,6 +1708,16 @@ function InterviewDetailModal({
 
             {/* Actions */}
             <div className="flex flex-wrap gap-3 pt-4 border-t border-slate-200">
+              <button
+                onClick={() => {
+                  onClose();
+                  window.location.href = `/interview-preparation/${interview.id}`;
+                }}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium text-sm inline-flex items-center gap-2"
+              >
+                <Icon icon="mingcute:book-line" width={16} />
+                Prepare for Interview
+              </button>
               {interview.status === "scheduled" && (
                 <>
                   <button

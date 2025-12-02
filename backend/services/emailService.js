@@ -175,6 +175,98 @@ class EmailService {
   }
 
   /**
+   * Send team invitation email
+   * @param {string} email - Invitee's email address
+   * @param {object} invitationData - Invitation details
+   * @param {string} invitationData.teamName - Team name
+   * @param {string} invitationData.inviterName - Name of person sending invitation (optional)
+   * @param {string} invitationData.inviterEmail - Email of person sending invitation
+   * @param {string} invitationData.role - Role being assigned (candidate, mentor, etc.)
+   * @param {string} invitationData.invitationToken - Invitation token
+   * @returns {Promise<void>}
+   */
+  async sendTeamInvitation(email, invitationData) {
+    const { teamName, inviterName, inviterEmail, role, invitationToken } = invitationData;
+    const appUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const acceptUrl = `${appUrl}/collaboration/teams/accept-invite?token=${invitationToken}`;
+    
+    // Development mode - log to console
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('\n========== TEAM INVITATION EMAIL ==========');
+      console.log(`To: ${email}`);
+      console.log('Subject: Team Invitation - ATS Tracker');
+      console.log(`\nYou've been invited to join the team: ${teamName}`);
+      if (inviterName) {
+        console.log(`Invited by: ${inviterName} (${inviterEmail})`);
+      } else {
+        console.log(`Invited by: ${inviterEmail}`);
+      }
+      console.log(`Role: ${role}`);
+      console.log('\nClick the link below to accept the invitation:');
+      console.log(acceptUrl);
+      console.log('\nThis invitation will expire in 7 days.');
+      console.log('==========================================\n');
+      return;
+    }
+
+    // Production mode - use nodemailer
+    if (!this.transporter) {
+      console.error('❌ Email service not initialized');
+      return;
+    }
+
+    const mailOptions = {
+      from: process.env.EMAIL_FROM || 'noreply@atstracker.com',
+      to: email,
+      subject: `Team Invitation: ${teamName} - ATS Tracker`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #6A94EE;">You've Been Invited to Join a Team</h2>
+          <p>You've been invited to join the team <strong>${teamName}</strong> on ATS Tracker.</p>
+          
+          <div style="background: #F3F4F6; border-left: 4px solid #6A94EE; padding: 20px; margin: 20px 0; border-radius: 8px;">
+            <p style="color: #1F2937; font-size: 16px; margin: 8px 0;"><strong>Team:</strong> ${teamName}</p>
+            ${inviterName 
+              ? `<p style="color: #4B5563; font-size: 16px; margin: 8px 0;"><strong>Invited by:</strong> ${inviterName} (${inviterEmail})</p>`
+              : `<p style="color: #4B5563; font-size: 16px; margin: 8px 0;"><strong>Invited by:</strong> ${inviterEmail}</p>`
+            }
+            <p style="color: #4B5563; font-size: 16px; margin: 8px 0;"><strong>Role:</strong> ${role}</p>
+          </div>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${acceptUrl}" 
+               style="background: linear-gradient(to right, #6A94EE, #916BE3); 
+                      color: white; 
+                      padding: 12px 30px; 
+                      text-decoration: none; 
+                      border-radius: 8px; 
+                      display: inline-block;">
+              Accept Invitation
+            </a>
+          </div>
+          
+          <p style="color: #6B7280; font-size: 14px;">
+            This invitation will expire in 7 days. If you don't have an account yet, you'll be prompted to create one when you accept.
+          </p>
+          
+          <hr style="border: 1px solid #E5E7EB; margin: 20px 0;">
+          <p style="color: #6B7280; font-size: 12px;">
+            If you did not expect this invitation, you can safely ignore this email.
+          </p>
+        </div>
+      `
+    };
+
+    try {
+      await this.transporter.sendMail(mailOptions);
+      console.log('✅ Team invitation email sent to:', email);
+    } catch (error) {
+      console.error('❌ Error sending team invitation email:', error);
+      // Don't throw - invitation is still created even if email fails
+    }
+  }
+
+  /**
    * Send application deadline reminder email
    * @param {string} email - User's email address
    * @param {object} jobDetails - Job opportunity details

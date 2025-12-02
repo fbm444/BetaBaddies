@@ -98,6 +98,15 @@ export function NetworkContacts() {
     }
   };
 
+  // Helper function to check if a contact is already in the user's contacts list
+  const isContactAlreadyAdded = (contact: DiscoveredContact): boolean => {
+    if (!contact.email) return false;
+    const contactEmailLower = contact.email.toLowerCase();
+    return contacts.some(
+      (c) => c.email && c.email.toLowerCase() === contactEmailLower
+    );
+  };
+
   const fetchContacts = async () => {
     try {
       setIsLoading(true);
@@ -498,6 +507,7 @@ export function NetworkContacts() {
         industry: contact.industry || undefined,
         location: contact.location || undefined,
         linkedinUrl: contact.linkedinUrl || undefined,
+        contactUserId: contact.contactUserId || undefined, // Include contact_user_id if available
       };
 
       const response = await api.createContact(contactData);
@@ -1325,23 +1335,30 @@ export function NetworkContacts() {
                         </span>
                       )}
                     </div>
-                    <button
-                      onClick={() => handleAddFromExplore(contact)}
-                      disabled={addingContactIds.has(contact.id)}
-                      className="px-4 py-2 bg-[#3351FD] text-white rounded-full hover:bg-[#2a43d4] transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
-                    >
-                      {addingContactIds.has(contact.id) ? (
-                        <>
-                          <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                          <span>Adding...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Icon icon="mingcute:add-line" width={16} height={16} />
-                          <span>Add to Contacts</span>
-                        </>
-                      )}
-                    </button>
+                    {isContactAlreadyAdded(contact) || contact.alreadyInContacts ? (
+                      <div className="px-4 py-2 bg-slate-100 text-slate-600 rounded-full text-sm font-medium flex items-center gap-2">
+                        <Icon icon="mingcute:check-circle-line" width={16} height={16} />
+                        <span>Already Added</span>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => handleAddFromExplore(contact)}
+                        disabled={addingContactIds.has(contact.id)}
+                        className="px-4 py-2 bg-[#3351FD] text-white rounded-full hover:bg-[#2a43d4] transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
+                      >
+                        {addingContactIds.has(contact.id) ? (
+                          <>
+                            <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            <span>Adding...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Icon icon="mingcute:add-line" width={16} height={16} />
+                            <span>Add to Contacts</span>
+                          </>
+                        )}
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -1424,23 +1441,30 @@ export function NetworkContacts() {
                           </span>
                         )}
                       </div>
-                      <button
-                        onClick={() => handleAddFromExplore(contact)}
-                        disabled={addingContactIds.has(contact.id)}
-                        className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a43d4] transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
-                      >
-                        {addingContactIds.has(contact.id) ? (
-                          <>
-                            <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                            <span>Adding...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Icon icon="mingcute:add-line" width={16} height={16} />
-                            <span>Add to Contacts</span>
-                          </>
-                        )}
-                      </button>
+                      {isContactAlreadyAdded(contact) || contact.alreadyInContacts ? (
+                        <div className="px-4 py-2 bg-slate-100 text-slate-600 rounded-lg text-sm font-medium flex items-center gap-2">
+                          <Icon icon="mingcute:check-circle-line" width={16} height={16} />
+                          <span>Already Added</span>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handleAddFromExplore(contact)}
+                          disabled={addingContactIds.has(contact.id)}
+                          className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a43d4] transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
+                        >
+                          {addingContactIds.has(contact.id) ? (
+                            <>
+                              <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                              <span>Adding...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Icon icon="mingcute:add-line" width={16} height={16} />
+                              <span>Add to Contacts</span>
+                            </>
+                          )}
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -1535,23 +1559,30 @@ export function NetworkContacts() {
                           </span>
                         )}
                       </div>
-                      <button
-                        onClick={() => handleAddFromExplore(contact)}
-                        disabled={addingContactIds.has(contact.id)}
-                        className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a43d4] transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
-                      >
-                        {addingContactIds.has(contact.id) ? (
-                          <>
-                            <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                            <span>Adding...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Icon icon="mingcute:add-line" width={16} height={16} />
-                            <span>Add to Contacts</span>
-                          </>
-                        )}
-                      </button>
+                      {isContactAlreadyAdded(contact) || contact.alreadyInContacts ? (
+                        <div className="px-4 py-2 bg-slate-100 text-slate-600 rounded-lg text-sm font-medium flex items-center gap-2">
+                          <Icon icon="mingcute:check-circle-line" width={16} height={16} />
+                          <span>Already Added</span>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handleAddFromExplore(contact)}
+                          disabled={addingContactIds.has(contact.id)}
+                          className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a43d4] transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
+                        >
+                          {addingContactIds.has(contact.id) ? (
+                            <>
+                              <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                              <span>Adding...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Icon icon="mingcute:add-line" width={16} height={16} />
+                              <span>Add to Contacts</span>
+                            </>
+                          )}
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -1718,23 +1749,30 @@ export function NetworkContacts() {
                       <span>Discovered {new Date(contact.createdAt).toLocaleDateString()}</span>
                     )}
                   </div>
-                  <button
-                    onClick={() => handleAddFromExplore(contact)}
-                    disabled={addingContactIds.has(contact.id)}
-                    className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a43d4] transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
-                  >
-                    {addingContactIds.has(contact.id) ? (
-                      <>
-                        <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        <span>Adding...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Icon icon="mingcute:add-line" width={16} height={16} />
-                        <span>Add to Contacts</span>
-                      </>
-                    )}
-                  </button>
+                  {isContactAlreadyAdded(contact) || contact.alreadyInContacts ? (
+                    <div className="px-4 py-2 bg-slate-100 text-slate-600 rounded-lg text-sm font-medium flex items-center gap-2">
+                      <Icon icon="mingcute:check-circle-line" width={16} height={16} />
+                      <span>Already Added</span>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => handleAddFromExplore(contact)}
+                      disabled={addingContactIds.has(contact.id)}
+                      className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#2a43d4] transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      {addingContactIds.has(contact.id) ? (
+                        <>
+                          <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          <span>Adding...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Icon icon="mingcute:add-line" width={16} height={16} />
+                          <span>Add to Contacts</span>
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
               </div>
             );

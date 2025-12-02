@@ -125,6 +125,7 @@ export interface DiscoveredContact {
   relevanceScore?: number;
   outreachInitiated?: boolean;
   addedToContacts?: boolean;
+  alreadyInContacts?: boolean;
   createdAt?: string;
 }
 

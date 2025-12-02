@@ -36,6 +36,35 @@ class JobOpportunityService {
       "Offer",
       "Rejected",
     ];
+    // Cache column existence checks
+    this.columnCache = {};
+  }
+
+  // Helper to check if column exists
+  async columnExists(tableName, columnName) {
+    const cacheKey = `${tableName}.${columnName}`;
+    if (this.columnCache[cacheKey] !== undefined) {
+      return this.columnCache[cacheKey];
+    }
+
+    try {
+      const query = `
+        SELECT EXISTS (
+          SELECT 1 
+          FROM information_schema.columns 
+          WHERE table_schema = 'public' 
+          AND table_name = $1 
+          AND column_name = $2
+        ) as exists;
+      `;
+      const result = await database.query(query, [tableName, columnName]);
+      const exists = result.rows[0]?.exists || false;
+      this.columnCache[cacheKey] = exists;
+      return exists;
+    } catch (error) {
+      console.warn(`Error checking column ${tableName}.${columnName}:`, error);
+      return false;
+    }
   }
 
   // Validate status
@@ -245,7 +274,9 @@ class JobOpportunityService {
           notes, recruiter_name, recruiter_email, recruiter_phone,
           hiring_manager_name, hiring_manager_email, hiring_manager_phone,
           salary_negotiation_notes, interview_notes, application_history,
-          status_updated_at, created_at, updated_at
+          status_updated_at, application_source, application_method, referral_contact_name, referral_contact_email,
+          application_submitted_at, first_response_at, interview_scheduled_at,
+          created_at, updated_at
       `;
 
       const result = await database.query(query, [
@@ -340,6 +371,14 @@ class JobOpportunityService {
       archiveReason: row.archive_reason,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
+      // New analytics fields (safely handle if columns don't exist yet)
+      applicationSource: row.application_source || null,
+      applicationMethod: row.application_method || null,
+      referralContactName: row.referral_contact_name || null,
+      referralContactEmail: row.referral_contact_email || null,
+      applicationSubmittedAt: row.application_submitted_at || null,
+      firstResponseAt: row.first_response_at || null,
+      interviewScheduledAt: row.interview_scheduled_at || null,
     };
   }
 
@@ -353,6 +392,8 @@ class JobOpportunityService {
           hiring_manager_name, hiring_manager_email, hiring_manager_phone,
           salary_negotiation_notes, interview_notes, application_history,
           status_updated_at, archived, archived_at, archive_reason,
+          application_source, application_method, referral_contact_name, referral_contact_email,
+          application_submitted_at, first_response_at, interview_scheduled_at,
           created_at, updated_at
         FROM job_opportunities
         WHERE id = $1 AND user_id = $2
@@ -486,6 +527,8 @@ class JobOpportunityService {
           hiring_manager_name, hiring_manager_email, hiring_manager_phone,
           salary_negotiation_notes, interview_notes, application_history,
           status_updated_at, archived, archived_at, archive_reason,
+          application_source, application_method, referral_contact_name, referral_contact_email,
+          application_submitted_at, first_response_at, interview_scheduled_at,
           created_at, updated_at
         FROM job_opportunities
         ${whereClause}
@@ -687,10 +730,33 @@ class JobOpportunityService {
         salaryNegotiationNotes: "salary_negotiation_notes",
         interviewNotes: "interview_notes",
         applicationHistory: "application_history",
+        applicationSource: "application_source",
+        applicationMethod: "application_method",
+        referralContactName: "referral_contact_name",
+        referralContactEmail: "referral_contact_email",
+        applicationSubmittedAt: "application_submitted_at",
+        firstResponseAt: "first_response_at",
+        interviewScheduledAt: "interview_scheduled_at",
+        resumeId: "resume_id",
+        coverletterId: "coverletter_id",
       };
 
       for (const [key, column] of Object.entries(fields)) {
         if (updatePayload[key] !== undefined) {
+          // Check column existence for resume_id/coverletter_id before adding to update
+          if (key === "resumeId") {
+            const hasResumeIdColumn = await this.columnExists("job_opportunities", "resume_id");
+            if (!hasResumeIdColumn) {
+              continue; // Skip this field if column doesn't exist
+            }
+          }
+          if (key === "coverletterId") {
+            const hasCoverLetterIdColumn = await this.columnExists("job_opportunities", "coverletter_id");
+            if (!hasCoverLetterIdColumn) {
+              continue; // Skip this field if column doesn't exist
+            }
+          }
+
           if (key === "title" || key === "company" || key === "location") {
             // Required fields - must not be empty
             if (!updatePayload[key] || updatePayload[key].trim() === "") {
@@ -748,6 +814,10 @@ class JobOpportunityService {
                 ? JSON.stringify(updatePayload[key])
                 : '[]'
             );
+          } else if (key === "resumeId" || key === "coverletterId") {
+            // UUID fields - can be null to unlink
+            updates.push(`${column} = $${paramIndex++}`);
+            values.push(updatePayload[key] || null);
           }
         }
       }
@@ -769,6 +839,8 @@ class JobOpportunityService {
           hiring_manager_name, hiring_manager_email, hiring_manager_phone,
           salary_negotiation_notes, interview_notes, application_history,
           status_updated_at, archived, archived_at, archive_reason,
+          application_source, application_method, referral_contact_name, referral_contact_email,
+          application_submitted_at, first_response_at, interview_scheduled_at,
           created_at, updated_at
       `;
 
@@ -1165,6 +1237,8 @@ class JobOpportunityService {
           hiring_manager_name, hiring_manager_email, hiring_manager_phone,
           salary_negotiation_notes, interview_notes, application_history,
           status_updated_at, archived, archived_at, archive_reason,
+          application_source, application_method, referral_contact_name, referral_contact_email,
+          application_submitted_at, first_response_at, interview_scheduled_at,
           created_at, updated_at
         FROM job_opportunities
         WHERE user_id = $1 AND archived = true

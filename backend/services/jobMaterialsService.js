@@ -7,6 +7,25 @@ import jobOpportunityService from "./jobOpportunityService.js";
  */
 class JobMaterialsService {
   /**
+   * Check if a column exists in a table
+   */
+  async columnExists(tableName, columnName) {
+    try {
+      const query = `
+        SELECT 1 
+        FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = $1 
+        AND column_name = $2
+      `;
+      const result = await database.query(query, [tableName, columnName]);
+      return result.rows.length > 0;
+    } catch (error) {
+      console.warn(`Error checking column existence: ${tableName}.${columnName}`, error.message);
+      return false;
+    }
+  }
+  /**
    * Get current materials (resume and cover letter) for a job opportunity
    */
   async getCurrentMaterials(jobOpportunityId, userId) {
@@ -217,6 +236,10 @@ class JobMaterialsService {
 
       // Only log if there was an actual change
       if (oldResumeId !== resumeVersionId || oldCoverLetterId !== coverLetterVersionId) {
+        // Check if job_opportunities has resume_id and coverletter_id columns
+        const hasResumeIdColumn = await this.columnExists("job_opportunities", "resume_id");
+        const hasCoverLetterIdColumn = await this.columnExists("job_opportunities", "coverletter_id");
+
         // Log materials change in application_history
         const changeEntry = {
           type: "materials_change",
@@ -231,10 +254,33 @@ class JobMaterialsService {
         const currentHistory = opportunity.applicationHistory || [];
         const updatedHistory = [...currentHistory, changeEntry];
 
-        // Update application_history in job_opportunities
-        await jobOpportunityService.updateJobOpportunity(jobOpportunityId, userId, {
+        // Update job_opportunities with resume_id/coverletter_id (if columns exist) and application_history
+        const updateData = {
           applicationHistory: updatedHistory,
-        });
+        };
+        
+        // Only add resume_id/coverletter_id if columns exist
+        if (hasResumeIdColumn) {
+          updateData.resumeId = resumeVersionId || null;
+        }
+        if (hasCoverLetterIdColumn) {
+          updateData.coverletterId = coverLetterVersionId || null;
+        }
+
+        try {
+          // Update job_opportunities with resume_id/coverletter_id and application_history
+          await jobOpportunityService.updateJobOpportunity(jobOpportunityId, userId, updateData);
+        } catch (error) {
+          // If update fails due to missing columns, try without resume_id/coverletter_id
+          if (error.message && (error.message.includes("column") || error.message.includes("does not exist"))) {
+            console.warn("Resume/Cover Letter columns not found, updating application_history only");
+            await jobOpportunityService.updateJobOpportunity(jobOpportunityId, userId, {
+              applicationHistory: updatedHistory,
+            });
+          } else {
+            throw error; // Re-throw if it's a different error
+          }
+        }
       }
 
       // Return updated materials

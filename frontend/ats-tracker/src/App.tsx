@@ -26,6 +26,9 @@ import { Interviews } from "./pages/Interviews";
 import { InterviewScheduling } from "./pages/InterviewScheduling";
 import { InterviewPreparation } from "./pages/InterviewPreparation";
 import { InterviewAnalytics } from "./pages/InterviewAnalytics";
+import { Analytics } from "./pages/Analytics";
+import { MarketIntelligence } from "./pages/MarketIntelligence";
+import { ReportGenerator } from "./pages/ReportGenerator";
 import { SalaryNegotiation } from "./pages/SalaryNegotiation";
 import { WritingPractice } from "./pages/WritingPractice";
 import { NetworkContacts } from "./pages/NetworkContacts";
@@ -157,6 +160,9 @@ function App() {
               path={ROUTES.INTERVIEW_ANALYTICS}
               element={<InterviewAnalytics />}
             />
+            <Route path={ROUTES.ANALYTICS} element={<Analytics />} />
+            <Route path={ROUTES.MARKET_INTELLIGENCE} element={<MarketIntelligence />} />
+            <Route path={ROUTES.REPORT_GENERATOR} element={<ReportGenerator />} />
             <Route
               path={ROUTES.SALARY_NEGOTIATION}
               element={<SalaryNegotiation />}

@@ -38,6 +38,18 @@ import {
   InterviewData,
   InterviewInput,
   InterviewConflict,
+  JobSearchPerformance,
+  ApplicationSuccessAnalysis,
+  InterviewPerformance,
+  NetworkROI,
+  ProductivityAnalytics,
+  TimeLog,
+  TimeLogInput,
+  TimeSummary,
+  SalaryProgression,
+  DateRange,
+  Goal,
+  GoalAnalytics,
   InterviewAnalytics,
   SalaryNegotiation,
   SalaryNegotiationInput,
@@ -76,6 +88,7 @@ import {
   ContactInteraction,
   ContactInteractionInput,
   DiscoveredContact,
+  ContactNetworkItem,
   GoogleContactsStatus,
   GoogleContactsImportSummary,
   NetworkingEvent,
@@ -91,9 +104,6 @@ import {
   DiscoveredEvent,
   NetworkingGoal,
   NetworkingGoalInput,
-  EventAttendee,
-  EventGoals,
-  EventGoalsInput,
 } from "../types/network.types";
 
 // In development, use proxy (relative path). In production, use env variable or full URL
@@ -1217,6 +1227,177 @@ class ApiService {
     });
   }
 
+
+  // Analytics endpoints (UC-096 through UC-100)
+  async getJobSearchPerformance(dateRange?: DateRange) {
+    const params = new URLSearchParams();
+    if (dateRange?.startDate) params.append("startDate", dateRange.startDate);
+    if (dateRange?.endDate) params.append("endDate", dateRange.endDate);
+
+    const queryString = params.toString();
+    return this.request<ApiResponse<{ performance: JobSearchPerformance }>>(
+      `/analytics/job-search-performance${queryString ? `?${queryString}` : ""}`
+    );
+  }
+
+  async getApplicationSuccessAnalysis(dateRange?: DateRange) {
+    const params = new URLSearchParams();
+    if (dateRange?.startDate) params.append("startDate", dateRange.startDate);
+    if (dateRange?.endDate) params.append("endDate", dateRange.endDate);
+
+    const queryString = params.toString();
+    return this.request<ApiResponse<{ analysis: ApplicationSuccessAnalysis }>>(
+      `/analytics/application-success${queryString ? `?${queryString}` : ""}`
+    );
+  }
+
+  async getInterviewPerformance(dateRange?: DateRange) {
+    const params = new URLSearchParams();
+    if (dateRange?.startDate) params.append("startDate", dateRange.startDate);
+    if (dateRange?.endDate) params.append("endDate", dateRange.endDate);
+
+    const queryString = params.toString();
+    return this.request<ApiResponse<{ performance: InterviewPerformance }>>(
+      `/analytics/interview-performance${queryString ? `?${queryString}` : ""}`
+    );
+  }
+
+  async getNetworkROI(dateRange?: DateRange) {
+    const params = new URLSearchParams();
+    if (dateRange?.startDate) params.append("startDate", dateRange.startDate);
+    if (dateRange?.endDate) params.append("endDate", dateRange.endDate);
+
+    const queryString = params.toString();
+    return this.request<ApiResponse<{ roi: NetworkROI }>>(
+      `/analytics/network-roi${queryString ? `?${queryString}` : ""}`
+    );
+  }
+
+  async getSalaryProgression(dateRange?: DateRange) {
+    const params = new URLSearchParams();
+    if (dateRange?.startDate) params.append("startDate", dateRange.startDate);
+    if (dateRange?.endDate) params.append("endDate", dateRange.endDate);
+
+    const queryString = params.toString();
+    return this.request<ApiResponse<{ progression: SalaryProgression }>>(
+      `/analytics/salary-progression${queryString ? `?${queryString}` : ""}`
+    );
+  }
+
+  async getProductivityAnalytics(dateRange?: DateRange, useManual?: boolean) {
+    const params = new URLSearchParams();
+    if (dateRange?.startDate) params.append("startDate", dateRange.startDate);
+    if (dateRange?.endDate) params.append("endDate", dateRange.endDate);
+    if (useManual !== undefined) params.append("useManual", String(useManual));
+
+    const queryString = params.toString();
+    return this.request<ApiResponse<{ analytics: ProductivityAnalytics }>>(
+      `/analytics/productivity${queryString ? `?${queryString}` : ""}`
+    );
+  }
+
+  // Time Log endpoints (UC-103 Manual Tracking)
+  async createTimeLog(timeLog: TimeLogInput) {
+    return this.request<ApiResponse<{ timeLog: TimeLog }>>("/time-logs", {
+      method: "POST",
+      body: JSON.stringify(timeLog),
+    });
+  }
+
+  async getTimeLogs(filters?: {
+    startDate?: string;
+    endDate?: string;
+    activityType?: string;
+    jobOpportunityId?: string;
+  }) {
+    const params = new URLSearchParams();
+    if (filters?.startDate) params.append("startDate", filters.startDate);
+    if (filters?.endDate) params.append("endDate", filters.endDate);
+    if (filters?.activityType) params.append("activityType", filters.activityType);
+    if (filters?.jobOpportunityId) params.append("jobOpportunityId", filters.jobOpportunityId);
+
+    const queryString = params.toString();
+    return this.request<ApiResponse<{ timeLogs: TimeLog[] }>>(
+      `/time-logs${queryString ? `?${queryString}` : ""}`
+    );
+  }
+
+  async getTimeSummary(dateRange?: DateRange) {
+    const params = new URLSearchParams();
+    if (dateRange?.startDate) params.append("startDate", dateRange.startDate);
+    if (dateRange?.endDate) params.append("endDate", dateRange.endDate);
+
+    const queryString = params.toString();
+    return this.request<ApiResponse<{ summary: TimeSummary }>>(
+      `/time-logs/summary${queryString ? `?${queryString}` : ""}`
+    );
+  }
+
+  async updateTimeLog(id: string, updates: Partial<TimeLogInput>) {
+    return this.request<ApiResponse<{ timeLog: TimeLog }>>(`/time-logs/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(updates),
+    });
+  }
+
+  async deleteTimeLog(id: string) {
+    return this.request<ApiResponse<{ id: string; deleted: boolean }>>(
+      `/time-logs/${id}`,
+      {
+        method: "DELETE",
+      }
+    );
+  }
+
+  // Goal endpoints (UC-101)
+  async getGoals(filters?: { status?: string; category?: string; goalType?: string }) {
+    const params = new URLSearchParams();
+    if (filters?.status) params.append("status", filters.status);
+    if (filters?.category) params.append("category", filters.category);
+    if (filters?.goalType) params.append("goalType", filters.goalType);
+
+    const queryString = params.toString();
+    return this.request<ApiResponse<{ goals: Goal[] }>>(
+      `/goals${queryString ? `?${queryString}` : ""}`
+    );
+  }
+
+  async getGoalById(id: string) {
+    return this.request<ApiResponse<{ goal: Goal }>>(`/goals/${id}`);
+  }
+
+  async createGoal(goalData: Partial<Goal>) {
+    return this.request<ApiResponse<{ goal: Goal; message: string }>>("/goals", {
+      method: "POST",
+      body: JSON.stringify(goalData),
+    });
+  }
+
+  async updateGoal(id: string, goalData: Partial<Goal>) {
+    return this.request<ApiResponse<{ goal: Goal; message: string }>>(`/goals/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(goalData),
+    });
+  }
+
+  async completeGoal(id: string) {
+    return this.request<ApiResponse<{ goal: Goal; message: string }>>(`/goals/${id}/complete`, {
+      method: "PUT",
+    });
+  }
+
+  async deleteGoal(id: string) {
+    return this.request<ApiResponse<{ message: string }>>(`/goals/${id}`, {
+      method: "DELETE",
+    });
+  }
+
+  async getGoalAnalytics() {
+    return this.request<ApiResponse<{ analytics: GoalAnalytics }>>(
+      "/goals/analytics"
+    );
+  }
+
   // ============================================================================
   // Interview Preparation Suite (UC-074 to UC-078)
   // ============================================================================
@@ -1431,7 +1612,6 @@ class ApiService {
       }
     );
   }
-
   // ============================================================================
   // Chat/Messaging API
   // ============================================================================
@@ -2959,7 +3139,7 @@ class ApiService {
     );
   }
 
-  async getSalaryProgression() {
+  async getSalaryProgressionHistory() {
     return this.request<ApiResponse<{ progression: SalaryProgressionEntry[] }>>(
       "/salary-negotiations/progression/history"
     );
@@ -2982,6 +3162,64 @@ class ApiService {
     >(`/salary-negotiations/progression/entry/${entryId}`, {
       method: "DELETE",
     });
+  }
+
+  // Competitive Analysis
+  async getCompetitiveAnalysis() {
+    return this.request<ApiResponse<{ analysis: any }>>("/competitive-analysis");
+  }
+
+  // Pattern Recognition Analytics
+  async getPatternRecognitionAnalysis(dateRange?: DateRange) {
+    const params = new URLSearchParams();
+    if (dateRange?.startDate) params.append("startDate", dateRange.startDate);
+    if (dateRange?.endDate) params.append("endDate", dateRange.endDate);
+
+    const queryString = params.toString();
+    return this.request<ApiResponse<{ analysis: any }>>(
+      `/analytics/pattern-recognition${queryString ? `?${queryString}` : ""}`
+    );
+  }
+
+  async predictJobSuccess(opportunityData: any) {
+    return this.request<ApiResponse<{ prediction: any }>>("/analytics/predict-success", {
+      method: "POST",
+      body: JSON.stringify(opportunityData),
+    });
+  }
+
+  async getPreparationCorrelation(dateRange?: DateRange) {
+    const params = new URLSearchParams();
+    if (dateRange?.startDate) params.append("startDate", dateRange.startDate);
+    if (dateRange?.endDate) params.append("endDate", dateRange.endDate);
+
+    const queryString = params.toString();
+    return this.request<ApiResponse<any>>(
+      `/analytics/preparation-correlation${queryString ? `?${queryString}` : ""}`
+    );
+  }
+
+  async getTimingPatterns(dateRange?: DateRange) {
+    const params = new URLSearchParams();
+    if (dateRange?.startDate) params.append("startDate", dateRange.startDate);
+    if (dateRange?.endDate) params.append("endDate", dateRange.endDate);
+
+    const queryString = params.toString();
+    return this.request<ApiResponse<{ patterns: any[] }>>(
+      `/analytics/timing-patterns${queryString ? `?${queryString}` : ""}`
+    );
+  }
+
+  // AI Preparation Analysis (replaces flawed statistical version)
+  async getAIPreparationAnalysis(dateRange?: DateRange) {
+    const params = new URLSearchParams();
+    if (dateRange?.startDate) params.append("startDate", dateRange.startDate);
+    if (dateRange?.endDate) params.append("endDate", dateRange.endDate);
+
+    const queryString = params.toString();
+    return this.request<any>(
+      `/analytics/ai-preparation-analysis${queryString ? `?${queryString}` : ""}`
+    );
   }
 
   async deleteContact(id: string) {
@@ -3343,7 +3581,7 @@ class ApiService {
   async compareInterviewPredictions(jobOpportunityIds: string[]) {
     const opportunities = jobOpportunityIds.join(",");
     return this.request<
-      ApiResponse<{ 
+      ApiResponse<{
         predictions: PredictionComparison[];
         insights?: {
           insights: Array<{

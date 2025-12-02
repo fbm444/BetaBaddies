@@ -66,33 +66,12 @@ export function MarketResearchTab({
 
   return (
     <div className="space-y-6">
-      {/* Header with Research Button */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold text-slate-900">Market Salary Research</h3>
-          <p className="text-sm text-slate-600 mt-1">
-            Get AI-powered market salary data for your role and location
-          </p>
-        </div>
-        {!marketData && (
-          <button
-            onClick={handleResearchMarket}
-            disabled={isLoading}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium flex items-center gap-2"
-          >
-            {isLoading ? (
-              <>
-                <Icon icon="mingcute:loading-line" className="w-4 h-4 animate-spin" />
-                Researching...
-              </>
-            ) : (
-              <>
-                <Icon icon="mingcute:search-line" width={16} />
-                Research Market Data
-              </>
-            )}
-          </button>
-        )}
+      {/* Header */}
+      <div>
+        <h3 className="text-lg font-semibold text-slate-900">Market Salary Research</h3>
+        <p className="text-sm text-slate-600 mt-1">
+          Get AI-powered market salary data for your role and location
+        </p>
       </div>
 
       {error && (
@@ -214,7 +193,7 @@ export function MarketResearchTab({
           <button
             onClick={handleResearchMarket}
             disabled={isLoading || !negotiation.jobTitle || !negotiation.location}
-            className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            className="px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-full hover:from-pink-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-all"
           >
             {isLoading ? "Researching..." : "Research Market Data"}
           </button>

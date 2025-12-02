@@ -87,10 +87,11 @@ export function TimingStrategyTab({
         <button
           onClick={() => fetchTimingStrategy(true)}
           disabled={isLoading}
-          className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1 disabled:opacity-50"
+          className="text-sm text-blue-600 flex items-center gap-1.5 disabled:opacity-50 bg-transparent hover:bg-transparent border-none p-0 cursor-pointer"
+          style={{ outline: 'none' }}
         >
-          <Icon icon="mingcute:refresh-line" width={16} />
-          Regenerate
+          <Icon icon="mingcute:refresh-line" width={16} height={16} className="flex-shrink-0 inline-block" style={{ display: 'inline-block' }} />
+          <span>Regenerate</span>
         </button>
       </div>
 

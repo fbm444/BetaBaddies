@@ -1490,45 +1490,77 @@ export function Interviews() {
                   {/* Status Inquiry Template */}
                   <div 
                     className="bg-white border border-slate-200 rounded-xl p-6 hover:shadow-lg transition-all cursor-pointer"
-                    onClick={() => {
+                    onClick={async () => {
                       const completedInterview = interviews.find(i => i.status === "completed" || i.outcome);
-                      if (completedInterview) {
-                        // Find or create a status inquiry follow-up for this interview
-                        const statusFollowUp = pendingFollowUps.find(fu => 
-                          fu.interviewId === completedInterview.id && 
+                      if (!completedInterview) {
+                        showMessage("Please complete an interview first", "error");
+                        return;
+                      }
+
+                      try {
+                        // Find existing status inquiry follow-up
+                        let statusFollowUp = pendingFollowUps.find(fu => 
+                          (fu.interviewId === completedInterview.id || fu.interview_id === completedInterview.id) && 
                           (fu.actionType === "status_inquiry" || fu.action_type === "status_inquiry")
                         );
-                        if (statusFollowUp) {
-                          // Generate draft for existing follow-up
-                          setDraftLoadingId(statusFollowUp.id);
-                          api.getFollowUpEmailDraft(completedInterview.id, statusFollowUp.id)
-                            .then(response => {
-                              if (response.ok && response.data?.draft) {
-                                const draft = response.data.draft;
-                                setStoredFollowUpDrafts(prev => {
-                                  const updated = new Map(prev);
-                                  const existing = updated.get(statusFollowUp.id) || [];
-                                  updated.set(statusFollowUp.id, [
-                                    { ...draft, createdAt: new Date().toISOString() },
-                                    ...existing,
-                                  ]);
-                                  return updated;
-                                });
-                                setActiveFollowUpDraft({
-                                  id: statusFollowUp.id,
-                                  interviewId: completedInterview.id,
-                                  subject: draft.subject,
-                                  body: draft.body,
-                                  generatedBy: draft.generatedBy,
-                                });
-                              }
-                            })
-                            .finally(() => setDraftLoadingId(null));
-                        } else {
-                          showMessage("Status inquiry follow-up will be created automatically after your interview. Check back later!", "info");
+
+                        // If doesn't exist, create it
+                        if (!statusFollowUp) {
+                          setDraftLoadingId("creating");
+                          const dueDate = new Date();
+                          dueDate.setDate(dueDate.getDate() + 14); // 2 weeks from now
+                          
+                          const createResponse = await api.createFollowUpAction(completedInterview.id, {
+                            actionType: "status_inquiry",
+                            dueDate: dueDate.toISOString(),
+                            notes: "Follow-up on interview status and hiring timeline",
+                          });
+
+                          if (createResponse.ok && createResponse.data?.followUp) {
+                            statusFollowUp = createResponse.data.followUp;
+                            // Add to pending follow-ups list
+                            setPendingFollowUps(prev => [...prev, statusFollowUp]);
+                            // Reload follow-ups to get updated list
+                            fetchPendingFollowUps();
+                          } else {
+                            showMessage("Failed to create follow-up action. Please try again.", "error");
+                            setDraftLoadingId(null);
+                            return;
+                          }
                         }
-                      } else {
-                        showMessage("Please complete an interview first", "error");
+
+                        // Generate draft for follow-up
+                        const followUpId = statusFollowUp.id;
+                        setDraftLoadingId(followUpId);
+                        const response = await api.getFollowUpEmailDraft(completedInterview.id, followUpId);
+                        
+                        if (response.ok && response.data?.draft) {
+                          const draft = response.data.draft;
+                          setStoredFollowUpDrafts(prev => {
+                            const updated = new Map(prev);
+                            const existing = updated.get(followUpId) || [];
+                            updated.set(followUpId, [
+                              { ...draft, createdAt: new Date().toISOString() },
+                              ...existing,
+                            ]);
+                            return updated;
+                          });
+                          setActiveFollowUpDraft({
+                            id: followUpId,
+                            interviewId: completedInterview.id,
+                            subject: draft.subject,
+                            body: draft.body,
+                            generatedBy: draft.generatedBy,
+                          });
+                          showMessage("Follow-up email draft generated successfully!", "success");
+                        } else {
+                          showMessage("Failed to generate email draft. Please try again.", "error");
+                        }
+                      } catch (error) {
+                        console.error("Error handling status inquiry:", error);
+                        showMessage("An error occurred. Please try again.", "error");
+                      } finally {
+                        setDraftLoadingId(null);
                       }
                     }}
                   >
@@ -1566,44 +1598,77 @@ export function Interviews() {
                   {/* Feedback Request Template */}
                   <div 
                     className="bg-white border border-slate-200 rounded-xl p-6 hover:shadow-lg transition-all cursor-pointer"
-                    onClick={() => {
+                    onClick={async () => {
                       const rejectedInterview = interviews.find(i => i.outcome === "rejected");
-                      if (rejectedInterview) {
-                        // Find or create a feedback request follow-up
-                        const feedbackFollowUp = pendingFollowUps.find(fu => 
-                          fu.interviewId === rejectedInterview.id && 
+                      if (!rejectedInterview) {
+                        showMessage("This template is available for interviews with rejected outcomes", "info");
+                        return;
+                      }
+
+                      try {
+                        // Find existing feedback request follow-up
+                        let feedbackFollowUp = pendingFollowUps.find(fu => 
+                          (fu.interviewId === rejectedInterview.id || fu.interview_id === rejectedInterview.id) && 
                           (fu.actionType === "feedback_request" || fu.action_type === "feedback_request")
                         );
-                        if (feedbackFollowUp) {
-                          setDraftLoadingId(feedbackFollowUp.id);
-                          api.getFollowUpEmailDraft(rejectedInterview.id, feedbackFollowUp.id)
-                            .then(response => {
-                              if (response.ok && response.data?.draft) {
-                                const draft = response.data.draft;
-                                setStoredFollowUpDrafts(prev => {
-                                  const updated = new Map(prev);
-                                  const existing = updated.get(feedbackFollowUp.id) || [];
-                                  updated.set(feedbackFollowUp.id, [
-                                    { ...draft, createdAt: new Date().toISOString() },
-                                    ...existing,
-                                  ]);
-                                  return updated;
-                                });
-                                setActiveFollowUpDraft({
-                                  id: feedbackFollowUp.id,
-                                  interviewId: rejectedInterview.id,
-                                  subject: draft.subject,
-                                  body: draft.body,
-                                  generatedBy: draft.generatedBy,
-                                });
-                              }
-                            })
-                            .finally(() => setDraftLoadingId(null));
-                        } else {
-                          showMessage("Feedback request follow-up will be created automatically for rejected interviews. Check back later!", "info");
+
+                        // If doesn't exist, create it
+                        if (!feedbackFollowUp) {
+                          setDraftLoadingId("creating");
+                          const dueDate = new Date();
+                          dueDate.setDate(dueDate.getDate() + 1); // 1 day from now
+                          
+                          const createResponse = await api.createFollowUpAction(rejectedInterview.id, {
+                            actionType: "feedback_request",
+                            dueDate: dueDate.toISOString(),
+                            notes: "Request feedback on interview performance to improve for future opportunities",
+                          });
+
+                          if (createResponse.ok && createResponse.data?.followUp) {
+                            feedbackFollowUp = createResponse.data.followUp;
+                            // Add to pending follow-ups list
+                            setPendingFollowUps(prev => [...prev, feedbackFollowUp]);
+                            // Reload follow-ups to get updated list
+                            fetchPendingFollowUps();
+                          } else {
+                            showMessage("Failed to create follow-up action. Please try again.", "error");
+                            setDraftLoadingId(null);
+                            return;
+                          }
                         }
-                      } else {
-                        showMessage("This template is available for interviews with rejected outcomes", "info");
+
+                        // Generate draft for follow-up
+                        const followUpId = feedbackFollowUp.id;
+                        setDraftLoadingId(followUpId);
+                        const response = await api.getFollowUpEmailDraft(rejectedInterview.id, followUpId);
+                        
+                        if (response.ok && response.data?.draft) {
+                          const draft = response.data.draft;
+                          setStoredFollowUpDrafts(prev => {
+                            const updated = new Map(prev);
+                            const existing = updated.get(followUpId) || [];
+                            updated.set(followUpId, [
+                              { ...draft, createdAt: new Date().toISOString() },
+                              ...existing,
+                            ]);
+                            return updated;
+                          });
+                          setActiveFollowUpDraft({
+                            id: followUpId,
+                            interviewId: rejectedInterview.id,
+                            subject: draft.subject,
+                            body: draft.body,
+                            generatedBy: draft.generatedBy,
+                          });
+                          showMessage("Follow-up email draft generated successfully!", "success");
+                        } else {
+                          showMessage("Failed to generate email draft. Please try again.", "error");
+                        }
+                      } catch (error) {
+                        console.error("Error handling feedback request:", error);
+                        showMessage("An error occurred. Please try again.", "error");
+                      } finally {
+                        setDraftLoadingId(null);
                       }
                     }}
                   >

@@ -9,7 +9,7 @@ class UserService {
 
   // Create a new user (authentication only)
   async createUser(userData) {
-    const { email, password } = userData;
+    const { email, password, accountType } = userData;
 
     try {
       // Check if user already exists
@@ -24,20 +24,22 @@ class UserService {
 
       // Create user in database
       const userQuery = `
-        INSERT INTO users (u_id, email, password, created_at, updated_at, auth_provider)
-        VALUES ($1, $2, $3, NOW(), NOW(), 'local')
-        RETURNING u_id, email, created_at, updated_at
+        INSERT INTO users (u_id, email, password, created_at, updated_at, auth_provider, account_type)
+        VALUES ($1, $2, $3, NOW(), NOW(), 'local', $4)
+        RETURNING u_id, email, created_at, updated_at, account_type
       `;
 
       const userResult = await database.query(userQuery, [
         userId,
         email,
         hashedPassword,
+        accountType || 'regular',
       ]);
 
       return {
         id: userResult.rows[0].u_id,
         email: userResult.rows[0].email,
+        accountType: userResult.rows[0].account_type,
         createdAt: userResult.rows[0].created_at,
         updatedAt: userResult.rows[0].updated_at,
       };

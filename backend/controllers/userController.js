@@ -7,12 +7,13 @@ import linkedinService from "../services/linkedinService.js";
 class UserController {
   // Register a new user
   register = asyncHandler(async (req, res) => {
-    const { email, password } = req.body;
+    const { email, password, accountType } = req.body;
 
     try {
       const user = await userService.createUser({
         email,
         password,
+        accountType: accountType || 'regular',
       });
 
       // Set session
@@ -25,6 +26,7 @@ class UserController {
           user: {
             id: user.id,
             email: user.email,
+            accountType: user.accountType,
             createdAt: user.createdAt,
           },
           message: "User registered successfully",

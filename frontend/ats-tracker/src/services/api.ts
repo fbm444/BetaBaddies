@@ -326,12 +326,15 @@ class ApiService {
     );
   }
 
-  async register(email: string, password: string) {
+  async register(email: string, password: string, accountType?: string) {
     return this.request<
-      ApiResponse<{ user: { id: string; email: string }; message: string }>
+      ApiResponse<{
+        user: { id: string; email: string; accountType?: string };
+        message: string;
+      }>
     >("/users/register", {
       method: "POST",
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, accountType }),
     });
   }
 
@@ -1697,6 +1700,74 @@ class ApiService {
     return this.request<ApiResponse<{ invitations: any[] }>>(
       `/teams/${teamId}/invitations`
     );
+  }
+
+  // Family Support API Methods
+  async inviteFamilyMember(data: {
+    email: string;
+    familyMemberName?: string;
+    relationship?: string;
+  }) {
+    return this.request<ApiResponse<{ invitation: any }>>(
+      `/family/invitations`,
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      }
+    );
+  }
+
+  async getFamilyInvitationByToken(token: string) {
+    return this.request<ApiResponse<{ invitation: any }>>(
+      `/family/invitations/${token}`
+    );
+  }
+
+  async acceptFamilyInvitation(token: string) {
+    return this.request<ApiResponse<{ invitation: any; userId: string }>>(
+      `/family/invitations/${token}/accept`,
+      {
+        method: "POST",
+      }
+    );
+  }
+
+  async getFamilyMembers() {
+    return this.request<ApiResponse<{ members: any[] }>>(`/family/members`);
+  }
+
+  async getPendingFamilyInvitations() {
+    return this.request<ApiResponse<{ invitations: any[] }>>(
+      `/family/invitations`
+    );
+  }
+
+  async removeFamilyMember(memberId: string) {
+    return this.request<ApiResponse<{ message: string }>>(
+      `/family/members/${memberId}`,
+      {
+        method: "DELETE",
+      }
+    );
+  }
+
+  async cancelFamilyInvitation(invitationId: string) {
+    return this.request<ApiResponse<{ message: string }>>(
+      `/family/invitations/${invitationId}`,
+      {
+        method: "DELETE",
+      }
+    );
+  }
+
+  async getFamilyProgressSummary(userId: string) {
+    return this.request<ApiResponse<{ summary: any }>>(
+      `/family/progress/${userId}`
+    );
+  }
+
+  async getUsersWhoInvitedMe() {
+    return this.request<ApiResponse<{ users: any[] }>>(`/family/invited-by`);
   }
 
   async cancelTeamInvitation(teamId: string, invitationId: string) {

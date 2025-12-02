@@ -31,6 +31,7 @@ import competitiveAnalysisRoutes from "./routes/competitiveAnalysisRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
 import teamRoutes from "./routes/teamRoutes.js";
 import collaborationRoutes from "./routes/collaborationRoutes.js";
+import familyRoutes from "./routes/familyRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
 import followUpRoutes from "./routes/followUpRoutes.js";
 import salaryNegotiationRoutes from "./routes/salaryNegotiationRoutes.js";
@@ -158,6 +159,7 @@ app.use("/api/v1/competitive-analysis", competitiveAnalysisRoutes);
 app.use("/api/v1/reports", reportRoutes);
 app.use("/api/v1/teams", teamRoutes);
 app.use("/api/v1/collaboration", collaborationRoutes);
+app.use("/api/v1/family", familyRoutes);
 app.use("/api/v1/chat", chatRoutes);
 app.use("/api/v1", followUpRoutes); // For /api/v1/follow-ups/pending
 app.use("/api/v1/salary-negotiations", salaryNegotiationRoutes);

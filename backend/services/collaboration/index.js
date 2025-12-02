@@ -14,3 +14,4 @@ export { default as jobShareService } from "./jobShareService.js";
 export { default as taskService } from "./taskService.js";
 export { default as teamDashboardService } from "./teamDashboardService.js";
 export { default as supportGroupsService } from "./supportGroupsService.js";
+export { default as familyService } from "./familyService.js";

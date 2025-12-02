@@ -45,6 +45,9 @@ import { MenteeDashboard } from "./pages/MenteeDashboard";
 import { ProgressSharing } from "./pages/ProgressSharing";
 import { SupportGroups } from "./pages/SupportGroups";
 import { TeamInviteAccept } from "./pages/TeamInviteAccept";
+import { Family } from "./pages/Family";
+import { FamilyInviteAccept } from "./pages/FamilyInviteAccept";
+import { FamilyOnlyDashboard } from "./pages/FamilyOnlyDashboard";
 import "./App.css";
 
 function App() {
@@ -220,6 +223,15 @@ function App() {
               element={<ProgressSharing />}
             />
             <Route path={ROUTES.SUPPORT_GROUPS} element={<SupportGroups />} />
+            <Route path={ROUTES.FAMILY} element={<Family />} />
+            <Route
+              path={ROUTES.FAMILY_INVITE_ACCEPT}
+              element={<FamilyInviteAccept />}
+            />
+            <Route
+              path={ROUTES.FAMILY_ONLY_DASHBOARD}
+              element={<FamilyOnlyDashboard />}
+            />
           </Route>
         </Routes>
       </div>

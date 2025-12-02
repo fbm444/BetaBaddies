@@ -9,7 +9,9 @@ export function Register() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const inviteToken = searchParams.get('invite') || sessionStorage.getItem('pendingInvitationToken')
+  const familyInviteToken = searchParams.get('familyInvite') || sessionStorage.getItem('pendingFamilyInvitationToken')
   const emailFromInvite = searchParams.get('email')
+  const accountTypeFromStorage = sessionStorage.getItem('accountType')
   
   const [email, setEmail] = useState(emailFromInvite || '')
   const [password, setPassword] = useState('')
@@ -21,6 +23,7 @@ export function Register() {
   const [invitationInfo, setInvitationInfo] = useState<any>(null)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null)
+  const [isFamilyInvitation, setIsFamilyInvitation] = useState(!!familyInviteToken || accountTypeFromStorage === 'family_only')
 
   useEffect(() => {
     // Check if user is logged in
@@ -45,6 +48,20 @@ export function Register() {
               }
             }
           }
+          
+          // Handle family invitation
+          if (familyInviteToken) {
+            const invitation = await api.getFamilyInvitationByToken(familyInviteToken)
+            if (invitation.ok && invitation.data?.invitation) {
+              const invitationEmail = invitation.data.invitation.email?.toLowerCase()
+              const currentEmail = response.data.user.email.toLowerCase()
+              
+              if (invitationEmail && currentEmail !== invitationEmail) {
+                navigate(`${ROUTES.FAMILY_INVITE_ACCEPT}?token=${familyInviteToken}`)
+                return
+              }
+            }
+          }
         }
       } catch (err) {
         // User is not logged in
@@ -56,8 +73,10 @@ export function Register() {
     // If there's an invitation token, fetch invitation details
     if (inviteToken) {
       fetchInvitationInfo()
+    } else if (familyInviteToken) {
+      fetchFamilyInvitationInfo()
     }
-  }, [inviteToken, navigate])
+  }, [inviteToken, familyInviteToken, navigate])
 
   const fetchInvitationInfo = async () => {
     try {
@@ -71,6 +90,22 @@ export function Register() {
       }
     } catch (err) {
       console.error('Failed to fetch invitation info:', err)
+    }
+  }
+
+  const fetchFamilyInvitationInfo = async () => {
+    try {
+      const response = await api.getFamilyInvitationByToken(familyInviteToken!)
+      if (response.ok && response.data) {
+        setInvitationInfo(response.data.invitation)
+        setIsFamilyInvitation(true)
+        // Pre-fill email if not already set
+        if (!email && response.data.invitation.email) {
+          setEmail(response.data.invitation.email)
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch family invitation info:', err)
     }
   }
 
@@ -122,13 +157,43 @@ export function Register() {
     }
 
     try {
+      // Determine account type
+      const accountType = isFamilyInvitation ? 'family_only' : 'regular'
+      
       // Register the user
-      await api.register(email, password)
+      const registerResponse = await api.register(email, password, accountType)
       
       // Automatically log them in after registration
       await api.login(email, password)
       
-      // If there's a pending invitation, accept it
+      // If there's a pending family invitation, accept it
+      if (familyInviteToken) {
+        try {
+          // Verify email matches invitation before accepting
+          if (invitationInfo && email.toLowerCase() !== invitationInfo.email?.toLowerCase()) {
+            setError(`Email mismatch: This invitation is for ${invitationInfo.email}, but you registered with ${email}. Please register with the correct email.`)
+            setIsLoading(false)
+            return
+          }
+          
+          const inviteResponse = await api.acceptFamilyInvitation(familyInviteToken)
+          sessionStorage.removeItem('pendingFamilyInvitationToken')
+          sessionStorage.removeItem('accountType')
+          
+          // Redirect to family-only dashboard
+          window.location.href = ROUTES.FAMILY_ONLY_DASHBOARD
+          return
+        } catch (inviteErr: any) {
+          console.error('Failed to accept family invitation:', inviteErr)
+          if (inviteErr.message?.includes('Email does not match invitation')) {
+            setError(`Email mismatch: This invitation is for ${invitationInfo?.email}, but you registered with ${email}. Please register with the correct email.`)
+            setIsLoading(false)
+            return
+          }
+        }
+      }
+      
+      // If there's a pending team invitation, accept it
       if (inviteToken) {
         try {
           // Verify email matches invitation before accepting
@@ -159,9 +224,13 @@ export function Register() {
         }
       }
       
-      // Redirect to dashboard on success
-      console.log('Registration successful, redirecting to:', ROUTES.DASHBOARD)
-      window.location.href = ROUTES.DASHBOARD
+      // Redirect based on account type
+      if (accountType === 'family_only') {
+        window.location.href = ROUTES.FAMILY_ONLY_DASHBOARD
+      } else {
+        console.log('Registration successful, redirecting to:', ROUTES.DASHBOARD)
+        window.location.href = ROUTES.DASHBOARD
+      }
     } catch (err: any) {
       setError(err.message || 'Registration failed. Please try again.')
       setIsLoading(false)

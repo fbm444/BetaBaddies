@@ -187,7 +187,7 @@ class UserService {
   async getUserByEmail(email) {
     try {
       const query = `
-        SELECT u_id, email, password, created_at, updated_at, google_id, auth_provider
+        SELECT u_id, email, password, created_at, updated_at, google_id, linkedin_id, auth_provider
         FROM users
         WHERE email = $1
       `;
@@ -200,11 +200,183 @@ class UserService {
     }
   }
 
+  // Get user by LinkedIn ID
+  async getUserByLinkedInId(linkedinId) {
+    try {
+      const query = `
+        SELECT u_id, email, linkedin_id, auth_provider, created_at, updated_at
+        FROM users
+        WHERE linkedin_id = $1
+      `;
+
+      const result = await database.query(query, [linkedinId]);
+      return result.rows[0] || null;
+    } catch (error) {
+      console.error("❌ Error getting user by LinkedIn ID:", error);
+      throw error;
+    }
+  }
+
+  // Create a new OAuth user (LinkedIn)
+  async createLinkedInOAuthUser(userData) {
+    const { email, linkedinId, firstName, lastName, profilePicture, headline, accessToken, refreshToken } = userData;
+
+    try {
+      // Check if user already exists
+      const existingUser = await this.getUserByEmail(email);
+      if (existingUser) {
+        throw new Error("User with this email already exists");
+      }
+
+      const userId = uuidv4();
+      const tokenExpiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000); // 60 days from now
+
+      // Create OAuth user in database (no password)
+      const userQuery = `
+        INSERT INTO users (u_id, email, password, created_at, updated_at, linkedin_id, auth_provider, linkedin_access_token, linkedin_refresh_token, linkedin_token_expires_at)
+        VALUES ($1, $2, NULL, NOW(), NOW(), $3, 'linkedin', $4, $5, $6)
+        RETURNING u_id, email, created_at, updated_at, linkedin_id, auth_provider
+      `;
+
+      const userResult = await database.query(userQuery, [
+        userId,
+        email,
+        linkedinId,
+        accessToken,
+        refreshToken,
+        tokenExpiresAt,
+      ]);
+
+      // Create a basic profile with the name from LinkedIn OAuth
+      if (firstName && lastName) {
+        const profileQuery = `
+          INSERT INTO profiles (user_id, first_name, last_name, state, pfp_link, job_title)
+          VALUES ($1, $2, $3, 'NY', $4, $5)
+        `;
+
+        const defaultPfpLink = profilePicture || "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_640.png";
+
+        await database.query(profileQuery, [
+          userId,
+          firstName,
+          lastName,
+          defaultPfpLink,
+          headline || null,
+        ]);
+      }
+
+      return {
+        id: userResult.rows[0].u_id,
+        email: userResult.rows[0].email,
+        linkedinId: userResult.rows[0].linkedin_id,
+        authProvider: userResult.rows[0].auth_provider,
+        createdAt: userResult.rows[0].created_at,
+        updatedAt: userResult.rows[0].updated_at,
+      };
+    } catch (error) {
+      console.error("❌ Error creating LinkedIn OAuth user:", error);
+      throw error;
+    }
+  }
+
+  // Link LinkedIn account to existing user
+  async linkLinkedInAccount(userId, linkedinId, accessToken, refreshToken, firstName, lastName, profilePicture, headline) {
+    try {
+      const tokenExpiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000); // 60 days from now
+      
+      const query = `
+        UPDATE users 
+        SET linkedin_id = $2, linkedin_access_token = $3, linkedin_refresh_token = $4, linkedin_token_expires_at = $5, updated_at = NOW()
+        WHERE u_id = $1
+        RETURNING u_id, email, linkedin_id, auth_provider
+      `;
+
+      const result = await database.query(query, [userId, linkedinId, accessToken, refreshToken, tokenExpiresAt]);
+
+      if (result.rows.length === 0) {
+        throw new Error("User not found");
+      }
+
+      // Update profile with name if provided and profile exists, or create profile
+      if (firstName && lastName) {
+        const checkProfileQuery = `
+          SELECT user_id FROM profiles WHERE user_id = $1
+        `;
+        const profileCheck = await database.query(checkProfileQuery, [userId]);
+
+        const defaultPfpLink = profilePicture || "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_640.png";
+
+        if (profileCheck.rows.length === 0) {
+          // Create profile if it doesn't exist
+          const insertProfileQuery = `
+            INSERT INTO profiles (user_id, first_name, last_name, state, pfp_link, job_title)
+            VALUES ($1, $2, $3, 'NY', $4, $5)
+          `;
+          await database.query(insertProfileQuery, [
+            userId,
+            firstName,
+            lastName,
+            defaultPfpLink,
+            headline || null,
+          ]);
+        } else {
+          // Update name and profile picture if profile exists but fields are empty
+          const updateProfileQuery = `
+            UPDATE profiles 
+            SET first_name = COALESCE(NULLIF(first_name, ''), $2), 
+                last_name = COALESCE(NULLIF(last_name, ''), $3),
+                pfp_link = COALESCE(NULLIF(pfp_link, ''), $4),
+                job_title = COALESCE(NULLIF(job_title, ''), $5)
+            WHERE user_id = $1 
+              AND (first_name IS NULL OR first_name = '' OR first_name = 'User' OR pfp_link LIKE '%blank-profile%')
+          `;
+          await database.query(updateProfileQuery, [
+            userId,
+            firstName,
+            lastName,
+            defaultPfpLink,
+            headline || null,
+          ]);
+        }
+      }
+
+      return result.rows[0];
+    } catch (error) {
+      console.error("❌ Error linking LinkedIn account:", error);
+      throw error;
+    }
+  }
+
+  // Update LinkedIn tokens for existing user
+  async updateLinkedInTokens(userId, accessToken, refreshToken) {
+    try {
+      const tokenExpiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000); // 60 days from now
+      
+      const query = `
+        UPDATE users 
+        SET linkedin_access_token = $2, linkedin_refresh_token = $3, linkedin_token_expires_at = $4, updated_at = NOW()
+        WHERE u_id = $1
+        RETURNING u_id, email, linkedin_id
+      `;
+
+      const result = await database.query(query, [userId, accessToken, refreshToken, tokenExpiresAt]);
+
+      if (result.rows.length === 0) {
+        throw new Error("User not found");
+      }
+
+      return result.rows[0];
+    } catch (error) {
+      console.error("❌ Error updating LinkedIn tokens:", error);
+      throw error;
+    }
+  }
+
   // Get user by ID (authentication only)
   async getUserById(userId) {
     try {
       const query = `
-        SELECT u_id, email, created_at, updated_at
+        SELECT u_id, email, password, created_at, updated_at, google_id, linkedin_id, auth_provider
         FROM users
         WHERE u_id = $1
       `;
@@ -343,12 +515,12 @@ class UserService {
     }
   }
 
-  // Delete user account with password verification
+  // Delete user account with password verification (skip for OAuth users)
   async deleteUser(userId, password) {
     try {
-      // 1. Get user with password for verification
+      // 1. Get user with password and auth_provider for verification
       const userQuery = `
-        SELECT u_id, email, password
+        SELECT u_id, email, password, auth_provider
         FROM users
         WHERE u_id = $1
       `;
@@ -360,16 +532,28 @@ class UserService {
 
       const user = userResult.rows[0];
 
-      // 2. Verify password before deletion
-      const isPasswordValid = await this.verifyPassword(
-        password,
-        user.password
-      );
+      // 2. Verify password before deletion (skip for OAuth users who don't have passwords)
+      if (user.password !== null) {
+        // User has a password - verify it
+        if (!password) {
+          throw new Error(
+            "Password is required to delete account"
+          );
+        }
 
-      if (!isPasswordValid) {
-        throw new Error(
-          "Invalid password. Please check your password and try again."
+        const isPasswordValid = await this.verifyPassword(
+          password,
+          user.password
         );
+
+        if (!isPasswordValid) {
+          throw new Error(
+            "Invalid password. Please check your password and try again."
+          );
+        }
+      } else {
+        // OAuth user (password is NULL) - no password verification needed
+        console.log(`✅ OAuth user deletion (auth_provider: ${user.auth_provider || 'unknown'}) - skipping password verification`);
       }
 
       // 3. Delete user and all related records

@@ -42,6 +42,7 @@ import professionalContactRoutes from "./routes/professionalContactRoutes.js";
 import networkingEventRoutes from "./routes/networkingEventRoutes.js";
 import referralRequestRoutes from "./routes/referralRequestRoutes.js";
 import networkingGoalRoutes from "./routes/networkingGoalRoutes.js";
+import linkedinRoutes from "./routes/linkedinRoutes.js";
 
 // Import middleware
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
@@ -168,6 +169,7 @@ app.use("/api/v1/network/contacts", professionalContactRoutes);
 app.use("/api/v1/network/events", networkingEventRoutes);
 app.use("/api/v1/network/referrals", referralRequestRoutes);
 app.use("/api/v1/network/goals", networkingGoalRoutes);
+app.use("/api/v1/linkedin", linkedinRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

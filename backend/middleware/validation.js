@@ -48,10 +48,8 @@ const schemas = {
   }),
 
   deleteAccount: Joi.object({
-    password: Joi.string().min(8).required().messages({
-      "string.empty": "Password is required to delete account",
+    password: Joi.string().min(8).allow(null, "").optional().messages({
       "string.min": "Password must be at least 8 characters",
-      "any.required": "Password is required to delete account",
     }),
     confirmationText: Joi.string()
       .valid("DELETE MY ACCOUNT")

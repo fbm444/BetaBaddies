@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Icon } from '@iconify/react'
 import { api } from '../services/api'
@@ -11,12 +11,29 @@ export function Settings() {
   const [confirmationText, setConfirmationText] = useState('')
   const [isDeleting, setIsDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isOAuthUser, setIsOAuthUser] = useState(false)
+  
+  // Check if user is OAuth user (LinkedIn or Google)
+  useEffect(() => {
+    const checkAuthProvider = async () => {
+      try {
+        const response = await api.getUserAuth()
+        if (response.ok && response.data?.user?.authProvider) {
+          setIsOAuthUser(true)
+        }
+      } catch (err) {
+        console.error('Error checking auth provider:', err)
+      }
+    }
+    checkAuthProvider()
+  }, [])
   
   const handleDeleteAccount = async () => {
     setError(null)
     
     // Client-side validation
-    if (!password) {
+    // Only require password for non-OAuth users
+    if (!isOAuthUser && !password) {
       setError('Password is required')
       return
     }
@@ -29,7 +46,8 @@ export function Settings() {
     setIsDeleting(true)
     
     try {
-      await api.deleteAccount(password, confirmationText)
+      // For OAuth users, pass empty string or null for password
+      await api.deleteAccount(isOAuthUser ? '' : password, confirmationText)
       
       // Account deleted successfully
       alert('Your account has been deleted successfully. A confirmation email has been sent to you.')
@@ -164,20 +182,32 @@ export function Settings() {
               </div>
             )}
             
-            {/* Password Input */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Enter your password to confirm: <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                placeholder="Your password"
-                disabled={isDeleting}
-              />
-            </div>
+            {/* Password Input - Only show for non-OAuth users */}
+            {!isOAuthUser && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Enter your password to confirm: <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  placeholder="Your password"
+                  disabled={isDeleting}
+                />
+              </div>
+            )}
+            
+            {/* OAuth User Notice */}
+            {isOAuthUser && (
+              <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-800">
+                  <Icon icon="mingcute:information-line" className="inline mr-2" width={16} />
+                  You signed in with a social account. No password is required to delete your account.
+                </p>
+              </div>
+            )}
             
             {/* Confirmation Text */}
             <div className="mb-6">

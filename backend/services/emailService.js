@@ -611,6 +611,23 @@ class EmailService {
       console.log('✅ Referral request email sent to:', contactEmail);
     } catch (error) {
       console.error('❌ Error sending referral request email:', error);
+      
+      // Check for Gmail quota/rate limit errors
+      const errorMessage = error?.message || error?.response || String(error);
+      const isQuotaError = 
+        errorMessage?.toLowerCase().includes('quota') ||
+        errorMessage?.toLowerCase().includes('daily sending limit') ||
+        errorMessage?.toLowerCase().includes('rate limit') ||
+        error?.responseCode === 550 ||
+        error?.code === 'EAUTH' ||
+        error?.code === 'EENVELOPE';
+      
+      if (isQuotaError) {
+        const quotaError = new Error('Gmail daily sending quota exceeded. Please try again tomorrow or use a different email account.');
+        quotaError.code = 'EMAIL_QUOTA_EXCEEDED';
+        throw quotaError;
+      }
+      
       throw error;
     }
   }
@@ -737,6 +754,23 @@ class EmailService {
       console.log('✅ Gratitude message email sent to:', contactEmail);
     } catch (error) {
       console.error('❌ Error sending gratitude message email:', error);
+      
+      // Check for Gmail quota/rate limit errors
+      const errorMessage = error?.message || error?.response || String(error);
+      const isQuotaError = 
+        errorMessage?.toLowerCase().includes('quota') ||
+        errorMessage?.toLowerCase().includes('daily sending limit') ||
+        errorMessage?.toLowerCase().includes('rate limit') ||
+        error?.responseCode === 550 ||
+        error?.code === 'EAUTH' ||
+        error?.code === 'EENVELOPE';
+      
+      if (isQuotaError) {
+        const quotaError = new Error('Gmail daily sending quota exceeded. Please try again tomorrow or use a different email account.');
+        quotaError.code = 'EMAIL_QUOTA_EXCEEDED';
+        throw quotaError;
+      }
+      
       throw error;
     }
   }

@@ -569,13 +569,17 @@ const schemas = {
 
   // Referral Request Validation
   createReferralRequest: Joi.object({
-    contactId: Joi.string().uuid().required().messages({
+    // Require these fields to be present and non-empty (frontend passes UUID strings here)
+    contactId: Joi.string().trim().min(1).required().messages({
       "any.required": "Contact ID is required",
+      "string.empty": "Contact ID is required",
     }),
-    jobId: Joi.string().uuid().required().messages({
+    jobId: Joi.string().trim().min(1).required().messages({
       "any.required": "Job ID is required",
+      "string.empty": "Job ID is required",
     }),
-    requestTemplateId: Joi.string().uuid().allow(null).optional(),
+    // Allow any string ID (DB enforces FK / existence), or explicit null/empty when no template is selected
+    requestTemplateId: Joi.string().allow(null, "").optional(),
     personalizedMessage: Joi.string().allow(null, "").optional(),
     requestStatus: Joi.string()
       .valid("pending", "sent", "accepted", "declined", "completed")
@@ -591,9 +595,9 @@ const schemas = {
   }),
 
   updateReferralRequest: Joi.object({
-    contactId: Joi.string().uuid().optional(),
-    jobId: Joi.string().uuid().optional(),
-    requestTemplateId: Joi.string().uuid().allow(null).optional(),
+    contactId: Joi.string().trim().optional(),
+    jobId: Joi.string().trim().optional(),
+    requestTemplateId: Joi.string().allow(null, "").optional(),
     personalizedMessage: Joi.string().allow(null, "").optional(),
     requestStatus: Joi.string()
       .valid("pending", "sent", "accepted", "declined", "completed")
@@ -617,10 +621,12 @@ const schemas = {
     id: Joi.string().uuid().required(),
   }),
   personalizeReferralRequest: Joi.object({
-    contactId: Joi.string().uuid().required(),
-    jobId: Joi.string().uuid().required(),
+    // Require non-empty IDs so AI personalization can run, but don't enforce UUID format here
+    contactId: Joi.string().trim().min(1).required(),
+    jobId: Joi.string().trim().min(1).required(),
     templateBody: Joi.string().allow(null, "").optional(),
-    templateId: Joi.string().uuid().optional(),
+    // Generic templates may use non-UUID IDs; accept any string/null/empty
+    templateId: Joi.string().allow(null, "").optional(),
     tone: Joi.string().max(50).allow(null, "").optional(),
   }),
 };

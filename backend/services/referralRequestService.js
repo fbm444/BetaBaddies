@@ -641,10 +641,7 @@ Best regards,
   // Get referral REQUEST templates (for asking FOR referrals - used in "Ask for Referrals" tab)
   async getReferralTemplates() {
     try {
-      // Get default request templates
-      const defaultTemplates = this.getDefaultRequestTemplates();
-
-      // Get user-created templates from database (request templates)
+      // Get user-created templates from database (request templates only)
       const query = `
         SELECT *
         FROM referral_templates
@@ -664,12 +661,12 @@ Best regards,
         createdAt: row.created_at,
       }));
 
-      // Combine default templates (first) with user-created templates
-      return [...defaultTemplates, ...userTemplates];
+      // Only return user-created templates for Ask for Referrals
+      return userTemplates;
     } catch (error) {
       console.error("❌ Error getting referral templates:", error);
-      // Return just default templates on error
-      return this.getDefaultRequestTemplates();
+      // On error, return an empty list so the UI can still function
+      return [];
     }
   }
 

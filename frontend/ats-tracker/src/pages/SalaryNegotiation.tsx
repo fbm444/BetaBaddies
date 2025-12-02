@@ -854,7 +854,7 @@ export function SalaryNegotiation() {
                 <>
                   {/* Statistics Cards */}
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    <div className="flex flex-col justify-between rounded-2xl bg-gradient-to-b from-[#1E3097] to-[#3351FD] p-5 text-white">
+                    <div className="flex flex-col justify-between rounded-2xl bg-gradient-to-b from-[#1E3097] to-[#3351FD] p-5 text-white border border-slate-300">
                       <div className="flex items-start justify-between">
                         <p className="text-[22px] font-normal" style={{ fontFamily: "Poppins" }}>
                           Current Salary
@@ -869,7 +869,7 @@ export function SalaryNegotiation() {
                       </p>
                     </div>
 
-                    <div className="flex flex-col justify-between rounded-2xl bg-white p-5">
+                    <div className="flex flex-col justify-between rounded-2xl bg-white p-5 border border-slate-300">
                       <div className="flex items-start justify-between">
                         <p
                           className="text-[22px] font-normal text-[#0F1D3A]"
@@ -887,7 +887,7 @@ export function SalaryNegotiation() {
                       </p>
                     </div>
 
-                    <div className="flex flex-col justify-between rounded-2xl bg-white p-5">
+                    <div className="flex flex-col justify-between rounded-2xl bg-white p-5 border border-slate-300">
                       <div className="flex items-start justify-between">
                         <p
                           className="text-[22px] font-normal text-[#0F1D3A]"
@@ -905,7 +905,7 @@ export function SalaryNegotiation() {
                       </p>
                     </div>
 
-                    <div className="flex flex-col justify-between rounded-2xl bg-white p-5">
+                    <div className="flex flex-col justify-between rounded-2xl bg-white p-5 border border-slate-300">
                       <div className="flex items-start justify-between">
                         <p
                           className="text-[22px] font-normal text-[#0F1D3A]"
@@ -927,7 +927,7 @@ export function SalaryNegotiation() {
                   {/* Chart and Timeline Section - Side by Side */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Chart Section */}
-                    <div className="rounded-3xl bg-white p-5 flex flex-col h-full">
+                    <div className="rounded-3xl bg-white p-5 flex flex-col h-full border border-slate-300">
                       <div className="mb-6 flex items-center justify-between">
                         <h3
                           className="text-[25px] font-normal text-[#0F1D3A]"
@@ -948,7 +948,7 @@ export function SalaryNegotiation() {
                     </div>
 
                     {/* Detailed Timeline */}
-                    <div className="rounded-3xl bg-white p-5 overflow-y-auto" style={{ maxHeight: '600px' }}>
+                    <div className="rounded-3xl bg-white p-5 overflow-y-auto border border-slate-300" style={{ maxHeight: '600px' }}>
                     <div className="mb-3 flex items-center justify-between">
                       <h3
                         className="text-[25px] font-normal text-[#0F1D3A]"
@@ -971,10 +971,10 @@ export function SalaryNegotiation() {
                           return (
                             <div 
                               key={item.id} 
-                              className={`relative flex items-start gap-4 p-5 rounded-xl border-2 transition-all ${
+                              className={`relative flex items-start gap-4 p-5 rounded-xl border transition-all ${
                                 isLatest 
                                   ? "bg-transparent border-blue-300" 
-                                  : "bg-transparent border-slate-200 hover:border-slate-300"
+                                  : "bg-transparent border-slate-300 hover:border-slate-400"
                               }`}
                             >
                               {/* Timeline connector */}

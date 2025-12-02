@@ -161,8 +161,8 @@ export function WritingPractice() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 py-8 font-poppins">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-white font-poppins">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-slate-900 mb-2">
@@ -189,8 +189,8 @@ export function WritingPractice() {
         )}
 
         {/* Tabs */}
-        <div className="mb-6 border-b border-slate-200">
-          <nav className="flex space-x-8">
+        <div className="border-b border-slate-200 mb-8">
+          <div className="flex gap-1 overflow-x-auto scrollbar-hide">
             {[
               { id: "practice", label: "Practice", icon: "mingcute:edit-line" },
               { id: "history", label: "History", icon: "mingcute:file-list-line" },
@@ -200,22 +200,38 @@ export function WritingPractice() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as TabType)}
-                className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm ${
+                className={`px-6 py-3 font-medium text-sm whitespace-nowrap flex items-center gap-2 flex-shrink-0 min-w-fit bg-transparent hover:bg-transparent focus:bg-transparent ${
                   activeTab === tab.id
-                    ? "border-blue-500 text-blue-600"
-                    : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+                    ? "text-blue-500 border-b-2 border-blue-500"
+                    : "text-slate-600"
                 }`}
+                style={{
+                  outline: 'none',
+                  boxShadow: 'none',
+                  borderTop: 'none',
+                  borderLeft: 'none',
+                  borderRight: 'none',
+                  borderRadius: '0'
+                }}
+                onFocus={(e) => e.target.blur()}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
               >
-                <Icon icon={tab.icon} width={18} />
-                {tab.label}
+                <Icon icon={tab.icon} width={18} height={18} className="flex-shrink-0" style={{ minWidth: '18px', minHeight: '18px' }} />
+                <span className="flex-shrink-0">{tab.label}</span>
               </button>
             ))}
-          </nav>
+          </div>
         </div>
 
         {/* Tab Content */}
-        {activeTab === "practice" && (
-          <div className="space-y-6">
+        <div className="mt-8 bg-slate-50 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-10 rounded-t-2xl">
+          {activeTab === "practice" && (
+            <div className="space-y-6">
             {/* Quick Start */}
             <div className="bg-white rounded-xl p-6 border border-slate-200">
               <div className="flex items-center justify-between mb-4">
@@ -234,7 +250,7 @@ export function WritingPractice() {
                       showMessage("Failed to get random prompt", "error");
                     }
                   }}
-                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm font-medium"
+                  className="px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 text-sm font-medium"
                 >
                   Start Random Practice
                 </button>
@@ -288,12 +304,12 @@ export function WritingPractice() {
               </div>
               <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {[
-                  { category: "behavioral", label: "Behavioral", icon: "mingcute:user-line" },
+                  { category: "behavioral", label: "Behavioral", icon: "mingcute:user-2-line" },
                   { category: "strengths", label: "Strengths", icon: "mingcute:star-line" },
                   { category: "weaknesses", label: "Weaknesses", icon: "mingcute:target-line" },
-                  { category: "company_fit", label: "Company Fit", icon: "mingcute:building-line" },
+                  { category: "company_fit", label: "Company Fit", icon: "mingcute:building-2-line" },
                   { category: "situational", label: "Situational", icon: "mingcute:question-line" },
-                  { category: "leadership", label: "Leadership", icon: "mingcute:user-team-line" },
+                  { category: "leadership", label: "Leadership", icon: "mingcute:user-star-line" },
                 ].map((cat) => {
                   const categoryPrompts = prompts.filter((p) => p.category === cat.category);
                   return (
@@ -313,7 +329,7 @@ export function WritingPractice() {
                       className="p-4 border border-slate-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors cursor-pointer"
                     >
                       <div className="flex items-center gap-3 mb-2">
-                        <Icon icon={cat.icon} width={24} className="text-blue-500" />
+                        <Icon icon={cat.icon} width={24} height={24} className="text-blue-500 flex-shrink-0" style={{ display: 'inline-block' }} />
                         <h3 className="font-semibold text-slate-900">{cat.label}</h3>
                       </div>
                       <p className="text-sm text-slate-600">
@@ -324,11 +340,11 @@ export function WritingPractice() {
                 })}
               </div>
             </div>
-          </div>
-        )}
+            </div>
+          )}
 
-        {activeTab === "history" && (
-          <div>
+          {activeTab === "history" && (
+            <div>
             <div className="bg-white rounded-xl border border-slate-200">
               <div className="p-6 border-b border-slate-200">
                 <h2 className="text-xl font-semibold text-slate-900">Session History</h2>
@@ -373,106 +389,148 @@ export function WritingPractice() {
                 </div>
               )}
             </div>
-          </div>
-        )}
+            </div>
+          )}
 
-        {activeTab === "progress" && (
-          <div>
-            {progressMetrics && (
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-                <div className="bg-white rounded-xl p-6 border border-slate-200">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm text-slate-600">Clarity</p>
-                    <Icon icon="mingcute:eye-line" width={24} className="text-blue-500" />
-                  </div>
-                  <p className="text-3xl font-bold text-slate-900">
-                    {progressMetrics.clarityAvg.toFixed(1)}/10
-                  </p>
-                </div>
-
-                <div className="bg-white rounded-xl p-6 border border-slate-200">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm text-slate-600">Professionalism</p>
-                    <Icon icon="mingcute:briefcase-line" width={24} className="text-green-500" />
-                  </div>
-                  <p className="text-3xl font-bold text-slate-900">
-                    {progressMetrics.professionalismAvg.toFixed(1)}/10
-                  </p>
-                </div>
-
-                <div className="bg-white rounded-xl p-6 border border-slate-200">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm text-slate-600">Structure</p>
-                    <Icon icon="mingcute:file-text-line" width={24} className="text-purple-500" />
-                  </div>
-                  <p className="text-3xl font-bold text-slate-900">
-                    {progressMetrics.structureAvg.toFixed(1)}/10
-                  </p>
-                </div>
-
-                <div className="bg-white rounded-xl p-6 border border-slate-200">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm text-slate-600">Storytelling</p>
-                    <Icon icon="mingcute:book-line" width={24} className="text-orange-500" />
-                  </div>
-                  <p className="text-3xl font-bold text-slate-900">
-                    {progressMetrics.storytellingAvg.toFixed(1)}/10
-                  </p>
-                </div>
+          {activeTab === "progress" && (
+            <div>
+              {/* Header */}
+              <div className="mb-8">
+                <h2 className="text-xl font-semibold text-slate-900">Writing Progress</h2>
+                <p className="mt-2 text-sm text-[#6D7A99]">
+                  Track your improvement and identify areas for growth
+                </p>
               </div>
-            )}
 
-            {progressInsights && progressInsights.insights.length > 0 && (
-              <div className="bg-blue-50 rounded-xl p-6 border border-blue-200 mb-6">
-                <h3 className="text-lg font-semibold text-blue-900 mb-4">Progress Insights</h3>
-                <ul className="space-y-2">
-                  {progressInsights.insights.map((insight, idx) => (
-                    <li key={idx} className="flex items-start gap-2 text-blue-800">
-                      <Icon icon="mingcute:lightbulb-line" width={18} className="text-blue-600 mt-0.5 flex-shrink-0" />
-                      <span>{insight}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {progressInsights && (
-              <div className="bg-white rounded-xl p-6 border border-slate-200">
-                <h3 className="text-lg font-semibold text-slate-900 mb-4">Progress Trends</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <ProgressChart
-                    trends={progressInsights.trends.overall}
-                    title="Overall Score Trend"
-                    color="#3b82f6"
-                  />
-                  <ProgressChart
-                    trends={progressInsights.trends.clarity}
-                    title="Clarity Trend"
-                    color="#3b82f6"
-                  />
-                  <ProgressChart
-                    trends={progressInsights.trends.professionalism}
-                    title="Professionalism Trend"
-                    color="#10b981"
-                  />
-                  <ProgressChart
-                    trends={progressInsights.trends.structure}
-                    title="Structure Trend"
-                    color="#8b5cf6"
-                  />
-                  <ProgressChart
-                    trends={progressInsights.trends.storytelling}
-                    title="Storytelling Trend"
-                    color="#f97316"
-                  />
+              {!progressMetrics && !progressInsights && (
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-[#6D7A99] text-center">
+                  <Icon icon="mingcute:chart-line" width={48} className="text-slate-400 mx-auto mb-4" />
+                  <p>Start practicing to see your progress analytics here.</p>
                 </div>
-              </div>
-            )}
-          </div>
-        )}
+              )}
 
-        {activeTab === "exercises" && (
-          <div>
+              {progressMetrics && (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+                  <div className="flex flex-col justify-between rounded-2xl bg-gradient-to-b from-[#1E3097] to-[#3351FD] p-6 text-white border border-slate-300 min-h-[180px]">
+                    <div className="flex items-start justify-between">
+                      <p className="text-[22px] font-normal" style={{ fontFamily: "Poppins" }}>
+                        Clarity
+                      </p>
+                      <Icon icon="mingcute:eye-line" width={24} height={24} className="text-white flex-shrink-0" />
+                    </div>
+                    <p
+                      className="text-4xl font-medium leading-none text-[#E7EFFF] mt-2"
+                      style={{ fontFamily: "Poppins" }}
+                    >
+                      {progressMetrics.clarityAvg.toFixed(1)}/10
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col justify-between rounded-2xl bg-gradient-to-b from-[#2563EB] to-[#60A5FA] p-6 text-white border border-slate-300 min-h-[180px]">
+                    <div className="flex items-start justify-between">
+                      <p className="text-[22px] font-normal" style={{ fontFamily: "Poppins" }}>
+                        Professionalism
+                      </p>
+                      <Icon icon="mingcute:briefcase-line" width={24} height={24} className="text-white flex-shrink-0" />
+                    </div>
+                    <p
+                      className="text-4xl font-medium leading-none text-[#E7EFFF] mt-2"
+                      style={{ fontFamily: "Poppins" }}
+                    >
+                      {progressMetrics.professionalismAvg.toFixed(1)}/10
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col justify-between rounded-2xl bg-gradient-to-b from-[#3B82F6] to-[#93C5FD] p-6 text-white border border-slate-300 min-h-[180px]">
+                    <div className="flex items-start justify-between">
+                      <p className="text-[22px] font-normal" style={{ fontFamily: "Poppins" }}>
+                        Structure
+                      </p>
+                      <Icon icon="mingcute:list-check-line" width={24} height={24} className="text-white flex-shrink-0" />
+                    </div>
+                    <p
+                      className="text-4xl font-medium leading-none text-[#E7EFFF] mt-2"
+                      style={{ fontFamily: "Poppins" }}
+                    >
+                      {progressMetrics.structureAvg.toFixed(1)}/10
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col justify-between rounded-2xl bg-gradient-to-b from-[#0284C7] to-[#38BDF8] p-6 text-white border border-slate-300 min-h-[180px]">
+                    <div className="flex items-start justify-between">
+                      <p className="text-[22px] font-normal" style={{ fontFamily: "Poppins" }}>
+                        Storytelling
+                      </p>
+                      <Icon icon="mingcute:book-line" width={24} height={24} className="text-white flex-shrink-0" />
+                    </div>
+                    <p
+                      className="text-4xl font-medium leading-none text-[#E7EFFF] mt-2"
+                      style={{ fontFamily: "Poppins" }}
+                    >
+                      {progressMetrics.storytellingAvg.toFixed(1)}/10
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {progressInsights && progressInsights.insights.length > 0 && (
+                <div className="bg-blue-50 rounded-xl p-6 border border-blue-200 mb-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Icon icon="mingcute:lightbulb-line" width={20} height={20} className="text-blue-600 flex-shrink-0" style={{ display: 'inline-block', minWidth: '20px', minHeight: '20px' }} />
+                    <h3 className="text-lg font-semibold text-blue-900">Progress Insights</h3>
+                  </div>
+                  <ul className="space-y-2">
+                    {progressInsights.insights.map((insight, idx) => (
+                      <li key={idx} className="flex items-start gap-2 text-blue-800">
+                        <Icon icon="mingcute:lightbulb-line" width={18} className="text-blue-600 mt-0.5 flex-shrink-0" />
+                        <span>{insight}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {progressInsights && (
+                <div className="rounded-3xl bg-white p-6 border border-slate-300">
+                  <h3 className="text-[25px] font-normal text-[#0F1D3A] mb-6" style={{ fontFamily: "Poppins" }}>Progress Trends</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <ProgressChart
+                      trends={progressInsights.trends.overall}
+                      title="Overall Score Trend"
+                      color="#3b82f6"
+                    />
+                    <ProgressChart
+                      trends={progressInsights.trends.clarity}
+                      title="Clarity Trend"
+                      color="#3b82f6"
+                    />
+                    <ProgressChart
+                      trends={progressInsights.trends.professionalism}
+                      title="Professionalism Trend"
+                      color="#10b981"
+                    />
+                    <ProgressChart
+                      trends={progressInsights.trends.structure}
+                      title="Structure Trend"
+                      color="#8b5cf6"
+                    />
+                    <div className="md:col-span-2 md:flex md:justify-center">
+                      <div className="w-full md:max-w-[50%]">
+                        <ProgressChart
+                          trends={progressInsights.trends.storytelling}
+                          title="Storytelling Trend"
+                          color="#f97316"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === "exercises" && (
+            <div>
             <div className="bg-white rounded-xl border border-slate-200">
               <div className="p-6 border-b border-slate-200">
                 <h2 className="text-xl font-semibold text-slate-900">Nerves Management Exercises</h2>
@@ -486,7 +544,7 @@ export function WritingPractice() {
                     { type: "breathing", title: "Breathing Exercise", icon: "mingcute:wind-line", description: "4-4-4-2 breathing technique" },
                     { type: "visualization", title: "Visualization", icon: "mingcute:eye-line", description: "Visualize interview success" },
                     { type: "affirmation", title: "Affirmations", icon: "mingcute:heart-line", description: "Build confidence with positive affirmations" },
-                    { type: "preparation_checklist", title: "Preparation Checklist", icon: "mingcute:checklist-line", description: "Coming soon" },
+                    { type: "preparation_checklist", title: "Preparation Checklist", icon: "mingcute:list-check-line", description: "Coming soon" },
                   ].map((exercise) => (
                     <div
                       key={exercise.type}
@@ -500,7 +558,7 @@ export function WritingPractice() {
                       className="p-6 border border-slate-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors cursor-pointer"
                     >
                       <div className="flex items-center gap-3 mb-2">
-                        <Icon icon={exercise.icon} width={24} className="text-blue-500" />
+                        <Icon icon={exercise.icon} width={24} height={24} className="text-blue-500 flex-shrink-0" style={{ display: 'inline-block' }} />
                         <h3 className="font-semibold text-slate-900">{exercise.title}</h3>
                       </div>
                       <p className="text-sm text-slate-600">
@@ -511,8 +569,9 @@ export function WritingPractice() {
                 </div>
               </div>
             </div>
-          </div>
-        )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Practice Session Modal */}

@@ -406,62 +406,79 @@ class NetworkDiscoveryService {
       const myContactEmails = myContactsResult.rows
         .map((row) => row.email)
         .filter((email) => email);
+      const myContactEmailsLower = myContactEmails.map((e) => e.toLowerCase());
 
-      if (myContactIds.length === 0) {
-        return [];
-      }
+      // We'll accumulate all suggestions (graph + alumni + company) here
+      let allContacts = [];
 
-      // Get your contacts that have a contact_user_id (they are users in the system)
-      // Also get contacts with emails so we can try to match them to users
-      const myContactsWithUserIdResult = await database.query(
-        `SELECT id, first_name, last_name, contact_user_id, email FROM professional_contacts WHERE user_id = $1 AND contact_user_id IS NOT NULL`,
-        [userId]
-      );
+      // --------------------------------------------------------------------
+      // PART 1: Graph-based 2nd/3rd degree contacts (only if you have contacts)
+      // --------------------------------------------------------------------
+      let secondDegreeContacts = [];
+      let thirdDegreeContacts = [];
 
-      // Get contacts with emails but no contact_user_id (like Google Contacts)
-      // Try to find users by email to expand the network
-      const myContactsWithEmailResult = await database.query(
-        `SELECT id, first_name, last_name, email FROM professional_contacts WHERE user_id = $1 AND contact_user_id IS NULL AND email IS NOT NULL`,
-        [userId]
-      );
+      if (myContactIds.length > 0) {
+        // Get your contacts that have a contact_user_id (they are users in the system)
+        // Also get contacts with emails so we can try to match them to users
+        const myContactsWithUserIdResult = await database.query(
+          `SELECT id, first_name, last_name, contact_user_id, email FROM professional_contacts WHERE user_id = $1 AND contact_user_id IS NOT NULL`,
+          [userId]
+        );
 
-      // Combine contacts with contact_user_id and additional user IDs found via email matching
-      const myContactsWithUserId = myContactsWithUserIdResult.rows;
+        // Get contacts with emails but no contact_user_id (like Google Contacts)
+        // Try to find users by email to expand the network
+        const myContactsWithEmailResult = await database.query(
+          `SELECT id, first_name, last_name, email FROM professional_contacts WHERE user_id = $1 AND contact_user_id IS NULL AND email IS NOT NULL`,
+          [userId]
+        );
 
-      // For contacts with emails but no contact_user_id, try to find matching users
-      const additionalUserIds = new Set();
-      if (myContactsWithEmailResult.rows.length > 0) {
-        const emails = myContactsWithEmailResult.rows.map(row => row.email).filter(e => e);
-        if (emails.length > 0) {
-          // Build query with proper parameter placeholders
-          const placeholders = emails.map((_, i) => `$${i + 1}`).join(', ');
-          const userLookupQuery = `
+        // Combine contacts with contact_user_id and additional user IDs found via email matching
+        const myContactsWithUserId = myContactsWithUserIdResult.rows;
+
+        // For contacts with emails but no contact_user_id, try to find matching users
+        const additionalUserIds = new Set();
+        if (myContactsWithEmailResult.rows.length > 0) {
+          const emails = myContactsWithEmailResult.rows
+            .map((row) => row.email)
+            .filter((e) => e);
+          if (emails.length > 0) {
+            // Build query with proper parameter placeholders
+            const placeholders = emails
+              .map((_, i) => `$${i + 1}`)
+              .join(", ");
+            const userLookupQuery = `
             SELECT u_id, email FROM users WHERE LOWER(email) IN (${placeholders})
           `;
-          const userLookupResult = await database.query(userLookupQuery, emails.map(e => e.toLowerCase()));
-          console.log(`🔍 Found ${userLookupResult.rows.length} users matching ${emails.length} contact emails`);
-          userLookupResult.rows.forEach(row => {
-            additionalUserIds.add(row.u_id);
-            console.log(`  ✅ Matched email ${row.email} to user ${row.u_id}`);
-          });
+            const userLookupResult = await database.query(
+              userLookupQuery,
+              emails.map((e) => e.toLowerCase())
+            );
+            console.log(
+              `🔍 Found ${userLookupResult.rows.length} users matching ${emails.length} contact emails`
+            );
+            userLookupResult.rows.forEach((row) => {
+              additionalUserIds.add(row.u_id);
+              console.log(
+                `  ✅ Matched email ${row.email} to user ${row.u_id}`
+              );
+            });
+          }
         }
-      }
-      
-      console.log(`📊 Network discovery: ${myContactsWithUserId.length} contacts with user_id, ${additionalUserIds.size} additional users found via email`);
 
-      const allContactUserIds = [
-        ...myContactsWithUserId.map(c => c.contact_user_id),
-        ...Array.from(additionalUserIds)
-      ].filter(id => id);
+        console.log(
+          `📊 Network discovery: ${myContactsWithUserId.length} contacts with user_id, ${additionalUserIds.size} additional users found via email`
+        );
 
-      if (allContactUserIds.length === 0) {
-        return [];
-      }
+        const allContactUserIds = [
+          ...myContactsWithUserId.map((c) => c.contact_user_id),
+          ...Array.from(additionalUserIds),
+        ].filter((id) => id);
 
-      // Get 2nd degree contacts: contacts that belong to your contacts' user accounts
-      // Use the combined list of user IDs (from contact_user_id and email matching)
-      // Join through users table to find contacts for users identified by contact_user_id OR email
-      let secondDegreeQuery = `
+        if (allContactUserIds.length > 0) {
+          // Get 2nd degree contacts: contacts that belong to your contacts' user accounts
+          // Use the combined list of user IDs (from contact_user_id and email matching)
+          // Join through users table to find contacts for users identified by contact_user_id OR email
+          let secondDegreeQuery = `
         SELECT DISTINCT
           pc2.id as contact_id,
           pc2.first_name,
@@ -478,78 +495,81 @@ class NetworkDiscoveryService {
           '2nd' as connection_degree,
           ARRAY_AGG(DISTINCT CONCAT(pc1.first_name, ' ', pc1.last_name)) FILTER (WHERE pc1.first_name IS NOT NULL OR pc1.last_name IS NOT NULL) as mutual_connection_names,
           ARRAY_AGG(DISTINCT pc1.id) as path_through_contacts
-        FROM professional_contacts pc1
-        INNER JOIN users u ON (
-          (pc1.contact_user_id IS NOT NULL AND pc1.contact_user_id = u.u_id)
-          OR
-          (pc1.contact_user_id IS NULL AND pc1.email IS NOT NULL AND LOWER(pc1.email) = LOWER(u.email))
-        )
-        INNER JOIN professional_contacts pc2 ON pc2.user_id = u.u_id
-        LEFT JOIN profiles p2 ON pc2.contact_user_id = p2.user_id
-        WHERE pc1.user_id = $1
-          AND u.u_id = ANY($2::uuid[])
-      `;
-      
-      const secondDegreeParams = [userId, allContactUserIds];
-      let paramIndex = 3;
-      
-      if (myContactIds.length > 0) {
-        secondDegreeQuery += ` AND pc2.id != ALL($${paramIndex}::uuid[])`;
-        secondDegreeParams.push(myContactIds);
-        paramIndex++;
-      }
-      
-      if (myContactEmails.length > 0) {
-        secondDegreeQuery += ` AND (pc2.email IS NULL OR LOWER(pc2.email) != ALL($${paramIndex}::text[]))`;
-        secondDegreeParams.push(myContactEmails.map((e) => e.toLowerCase()));
-        paramIndex++;
-      }
-      
-      // Exclude the current user themselves
-      secondDegreeQuery += ` AND pc2.contact_user_id != $${paramIndex}`;
-      secondDegreeParams.push(userId);
-      
-      secondDegreeQuery += ` GROUP BY pc2.id, pc2.first_name, pc2.last_name, pc2.email, pc2.phone, pc2.company, pc2.job_title, pc2.industry, pc2.location, pc2.linkedin_url, pc2.contact_user_id, p2.pfp_link`;
+          FROM professional_contacts pc1
+          INNER JOIN users u ON (
+            (pc1.contact_user_id IS NOT NULL AND pc1.contact_user_id = u.u_id)
+            OR
+            (pc1.contact_user_id IS NULL AND pc1.email IS NOT NULL AND LOWER(pc1.email) = LOWER(u.email))
+          )
+          INNER JOIN professional_contacts pc2 ON pc2.user_id = u.u_id
+          LEFT JOIN profiles p2 ON pc2.contact_user_id = p2.user_id
+          WHERE pc1.user_id = $1
+            AND u.u_id = ANY($2::uuid[])
+        `;
 
-      const secondDegreeResult = await database.query(secondDegreeQuery, secondDegreeParams);
+          const secondDegreeParams = [userId, allContactUserIds];
+          let paramIndex = 3;
 
-      const secondDegreeContacts = secondDegreeResult.rows.map((row) => ({
-        contactId: row.contact_id,
-        firstName: row.first_name,
-        lastName: row.last_name,
-        email: row.email,
-        phone: row.phone,
-        company: row.company,
-        jobTitle: row.job_title,
-        industry: row.industry,
-        location: row.location,
-        linkedinUrl: row.linkedin_url,
-        contactUserId: row.contact_user_id,
-        profilePicture: row.contact_profile_picture,
-        connectionDegree: "2nd",
-        mutualConnectionNames: row.mutual_connection_names || [],
-        pathThroughContacts: row.path_through_contacts || [],
-      }));
+          if (myContactIds.length > 0) {
+            secondDegreeQuery += ` AND pc2.id != ALL($${paramIndex}::uuid[])`;
+            secondDegreeParams.push(myContactIds);
+            paramIndex++;
+          }
 
-      // Get all 2nd degree contact IDs and emails to exclude from 3rd degree
-      const secondDegreeContactIds = secondDegreeContacts.map((c) => c.contactId);
-      const secondDegreeContactEmails = secondDegreeContacts
-        .map((c) => c.email)
-        .filter((email) => email)
-        .map((e) => e.toLowerCase());
-      const allExcludedIds = [...myContactIds, ...secondDegreeContactIds];
-      const allExcludedEmails = [...myContactEmails.map((e) => e.toLowerCase()), ...secondDegreeContactEmails];
+          // Exclude the current user themselves
+          secondDegreeQuery += ` AND pc2.contact_user_id != $${paramIndex}`;
+          secondDegreeParams.push(userId);
 
-      // Get 3rd degree contacts: contacts that belong to 2nd degree contacts' user accounts
-      let thirdDegreeContacts = [];
-      if ((degree === "all" || degree === "3rd") && secondDegreeContacts.length > 0) {
-        // Get 2nd degree contacts that have a contact_user_id
-        const secondDegreeWithUserId = secondDegreeContacts.filter((c) => c.contactUserId);
-        
-        if (secondDegreeWithUserId.length > 0) {
-          const secondDegreeUserIds = secondDegreeWithUserId.map((c) => c.contactUserId);
-          
-          let thirdDegreeQuery = `
+          secondDegreeQuery += ` GROUP BY pc2.id, pc2.first_name, pc2.last_name, pc2.email, pc2.phone, pc2.company, pc2.job_title, pc2.industry, pc2.location, pc2.linkedin_url, pc2.contact_user_id, p2.pfp_link`;
+
+          const secondDegreeResult = await database.query(
+            secondDegreeQuery,
+            secondDegreeParams
+          );
+
+          secondDegreeContacts = secondDegreeResult.rows.map((row) => ({
+            contactId: row.contact_id,
+            firstName: row.first_name,
+            lastName: row.last_name,
+            email: row.email,
+            phone: row.phone,
+            company: row.company,
+            jobTitle: row.job_title,
+            industry: row.industry,
+            location: row.location,
+            linkedinUrl: row.linkedin_url,
+            contactUserId: row.contact_user_id,
+            profilePicture: row.contact_profile_picture,
+            connectionDegree: "2nd",
+            mutualConnectionNames: row.mutual_connection_names || [],
+            pathThroughContacts: row.path_through_contacts || [],
+            alreadyInContacts:
+              !!row.email &&
+              myContactEmailsLower.includes(row.email.toLowerCase()),
+          }));
+
+          // Get all 2nd degree contact IDs to exclude from 3rd degree
+          const secondDegreeContactIds = secondDegreeContacts.map(
+            (c) => c.contactId
+          );
+          const allExcludedIds = [...myContactIds, ...secondDegreeContactIds];
+
+          // Get 3rd degree contacts: contacts that belong to 2nd degree contacts' user accounts
+          if (
+            (degree === "all" || degree === "3rd") &&
+            secondDegreeContacts.length > 0
+          ) {
+            // Get 2nd degree contacts that have a contact_user_id
+            const secondDegreeWithUserId = secondDegreeContacts.filter(
+              (c) => c.contactUserId
+            );
+
+            if (secondDegreeWithUserId.length > 0) {
+              const secondDegreeUserIds = secondDegreeWithUserId.map(
+                (c) => c.contactUserId
+              );
+
+              let thirdDegreeQuery = `
             SELECT DISTINCT
               pc3.id as contact_id,
               pc3.first_name,
@@ -571,32 +591,141 @@ class NetworkDiscoveryService {
             LEFT JOIN profiles p3 ON pc3.contact_user_id = p3.user_id
             WHERE pc2.contact_user_id = ANY($1::uuid[])
           `;
-          
-          const thirdDegreeParams = [secondDegreeUserIds];
-          let thirdParamIndex = 2;
-          
-          if (allExcludedIds.length > 0) {
-            thirdDegreeQuery += ` AND pc3.id != ALL($${thirdParamIndex}::uuid[])`;
-            thirdDegreeParams.push(allExcludedIds);
-            thirdParamIndex++;
-          }
-          
-          if (allExcludedEmails.length > 0) {
-            thirdDegreeQuery += ` AND (pc3.email IS NULL OR LOWER(pc3.email) != ALL($${thirdParamIndex}::text[]))`;
-            thirdDegreeParams.push(allExcludedEmails);
-            thirdParamIndex++;
-          }
-          
-          // Exclude the current user themselves
-          thirdDegreeQuery += ` AND pc3.contact_user_id != $${thirdParamIndex}`;
-          thirdDegreeParams.push(userId);
-          
-          thirdDegreeQuery += ` GROUP BY pc3.id, pc3.first_name, pc3.last_name, pc3.email, pc3.phone, pc3.company, pc3.job_title, pc3.industry, pc3.location, pc3.linkedin_url, pc3.contact_user_id, p3.pfp_link`;
 
-          const thirdDegreeResult = await database.query(thirdDegreeQuery, thirdDegreeParams);
+              const thirdDegreeParams = [secondDegreeUserIds];
+              let thirdParamIndex = 2;
 
-          thirdDegreeContacts = thirdDegreeResult.rows.map((row) => ({
-            contactId: row.contact_id,
+              if (allExcludedIds.length > 0) {
+                thirdDegreeQuery += ` AND pc3.id != ALL($${thirdParamIndex}::uuid[])`;
+                thirdDegreeParams.push(allExcludedIds);
+                thirdParamIndex++;
+              }
+
+              // Exclude the current user themselves
+              thirdDegreeQuery += ` AND pc3.contact_user_id != $${thirdParamIndex}`;
+              thirdDegreeParams.push(userId);
+
+              thirdDegreeQuery += ` GROUP BY pc3.id, pc3.first_name, pc3.last_name, pc3.email, pc3.phone, pc3.company, pc3.job_title, pc3.industry, pc3.location, pc3.linkedin_url, pc3.contact_user_id, p3.pfp_link`;
+
+              const thirdDegreeResult = await database.query(
+                thirdDegreeQuery,
+                thirdDegreeParams
+              );
+
+              thirdDegreeContacts = thirdDegreeResult.rows.map((row) => ({
+                contactId: row.contact_id,
+                firstName: row.first_name,
+                lastName: row.last_name,
+                email: row.email,
+                phone: row.phone,
+                company: row.company,
+                jobTitle: row.job_title,
+                industry: row.industry,
+                location: row.location,
+                linkedinUrl: row.linkedin_url,
+                contactUserId: row.contact_user_id,
+                profilePicture: row.contact_profile_picture,
+                connectionDegree: "3rd",
+                mutualConnectionNames: row.mutual_connection_names || [],
+                pathThroughContacts: row.path_through_contacts || [],
+                alreadyInContacts:
+                  !!row.email &&
+                  myContactEmailsLower.includes(row.email.toLowerCase()),
+              }));
+            }
+          }
+        }
+      }
+
+      // Combine and filter by degree (graph-based only)
+      if (degree === "all") {
+        allContacts = [...secondDegreeContacts, ...thirdDegreeContacts];
+      } else if (degree === "2nd") {
+        allContacts = secondDegreeContacts;
+      } else if (degree === "3rd") {
+        allContacts = thirdDegreeContacts;
+      }
+
+      // --------------------------------------------------------------------
+      // PART 2: Enrich with alumni connections and company-interest contacts
+      // --------------------------------------------------------------------
+      try {
+        // Alumni suggestions (people who went to the same schools)
+        const alumniSuggestions = await this.getAlumniConnections(userId, {
+          search,
+          limit: 50,
+          offset: 0,
+        });
+
+        const alumniContacts = (alumniSuggestions || []).map((alumni) => {
+          const name = alumni.contactName || "";
+          const parts = name.trim().split(/\s+/);
+          const firstName = parts[0] || "";
+          const lastName = parts.slice(1).join(" ") || "";
+
+          return {
+            contactId: alumni.id,
+            firstName,
+            lastName,
+            email: alumni.email,
+            phone: alumni.phone,
+            company: alumni.company,
+            jobTitle: alumni.contactTitle,
+            industry: alumni.industry,
+            location: alumni.location,
+            linkedinUrl: alumni.linkedinUrl,
+            contactUserId: alumni.contactUserId,
+            profilePicture: alumni.profilePicture,
+            connectionDegree: "Alumni",
+            mutualConnectionNames: [],
+            pathThroughContacts: [],
+          };
+        });
+
+        // People who work at companies from your job opportunities
+        const companyQuery = `
+          SELECT DISTINCT LOWER(TRIM(company)) AS company
+          FROM job_opportunities
+          WHERE user_id = $1
+            AND company IS NOT NULL
+            AND TRIM(company) != ''
+            AND (archived = false OR archived IS NULL)
+        `;
+        const companyResult = await database.query(companyQuery, [userId]);
+        const companies = companyResult.rows
+          .map((row) => row.company)
+          .filter((c) => c);
+
+        let companyContacts = [];
+        if (companies.length > 0) {
+          const companyContactsQuery = `
+            SELECT DISTINCT
+              p.user_id,
+              p.first_name,
+              p.last_name,
+              u.email,
+              p.phone,
+              j.company,
+              j.title as job_title,
+              p.industry,
+              CONCAT(p.city, ', ', p.state) as location,
+              NULL as linkedin_url,
+              p.pfp_link as contact_profile_picture
+            FROM jobs j
+            INNER JOIN profiles p ON j.user_id = p.user_id
+            INNER JOIN users u ON j.user_id = u.u_id
+            WHERE j.is_current = true
+              AND LOWER(TRIM(j.company)) = ANY($1::text[])
+              AND j.user_id != $2
+          `;
+
+          const companyContactsResult = await database.query(
+            companyContactsQuery,
+            [companies, userId]
+          );
+
+          companyContacts = companyContactsResult.rows.map((row) => ({
+            contactId: row.user_id,
             firstName: row.first_name,
             lastName: row.last_name,
             email: row.email,
@@ -606,24 +735,30 @@ class NetworkDiscoveryService {
             industry: row.industry,
             location: row.location,
             linkedinUrl: row.linkedin_url,
-            contactUserId: row.contact_user_id,
+            contactUserId: row.user_id,
             profilePicture: row.contact_profile_picture,
-            connectionDegree: "3rd",
-            mutualConnectionNames: row.mutual_connection_names || [],
-            pathThroughContacts: row.path_through_contacts || [],
+            connectionDegree: "Company",
+            mutualConnectionNames: [],
+            pathThroughContacts: [],
           }));
         }
+
+        allContacts = [
+          ...allContacts,
+          ...alumniContacts,
+          ...companyContacts,
+        ];
+      } catch (enrichError) {
+        console.error(
+          "⚠️ Error enriching explore contacts with alumni/company data:",
+          enrichError
+        );
+        // Fail open: keep graph-based results even if enrichment fails
       }
 
-      // Combine and filter by degree
-      let allContacts = [];
-      if (degree === "all") {
-        allContacts = [...secondDegreeContacts, ...thirdDegreeContacts];
-      } else if (degree === "2nd") {
-        allContacts = secondDegreeContacts;
-      } else if (degree === "3rd") {
-        allContacts = thirdDegreeContacts;
-      }
+      // --------------------------------------------------------------------
+      // PART 3: Deduplicate & finalize
+      // --------------------------------------------------------------------
 
       // Deduplicate contacts by email or contactId, merging mutual connections
       const contactMap = new Map();
@@ -650,10 +785,23 @@ class NetworkDiscoveryService {
           ];
           const uniquePaths = Array.from(new Set(allPaths.map((p) => p.toString())));
           
-          // Update connection degree - if appears in both 2nd and 3rd, keep the closer one (2nd)
-          const mergedDegree = existing.connectionDegree === "2nd" || contact.connectionDegree === "2nd" 
-            ? "2nd" 
-            : "3rd";
+          // Merge connection degree with a simple priority system so we don't
+          // overwrite special types like 'Alumni' or 'Company' with '3rd'
+          const degreePriority = {
+            Alumni: 1,
+            Company: 2,
+            "2nd": 3,
+            "3rd": 4,
+          };
+
+          const existingDegree = existing.connectionDegree || "3rd";
+          const newDegree = contact.connectionDegree || "3rd";
+
+          const mergedDegree =
+            (degreePriority[existingDegree] || 99) <=
+            (degreePriority[newDegree] || 99)
+              ? existingDegree
+              : newDegree;
           
           // Update with merged data, keeping the most complete contact info
           contactMap.set(key, {
@@ -724,6 +872,7 @@ class NetworkDiscoveryService {
         relevanceScore: this.calculateRelevanceScore(contact),
         outreachInitiated: false,
         addedToContacts: false,
+        alreadyInContacts: !!contact.alreadyInContacts,
         createdAt: new Date().toISOString(),
       }));
     } catch (error) {
@@ -742,6 +891,12 @@ class NetworkDiscoveryService {
         return `Connected through ${names.join(", ")} and ${contact.mutualConnectionNames.length - 2} more`;
       }
       return `Connected through ${names.join(" and ")}`;
+    }
+    if (contact.connectionDegree === "Alumni") {
+      return "Found via Alumni connection";
+    }
+    if (contact.connectionDegree === "Company") {
+      return "Found via Company connection";
     }
     return `Found via ${contact.connectionDegree} degree connection`;
   }

@@ -296,7 +296,33 @@ class ProfessionalContactService {
       let query = `
         SELECT 
           pc.*,
-          p.pfp_link as contact_profile_picture
+          p.pfp_link as contact_profile_picture,
+          -- Compute a simple numeric relationship strength metric for UI sorting/visuals
+          (
+            COALESCE(
+              CASE 
+                WHEN pc.relationship_strength ILIKE 'very strong' THEN 100
+                WHEN pc.relationship_strength ILIKE 'strong' THEN 80
+                WHEN pc.relationship_strength ILIKE 'medium' THEN 60
+                WHEN pc.relationship_strength ILIKE 'weak' THEN 40
+                WHEN pc.relationship_strength IS NOT NULL THEN 50
+                ELSE 30
+              END,
+              30
+            )
+            +
+            COALESCE(
+              CASE 
+                -- Recent interaction bonus
+                WHEN pc.last_interaction_date IS NOT NULL 
+                  AND pc.last_interaction_date >= (CURRENT_DATE - INTERVAL '30 days') THEN 20
+                WHEN pc.last_interaction_date IS NOT NULL 
+                  AND pc.last_interaction_date >= (CURRENT_DATE - INTERVAL '90 days') THEN 10
+                ELSE 0
+              END,
+              0
+            )
+          )::int AS relationship_strength_metric
         FROM professional_contacts pc
         LEFT JOIN profiles p ON pc.contact_user_id = p.user_id
         WHERE pc.user_id = $1
@@ -797,6 +823,10 @@ class ProfessionalContactService {
       nextReminderDate: row.next_reminder_date,
       contactUserId: row.contact_user_id,
       profilePicture: row.contact_profile_picture,
+      relationshipStrengthMetric:
+        typeof row.relationship_strength_metric === "number"
+          ? row.relationship_strength_metric
+          : undefined,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

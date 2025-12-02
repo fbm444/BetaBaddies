@@ -398,17 +398,17 @@ class CompanyResearchService {
 
     const [mediaResult, newsResult] = await Promise.all([
       database.query(
-        `SELECT id, company_id, platform, link, created_at
+        `SELECT id, company_id, platform, link
          FROM company_media
          WHERE company_id = $1
-         ORDER BY created_at DESC NULLS LAST`,
+         ORDER BY id DESC`,
         [companyInfo.id]
       ),
       database.query(
-        `SELECT id, company_id, heading, description, type, date, source, created_at
+        `SELECT id, company_id, heading, description, type, date, source
          FROM company_news
          WHERE company_id = $1
-         ORDER BY date DESC NULLS LAST, created_at DESC NULLS LAST`,
+         ORDER BY date DESC NULLS LAST, id DESC`,
         [companyInfo.id]
       ),
     ]);
@@ -420,7 +420,6 @@ class CompanyResearchService {
         companyId: row.company_id,
         platform: row.platform,
         link: row.link,
-        createdAt: row.created_at,
       })),
       news: newsResult.rows.map((row) => ({
         id: row.id,
@@ -430,7 +429,6 @@ class CompanyResearchService {
         type: row.type,
         date: row.date,
         source: row.source,
-        createdAt: row.created_at,
       })),
     };
     } catch (error) {
@@ -457,17 +455,17 @@ class CompanyResearchService {
 
         const [mediaResult, newsResult] = await Promise.all([
           database.query(
-            `SELECT id, company_id, platform, link, created_at
+            `SELECT id, company_id, platform, link
              FROM company_media
              WHERE company_id = $1
-             ORDER BY created_at DESC NULLS LAST`,
+             ORDER BY id DESC`,
             [companyInfo.id]
           ),
           database.query(
-            `SELECT id, company_id, heading, description, type, date, source, created_at
+            `SELECT id, company_id, heading, description, type, date, source
              FROM company_news
              WHERE company_id = $1
-             ORDER BY date DESC NULLS LAST, created_at DESC NULLS LAST`,
+             ORDER BY date DESC NULLS LAST, id DESC`,
             [companyInfo.id]
           ),
         ]);
@@ -479,7 +477,6 @@ class CompanyResearchService {
             companyId: row.company_id,
             platform: row.platform,
             link: row.link,
-            createdAt: row.created_at,
           })),
           news: newsResult.rows.map((row) => ({
             id: row.id,
@@ -489,7 +486,6 @@ class CompanyResearchService {
             type: row.type,
             date: row.date,
             source: row.source,
-            createdAt: row.created_at,
           })),
         };
       }
@@ -543,9 +539,9 @@ class CompanyResearchService {
 
   async addCompanyMedia(companyInfoId, platform, link) {
     const result = await database.query(
-      `INSERT INTO company_media (id, company_id, platform, link, created_at)
-       VALUES ($1, $2, $3, $4, NOW())
-       RETURNING id, company_id, platform, link, created_at`,
+      `INSERT INTO company_media (id, company_id, platform, link)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, company_id, platform, link`,
       [uuidv4(), companyInfoId, platform, link]
     );
     return {
@@ -553,16 +549,15 @@ class CompanyResearchService {
       companyId: result.rows[0].company_id,
       platform: result.rows[0].platform,
       link: result.rows[0].link,
-      createdAt: result.rows[0].created_at,
     };
   }
 
   async getCompanyMedia(companyInfoId) {
     const result = await database.query(
-      `SELECT id, company_id, platform, link, created_at
+      `SELECT id, company_id, platform, link
        FROM company_media
        WHERE company_id = $1
-       ORDER BY created_at DESC NULLS LAST`,
+       ORDER BY id DESC`,
       [companyInfoId]
     );
     return result.rows.map((row) => ({
@@ -570,7 +565,6 @@ class CompanyResearchService {
       companyId: row.company_id,
       platform: row.platform,
       link: row.link,
-      createdAt: row.created_at,
     }));
   }
 
@@ -581,10 +575,10 @@ class CompanyResearchService {
   async addCompanyNews(companyInfoId, newsData) {
     const result = await database.query(
       `INSERT INTO company_news (
-        id, company_id, heading, description, type, date, source, created_at
+        id, company_id, heading, description, type, date, source
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-      RETURNING id, company_id, heading, description, type, date, source, created_at`,
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING id, company_id, heading, description, type, date, source`,
       [
         uuidv4(),
         companyInfoId,
@@ -603,7 +597,6 @@ class CompanyResearchService {
       type: result.rows[0].type,
       date: result.rows[0].date,
       source: result.rows[0].source,
-      createdAt: result.rows[0].created_at,
     };
   }
 
@@ -621,10 +614,10 @@ class CompanyResearchService {
     params.push(limit, offset);
 
     const result = await database.query(
-      `SELECT id, company_id, heading, description, type, date, source, created_at
+      `SELECT id, company_id, heading, description, type, date, source
        FROM company_news
        WHERE ${whereClause}
-       ORDER BY date DESC NULLS LAST, created_at DESC NULLS LAST
+       ORDER BY date DESC NULLS LAST, id DESC
        LIMIT $${params.length - 1} OFFSET $${params.length}`,
       params
     );
@@ -637,7 +630,6 @@ class CompanyResearchService {
       type: row.type,
       date: row.date,
       source: row.source,
-      createdAt: row.created_at,
     }));
   }
 

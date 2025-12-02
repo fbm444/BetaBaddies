@@ -5,6 +5,7 @@ import { DashboardProfileData } from "../types";
 import { dashboardService } from "../services/dashboardService";
 import { ROUTES } from "../config/routes";
 import { exportProfileToPDF } from "../utils/pdfExport";
+import { FamilySupportInsights } from "../components/family/FamilySupportInsights";
 
 // Icon component for professional icons using Mingcute
 function MingcuteIcon({ type }: { type: string }) {
@@ -534,6 +535,11 @@ export function Dashboard() {
                       </div>
                     ))}
                   </div>
+                </div>
+
+                {/* Family Support Insights Card - Row 4 */}
+                <div className="sm:col-span-2 xl:col-span-3">
+                  <FamilySupportInsights />
                 </div>
               </div>
             </div>

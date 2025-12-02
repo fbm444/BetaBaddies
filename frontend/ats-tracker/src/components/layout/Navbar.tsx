@@ -17,6 +17,7 @@ export function Navbar() {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false)
   const [isCheckingAuth, setIsCheckingAuth] = useState<boolean>(true)
   const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false)
+  const [accountType, setAccountType] = useState<string | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const mobileMenuRef = useRef<HTMLDivElement>(null)
   const groupTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -44,7 +45,8 @@ export function Navbar() {
         if (userResponse.ok && userResponse.data?.user) {
           setUserEmail(userResponse.data.user.email)
           setIsLoggedIn(true)
-          console.log('Navbar: User is logged in:', userResponse.data.user.email)
+          setAccountType(userResponse.data.user.accountType || 'regular')
+          console.log('Navbar: User is logged in:', userResponse.data.user.email, 'Account type:', userResponse.data.user.accountType)
           
           // Then try to fetch profile for full name and picture
           try {
@@ -153,7 +155,11 @@ export function Navbar() {
           <button
             onClick={() => {
               if (isLoggedIn) {
-                navigate(ROUTES.DASHBOARD)
+                if (accountType === 'family_only') {
+                  navigate(ROUTES.FAMILY_ONLY_DASHBOARD)
+                } else {
+                  navigate(ROUTES.DASHBOARD)
+                }
               }
             }}
             className="flex items-center gap-2 md:gap-3 flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity bg-transparent border-none p-0"
@@ -171,7 +177,32 @@ export function Navbar() {
           {isLoggedIn && (
             <div className="hidden lg:flex flex-1 justify-center">
               <Menubar className="border-0 bg-transparent shadow-none p-0 h-auto space-x-1">
-                {navigationGroups.map((group) => {
+                {accountType === 'family_only' ? (
+                  // For family-only accounts, show only the family dashboard link
+                  <MenubarMenu>
+                    <MenubarTrigger
+                      onClick={() => navigate(ROUTES.FAMILY_ONLY_DASHBOARD)}
+                      className={cn(
+                        "cursor-pointer bg-transparent data-[state=open]:bg-transparent focus:bg-transparent text-sm font-medium",
+                        location.pathname === ROUTES.FAMILY_ONLY_DASHBOARD
+                          ? "bg-black text-white hover:bg-black rounded-md px-4 py-2" 
+                          : "text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-md px-4 py-2"
+                      )}
+                    >
+                      <span className="flex items-center gap-2">
+                        <Icon 
+                          icon="mingcute:heart-line" 
+                          width={16} 
+                          height={16} 
+                          className={location.pathname === ROUTES.FAMILY_ONLY_DASHBOARD ? "text-white" : "text-slate-600"}
+                        />
+                        <span>Family Dashboard</span>
+                      </span>
+                    </MenubarTrigger>
+                  </MenubarMenu>
+                ) : (
+                  // For regular accounts, show all navigation groups
+                  navigationGroups.map((group) => {
                   const groupIsActive = isGroupActive(group)
                   const isExpanded = expandedGroup === group.id
                   
@@ -286,7 +317,7 @@ export function Navbar() {
                       )}
                     </div>
                   )
-                })}
+                }))}
               </Menubar>
             </div>
           )}
@@ -382,23 +413,27 @@ export function Navbar() {
                     </div>
                   </div>
                   <div className="h-px bg-slate-100 my-2" />
-                  <button 
-                    className="w-full flex items-center gap-3 px-4 py-3 bg-transparent border-none text-left cursor-pointer text-sm font-medium text-slate-900 transition-colors duration-200 hover:bg-slate-50"
-                    onClick={() => {
-                      setIsDropdownOpen(false)
-                      navigate(ROUTES.BASIC_INFO)
-                    }}
-                  >
-                    <Icon icon="mingcute:edit-line" width={20} height={20} />
-                    <span>Edit Profile</span>
-                  </button>
-                  <button 
-                    className="w-full flex items-center gap-3 px-4 py-3 bg-transparent border-none text-left cursor-pointer text-sm font-medium text-slate-900 transition-colors duration-200 hover:bg-slate-50"
-                    onClick={() => navigate(ROUTES.SETTINGS)}
-                  >
-                    <Icon icon="mingcute:setting-line" width={20} height={20} />
-                    <span>Settings</span>
-                  </button>
+                  {accountType !== 'family_only' && (
+                    <>
+                      <button 
+                        className="w-full flex items-center gap-3 px-4 py-3 bg-transparent border-none text-left cursor-pointer text-sm font-medium text-slate-900 transition-colors duration-200 hover:bg-slate-50"
+                        onClick={() => {
+                          setIsDropdownOpen(false)
+                          navigate(ROUTES.BASIC_INFO)
+                        }}
+                      >
+                        <Icon icon="mingcute:edit-line" width={20} height={20} />
+                        <span>Edit Profile</span>
+                      </button>
+                      <button 
+                        className="w-full flex items-center gap-3 px-4 py-3 bg-transparent border-none text-left cursor-pointer text-sm font-medium text-slate-900 transition-colors duration-200 hover:bg-slate-50"
+                        onClick={() => navigate(ROUTES.SETTINGS)}
+                      >
+                        <Icon icon="mingcute:setting-line" width={20} height={20} />
+                        <span>Settings</span>
+                      </button>
+                    </>
+                  )}
                   <div className="h-px bg-slate-100 my-2" />
                   <button 
                     className="w-full flex items-center gap-3 px-4 py-3 bg-transparent border-none text-left cursor-pointer text-sm font-medium text-red-500 transition-colors duration-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -465,7 +500,31 @@ export function Navbar() {
             className="lg:hidden border-t border-slate-200 py-4 animate-in slide-in-from-top-2 duration-200"
           >
             <nav className="flex flex-col gap-1">
-              {navigationGroups.map((group) => {
+              {accountType === 'family_only' ? (
+                // For family-only accounts, show only the family dashboard link
+                <button
+                  onClick={() => {
+                    navigate(ROUTES.FAMILY_ONLY_DASHBOARD)
+                    setIsMobileMenuOpen(false)
+                  }}
+                  className={cn(
+                    "flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors duration-200",
+                    location.pathname === ROUTES.FAMILY_ONLY_DASHBOARD
+                      ? "bg-black text-white"
+                      : "text-slate-700 hover:bg-slate-100"
+                  )}
+                >
+                  <Icon 
+                    icon="mingcute:heart-line" 
+                    width={20} 
+                    height={20}
+                    className={location.pathname === ROUTES.FAMILY_ONLY_DASHBOARD ? "text-white" : "text-slate-600"}
+                  />
+                  <span className="font-medium">Family Dashboard</span>
+                </button>
+              ) : (
+                // For regular accounts, show all navigation groups
+                navigationGroups.map((group) => {
                 const isGroupExpanded = expandedGroup === group.id
                 const groupIsActive = isGroupActive(group)
                 
@@ -546,7 +605,7 @@ export function Navbar() {
                     )}
                   </div>
                 )
-              })}
+              }))}
             </nav>
           </div>
         )}

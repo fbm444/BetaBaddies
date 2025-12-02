@@ -157,6 +157,7 @@ class UserController {
           createdAt: user.created_at,
           updatedAt: user.updated_at,
           authProvider: user.auth_provider || null,
+          accountType: user.account_type || 'regular',
         },
       },
     });

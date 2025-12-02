@@ -23,5 +23,33 @@ router.delete("/members/:id", familyController.removeFamilyMember);
 router.delete("/invitations/:id", familyController.cancelInvitation);
 router.get("/progress/:userId", familyController.getFamilyProgressSummary);
 
+// Communications
+router.post("/communications", familyController.createCommunication);
+router.get("/communications", familyController.getCommunications);
+
+// Celebrations
+router.post("/celebrations", familyController.createCelebration);
+router.get("/celebrations", familyController.getCelebrations);
+
+// Well-being tracking
+router.post("/wellbeing", familyController.trackWellbeing);
+router.get("/wellbeing", familyController.getWellbeingTracking);
+
+// Boundary settings
+router.get("/boundaries/:familyMemberUserId", familyController.getBoundarySettings);
+router.put("/boundaries/:familyMemberUserId", familyController.updateBoundarySettings);
+router.post("/boundaries/:familyMemberUserId/ai-suggestions", familyController.generateBoundarySuggestions);
+
+// Support effectiveness tracking
+router.post("/support-effectiveness", familyController.trackSupportEffectiveness);
+router.get("/support-effectiveness", familyController.getSupportEffectiveness);
+
+// Educational resources
+router.get("/educational-resources", familyController.getEducationalResources);
+
+// AI suggestions
+router.post("/ai-suggestions/:familyMemberUserId", familyController.generateAISuggestions);
+router.get("/ai-suggestions", familyController.getAISuggestions);
+
 export default router;
 

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Icon } from "@iconify/react";
 import { api } from "../services/api";
 import { ROUTES } from "../config/routes";
+import { FamilySupportInsights } from "../components/family/FamilySupportInsights";
 
 export function Family() {
   const [familyMembers, setFamilyMembers] = useState<any[]>([]);
@@ -16,6 +17,7 @@ export function Family() {
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [memberProgress, setMemberProgress] = useState<any>(null);
   const [isLoadingProgress, setIsLoadingProgress] = useState(false);
+  const [activeTab, setActiveTab] = useState<"manage" | "support">("manage");
 
   useEffect(() => {
     fetchFamilyData();
@@ -152,18 +154,62 @@ export function Family() {
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Family Support</h1>
               <p className="mt-2 text-gray-600">
-                Invite family members to support your job search journey
+                {activeTab === "manage" 
+                  ? "Invite family members to support your job search journey"
+                  : "View the support your family members have given you"}
               </p>
             </div>
-            <button
-              onClick={() => setShowInviteModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Icon icon="mingcute:add-line" width={20} />
-              Invite Family Member
-            </button>
+            {activeTab === "manage" && (
+              <button
+                onClick={() => setShowInviteModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Icon icon="mingcute:add-line" width={20} />
+                Invite Family Member
+              </button>
+            )}
           </div>
         </div>
+
+        {/* Tabs */}
+        <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="border-b border-gray-200">
+            <nav className="flex" aria-label="Tabs">
+              <button
+                onClick={() => setActiveTab("manage")}
+                className={`flex-1 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === "manage"
+                    ? "border-blue-500 text-blue-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <Icon icon="mingcute:user-group-line" width={18} />
+                  <span>Manage Family</span>
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab("support")}
+                className={`flex-1 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === "support"
+                    ? "border-blue-500 text-blue-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <Icon icon="mingcute:heart-line" width={18} />
+                  <span>Support Received</span>
+                </div>
+              </button>
+            </nav>
+          </div>
+        </div>
+
+        {/* Tab Content */}
+        {activeTab === "support" ? (
+          <FamilySupportInsights />
+        ) : (
+          <>
 
         {/* Family Members List */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
@@ -424,6 +470,8 @@ export function Family() {
               </form>
             </div>
           </div>
+        )}
+          </>
         )}
       </div>
     </div>

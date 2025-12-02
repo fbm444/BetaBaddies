@@ -273,6 +273,40 @@ export function Register() {
 
         {/* Register Form Card */}
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
+          {/* Family Invitation Banner */}
+          {isFamilyInvitation && invitationInfo && (
+            <div className="mb-6 p-4 bg-gradient-to-r from-pink-50 to-purple-50 border border-pink-200 rounded-lg">
+              <div className="flex items-start gap-3">
+                <Icon icon="mingcute:heart-line" width={24} className="text-pink-600 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-pink-900 mb-1">
+                    Family Support Account
+                  </p>
+                  <p className="text-xs text-pink-700">
+                    You're creating a family-only account to support {invitationInfo.inviter_first_name || invitationInfo.inviter_email || 'a family member'}'s job search journey.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Team Invitation Banner */}
+          {!isFamilyInvitation && invitationInfo && (
+            <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg">
+              <div className="flex items-start gap-3">
+                <Icon icon="mingcute:user-group-line" width={24} className="text-blue-600 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-blue-900 mb-1">
+                    Team Invitation
+                  </p>
+                  <p className="text-xs text-blue-700">
+                    You're joining <strong>{invitationInfo.teamName}</strong> as a <strong className="capitalize">{invitationInfo.role}</strong>.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Title */}
           <h2 
             className="text-black mb-6"
@@ -286,7 +320,7 @@ export function Register() {
           </h2>
 
           {/* Logged in warning */}
-          {isLoggedIn && currentUserEmail && inviteToken && (
+          {isLoggedIn && currentUserEmail && (inviteToken || familyInviteToken) && (
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
               <div className="flex items-start gap-3">
                 <Icon icon="mingcute:alert-line" width={24} className="text-amber-600 mt-0.5" />

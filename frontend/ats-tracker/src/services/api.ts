@@ -340,7 +340,7 @@ class ApiService {
 
   // User endpoints (authentication data only)
   async getUserAuth() {
-    // NOTE: This endpoint only returns users table data (email, id, authProvider)
+    // NOTE: This endpoint only returns users table data (email, id, authProvider, accountType)
     return this.request<
       ApiResponse<{
         user: {
@@ -349,6 +349,7 @@ class ApiService {
           createdAt?: string;
           updatedAt?: string;
           authProvider?: string | null;
+          accountType?: string;
         };
       }>
     >("/users/profile");
@@ -1768,6 +1769,183 @@ class ApiService {
 
   async getUsersWhoInvitedMe() {
     return this.request<ApiResponse<{ users: any[] }>>(`/family/invited-by`);
+  }
+
+  // Family Communications
+  async createFamilyCommunication(data: {
+    familyMemberUserId: string;
+    communication_type: string;
+    message: string;
+  }) {
+    return this.request<ApiResponse<{ id: string; success: boolean }>>(
+      `/family/communications`,
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      }
+    );
+  }
+
+  async getFamilyCommunications(familyMemberUserId?: string) {
+    const url = familyMemberUserId
+      ? `/family/communications?familyMemberUserId=${familyMemberUserId}`
+      : `/family/communications`;
+    return this.request<ApiResponse<{ communications: any[] }>>(url);
+  }
+
+  // Family Celebrations
+  async createFamilyCelebration(data: {
+    familyMemberUserId?: string; // Job seeker ID (person being celebrated)
+    celebration_type: string;
+    title: string;
+    description?: string;
+    milestone_data?: any;
+  }) {
+    return this.request<ApiResponse<{ id: string; success: boolean }>>(
+      `/family/celebrations`,
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      }
+    );
+  }
+
+  async getFamilyCelebrations(familyMemberUserId?: string) {
+    const url = familyMemberUserId
+      ? `/family/celebrations?familyMemberUserId=${familyMemberUserId}`
+      : `/family/celebrations`;
+    return this.request<ApiResponse<{ celebrations: any[] }>>(url);
+  }
+
+  // Well-being Tracking
+  async trackFamilyWellbeing(data: {
+    userId: string;
+    stress_level?: number;
+    mood_indicator?: string;
+    energy_level?: number;
+    sleep_quality?: number;
+    notes?: string;
+    wellbeing_indicators?: any;
+  }) {
+    return this.request<ApiResponse<{ id: string; success: boolean }>>(
+      `/family/wellbeing`,
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      }
+    );
+  }
+
+  async getFamilyWellbeingTracking(trackedByUserId?: string) {
+    const url = trackedByUserId
+      ? `/family/wellbeing?trackedByUserId=${trackedByUserId}`
+      : `/family/wellbeing`;
+    return this.request<ApiResponse<{ tracking: any[] }>>(url);
+  }
+
+  // Boundary Settings
+  async getFamilyBoundarySettings(familyMemberUserId: string) {
+    return this.request<ApiResponse<{ settings: any[] }>>(
+      `/family/boundaries/${familyMemberUserId}`
+    );
+  }
+
+  async updateFamilyBoundarySettings(
+    familyMemberUserId: string,
+    settings: any[]
+  ) {
+    return this.request<ApiResponse<{ success: boolean }>>(
+      `/family/boundaries/${familyMemberUserId}`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ settings }),
+      }
+    );
+  }
+
+  async generateFamilyBoundarySuggestions(
+    familyMemberUserId: string,
+    currentBoundaries?: any
+  ) {
+    return this.request<ApiResponse<any>>(
+      `/family/boundaries/${familyMemberUserId}/ai-suggestions`,
+      {
+        method: "POST",
+        body: JSON.stringify({ currentBoundaries: currentBoundaries || {} }),
+      }
+    );
+  }
+
+  // Support Effectiveness
+  async trackSupportEffectiveness(data: {
+    familyMemberUserId: string;
+    support_type?: string;
+    emotional_support_score?: number;
+    impact_on_performance?: string;
+    stress_management_notes?: string;
+    wellbeing_indicators?: any;
+    support_activity_type?: string;
+    support_activity_details?: any;
+    performance_metrics?: any;
+  }) {
+    return this.request<ApiResponse<{ id: string; success: boolean }>>(
+      `/family/support-effectiveness`,
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      }
+    );
+  }
+
+  async getSupportEffectiveness(familyMemberUserId?: string) {
+    const url = familyMemberUserId
+      ? `/family/support-effectiveness?familyMemberUserId=${familyMemberUserId}`
+      : `/family/support-effectiveness`;
+    return this.request<ApiResponse<{ effectiveness: any[] }>>(url);
+  }
+
+  // Educational Resources
+  async getEducationalResources(
+    userId?: string,
+    category?: string,
+    forceRegenerate?: boolean
+  ) {
+    let url = `/family/educational-resources?`;
+    const params = new URLSearchParams();
+
+    if (userId) {
+      params.append("userId", userId);
+    }
+    if (category) {
+      params.append("category", category);
+    }
+    if (forceRegenerate) {
+      params.append("forceRegenerate", "true");
+    }
+
+    url += params.toString();
+    return this.request<ApiResponse<{ resources: any[] }>>(url);
+  }
+
+  // AI Suggestions
+  async generateAISupportSuggestions(
+    familyMemberUserId: string,
+    context?: any
+  ) {
+    return this.request<ApiResponse<any>>(
+      `/family/ai-suggestions/${familyMemberUserId}`,
+      {
+        method: "POST",
+        body: JSON.stringify({ context: context || {} }),
+      }
+    );
+  }
+
+  async getAISupportSuggestions(familyMemberUserId?: string) {
+    const url = familyMemberUserId
+      ? `/family/ai-suggestions?familyMemberUserId=${familyMemberUserId}`
+      : `/family/ai-suggestions`;
+    return this.request<ApiResponse<{ suggestions: any[] }>>(url);
   }
 
   async cancelTeamInvitation(teamId: string, invitationId: string) {

@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Icon } from "@iconify/react";
+import { useSearchParams } from "react-router-dom";
 import { JobSearchPerformance } from "../components/analytics/JobSearchPerformance";
 import { ApplicationSuccessAnalysis } from "../components/analytics/ApplicationSuccessAnalysis";
 import { NetworkROI } from "../components/analytics/NetworkROI";
@@ -17,8 +18,22 @@ interface Tab {
 }
 
 export function Analytics() {
-  const [activeTab, setActiveTab] = useState<TabId>("performance");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabFromUrl = searchParams.get("tab") as TabId | null;
+  const [activeTab, setActiveTab] = useState<TabId>(tabFromUrl && ["performance", "success", "network", "salary", "goals", "productivity"].includes(tabFromUrl) ? tabFromUrl : "performance");
   const [dateRange, setDateRange] = useState<{ startDate?: string; endDate?: string }>({});
+
+  // Handle LinkedIn connection redirect - switch to network tab
+  useEffect(() => {
+    if (searchParams.get("linkedin") === "connected") {
+      setActiveTab("network");
+      // Remove the query param after setting tab
+      searchParams.delete("linkedin");
+      setSearchParams(searchParams, { replace: true });
+    } else if (tabFromUrl && ["performance", "success", "network", "salary", "goals", "productivity"].includes(tabFromUrl)) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [searchParams]);
 
   const tabs: Tab[] = [
     {

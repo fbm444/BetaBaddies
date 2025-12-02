@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Icon } from "@iconify/react";
+import { useSearchParams } from "react-router-dom";
 import { api } from "../../services/api";
 import type { NetworkROI, DateRange } from "../../types/analytics.types";
 import { ToastContainer, ToastType } from "../Toast";
@@ -11,6 +12,7 @@ interface NetworkROIProps {
 type TabType = "overview" | "recruiters" | "linkedin" | "coffee-chats" | "search";
 
 export function NetworkROI({ dateRange }: NetworkROIProps) {
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<TabType>("overview");
   const [roiData, setRoiData] = useState<NetworkROI | null>(null);
   const [analytics, setAnalytics] = useState<any>(null);
@@ -51,6 +53,15 @@ export function NetworkROI({ dateRange }: NetworkROIProps) {
   useEffect(() => {
     fetchData();
   }, [dateRange, activeTab]);
+
+  // Switch to LinkedIn tab if coming from LinkedIn connection
+  useEffect(() => {
+    if (searchParams.get("linkedin") === "connected") {
+      setActiveTab("linkedin");
+      // Fetch LinkedIn network immediately
+      fetchData();
+    }
+  }, [searchParams]);
 
   // Listen for job opportunity updates to refresh recruiters
   useEffect(() => {
@@ -99,7 +110,8 @@ export function NetworkROI({ dateRange }: NetworkROIProps) {
           setRecruiters(recruitersResponse.data.recruiters);
         }
       } else if (activeTab === "linkedin") {
-        const linkedInResponse = await api.getLinkedInNetwork();
+        // Fetch entire LinkedIn network (no filters, no limit)
+        const linkedInResponse = await api.getLinkedInNetwork({ limit: 1000 });
         if (linkedInResponse.ok && linkedInResponse.data?.contacts) {
           setLinkedInContacts(linkedInResponse.data.contacts);
         }
@@ -1045,6 +1057,72 @@ function CoffeeChatsTab({ chats, isLoading, onCreateCoffeeChat, onRefresh, showT
               {chat.notes && (
                 <p className="text-sm text-[#6D7A99] mb-4">{chat.notes}</p>
               )}
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-[#E4E8F5]">
+                {!chat.responseReceived && (
+                  <button
+                    onClick={async () => {
+                      try {
+                        await api.updateCoffeeChat(chat.id, {
+                          responseReceived: true,
+                          responseReceivedAt: new Date().toISOString(),
+                        });
+                        if (onRefresh) onRefresh();
+                        if (showToast) showToast("Response marked as received!", "success");
+                      } catch (err: any) {
+                        console.error("Failed to mark response:", err);
+                        if (showToast) showToast(err.message || "Failed to mark response", "error");
+                      }
+                    }}
+                    className="px-3 py-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium flex items-center gap-1"
+                  >
+                    <Icon icon="mingcute:mail-check-line" width={16} />
+                    Mark Response Received
+                  </button>
+                )}
+                {!chat.referralProvided && (
+                  <button
+                    onClick={async () => {
+                      try {
+                        await api.updateCoffeeChat(chat.id, {
+                          referralProvided: true,
+                          referralDetails: `Referral from ${chat.contactName}${chat.contactCompany ? ` at ${chat.contactCompany}` : ""}`,
+                        });
+                        if (onRefresh) onRefresh();
+                        if (showToast) showToast("Referral marked as received!", "success");
+                      } catch (err: any) {
+                        console.error("Failed to mark referral:", err);
+                        if (showToast) showToast(err.message || "Failed to mark referral", "error");
+                      }
+                    }}
+                    className="px-3 py-2 bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100 transition-colors text-sm font-medium flex items-center gap-1"
+                  >
+                    <Icon icon="mingcute:user-add-line" width={16} />
+                    Mark Referral Received
+                  </button>
+                )}
+                {chat.status !== "completed" && (
+                  <button
+                    onClick={async () => {
+                      try {
+                        await api.updateCoffeeChat(chat.id, {
+                          status: "completed",
+                        });
+                        if (onRefresh) onRefresh();
+                        if (showToast) showToast("Coffee chat marked as completed!", "success");
+                      } catch (err: any) {
+                        console.error("Failed to mark as completed:", err);
+                        if (showToast) showToast(err.message || "Failed to mark as completed", "error");
+                      }
+                    }}
+                    className="px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium flex items-center gap-1"
+                  >
+                    <Icon icon="mingcute:check-circle-line" width={16} />
+                    Mark Completed
+                  </button>
+                )}
+              </div>
             </div>
           ))}
         </div>

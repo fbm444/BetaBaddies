@@ -94,16 +94,16 @@ class NetworkingService {
       const contactQuery = `
         SELECT 
           id,
-          contact_name as name,
-          contact_email as email,
-          contact_phone as phone,
-          contact_company as company,
-          contact_title as title,
-          contact_linkedin_url as linkedin_url,
+          COALESCE(first_name || ' ' || last_name, first_name, last_name, '') as name,
+          email,
+          phone,
+          company,
+          job_title as title,
+          linkedin_url as linkedin_url,
           'contact' as contact_type
         FROM professional_contacts
         WHERE user_id = $1
-          AND contact_company ILIKE $2
+          AND company ILIKE $2
         ORDER BY created_at DESC
         LIMIT 20
       `;

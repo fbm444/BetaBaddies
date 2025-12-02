@@ -456,9 +456,9 @@ class UserController {
       console.error("❌ Error importing LinkedIn profile after login:", profileError);
     }
 
-    // Redirect to frontend
+    // Redirect to analytics networking page to show LinkedIn network
     res.redirect(
-      `${process.env.FRONTEND_URL || "http://localhost:3000"}/dashboard`
+      `${process.env.FRONTEND_URL || "http://localhost:5173"}/analytics?linkedin=connected&tab=network`
     );
   });
 

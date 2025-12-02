@@ -61,24 +61,50 @@ class WritingProgressService {
 
     const metricColumn = metricMap[metric] || "overall_score";
 
+    // For overall_score, calculate from individual scores if not in feedback
+    // For other metrics, use session's direct score or feedback score
+    let scoreExpression;
+    if (metricColumn === "overall_score") {
+      // Calculate overall as average of the 4 component scores if not in feedback
+      scoreExpression = `COALESCE(
+        f.overall_score,
+        (s.clarity_score + s.professionalism_score + s.structure_score + s.storytelling_score)::float / 4.0
+      )`;
+    } else {
+      // Use feedback score if available, otherwise session's direct score
+      scoreExpression = `COALESCE(f.${metricColumn}, s.${metricColumn})`;
+    }
+    
     const result = await database.query(
       `SELECT 
-        DATE_TRUNC($1, s.session_date) as period,
-        AVG(f.${metricColumn}) as avg_score,
-        COUNT(*) as session_count
-      FROM writing_feedback f
-      JOIN writing_practice_sessions s ON f.session_id = s.id
+        DATE_TRUNC($1, s.session_date)::timestamp as period,
+        AVG(${scoreExpression}) as avg_score,
+        COUNT(DISTINCT s.id) as session_count
+      FROM writing_practice_sessions s
+      LEFT JOIN writing_feedback f ON f.session_id = s.id
       WHERE s.user_id = $2
+        AND s.is_completed = true
+        AND (
+          ${metricColumn === "overall_score" 
+            ? "(f.overall_score IS NOT NULL OR (s.clarity_score IS NOT NULL AND s.professionalism_score IS NOT NULL AND s.structure_score IS NOT NULL AND s.storytelling_score IS NOT NULL))"
+            : `(f.${metricColumn} IS NOT NULL OR s.${metricColumn} IS NOT NULL)`}
+        )
       GROUP BY DATE_TRUNC($1, s.session_date)
       ORDER BY period ASC`,
       [dateTrunc, userId]
     );
 
-    return result.rows.map((row) => ({
-      period: row.period,
-      avgScore: parseFloat(row.avg_score) || 0,
-      sessionCount: parseInt(row.session_count) || 0,
-    }));
+    return result.rows.map((row) => {
+      // Format period as ISO string to ensure consistent date parsing across timezones
+      const periodDate = row.period instanceof Date 
+        ? row.period 
+        : new Date(row.period);
+      return {
+        period: periodDate.toISOString(),
+        avgScore: row.avg_score ? parseFloat(row.avg_score) : 0,
+        sessionCount: parseInt(row.session_count) || 0,
+      };
+    });
   }
 
   // Update progress tracking (called after feedback generation)

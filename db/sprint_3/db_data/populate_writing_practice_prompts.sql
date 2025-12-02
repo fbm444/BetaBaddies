@@ -97,30 +97,50 @@ SELECT
     CURRENT_TIMESTAMP,
     CURRENT_TIMESTAMP
 FROM (VALUES
-    -- Beginner behavioral prompts
+    -- Behavioral prompts (2-3)
     ('behavioral', 'Tell me about yourself.', 'beginner', 3, jsonb_build_array('introduction', 'self-introduction')),
-    ('behavioral', 'Why are you interested in this position?', 'beginner', 3, jsonb_build_array('motivation', 'interest')),
-    ('behavioral', 'What are your strengths?', 'beginner', 3, jsonb_build_array('strengths', 'self-assessment')),
-    ('behavioral', 'Where do you see yourself in 5 years?', 'beginner', 3, jsonb_build_array('career-goals', 'future')),
-    
-    -- Intermediate behavioral prompts
     ('behavioral', 'Tell me about a time when you had to work with a difficult team member. How did you handle it?', 'intermediate', 5, jsonb_build_array('teamwork', 'conflict-resolution')),
-    ('behavioral', 'Describe a situation where you had to meet a tight deadline. What was your approach?', 'intermediate', 5, jsonb_build_array('time-management', 'pressure')),
     ('behavioral', 'Give me an example of a time when you had to learn something new quickly.', 'intermediate', 5, jsonb_build_array('learning', 'adaptability')),
-    ('behavioral', 'Tell me about a time when you made a mistake. How did you handle it?', 'intermediate', 5, jsonb_build_array('mistakes', 'accountability')),
     
-    -- Advanced behavioral prompts
-    ('leadership', 'Describe a time when you had to lead a team through a significant change or challenge.', 'advanced', 7, jsonb_build_array('leadership', 'change-management')),
-    ('problem_solving', 'Tell me about the most complex problem you''ve ever solved. Walk me through your thought process.', 'advanced', 7, jsonb_build_array('problem-solving', 'complexity')),
-    ('teamwork', 'Describe a situation where you had to collaborate with multiple stakeholders with conflicting priorities.', 'advanced', 7, jsonb_build_array('collaboration', 'stakeholder-management')),
+    -- Technical prompts (2-3)
+    ('technical', 'Explain a complex technical concept to someone without a technical background.', 'intermediate', 5, jsonb_build_array('communication', 'technical-skills')),
+    ('technical', 'Describe a technical challenge you faced and how you solved it.', 'intermediate', 5, jsonb_build_array('problem-solving', 'technical-skills')),
+    ('technical', 'Walk me through your approach to debugging a difficult technical issue.', 'advanced', 7, jsonb_build_array('debugging', 'methodology')),
     
-    -- Strengths and weaknesses
+    -- Situational prompts (2-3)
+    ('situational', 'How would you handle a situation where you disagree with your manager''s decision?', 'intermediate', 5, jsonb_build_array('conflict', 'professionalism')),
+    ('situational', 'What would you do if you discovered a critical bug in production right before a major launch?', 'advanced', 7, jsonb_build_array('crisis-management', 'prioritization')),
+    ('situational', 'How would you approach starting a new project with limited requirements or unclear direction?', 'intermediate', 5, jsonb_build_array('initiative', 'adaptability')),
+    
+    -- Strengths (2-3)
     ('strengths', 'What is your greatest professional achievement?', 'intermediate', 5, jsonb_build_array('achievements', 'strengths')),
-    ('weaknesses', 'What is your greatest weakness and how are you working to improve it?', 'intermediate', 5, jsonb_build_array('weaknesses', 'self-improvement')),
+    ('strengths', 'What skills do you bring to the table that set you apart from other candidates?', 'intermediate', 5, jsonb_build_array('differentiation', 'strengths')),
+    ('strengths', 'Describe a time when your technical skills directly contributed to a project''s success.', 'advanced', 7, jsonb_build_array('impact', 'technical-strengths')),
     
-    -- Company fit
+    -- Weaknesses (2-3)
+    ('weaknesses', 'What is your greatest weakness and how are you working to improve it?', 'intermediate', 5, jsonb_build_array('weaknesses', 'self-improvement')),
+    ('weaknesses', 'Tell me about a skill you''re currently developing and why it matters to you.', 'beginner', 3, jsonb_build_array('growth', 'self-awareness')),
+    ('weaknesses', 'Describe a time when you had to ask for help. How did you approach it?', 'intermediate', 5, jsonb_build_array('humility', 'collaboration')),
+    
+    -- Company fit (2-3)
     ('company_fit', 'Why do you want to work for our company specifically?', 'intermediate', 5, jsonb_build_array('company-research', 'fit')),
-    ('company_fit', 'What do you know about our company culture?', 'intermediate', 5, jsonb_build_array('culture', 'research'))
+    ('company_fit', 'What do you know about our company culture?', 'intermediate', 5, jsonb_build_array('culture', 'research')),
+    ('company_fit', 'How do your values align with our company''s mission and values?', 'intermediate', 5, jsonb_build_array('values', 'alignment')),
+    
+    -- Leadership (2-3)
+    ('leadership', 'Describe a time when you had to lead a team through a significant change or challenge.', 'advanced', 7, jsonb_build_array('leadership', 'change-management')),
+    ('leadership', 'Tell me about a time when you had to make a difficult decision without all the information you needed.', 'advanced', 7, jsonb_build_array('decision-making', 'leadership')),
+    ('leadership', 'How do you motivate team members who seem disengaged or unmotivated?', 'intermediate', 5, jsonb_build_array('motivation', 'team-management')),
+    
+    -- Teamwork (2-3)
+    ('teamwork', 'Describe a situation where you had to collaborate with multiple stakeholders with conflicting priorities.', 'advanced', 7, jsonb_build_array('collaboration', 'stakeholder-management')),
+    ('teamwork', 'Tell me about a time when you successfully resolved a conflict within your team.', 'intermediate', 5, jsonb_build_array('conflict-resolution', 'teamwork')),
+    ('teamwork', 'How do you handle disagreements with colleagues while maintaining a positive working relationship?', 'intermediate', 5, jsonb_build_array('communication', 'relationship-building')),
+    
+    -- Problem solving (2-3)
+    ('problem_solving', 'Tell me about the most complex problem you''ve ever solved. Walk me through your thought process.', 'advanced', 7, jsonb_build_array('problem-solving', 'complexity')),
+    ('problem_solving', 'Describe a situation where you had to think outside the box to find a solution.', 'intermediate', 5, jsonb_build_array('creativity', 'innovation')),
+    ('problem_solving', 'How do you approach a problem when you don''t know where to start?', 'beginner', 3, jsonb_build_array('methodology', 'problem-solving'))
 ) AS additional_prompts(category, prompt, difficulty, time_minutes, tags)
 WHERE NOT EXISTS (
     SELECT 1 

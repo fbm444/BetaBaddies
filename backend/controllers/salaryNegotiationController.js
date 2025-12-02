@@ -462,6 +462,21 @@ class SalaryNegotiationController {
       },
     });
   });
+
+  // Delete salary progression entry
+  deleteSalaryProgressionEntry = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { entryId } = req.params;
+
+    await salaryNegotiationService.deleteSalaryProgressionEntry(userId, entryId);
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        message: "Salary progression entry deleted successfully",
+      },
+    });
+  });
 }
 
 export default new SalaryNegotiationController();

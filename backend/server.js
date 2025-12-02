@@ -29,6 +29,7 @@ import chatRoutes from "./routes/chatRoutes.js";
 import followUpRoutes from "./routes/followUpRoutes.js";
 import salaryNegotiationRoutes from "./routes/salaryNegotiationRoutes.js";
 import writingPracticeRoutes from "./routes/writingPracticeRoutes.js";
+import interviewPredictionRoutes from "./routes/interviewPredictionRoutes.js";
 
 // Import middleware
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
@@ -142,6 +143,7 @@ app.use("/api/v1/chat", chatRoutes);
 app.use("/api/v1", followUpRoutes); // For /api/v1/follow-ups/pending
 app.use("/api/v1/salary-negotiations", salaryNegotiationRoutes);
 app.use("/api/v1/writing-practice", writingPracticeRoutes);
+app.use("/api/v1/interview-predictions", interviewPredictionRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

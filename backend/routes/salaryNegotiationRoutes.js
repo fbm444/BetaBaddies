@@ -49,6 +49,7 @@ router.get("/:id/timing-strategy", salaryNegotiationController.getTimingStrategy
 // Salary progression
 router.get("/progression/history", salaryNegotiationController.getSalaryProgression);
 router.post("/progression/entry", salaryNegotiationController.addSalaryProgressionEntry);
+router.delete("/progression/entry/:entryId", salaryNegotiationController.deleteSalaryProgressionEntry);
 
 export default router;
 

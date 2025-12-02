@@ -66,6 +66,9 @@ import {
   SessionStats,
   CustomPromptInput,
   CompleteExerciseInput,
+  InterviewPrediction,
+  PredictionComparison,
+  PredictionAccuracyMetrics,
 } from "../types";
 
 // In development, use proxy (relative path). In production, use env variable or full URL
@@ -2818,6 +2821,14 @@ class ApiService {
     });
   }
 
+  async deleteSalaryProgressionEntry(entryId: string) {
+    return this.request<
+      ApiResponse<{ message: string }>
+    >(`/salary-negotiations/progression/entry/${entryId}`, {
+      method: "DELETE",
+    });
+  }
+
   // ============================================
   // Writing Practice API Methods
   // ============================================
@@ -3030,6 +3041,55 @@ class ApiService {
     return this.request<ApiResponse<{ checklist: PreparationChecklist }>>(
       `/writing-practice/nerves/checklist/${jobId}`
     );
+  }
+
+  // Interview Predictions
+  async getInterviewPrediction(jobOpportunityId: string) {
+    return this.request<
+      ApiResponse<{ prediction: InterviewPrediction }>
+    >(`/interview-predictions/${jobOpportunityId}`);
+  }
+
+  async calculateInterviewPrediction(jobOpportunityId: string) {
+    return this.request<
+      ApiResponse<{ prediction: InterviewPrediction }>
+    >(`/interview-predictions/${jobOpportunityId}/calculate`, {
+      method: "POST",
+    });
+  }
+
+  async compareInterviewPredictions(jobOpportunityIds: string[]) {
+    const opportunities = jobOpportunityIds.join(",");
+    return this.request<
+      ApiResponse<{ predictions: PredictionComparison[] }>
+    >(`/interview-predictions/compare?opportunities=${opportunities}`);
+  }
+
+  async updatePredictionOutcome(
+    jobOpportunityId: string,
+    outcome: "accepted" | "rejected" | "pending" | "withdrawn" | "no_response",
+    outcomeDate?: string
+  ) {
+    return this.request<
+      ApiResponse<{ prediction: InterviewPrediction }>
+    >(`/interview-predictions/${jobOpportunityId}/outcome`, {
+      method: "PUT",
+      body: JSON.stringify({ outcome, outcomeDate }),
+    });
+  }
+
+  async getPredictionAccuracyMetrics() {
+    return this.request<
+      ApiResponse<{ metrics: PredictionAccuracyMetrics }>
+    >("/interview-predictions/accuracy/metrics");
+  }
+
+  async recalculateAllPredictions() {
+    return this.request<
+      ApiResponse<{ predictions: InterviewPrediction[] }>
+    >("/interview-predictions/recalculate-all", {
+      method: "POST",
+    });
   }
 }
 

@@ -1147,44 +1147,8 @@ class AnalyticsService {
         params.push(endDate + " 23:59:59");
       }
 
-      // Salary progression: Include both offers and employment history
-      // Get offers over time with location and negotiation status
-      const hasNegotiationStatus = await this.columnExists("job_opportunities", "negotiation_status");
-      const negotiationStatusField = hasNegotiationStatus 
-        ? `STRING_AGG(DISTINCT negotiation_status, ', ') FILTER (WHERE negotiation_status IS NOT NULL) as negotiation_statuses`
-        : `NULL as negotiation_statuses`;
-      
-      const salaryOffersQuery = `
-        SELECT 
-          TO_CHAR(created_at, 'YYYY-MM') as month,
-          AVG(salary_min) as avg_min,
-          AVG(salary_max) as avg_max,
-          COUNT(*) as offer_count,
-          STRING_AGG(DISTINCT location, ', ') FILTER (WHERE location IS NOT NULL) as locations,
-          ${negotiationStatusField}
-        FROM job_opportunities
-        WHERE user_id = $1 
-          AND status = 'Offer' 
-          AND (salary_min IS NOT NULL OR salary_max IS NOT NULL)
-          AND (archived = false OR archived IS NULL)
-          ${dateFilter}
-        GROUP BY TO_CHAR(created_at, 'YYYY-MM')
-        ORDER BY month ASC
-      `;
-
-      const offersResult = await database.query(salaryOffersQuery, params);
-      const offersByMonth = {};
-      offersResult.rows.forEach((row) => {
-        offersByMonth[row.month] = {
-          avgMin: row.avg_min ? Math.round(row.avg_min) : null,
-          avgMax: row.avg_max ? Math.round(row.avg_max) : null,
-          offerCount: parseInt(row.offer_count) || 0,
-          locations: row.locations || null,
-          negotiationStatus: row.negotiation_statuses && row.negotiation_statuses !== 'null' && row.negotiation_statuses !== null ? row.negotiation_statuses : null,
-        };
-      });
-
-      // Get employment salaries over time
+      // Salary progression: ONLY use employment history (not offers)
+      // Get employment salaries over time with location
       let employmentParams = [userId];
       let employmentDateFilter = "";
       if (startDate) {
@@ -1200,7 +1164,8 @@ class AnalyticsService {
         SELECT 
           TO_CHAR(start_date, 'YYYY-MM') as month,
           AVG(salary) as avg_salary,
-          COUNT(*) as employment_count
+          COUNT(*) as employment_count,
+          STRING_AGG(DISTINCT location, ', ' ORDER BY location) FILTER (WHERE location IS NOT NULL) as locations
         FROM jobs
         WHERE user_id = $1 
           AND salary IS NOT NULL
@@ -1215,184 +1180,159 @@ class AnalyticsService {
         employmentByMonth[row.month] = {
           avgSalary: row.avg_salary ? Math.round(row.avg_salary) : null,
           employmentCount: parseInt(row.employment_count) || 0,
+          locations: row.locations || null,
         };
       });
 
-      // Combine offers and employment data by month, keeping them separate
-      const allMonths = new Set([
-        ...Object.keys(offersByMonth),
-        ...Object.keys(employmentByMonth),
-      ]);
-
-      // Separate progression entries for offers and employment
+      // Create progression entries from employment history only (most recent first)
       const salaryProgression = [];
-      
-      // Add offers (most recent first)
-      Object.keys(offersByMonth)
-        .sort()
-        .reverse()
-        .forEach((month) => {
-          const offerData = offersByMonth[month];
-          salaryProgression.push({
-            month,
-            type: 'offer',
-            avgMin: offerData.avgMin,
-            avgMax: offerData.avgMax,
-            count: offerData.offerCount || 0,
-            location: offerData.locations || null,
-            negotiationStatus: offerData.negotiationStatus || null,
-          });
-        });
-
-      // Add employment history (most recent first)
       Object.keys(employmentByMonth)
         .sort()
         .reverse()
         .forEach((month) => {
           const employmentData = employmentByMonth[month];
-          // Only add if not already added as an offer for the same month
-          const existingOffer = offersByMonth[month];
-          if (!existingOffer) {
-            salaryProgression.push({
-              month,
-              type: 'employment',
-              avgMin: employmentData.avgSalary,
-              avgMax: employmentData.avgSalary,
-              count: employmentData.employmentCount || 0,
-              location: null,
-              negotiationStatus: null,
-            });
-          }
+          salaryProgression.push({
+            month,
+            type: 'employment',
+            avgMin: employmentData.avgSalary,
+            avgMax: employmentData.avgSalary,
+            count: employmentData.employmentCount || 0,
+            location: employmentData.locations || null,
+            negotiationStatus: null,
+          });
         });
 
-      // Sort all entries by month (most recent first)
-      salaryProgression.sort((a, b) => {
-        if (a.month !== b.month) {
-          return b.month.localeCompare(a.month);
-        }
-        // If same month, show offers first, then employment
-        return a.type === 'offer' ? -1 : 1;
-      });
+      // Salary by industry - Include both employment history AND offers
+      // Get employment salaries by industry and location (each job's location separately)
+      const employmentByIndustryQuery = `
+        SELECT 
+          p.industry,
+          j.location,
+          j.salary,
+          COUNT(*) OVER (PARTITION BY p.industry, j.location) as location_count
+        FROM jobs j
+        JOIN profiles p ON p.user_id = j.user_id
+        WHERE j.user_id = $1 
+          AND j.salary IS NOT NULL
+          AND p.industry IS NOT NULL
+          ${employmentDateFilter}
+        ORDER BY j.start_date DESC
+      `;
+      const employmentByIndustryResult = await database.query(employmentByIndustryQuery, employmentParams);
 
-      // Salary by industry - include both offers and employment, with location
+      // Get offers by industry and location for market research
       const offersByIndustryQuery = `
         SELECT 
           industry,
-          STRING_AGG(DISTINCT location, ', ') FILTER (WHERE location IS NOT NULL) as locations,
-          AVG(salary_min) as avg_min,
-          AVG(salary_max) as avg_max,
-          COUNT(*) as count
+          location,
+          salary_min,
+          salary_max,
+          CASE 
+            WHEN salary_min IS NOT NULL AND salary_max IS NOT NULL THEN (salary_min + salary_max) / 2
+            WHEN salary_min IS NOT NULL THEN salary_min
+            WHEN salary_max IS NOT NULL THEN salary_max
+            ELSE NULL
+          END as avg_salary
         FROM job_opportunities
         WHERE user_id = $1 
-          AND status = 'Offer' 
-          AND industry IS NOT NULL
+          AND status = 'Offer'
           AND (salary_min IS NOT NULL OR salary_max IS NOT NULL)
           AND (archived = false OR archived IS NULL)
           ${dateFilter}
-        GROUP BY industry
+        ORDER BY created_at DESC
       `;
-
       const offersByIndustryResult = await database.query(offersByIndustryQuery, params);
-      
-      // Get user's profile industry for employment data
-      const profileQuery = `SELECT industry FROM profiles WHERE user_id = $1`;
-      const profileResult = await database.query(profileQuery, [userId]);
-      const userIndustry = profileResult.rows[0]?.industry || null;
 
-      // Get employment salaries by industry (using profile industry)
-      const employmentByIndustryQuery = `
-        SELECT 
-          COUNT(*) as count,
-          AVG(salary) as avg_salary
-        FROM jobs
-        WHERE user_id = $1 
-          AND salary IS NOT NULL
-      `;
-      const employmentByIndustryResult = await database.query(employmentByIndustryQuery, [userId]);
-
-      // Group by industry and location
+      // Group by industry and location (each location separately for accurate comparison)
       const industryData = {};
-      const locationAverages = {}; // Track location-based averages
+      const locationData = {}; // Track location-specific data for market comparison
       
-      // Add offer data
-      offersByIndustryResult.rows.forEach((row) => {
+      // Process employment data
+      employmentByIndustryResult.rows.forEach((row) => {
         const industry = row.industry;
-        const locations = row.locations ? row.locations.split(', ') : [];
+        const location = row.location || 'Unknown';
+        const salary = Math.round(row.salary);
         
+        // Group by industry
         if (!industryData[industry]) {
           industryData[industry] = {
             industry,
             salaries: [],
-            locations: [],
+            locations: new Set(),
             count: 0,
           };
         }
-        industryData[industry].salaries.push({
-          min: row.avg_min ? Math.round(row.avg_min) : null,
-          max: row.avg_max ? Math.round(row.avg_max) : null,
-        });
-        locations.forEach(loc => {
-          if (loc && !industryData[industry].locations.includes(loc)) {
-            industryData[industry].locations.push(loc);
-          }
-        });
-        industryData[industry].count += parseInt(row.count) || 0;
+        industryData[industry].salaries.push(salary);
+        industryData[industry].locations.add(location);
+        industryData[industry].count += 1;
         
-        // Track location averages for comparison (simplified - using industry average as location average)
-        locations.forEach(location => {
-          if (location) {
-            if (!locationAverages[location]) {
-              locationAverages[location] = {
-                salaries: [],
-                count: 0,
-              };
-            }
-            locationAverages[location].salaries.push(row.avg_max || row.avg_min || 0);
-            locationAverages[location].count += parseInt(row.count) || 0;
-          }
-        });
-      });
-
-      // Add employment data if industry matches
-      if (userIndustry && employmentByIndustryResult.rows[0]?.avg_salary) {
-        if (!industryData[userIndustry]) {
-          industryData[userIndustry] = {
-            industry: userIndustry,
+        // Track location-specific data for market comparison
+        if (!locationData[location]) {
+          locationData[location] = {
             salaries: [],
             count: 0,
           };
         }
-        const avgSalary = Math.round(employmentByIndustryResult.rows[0].avg_salary);
-        industryData[userIndustry].salaries.push({
-          min: avgSalary,
-          max: avgSalary,
-        });
-        industryData[userIndustry].count += parseInt(employmentByIndustryResult.rows[0].count) || 0;
-      }
+        locationData[location].salaries.push(salary);
+        locationData[location].count += 1;
+      });
+
+      // Process offers data
+      offersByIndustryResult.rows.forEach((row) => {
+        if (!row.industry) return; // Skip if no industry
+        
+        const industry = row.industry;
+        const location = row.location || 'Unknown';
+        const salary = row.avg_salary ? Math.round(row.avg_salary) : null;
+        
+        if (salary === null) return; // Skip if no salary data
+        
+        // Group by industry
+        if (!industryData[industry]) {
+          industryData[industry] = {
+            industry,
+            salaries: [],
+            locations: new Set(),
+            count: 0,
+          };
+        }
+        industryData[industry].salaries.push(salary);
+        industryData[industry].locations.add(location);
+        industryData[industry].count += 1;
+        
+        // Track location-specific data for market comparison
+        if (!locationData[location]) {
+          locationData[location] = {
+            salaries: [],
+            count: 0,
+          };
+        }
+        locationData[location].salaries.push(salary);
+        locationData[location].count += 1;
+      });
 
       const byIndustry = Object.values(industryData).map((data) => {
-        const validSalaries = data.salaries.filter(s => s.min !== null || s.max !== null);
+        const validSalaries = data.salaries.filter(s => s !== null && s > 0);
         const avgMin = validSalaries.length > 0
-          ? Math.round(validSalaries.reduce((sum, s) => sum + (s.min || s.max || 0), 0) / validSalaries.length)
+          ? Math.round(validSalaries.reduce((sum, s) => sum + s, 0) / validSalaries.length)
           : null;
         const avgMax = validSalaries.length > 0
-          ? Math.round(Math.max(...validSalaries.map(s => s.max || s.min || 0)))
+          ? Math.round(Math.max(...validSalaries))
           : null;
 
         // Calculate industry average (placeholder - can be enhanced with real industry data)
         const industryAverage = this.getIndustryAverageSalary(data.industry);
         
-        // Calculate location average for this industry's locations
+        // Calculate location average for the primary location (first location in set)
         let locationAverage = null;
         let vsLocation = null;
-        if (data.locations && data.locations.length > 0) {
-          // Get average salary for the primary location
-          const primaryLocation = data.locations[0];
-          if (locationAverages[primaryLocation]) {
-            const locSalaries = locationAverages[primaryLocation].salaries;
-            locationAverage = locSalaries.length > 0
-              ? Math.round(locSalaries.reduce((sum, s) => sum + s, 0) / locSalaries.length)
-              : null;
+        const locationsArray = Array.from(data.locations);
+        if (locationsArray.length > 0) {
+          // Get average salary for the primary location from locationData
+          const primaryLocation = locationsArray[0];
+          if (locationData[primaryLocation] && locationData[primaryLocation].salaries.length > 0) {
+            const locSalaries = locationData[primaryLocation].salaries;
+            locationAverage = Math.round(locSalaries.reduce((sum, s) => sum + s, 0) / locSalaries.length);
             
             if (avgMax && locationAverage) {
               vsLocation = Math.round(((avgMax - locationAverage) / locationAverage) * 100 * 10) / 10;
@@ -1409,15 +1349,86 @@ class AnalyticsService {
           vsIndustry: avgMax && industryAverage 
             ? Math.round(((avgMax - industryAverage) / industryAverage) * 100 * 10) / 10 
             : null, // Percentage above/below industry average
-          location: data.locations && data.locations.length > 0 ? data.locations.join(', ') : null,
+          location: locationsArray.length > 0 ? locationsArray.join(', ') : null,
           locationAverage,
           vsLocation, // Percentage above/below location average
         };
       }).sort((a, b) => (b.avgMax || 0) - (a.avgMax || 0));
 
+      // Get ongoing negotiations (offers - show all offers, not just those with salary)
+      const hasNegotiationStatus = await this.columnExists("job_opportunities", "negotiation_status");
+      const hasNegotiationNotes = await this.columnExists("job_opportunities", "salary_negotiation_notes");
+      
+      let negotiationsQuery = `
+        SELECT 
+          id,
+          title,
+          company,
+          location,
+          salary_min,
+          salary_max,
+          industry,
+          ${hasNegotiationStatus ? "negotiation_status," : "NULL as negotiation_status,"}
+          ${hasNegotiationNotes ? "salary_negotiation_notes," : "NULL as salary_negotiation_notes,"}
+          TO_CHAR(created_at, 'YYYY-MM') as month,
+          created_at
+        FROM job_opportunities
+        WHERE user_id = $1 
+          AND status = 'Offer' 
+          AND (archived = false OR archived IS NULL)
+      `;
+      
+      // Only filter out accepted/rejected if negotiation_status column exists
+      // But still show offers with NULL negotiation_status (not yet started)
+      if (hasNegotiationStatus) {
+        negotiationsQuery += ` AND (negotiation_status IS NULL 
+          OR negotiation_status NOT IN ('accepted', 'rejected'))`;
+      }
+      
+      negotiationsQuery += ` ${dateFilter} ORDER BY created_at DESC`;
+      
+      const negotiationsResult = await database.query(negotiationsQuery, params);
+      const ongoingNegotiations = negotiationsResult.rows.map((row) => {
+        // Parse negotiation notes to extract bonus, equity, overtime info
+        let bonus = null;
+        let equity = null;
+        let overtime = null;
+        const notes = row.salary_negotiation_notes || '';
+        
+        // Simple parsing - look for keywords in notes
+        if (notes) {
+          const noteLower = notes.toLowerCase();
+          const bonusMatch = noteLower.match(/(?:bonus|signing bonus)[:\s]*\$?([\d,]+)/i);
+          const equityMatch = noteLower.match(/(?:equity|stock|options|rsu)[:\s]*\$?([\d,]+)/i);
+          const overtimeMatch = noteLower.match(/(?:overtime|ot)[:\s]*(yes|no|eligible|available)/i);
+          
+          if (bonusMatch) bonus = parseInt(bonusMatch[1].replace(/,/g, ''));
+          if (equityMatch) equity = parseInt(equityMatch[1].replace(/,/g, ''));
+          if (overtimeMatch) overtime = overtimeMatch[1];
+        }
+        
+        return {
+          id: row.id,
+          title: row.title,
+          company: row.company,
+          location: row.location,
+          industry: row.industry || null,
+          salaryMin: row.salary_min ? Math.round(row.salary_min) : null,
+          salaryMax: row.salary_max ? Math.round(row.salary_max) : null,
+          negotiationStatus: row.negotiation_status || 'not_started',
+          notes: notes || null,
+          bonus,
+          equity,
+          overtime,
+          month: row.month,
+          createdAt: row.created_at,
+        };
+      });
+
       return {
         progression: salaryProgression,
         byIndustry,
+        ongoingNegotiations,
       };
     } catch (error) {
       console.error("❌ Error getting salary progression:", error);

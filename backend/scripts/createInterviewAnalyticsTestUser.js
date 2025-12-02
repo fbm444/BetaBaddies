@@ -1783,14 +1783,16 @@ Sarah Chen`,
       },
     ];
 
+    const contactIds = [];
     for (const contact of contactsData) {
+      const contactId = uuidv4();
       await database.query(
         `INSERT INTO professional_contacts (
           id, user_id, first_name, last_name, email, phone, company,
           job_title, industry, location, relationship_type, relationship_strength,
           relationship_context, linkedin_url, created_at, updated_at
         )
-        VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+        VALUES ($14, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
         [
           userId,
           contact.firstName,
@@ -1805,12 +1807,247 @@ Sarah Chen`,
           contact.relationshipStrength,
           contact.relationshipContext,
           contact.linkedinUrl,
+          contactId,
         ]
       );
+      contactIds.push(contactId);
     }
     console.log(`   ✓ Created ${contactsData.length} professional contacts`);
     console.log(`     - Mix of recruiters, mentors, colleagues, and industry contacts`);
     console.log(`     - Contacts from MAANG companies and other tech companies`);
+
+    // Step 15.5: Create coffee chats with contacts
+    console.log("\n📝 Step 15.5: Creating coffee chats with contacts...");
+    const coffeeChatsData = [
+      {
+        contactId: contactIds[1], // Maria Garcia at Google
+        contactName: "Maria Garcia",
+        contactEmail: "maria.garcia@google.com",
+        contactCompany: "Google",
+        contactTitle: "Engineering Manager",
+        chatType: "coffee_chat",
+        scheduledDate: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
+        status: "upcoming",
+        messageSent: true,
+        messageSentAt: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+        responseReceived: true,
+        responseReceivedAt: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
+        responseContent: "Would love to meet! Let's schedule for next week.",
+      },
+      {
+        contactId: contactIds[0], // Alex Thompson
+        contactName: "Alex Thompson",
+        contactEmail: "alex.thompson@techcorp.com",
+        contactCompany: "TechCorp",
+        contactTitle: "Senior Software Engineer",
+        chatType: "coffee_chat",
+        scheduledDate: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
+        completedDate: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000),
+        status: "completed",
+        messageSent: true,
+        messageSentAt: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000),
+        responseReceived: true,
+        responseReceivedAt: new Date(now.getTime() - 9 * 24 * 60 * 60 * 1000),
+        referralProvided: true,
+        referralDetails: "Referred to Meta recruiter Sarah Johnson",
+        notes: "Great conversation about distributed systems. Very helpful!",
+      },
+      {
+        contactId: contactIds[4], // Robert Chen at Apple
+        contactName: "Robert Chen",
+        contactEmail: "robert.chen@apple.com",
+        contactCompany: "Apple",
+        contactTitle: "Senior iOS Engineer",
+        chatType: "informational",
+        scheduledDate: new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000), // 14 days from now
+        status: "upcoming",
+        messageSent: false,
+      },
+      {
+        contactId: contactIds[2], // James Wilson - Meta recruiter
+        contactName: "James Wilson",
+        contactEmail: "james.wilson@meta.com",
+        contactCompany: "Meta",
+        contactTitle: "Technical Recruiter",
+        jobOpportunityId: jobOppIds[0], // Meta job
+        chatType: "interview_request",
+        scheduledDate: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
+        completedDate: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
+        status: "completed",
+        messageSent: true,
+        messageSentAt: new Date(now.getTime() - 35 * 24 * 60 * 60 * 1000),
+        responseReceived: true,
+        responseReceivedAt: new Date(now.getTime() - 33 * 24 * 60 * 60 * 1000),
+        notes: "Initial screening call went well. Moved to next round.",
+        impactOnOpportunity: "positive",
+      },
+    ];
+
+    const coffeeChatIds = [];
+    for (const chat of coffeeChatsData) {
+      const result = await database.query(
+        `INSERT INTO coffee_chats (
+          id, user_id, contact_id, job_opportunity_id, contact_name, contact_email,
+          contact_company, contact_title, chat_type, scheduled_date, completed_date,
+          status, message_sent, message_sent_at, response_received, response_received_at,
+          response_content, referral_provided, referral_details, notes, impact_on_opportunity,
+          created_at, updated_at
+        )
+        VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        RETURNING id`,
+        [
+          userId,
+          chat.contactId || null,
+          chat.jobOpportunityId || null,
+          chat.contactName,
+          chat.contactEmail || null,
+          chat.contactCompany || null,
+          chat.contactTitle || null,
+          chat.chatType,
+          chat.scheduledDate ? chat.scheduledDate.toISOString() : null,
+          chat.completedDate ? chat.completedDate.toISOString() : null,
+          chat.status,
+          chat.messageSent || false,
+          chat.messageSentAt ? chat.messageSentAt.toISOString() : null,
+          chat.responseReceived || false,
+          chat.responseReceivedAt ? chat.responseReceivedAt.toISOString() : null,
+          chat.responseContent || null,
+          chat.referralProvided || false,
+          chat.referralDetails || null,
+          chat.notes || null,
+          chat.impactOnOpportunity || null,
+        ]
+      );
+      coffeeChatIds.push(result.rows[0].id);
+    }
+    console.log(`   ✓ Created ${coffeeChatsData.length} coffee chats`);
+    console.log(`     - Mix of upcoming and completed chats`);
+    console.log(`     - Some with responses and referrals`);
+
+    // Step 15.6: Create networking messages (conversations with recruiters)
+    console.log("\n📝 Step 15.6: Creating networking messages (conversations with recruiters)...");
+    const networkingMessagesData = [
+      {
+        coffeeChatId: coffeeChatIds[0], // Maria Garcia coffee chat
+        messageType: "coffee_chat",
+        recipientName: "Maria Garcia",
+        recipientEmail: "maria.garcia@google.com",
+        recipientLinkedInUrl: "https://linkedin.com/in/mariagarcia",
+        subject: "Coffee Chat Request - Software Engineering Discussion",
+        messageBody: `Hi Maria,
+
+I hope this message finds you well! I'm reaching out because I'd love to have a coffee chat to learn more about your experience as an Engineering Manager at Google and get some insights into the industry.
+
+I'm currently exploring opportunities in software engineering and would really value your perspective. Would you be available for a virtual coffee chat next week?
+
+Looking forward to connecting!
+
+Best regards,
+Sarah Chen`,
+        generatedBy: "manual",
+        sent: true,
+        sentAt: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000),
+        responseReceived: true,
+        responseReceivedAt: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000),
+      },
+      {
+        coffeeChatId: coffeeChatIds[2], // James Wilson conversation
+        messageType: "interview_request",
+        recipientName: "James Wilson",
+        recipientEmail: "james.wilson@meta.com",
+        recipientLinkedInUrl: "https://linkedin.com/in/jameswilson",
+        subject: "Following up on Senior Software Engineer position at Meta",
+        messageBody: `Hi James,
+
+Thank you for taking the time to speak with me last week about the Senior Software Engineer position at Meta. I'm very excited about the opportunity and wanted to follow up.
+
+I've submitted my application and would love to continue the conversation about how my background in distributed systems and full-stack development aligns with the role.
+
+Please let me know if you need any additional information from me.
+
+Best regards,
+Sarah Chen`,
+        generatedBy: "manual",
+        sent: true,
+        sentAt: new Date(now.getTime() - 35 * 24 * 60 * 60 * 1000),
+        responseReceived: true,
+        responseReceivedAt: new Date(now.getTime() - 33 * 24 * 60 * 60 * 1000),
+      },
+      {
+        coffeeChatId: null,
+        messageType: "coffee_chat",
+        recipientName: "Priya Patel",
+        recipientEmail: "priya.patel@amazon.com",
+        recipientLinkedInUrl: "https://linkedin.com/in/priyapatel",
+        subject: "Networking - AWS Conference Connection",
+        messageBody: `Hi Priya,
+
+It was great meeting you at the AWS conference last month! I wanted to reach out and connect.
+
+I'm currently exploring software engineering opportunities and would love to learn more about your experience at Amazon. Would you be open to a brief coffee chat?
+
+Best,
+Sarah Chen`,
+        generatedBy: "manual",
+        sent: true,
+        sentAt: new Date(now.getTime() - 20 * 24 * 60 * 60 * 1000),
+        responseReceived: false,
+      },
+      {
+        coffeeChatId: null,
+        messageType: "referral_request",
+        recipientName: "David Martinez",
+        recipientEmail: "david.martinez@microsoft.com",
+        recipientLinkedInUrl: "https://linkedin.com/in/davidmartinez",
+        subject: "Referral Request - Microsoft Opportunities",
+        messageBody: `Hi David,
+
+I hope you're doing well! I wanted to reach out because I saw a Senior Backend Engineer position at Microsoft that really interests me.
+
+Given our previous working relationship and your knowledge of my technical skills, I was wondering if you'd be comfortable providing a referral or introduction to the hiring manager.
+
+I'd be happy to share my resume and discuss my qualifications further. Let me know if this is something you'd be open to!
+
+Thank you for your consideration.
+
+Best regards,
+Sarah Chen`,
+        generatedBy: "manual",
+        sent: true,
+        sentAt: new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000),
+        responseReceived: true,
+        responseReceivedAt: new Date(now.getTime() - 12 * 24 * 60 * 60 * 1000),
+      },
+    ];
+
+    for (const message of networkingMessagesData) {
+      await database.query(
+        `INSERT INTO networking_messages (
+          id, user_id, coffee_chat_id, message_type, recipient_name, recipient_email,
+          recipient_linkedin_url, subject, message_body, generated_by, sent, sent_at,
+          response_received, response_received_at, created_at, updated_at
+        )
+        VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+        [
+          userId,
+          message.coffeeChatId || null,
+          message.messageType,
+          message.recipientName,
+          message.recipientEmail || null,
+          message.recipientLinkedInUrl || null,
+          message.subject || null,
+          message.messageBody,
+          message.generatedBy,
+          message.sent || false,
+          message.sentAt ? message.sentAt.toISOString() : null,
+          message.responseReceived || false,
+          message.responseReceivedAt ? message.responseReceivedAt.toISOString() : null,
+        ]
+      );
+    }
+    console.log(`   ✓ Created ${networkingMessagesData.length} networking messages`);
+    console.log(`     - Conversations with recruiters and contacts`);
+    console.log(`     - Mix of sent/received status and message types`);
 
     // Step 16: Create career goals
     console.log("\n📝 Step 16: Creating career goals...");
@@ -1939,6 +2176,8 @@ Sarah Chen`,
     console.log(`   ✓ ${resumeIds.length} Resumes (with master resume)`);
     console.log(`   ✓ ${coverLetterIds.length} Cover Letters (3 job-specific, 1 general)`);
     console.log(`   ✓ ${contactsData.length} Professional Contacts`);
+    console.log(`   ✓ ${coffeeChatsData.length} Coffee Chats (upcoming and completed)`);
+    console.log(`   ✓ ${networkingMessagesData.length} Networking Messages (conversations with recruiters)`);
     console.log(`   ✓ ${goalsData.length} Career Goals (application, interview, offer, salary, networking, skills)`);
     console.log(`   ✓ ${allInterviewsData.length} Interviews:`);
     console.log(`     - ${practiceInterviewsData.length} practice interviews`);

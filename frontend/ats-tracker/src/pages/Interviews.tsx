@@ -137,9 +137,20 @@ export function Interviews() {
     }
   }, [tabParam]);
 
+  // Fetch data when tab changes
   useEffect(() => {
     if (activeTab === "reminders") {
-      fetchUpcomingReminders();
+      // Always fetch reminders when reminders tab becomes active
+      // If interviews aren't loaded yet, fetch them first
+      if (interviews.length === 0 && !isLoading) {
+        fetchInterviews().then(() => {
+          // After interviews are loaded, fetch reminders
+          fetchUpcomingReminders();
+        });
+      } else if (interviews.length > 0) {
+        // Interviews are already loaded, fetch reminders directly
+        fetchUpcomingReminders();
+      }
     }
     if (activeTab === "follow-ups") {
       fetchPendingFollowUps();
@@ -150,7 +161,7 @@ export function Interviews() {
     if (activeTab === "analytics") {
       fetchAnalytics();
     }
-  }, [activeTab, interviews, jobOpportunities]);
+  }, [activeTab, interviews.length]);
 
   const fetchInterviews = async () => {
     try {

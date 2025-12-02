@@ -19,7 +19,7 @@
     "test:reset-password-api": "node tests/reset-password-api.test.js",
     "test:resume-services": "node tests/resume-services-test.js",
     "test:frontend-github": "node tests/frontend-github-actions.test.js",
-    "test:all": "npm run test && npm run test:user-api && npm run test:jobs-service && npm run test:jobs-api && npm run test:job-opportunities-api && npm run test:certifications && npm run test:certifications-api && npm run test:profile-api && npm run test:resume-services && npm run test:frontend-github",
+    "test:all": "node tests/test-runner.js",
     "populate:demo": "node scripts/populateDemoData.js"
   },
   "keywords": [],

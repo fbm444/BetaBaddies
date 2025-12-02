@@ -25,6 +25,7 @@ import { CompanyResearch } from './pages/CompanyResearch'
 import { InterviewScheduling } from './pages/InterviewScheduling'
 import { Analytics } from './pages/Analytics'
 import { MarketIntelligence } from './pages/MarketIntelligence'
+import { ReportGenerator } from './pages/ReportGenerator'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { ROUTES } from './config/routes'
@@ -112,6 +113,7 @@ function App() {
 		  <Route path={ROUTES.INTERVIEW_SCHEDULING} element={<InterviewScheduling />} />
 		  <Route path={ROUTES.ANALYTICS} element={<Analytics />} />
 		  <Route path={ROUTES.MARKET_INTELLIGENCE} element={<MarketIntelligence />} />
+		  <Route path={ROUTES.REPORT_GENERATOR} element={<ReportGenerator />} />
 		  <Route path={ROUTES.SKILLS} element={<Skills />} />
 		  <Route path={ROUTES.EDUCATION} element={<Education />} />
 		  <Route path={ROUTES.PROJECTS} element={<Projects />} />

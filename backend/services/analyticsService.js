@@ -92,6 +92,7 @@ class AnalyticsService {
 
       const metricsResult = await database.query(metricsQuery, queryParams);
       const metrics = metricsResult.rows[0];
+      console.log('🔍 RAW METRICS FROM DB:', metrics);
 
       // Calculate conversion rates - applications sent is CUMULATIVE (all applied)
       const applicationsSent = parseInt(metrics.applications_sent) || 0;

@@ -16,23 +16,33 @@ class NetworkingService {
   }
 
   /**
-   * Get recruiters from job opportunities
+   * Get recruiters from job opportunities with message tracking
    */
   async getRecruitersFromOpportunities(userId) {
     try {
       const query = `
         SELECT DISTINCT
-          recruiter_name as name,
-          recruiter_email as email,
-          recruiter_phone as phone,
-          company,
-          COUNT(*) as opportunity_count
-        FROM job_opportunities
-        WHERE user_id = $1
-          AND recruiter_name IS NOT NULL
-          AND recruiter_name != ''
-        GROUP BY recruiter_name, recruiter_email, recruiter_phone, company
-        ORDER BY opportunity_count DESC, recruiter_name
+          jo.recruiter_name as name,
+          jo.recruiter_email as email,
+          jo.recruiter_phone as phone,
+          jo.company,
+          COUNT(*) as opportunity_count,
+          MAX(CASE WHEN cc.message_sent = true THEN 1 ELSE 0 END) as has_message_sent,
+          MAX(CASE WHEN cc.response_received = true THEN 1 ELSE 0 END) as has_response_received,
+          MAX(cc.message_sent_at) as last_message_sent_at,
+          MAX(cc.response_received_at) as last_response_received_at,
+          COUNT(DISTINCT CASE WHEN cc.id IS NOT NULL THEN cc.id END) as coffee_chat_count
+        FROM job_opportunities jo
+        LEFT JOIN coffee_chats cc ON (
+          cc.user_id = jo.user_id
+          AND cc.contact_email = jo.recruiter_email
+          AND (cc.contact_name ILIKE '%' || jo.recruiter_name || '%' OR jo.recruiter_name ILIKE '%' || cc.contact_name || '%')
+        )
+        WHERE jo.user_id = $1
+          AND jo.recruiter_name IS NOT NULL
+          AND jo.recruiter_name != ''
+        GROUP BY jo.recruiter_name, jo.recruiter_email, jo.recruiter_phone, jo.company
+        ORDER BY opportunity_count DESC, jo.recruiter_name
       `;
 
       const result = await database.query(query, [userId]);
@@ -42,6 +52,11 @@ class NetworkingService {
         phone: row.phone,
         company: row.company,
         opportunityCount: parseInt(row.opportunity_count) || 0,
+        messageSent: row.has_message_sent === 1 || row.has_message_sent === true,
+        responseReceived: row.has_response_received === 1 || row.has_response_received === true,
+        lastMessageSentAt: row.last_message_sent_at,
+        lastResponseReceivedAt: row.last_response_received_at,
+        coffeeChatCount: parseInt(row.coffee_chat_count) || 0,
       }));
     } catch (error) {
       console.error("❌ Error getting recruiters:", error);

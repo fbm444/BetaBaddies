@@ -229,6 +229,7 @@ export function NetworkROI({ dateRange }: NetworkROIProps) {
             recruiters={recruiters}
             isLoading={isLoading}
             onGenerateMessage={handleGenerateMessage}
+            onRefresh={fetchData}
           />
         )}
 
@@ -238,6 +239,7 @@ export function NetworkROI({ dateRange }: NetworkROIProps) {
             isLoading={isLoading}
             onGenerateMessage={handleGenerateMessage}
             onCreateCoffeeChat={handleCreateCoffeeChat}
+            onRefresh={fetchData}
           />
         )}
 
@@ -245,6 +247,7 @@ export function NetworkROI({ dateRange }: NetworkROIProps) {
           <CoffeeChatsTab
             chats={coffeeChats}
             isLoading={isLoading}
+            onCreateCoffeeChat={handleCreateCoffeeChat}
             onRefresh={fetchData}
           />
         )}
@@ -256,6 +259,25 @@ export function NetworkROI({ dateRange }: NetworkROIProps) {
             searchResults={searchResults}
             isSearching={isSearching}
             onSearch={handleSearchCompanies}
+            onFindContacts={async (companyName: string) => {
+              setContactSearchCompany(companyName);
+              setShowContactSearchModal(true);
+              setIsSearchingContacts(true);
+              try {
+                const response = await api.searchContactsByCompany(companyName);
+                if (response.ok && response.data) {
+                  setContactSearchResults({
+                    recruiters: response.data.recruiters || [],
+                    contacts: response.data.contacts || [],
+                  });
+                }
+              } catch (err: any) {
+                console.error("Failed to search contacts:", err);
+                alert(err.message || "Failed to search contacts");
+              } finally {
+                setIsSearchingContacts(false);
+              }
+            }}
             onGenerateMessage={handleGenerateMessage}
             onCreateCoffeeChat={handleCreateCoffeeChat}
           />
@@ -289,6 +311,21 @@ export function NetworkROI({ dateRange }: NetworkROIProps) {
               alert(err.message || "Failed to save message");
             }
           }}
+        />
+      )}
+
+      {/* Contact Search Modal */}
+      {showContactSearchModal && (
+        <ContactSearchModal
+          company={contactSearchCompany}
+          results={contactSearchResults}
+          isSearching={isSearchingContacts}
+          onClose={() => {
+            setShowContactSearchModal(false);
+            setContactSearchResults({ recruiters: [], contacts: [] });
+          }}
+          onGenerateMessage={handleGenerateMessage}
+          onCreateCoffeeChat={handleCreateCoffeeChat}
         />
       )}
     </div>
@@ -444,7 +481,7 @@ function OverviewTab({ roiData, analytics, error }: any) {
 }
 
 // Recruiters Tab Component
-function RecruitersTab({ recruiters, isLoading, onGenerateMessage }: any) {
+function RecruitersTab({ recruiters, isLoading, onGenerateMessage, onRefresh }: any) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -503,14 +540,132 @@ function RecruitersTab({ recruiters, isLoading, onGenerateMessage }: any) {
                     <span>{recruiter.phone}</span>
                   </div>
                 )}
+                
+                {/* Message Tracking Status */}
+                <div className="flex items-center gap-3 pt-2 border-t border-[#E4E8F5]">
+                  {recruiter.messageSent ? (
+                    <div className="flex items-center gap-1">
+                      <Icon icon="mingcute:check-circle-line" width={16} className="text-green-600" />
+                      <span className="text-xs text-green-600">Message Sent</span>
+                      {recruiter.lastMessageSentAt && (
+                        <span className="text-xs text-[#6D7A99]">
+                          ({new Date(recruiter.lastMessageSentAt).toLocaleDateString()})
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1">
+                      <Icon icon="mingcute:close-circle-line" width={16} className="text-gray-400" />
+                      <span className="text-xs text-[#6D7A99]">No message sent</span>
+                    </div>
+                  )}
+                  {recruiter.responseReceived && (
+                    <div className="flex items-center gap-1">
+                      <Icon icon="mingcute:mail-check-line" width={16} className="text-blue-600" />
+                      <span className="text-xs text-blue-600">Response Received</span>
+                      {recruiter.lastResponseReceivedAt && (
+                        <span className="text-xs text-[#6D7A99]">
+                          ({new Date(recruiter.lastResponseReceivedAt).toLocaleDateString()})
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <button
-                onClick={() => onGenerateMessage(recruiter, "coffee_chat")}
-                className="w-full px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#1E3097] transition-colors text-sm font-medium"
-              >
-                Generate Message
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => onGenerateMessage(recruiter, "coffee_chat")}
+                  className="flex-1 px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#1E3097] transition-colors text-sm font-medium"
+                >
+                  {recruiter.messageSent ? "View/Edit Message" : "Generate Message"}
+                </button>
+                {recruiter.messageSent && !recruiter.responseReceived && (
+                  <button
+                    onClick={async () => {
+                      // Find or create coffee chat for this recruiter
+                      try {
+                        // First, try to find existing coffee chat by fetching all chats
+                        const chatsResponse = await api.getCoffeeChats();
+                        let chatId = null;
+                        
+                        const matchingChat = chatsResponse.ok && chatsResponse.data?.chats
+                          ? chatsResponse.data.chats.find((chat: any) => 
+                              chat.contactEmail === recruiter.email || 
+                              (chat.contactName && recruiter.name && chat.contactName.toLowerCase().includes(recruiter.name.toLowerCase()))
+                            )
+                          : null;
+                        
+                        if (matchingChat) {
+                          chatId = matchingChat.id;
+                        } else {
+                          // Create a new coffee chat if none exists
+                          const createResponse = await api.createCoffeeChat({
+                            contactName: recruiter.name,
+                            contactEmail: recruiter.email,
+                            contactCompany: recruiter.company,
+                            chatType: "coffee_chat",
+                          });
+                          if (createResponse.ok && createResponse.data?.chat) {
+                            chatId = createResponse.data.chat.id;
+                          }
+                        }
+                        
+                        if (chatId) {
+                          // Mark response as received
+                          await api.updateCoffeeChat(chatId, {
+                            responseReceived: true,
+                            responseReceivedAt: new Date().toISOString(),
+                          });
+                          if (onRefresh) onRefresh();
+                          alert("Response marked as received!");
+                        }
+                      } catch (err: any) {
+                        console.error("Failed to mark response:", err);
+                        alert(err.message || "Failed to mark response");
+                      }
+                    }}
+                    className="px-3 py-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium flex items-center gap-1"
+                    title="Mark response as received"
+                  >
+                    <Icon icon="mingcute:mail-check-line" width={16} />
+                    Got Response
+                  </button>
+                )}
+                {!recruiter.messageSent && (
+                  <button
+                    onClick={async () => {
+                      // Create coffee chat and mark message as sent
+                      try {
+                        const createResponse = await api.createCoffeeChat({
+                          contactName: recruiter.name,
+                          contactEmail: recruiter.email,
+                          contactCompany: recruiter.company,
+                          chatType: "coffee_chat",
+                        });
+                        
+                        if (createResponse.ok && createResponse.data?.chat) {
+                          const chatId = createResponse.data.chat.id;
+                          await api.updateCoffeeChat(chatId, {
+                            messageSent: true,
+                            messageSentAt: new Date().toISOString(),
+                          });
+                          if (onRefresh) onRefresh();
+                          alert("Message marked as sent!");
+                        }
+                      } catch (err: any) {
+                        console.error("Failed to mark message as sent:", err);
+                        alert(err.message || "Failed to mark message as sent");
+                      }
+                    }}
+                    className="px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium flex items-center gap-1"
+                    title="Mark message as sent"
+                  >
+                    <Icon icon="mingcute:check-circle-line" width={16} />
+                    Mark Sent
+                  </button>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -520,7 +675,7 @@ function RecruitersTab({ recruiters, isLoading, onGenerateMessage }: any) {
 }
 
 // LinkedIn Tab Component
-function LinkedInTab({ contacts, isLoading, onGenerateMessage, onCreateCoffeeChat }: any) {
+function LinkedInTab({ contacts, isLoading, onGenerateMessage, onCreateCoffeeChat, onRefresh }: any) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -540,15 +695,8 @@ function LinkedInTab({ contacts, isLoading, onGenerateMessage, onCreateCoffeeCha
         </p>
           <button
             onClick={async () => {
-              try {
-                // Refresh LinkedIn network
-                const response = await api.getLinkedInNetwork();
-                if (response.ok && response.data?.contacts) {
-                  setLinkedInContacts(response.data.contacts);
-                }
-              } catch (err: any) {
-                console.error("Failed to sync LinkedIn network:", err);
-                alert("Failed to sync LinkedIn network. Please try again.");
+              if (onRefresh) {
+                await onRefresh();
               }
             }}
             className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium"
@@ -644,8 +792,60 @@ function LinkedInTab({ contacts, isLoading, onGenerateMessage, onCreateCoffeeCha
 }
 
 // Coffee Chats Tab Component
-function CoffeeChatsTab({ chats, isLoading }: any) {
+function CoffeeChatsTab({ chats, isLoading, onCreateCoffeeChat, onRefresh }: any) {
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newChatForm, setNewChatForm] = useState({
+    contactName: "",
+    contactEmail: "",
+    contactCompany: "",
+    contactTitle: "",
+    scheduledDate: "",
+    notes: "",
+  });
+  const [isCreating, setIsCreating] = useState(false);
+
+  const handleCreateCoffeeChat = async () => {
+    if (!newChatForm.contactName.trim()) {
+      alert("Please enter a contact name");
+      return;
+    }
+    if (!newChatForm.scheduledDate) {
+      alert("Please select a scheduled date");
+      return;
+    }
+
+    setIsCreating(true);
+    try {
+      const response = await api.createCoffeeChat({
+        contactName: newChatForm.contactName.trim(),
+        contactEmail: newChatForm.contactEmail.trim() || undefined,
+        contactCompany: newChatForm.contactCompany.trim() || undefined,
+        contactTitle: newChatForm.contactTitle.trim() || undefined,
+        scheduledDate: newChatForm.scheduledDate,
+        notes: newChatForm.notes.trim() || undefined,
+        chatType: "coffee_chat",
+      });
+
+      if (response.ok) {
+        setShowCreateModal(false);
+        setNewChatForm({
+          contactName: "",
+          contactEmail: "",
+          contactCompany: "",
+          contactTitle: "",
+          scheduledDate: "",
+          notes: "",
+        });
+        if (onRefresh) onRefresh();
+      }
+    } catch (err: any) {
+      console.error("Failed to create coffee chat:", err);
+      alert(err.message || "Failed to create coffee chat");
+    } finally {
+      setIsCreating(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -668,6 +868,20 @@ function CoffeeChatsTab({ chats, isLoading }: any) {
 
   return (
     <div className="space-y-6">
+      {/* Header with Create Button */}
+      <div className="flex items-center justify-between">
+        <p className="text-slate-600">
+          Track your coffee chats and networking conversations.
+        </p>
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="px-4 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#1E3097] transition-colors flex items-center gap-2"
+        >
+          <Icon icon="mingcute:add-line" width={16} />
+          New Coffee Chat
+        </button>
+      </div>
+
       {/* Filter Tabs */}
       <div className="flex gap-2 border-b border-slate-200">
         {[
@@ -759,6 +973,144 @@ function CoffeeChatsTab({ chats, isLoading }: any) {
           ))}
         </div>
       )}
+
+      {/* Create Coffee Chat Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-semibold text-[#0F1D3A]">Schedule New Coffee Chat</h2>
+              <button
+                onClick={() => {
+                  setShowCreateModal(false);
+                  setNewChatForm({
+                    contactName: "",
+                    contactEmail: "",
+                    contactCompany: "",
+                    contactTitle: "",
+                    scheduledDate: "",
+                    notes: "",
+                  });
+                }}
+                className="p-2 text-[#6D7A99] hover:text-[#0F1D3A] transition-colors"
+              >
+                <Icon icon="mingcute:close-line" width={24} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-[#0F1D3A] mb-1">
+                    Contact Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={newChatForm.contactName}
+                    onChange={(e) =>
+                      setNewChatForm({ ...newChatForm, contactName: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                    placeholder="John Doe"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[#0F1D3A] mb-1">
+                    Scheduled Date <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={newChatForm.scheduledDate}
+                    onChange={(e) =>
+                      setNewChatForm({ ...newChatForm, scheduledDate: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[#0F1D3A] mb-1">Email</label>
+                <input
+                  type="email"
+                  value={newChatForm.contactEmail}
+                  onChange={(e) =>
+                    setNewChatForm({ ...newChatForm, contactEmail: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                  placeholder="john@example.com"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-[#0F1D3A] mb-1">Company</label>
+                  <input
+                    type="text"
+                    value={newChatForm.contactCompany}
+                    onChange={(e) =>
+                      setNewChatForm({ ...newChatForm, contactCompany: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                    placeholder="Company Name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[#0F1D3A] mb-1">Title</label>
+                  <input
+                    type="text"
+                    value={newChatForm.contactTitle}
+                    onChange={(e) =>
+                      setNewChatForm({ ...newChatForm, contactTitle: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                    placeholder="Job Title"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[#0F1D3A] mb-1">Notes</label>
+                <textarea
+                  value={newChatForm.notes}
+                  onChange={(e) =>
+                    setNewChatForm({ ...newChatForm, notes: e.target.value })
+                  }
+                  rows={4}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                  placeholder="Add any notes about this coffee chat..."
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 mt-6 pt-6 border-t border-[#E4E8F5]">
+              <button
+                onClick={() => {
+                  setShowCreateModal(false);
+                  setNewChatForm({
+                    contactName: "",
+                    contactEmail: "",
+                    contactCompany: "",
+                    contactTitle: "",
+                    scheduledDate: "",
+                    notes: "",
+                  });
+                }}
+                className="px-4 py-2 text-[#6D7A99] hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateCoffeeChat}
+                disabled={isCreating || !newChatForm.contactName.trim() || !newChatForm.scheduledDate}
+                className="px-6 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#1E3097] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isCreating ? "Creating..." : "Create Coffee Chat"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -770,6 +1122,9 @@ function SearchTab({
   searchResults,
   isSearching,
   onSearch,
+  onFindContacts,
+  onGenerateMessage,
+  onCreateCoffeeChat,
 }: any) {
   return (
     <div className="space-y-6">
@@ -825,10 +1180,7 @@ function SearchTab({
                     </a>
                   )}
                   <button
-                    onClick={() => {
-                      // TODO: Search for contacts at this company
-                      alert(`Searching for contacts at ${company.name}...`);
-                    }}
+                    onClick={() => onFindContacts(company.name)}
                     className="flex-1 px-3 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#1E3097] transition-colors text-sm font-medium"
                   >
                     Find Contacts
@@ -899,6 +1251,164 @@ function MessageModal({ message, contact, onClose, onSave }: any) {
             className="px-6 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#1E3097] transition-colors"
           >
             Save Message
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Contact Search Modal Component
+function ContactSearchModal({
+  company,
+  results,
+  isSearching,
+  onClose,
+  onGenerateMessage,
+  onCreateCoffeeChat,
+}: any) {
+  const totalResults = (results.recruiters?.length || 0) + (results.contacts?.length || 0);
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-2xl font-semibold text-[#0F1D3A]">Contacts at {company}</h2>
+            <p className="text-sm text-[#6D7A99] mt-1">
+              Found {totalResults} {totalResults === 1 ? "contact" : "contacts"}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 text-[#6D7A99] hover:text-[#0F1D3A] transition-colors"
+          >
+            <Icon icon="mingcute:close-line" width={24} />
+          </button>
+        </div>
+
+        {isSearching ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-[#3351FD]" />
+              <p className="text-sm text-[#6D7A99]">Searching for contacts...</p>
+            </div>
+          </div>
+        ) : totalResults === 0 ? (
+          <div className="rounded-2xl border border-dashed border-[#E4E8F5] bg-[#F8F8F8] p-10 text-center">
+            <Icon icon="mingcute:user-line" className="mx-auto mb-3 text-[#6D7A99]" width={48} />
+            <p className="text-sm text-[#6D7A99]">
+              No contacts found at {company}. Start adding contacts to your network!
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {/* Recruiters Section */}
+            {results.recruiters && results.recruiters.length > 0 && (
+              <div>
+                <h3 className="text-lg font-semibold text-[#0F1D3A] mb-4">
+                  Recruiters ({results.recruiters.length})
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {results.recruiters.map((recruiter: any, index: number) => (
+                    <div
+                      key={index}
+                      className="rounded-xl bg-white p-4 border border-[#E4E8F5] hover:shadow-md transition-shadow"
+                    >
+                      <h4 className="font-semibold text-[#0F1D3A]">{recruiter.name}</h4>
+                      {recruiter.company && (
+                        <p className="text-sm text-[#6D7A99] mt-1">{recruiter.company}</p>
+                      )}
+                      {recruiter.email && (
+                        <p className="text-xs text-[#6D7A99] mt-1">{recruiter.email}</p>
+                      )}
+                      {recruiter.opportunityCount > 0 && (
+                        <p className="text-xs text-blue-600 mt-1">
+                          {recruiter.opportunityCount} {recruiter.opportunityCount === 1 ? "role" : "roles"}
+                        </p>
+                      )}
+                      <div className="flex gap-2 mt-3">
+                        <button
+                          onClick={() => {
+                            onGenerateMessage(recruiter, "coffee_chat");
+                            onClose();
+                          }}
+                          className="flex-1 px-3 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#1E3097] transition-colors text-sm"
+                        >
+                          Message
+                        </button>
+                        <button
+                          onClick={() => {
+                            onCreateCoffeeChat(recruiter);
+                            onClose();
+                          }}
+                          className="flex-1 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm"
+                        >
+                          Add Chat
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Contacts Section */}
+            {results.contacts && results.contacts.length > 0 && (
+              <div>
+                <h3 className="text-lg font-semibold text-[#0F1D3A] mb-4">
+                  Professional Contacts ({results.contacts.length})
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {results.contacts.map((contact: any) => (
+                    <div
+                      key={contact.id}
+                      className="rounded-xl bg-white p-4 border border-[#E4E8F5] hover:shadow-md transition-shadow"
+                    >
+                      <h4 className="font-semibold text-[#0F1D3A]">{contact.name}</h4>
+                      {contact.title && (
+                        <p className="text-sm text-[#6D7A99] mt-1">{contact.title}</p>
+                      )}
+                      {contact.company && (
+                        <p className="text-sm text-[#6D7A99] mt-1">{contact.company}</p>
+                      )}
+                      {contact.email && (
+                        <p className="text-xs text-[#6D7A99] mt-1">{contact.email}</p>
+                      )}
+                      <div className="flex gap-2 mt-3">
+                        <button
+                          onClick={() => {
+                            onGenerateMessage(contact, "coffee_chat");
+                            onClose();
+                          }}
+                          className="flex-1 px-3 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#1E3097] transition-colors text-sm"
+                        >
+                          Message
+                        </button>
+                        <button
+                          onClick={() => {
+                            onCreateCoffeeChat(contact);
+                            onClose();
+                          }}
+                          className="flex-1 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm"
+                        >
+                          Add Chat
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="flex items-center justify-end mt-6 pt-6 border-t border-[#E4E8F5]">
+          <button
+            onClick={onClose}
+            className="px-6 py-2 bg-[#3351FD] text-white rounded-lg hover:bg-[#1E3097] transition-colors"
+          >
+            Close
           </button>
         </div>
       </div>

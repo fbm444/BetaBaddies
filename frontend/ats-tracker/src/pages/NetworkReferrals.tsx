@@ -1534,16 +1534,16 @@ function ReferralModal({
     if (!body) return "";
     const contact = getContactById(overrides?.contactId ?? formData.contactId);
     const job = getJobById(overrides?.jobId ?? formData.jobId);
-    const referralContext = overrides?.referral || null;
+    const referralContext = overrides?.referral || undefined;
 
     const replacements: Record<string, string> = {
       "Contact Name": getContactDisplayName(contact),
       "Contact Company": getContactCompany(contact),
       "Contact's Company Name": getContactCompany(contact),
       "Specific Skill/Project":
-        getContactSkillsOrProjects(referralContext) || getContactSkillsOrProjects(referral),
+        getContactSkillsOrProjects(referralContext) || getContactSkillsOrProjects(referral || undefined),
       "Specific Skill or Project":
-        getContactSkillsOrProjects(referralContext) || getContactSkillsOrProjects(referral),
+        getContactSkillsOrProjects(referralContext) || getContactSkillsOrProjects(referral || undefined),
       "Job Title": job?.title || "",
       "Job Company": job?.company || "",
       "Company Name": job?.company || "",

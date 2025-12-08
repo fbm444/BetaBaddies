@@ -17,9 +17,8 @@ export function ReportGenerator() {
 
     try {
       // Use environment variable or fallback to relative path (for proxy)
-      const apiBase = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL 
-        ? `${import.meta.env.VITE_API_BASE_URL}/api/v1` 
-        : '/api/v1';
+      // In development, Vite proxy handles '/api/v1'. In production, VITE_API_URL must be set.
+      const apiBase = import.meta.env.VITE_API_URL || '/api/v1';
       
       const response = await fetch(`${apiBase}/reports/generate`, {
         method: 'POST',

@@ -1,14 +1,14 @@
-import axios from 'axios';
+import axios from "axios";
 
 // Use environment variable or fallback to relative path (for proxy)
-const API_BASE = import.meta.env.VITE_API_URL || 
-  (import.meta.env.VITE_API_BASE_URL ? `${import.meta.env.VITE_API_BASE_URL}/api/v1` : '/api/v1');
+// In development, Vite proxy handles '/api/v1'. In production, VITE_API_URL must be set.
+const API_BASE = import.meta.env.VITE_API_URL || "/api/v1";
 
 const api = axios.create({
   baseURL: `${API_BASE}/market-intelligence`,
   withCredentials: true,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
 });
 
@@ -44,7 +44,7 @@ export interface SalaryData {
   comparison: {
     difference: number;
     percentDifference: string;
-    positioning: 'above_market' | 'at_market' | 'below_market';
+    positioning: "above_market" | "at_market" | "below_market";
     insight: string;
   } | null;
   cached: boolean;
@@ -59,13 +59,13 @@ export interface IndustryTrends {
     recentJobs: number;
     previousPeriodJobs: number;
     growthRate: number;
-    trend: 'strong_growth' | 'growing' | 'stable' | 'declining';
+    trend: "strong_growth" | "growing" | "stable" | "declining";
   };
   hiringActivity: {
     totalJobs: number;
     activeCompanies: number;
     avgJobAge: number;
-    hiringVelocity: 'very_high' | 'high' | 'moderate' | 'low';
+    hiringVelocity: "very_high" | "high" | "moderate" | "low";
     insight: string;
   };
   topCompanies: Array<{
@@ -110,13 +110,13 @@ export interface SkillDemand {
 export interface MarketInsight {
   id: string;
   user_id: string;
-  insight_type: 'skill_gap' | 'salary_positioning' | 'market_opportunity';
+  insight_type: "skill_gap" | "salary_positioning" | "market_opportunity";
   title: string;
   description: string;
-  priority: 'high' | 'medium' | 'low';
+  priority: "high" | "medium" | "low";
   actionable_items: string[];
   supporting_data: Record<string, any>;
-  status: 'active' | 'dismissed' | 'completed';
+  status: "active" | "dismissed" | "completed";
   created_at: string;
   updated_at: string;
   expires_at: string | null;
@@ -139,7 +139,7 @@ export const marketIntelligenceService = {
    * Get comprehensive market overview
    */
   async getMarketOverview(): Promise<MarketOverview> {
-    const response = await api.get('/overview');
+    const response = await api.get("/overview");
     return response.data.data;
   },
 
@@ -152,8 +152,8 @@ export const marketIntelligenceService = {
     industry?: string
   ): Promise<SalaryData> {
     const params = new URLSearchParams({ jobTitle });
-    if (location) params.append('location', location);
-    if (industry) params.append('industry', industry);
+    if (location) params.append("location", location);
+    if (industry) params.append("industry", industry);
 
     const response = await api.get(`/salary-trends?${params.toString()}`);
     return response.data.data;
@@ -168,8 +168,8 @@ export const marketIntelligenceService = {
     timeframe?: number
   ): Promise<IndustryTrends> {
     const params = new URLSearchParams({ industry });
-    if (location) params.append('location', location);
-    if (timeframe) params.append('timeframe', timeframe.toString());
+    if (location) params.append("location", location);
+    if (timeframe) params.append("timeframe", timeframe.toString());
 
     const response = await api.get(`/industry-trends?${params.toString()}`);
     return response.data.data;
@@ -178,10 +178,13 @@ export const marketIntelligenceService = {
   /**
    * Get skill demand
    */
-  async getSkillDemand(industry?: string, timeframe?: number): Promise<SkillDemand> {
+  async getSkillDemand(
+    industry?: string,
+    timeframe?: number
+  ): Promise<SkillDemand> {
     const params = new URLSearchParams();
-    if (industry) params.append('industry', industry);
-    if (timeframe) params.append('timeframe', timeframe.toString());
+    if (industry) params.append("industry", industry);
+    if (timeframe) params.append("timeframe", timeframe.toString());
 
     const response = await api.get(`/skill-demand?${params.toString()}`);
     return response.data.data;
@@ -190,7 +193,7 @@ export const marketIntelligenceService = {
   /**
    * Get personalized insights
    */
-  async getInsights(status: string = 'active'): Promise<MarketInsight[]> {
+  async getInsights(status: string = "active"): Promise<MarketInsight[]> {
     const response = await api.get(`/insights?status=${status}`);
     return response.data.data.insights;
   },
@@ -199,7 +202,7 @@ export const marketIntelligenceService = {
    * Generate new insights
    */
   async generateInsights(): Promise<MarketInsight[]> {
-    const response = await api.post('/insights/generate');
+    const response = await api.post("/insights/generate");
     return response.data.data.insights;
   },
 
@@ -208,7 +211,7 @@ export const marketIntelligenceService = {
    */
   async updateInsightStatus(
     insightId: string,
-    status: 'active' | 'dismissed' | 'completed'
+    status: "active" | "dismissed" | "completed"
   ): Promise<MarketInsight> {
     const response = await api.patch(`/insights/${insightId}`, { status });
     return response.data.data.insight;
@@ -219,8 +222,7 @@ export const marketIntelligenceService = {
    * Clears cached data for current user to force fresh fetch from Adzuna
    */
   async refreshCache(): Promise<{ clearedEntries: number }> {
-    const response = await api.post('/refresh-cache');
+    const response = await api.post("/refresh-cache");
     return response.data.data;
   },
 };
-

@@ -1,8 +1,8 @@
 import axios from 'axios';
 
 // Use environment variable or fallback to relative path (for proxy)
-const API_BASE = import.meta.env.VITE_API_URL || 
-  (import.meta.env.VITE_API_BASE ? `${import.meta.env.VITE_API_BASE}/api/v1` : '/api/v1');
+// In development, Vite proxy handles '/api/v1'. In production, VITE_API_URL must be set.
+const API_BASE = import.meta.env.VITE_API_URL || '/api/v1';
 
 export interface CompanyInfo {
   id: string;

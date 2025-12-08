@@ -77,22 +77,22 @@ let corsOrigin =
   process.env.FRONTEND_URL ||
   "http://localhost:3000";
 
-// If FRONTEND_URL is set, automatically add common Vercel patterns
+// If FRONTEND_URL is set, automatically add wildcard pattern for Vercel preview URLs
 if (process.env.FRONTEND_URL && !process.env.CORS_ORIGIN) {
   const baseUrl = process.env.FRONTEND_URL;
   // Extract base domain (e.g., beta-baddies-72i5blr64-ats-trackers-projects.vercel.app)
   const urlMatch = baseUrl.match(/https?:\/\/([^/]+)/);
   if (urlMatch) {
     const domain = urlMatch[1];
-    // Add production domain if it's a preview URL
-    if (domain.includes("-") && domain.endsWith(".vercel.app")) {
-      // Also allow the main vercel.app domain (without preview hash)
-      const mainDomain =
-        domain.split("-").slice(0, -1).join("-") + ".vercel.app";
-      corsOrigin = `${baseUrl},https://${mainDomain},https://beta-baddies.vercel.app`;
-    } else {
-      // If it's already the main domain, also allow preview URLs
-      corsOrigin = `${baseUrl},https://beta-baddies-*.vercel.app`;
+    // If it's a Vercel URL, add wildcard pattern to allow all preview deployments
+    if (domain.endsWith(".vercel.app")) {
+      // Create wildcard pattern: beta-baddies-*-ats-trackers-projects.vercel.app
+      // This matches: beta-baddies-{any-hash}-ats-trackers-projects.vercel.app
+      const wildcardPattern = domain.replace(
+        /beta-baddies-[^-]+-/,
+        "beta-baddies-*-"
+      );
+      corsOrigin = `${baseUrl},https://${wildcardPattern},https://beta-baddies.vercel.app`;
     }
   }
 }

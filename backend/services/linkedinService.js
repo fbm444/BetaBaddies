@@ -18,91 +18,54 @@ class LinkedInService {
    */
   async fetchLinkedInProfile(accessToken) {
     try {
-      // LinkedIn API v2 endpoint for profile
-      const response = await axios.get("https://api.linkedin.com/v2/me", {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-        params: {
-          projection:
-            "(id,firstName,lastName,profilePicture(displayImage~:playableStreams))",
-        },
-      });
-
-      // Fetch email separately (requires r_emailaddress scope)
-      let email = null;
-      try {
-        const emailResponse = await axios.get(
-          "https://api.linkedin.com/v2/emailAddress?q=members&projection=(elements*(handle~))",
-          {
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-            },
-          }
-        );
-        if (emailResponse.data?.elements?.[0]?.["handle~"]?.emailAddress) {
-          email = emailResponse.data.elements[0]["handle~"].emailAddress;
+      // Use OpenID Connect UserInfo endpoint (works with openid, profile, email scopes)
+      // This is the correct endpoint for OpenID Connect authentication
+      const userInfoResponse = await axios.get(
+        "https://api.linkedin.com/v2/userinfo",
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
         }
-      } catch (emailError) {
-        console.warn("⚠️ Could not fetch LinkedIn email:", emailError.message);
-      }
+      );
 
-      // Fetch headline/position
-      let headline = null;
-      try {
-        const headlineResponse = await axios.get(
-          "https://api.linkedin.com/v2/me",
-          {
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-            },
-            params: {
-              projection: "(headline)",
-            },
-          }
-        );
-        headline = headlineResponse.data?.headline || null;
-      } catch (headlineError) {
-        console.warn(
-          "⚠️ Could not fetch LinkedIn headline:",
-          headlineError.message
-        );
-      }
+      const userInfo = userInfoResponse.data;
 
-      // Extract profile picture URL
-      let profilePicture = null;
-      if (response.data?.profilePicture?.["displayImage~"]?.elements) {
-        const images = response.data.profilePicture["displayImage~"].elements;
-        // Get the largest image
-        const largestImage = images.sort(
-          (a, b) => (b.width || 0) - (a.width || 0)
-        )[0];
-        profilePicture = largestImage?.identifiers?.[0]?.identifier || null;
-      }
-
+      // OpenID Connect UserInfo provides: sub, email, name, given_name, family_name, picture
       return {
-        linkedinId: response.data.id,
-        firstName:
-          response.data.firstName?.localized?.en_US ||
-          response.data.firstName?.preferredLocale?.language ||
-          null,
-        lastName:
-          response.data.lastName?.localized?.en_US ||
-          response.data.lastName?.preferredLocale?.language ||
-          null,
-        email,
-        profilePicture,
-        headline,
-        profileUrl: `https://www.linkedin.com/in/${response.data.id}`,
+        linkedinId: userInfo.sub, // OpenID Connect subject identifier
+        firstName: userInfo.given_name || null,
+        lastName: userInfo.family_name || null,
+        email: userInfo.email || null,
+        profilePicture: userInfo.picture || null,
+        headline: null, // Not available in OpenID Connect UserInfo
+        profileUrl: userInfo.sub
+          ? `https://www.linkedin.com/in/${userInfo.sub}`
+          : null,
       };
     } catch (error) {
       console.error("❌ Error fetching LinkedIn profile:", error);
+
+      // If UserInfo endpoint fails, try to provide helpful error message
       if (error.response) {
+        const status = error.response.status;
+        const errorData = error.response.data;
+
+        if (status === 403) {
+          throw new ApiError(
+            `LinkedIn API permission denied. Your LinkedIn app may need additional permissions approved. Error: ${
+              errorData?.message || errorData?.code || "ACCESS_DENIED"
+            }`,
+            403
+          );
+        }
+
         throw new ApiError(
-          `LinkedIn API error: ${error.response.status} - ${
-            error.response.data?.message || error.message
+          `LinkedIn API error: ${status} - ${
+            errorData?.message || error.message
           }`,
-          error.response.status
+          status
         );
       }
       throw new ApiError(

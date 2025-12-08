@@ -73,21 +73,45 @@ const corsOrigin =
   "http://localhost:3000";
 const corsOrigins = corsOrigin.split(",").map((origin) => origin.trim());
 
+// Log CORS configuration on startup
+console.log("🌐 CORS Configuration:");
+console.log(`   Allowed origins: ${corsOrigins.join(", ")}`);
+console.log(`   NODE_ENV: ${process.env.NODE_ENV || "development"}`);
+
 app.use(
   cors({
     origin: (origin, callback) => {
       // Allow requests with no origin (like mobile apps or curl requests)
-      if (!origin) return callback(null, true);
-
-      // In development, allow all origins
-      if (process.env.NODE_ENV === "development") {
+      if (!origin) {
+        console.log("✅ CORS: Allowing request with no origin");
         return callback(null, true);
       }
 
-      // In production, check against allowed origins
-      if (corsOrigins.includes(origin)) {
+      // In development, allow all origins
+      if (process.env.NODE_ENV === "development") {
+        console.log(`✅ CORS: Development mode - allowing origin: ${origin}`);
+        return callback(null, true);
+      }
+
+      // Normalize origin (remove trailing slash)
+      const normalizedOrigin = origin.endsWith("/")
+        ? origin.slice(0, -1)
+        : origin;
+      const normalizedAllowed = corsOrigins.map((o) =>
+        o.endsWith("/") ? o.slice(0, -1) : o
+      );
+
+      // Check against allowed origins (case-insensitive)
+      const isAllowed = normalizedAllowed.some(
+        (allowed) => allowed.toLowerCase() === normalizedOrigin.toLowerCase()
+      );
+
+      if (isAllowed) {
+        console.log(`✅ CORS: Allowing origin: ${origin}`);
         callback(null, true);
       } else {
+        console.error(`❌ CORS: Blocked origin: ${origin}`);
+        console.error(`   Allowed origins: ${normalizedAllowed.join(", ")}`);
         callback(new Error("Not allowed by CORS"));
       }
     },

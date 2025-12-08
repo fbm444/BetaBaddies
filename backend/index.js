@@ -28,7 +28,8 @@ async function main() {
     }
 
     // Start server
-    app.listen(port, () => {
+    // Listen on 0.0.0.0 to accept connections from all network interfaces (required for Railway/cloud)
+    app.listen(port, '0.0.0.0', () => {
       console.log(`🚀 Server is running on port ${port}`);
       console.log(`🌍 Environment: ${nodeEnv}`);
       console.log(`📊 Health check available at ${backendUrl}/health`);

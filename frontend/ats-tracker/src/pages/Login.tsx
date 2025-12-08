@@ -105,12 +105,16 @@ export function Login() {
 
   const handleGoogleLogin = () => {
     // Redirect to backend Google OAuth endpoint
-    window.location.href = "/api/v1/users/auth/google";
+    // Use full backend URL in production, relative in development (proxy handles it)
+    const apiBase = import.meta.env.VITE_API_URL || "/api/v1";
+    window.location.href = `${apiBase}/users/auth/google`;
   };
 
   const handleLinkedInLogin = () => {
     // Redirect to backend LinkedIn OAuth endpoint
-    window.location.href = "/api/v1/users/auth/linkedin";
+    // Use full backend URL in production, relative in development (proxy handles it)
+    const apiBase = import.meta.env.VITE_API_URL || "/api/v1";
+    window.location.href = `${apiBase}/users/auth/linkedin`;
   };
 
   const handleSubmit = async (e: FormEvent) => {

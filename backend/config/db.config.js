@@ -10,10 +10,36 @@ function getDbConfig() {
   if (process.env.DATABASE_URL) {
     try {
       const url = new URL(process.env.DATABASE_URL);
+      const port = parseInt(url.port) || 5432;
 
       // Check if using Supabase connection pooler (port 6543 or pgbouncer=true param)
       const isPooler =
-        url.port === "6543" || url.searchParams.get("pgbouncer") === "true";
+        port === 6543 || url.searchParams.get("pgbouncer") === "true";
+
+      // Warn if using direct connection (port 5432) on Railway/cloud platforms
+      if (
+        port === 5432 &&
+        (process.env.RAILWAY_ENVIRONMENT ||
+          process.env.NODE_ENV === "production")
+      ) {
+        console.error("⚠️ WARNING: Direct connection (port 5432) detected!");
+        console.error("   Railway and other cloud platforms are IPv4-only.");
+        console.error(
+          "   You MUST use Supabase Connection Pooler (port 6543)."
+        );
+        console.error("");
+        console.error(
+          "   Fix: Get the 'Session mode' connection string from Supabase Dashboard:"
+        );
+        console.error(
+          "   - Go to: Project Settings → Database → Connection string"
+        );
+        console.error("   - Select: 'Session mode' (port 6543)");
+        console.error(
+          "   - Update DATABASE_URL in Railway with the pooler connection string"
+        );
+        console.error("");
+      }
 
       // Supabase requires SSL connections
       // Use rejectUnauthorized: false for Supabase's self-signed certificates
@@ -21,7 +47,7 @@ function getDbConfig() {
         user: url.username,
         password: url.password,
         host: url.hostname,
-        port: parseInt(url.port) || 5432,
+        port: port,
         database: url.pathname.slice(1), // Remove leading '/'
         ssl: { rejectUnauthorized: false }, // Required for Supabase
       };
@@ -32,6 +58,10 @@ function getDbConfig() {
         config.allowExitOnIdle = true;
         // Note: Pooler mode doesn't support prepared statements, so we'll handle that in queries
         console.log("✅ Using Supabase Connection Pooler (IPv4 compatible)");
+      } else if (port === 5432) {
+        console.log(
+          "ℹ️  Using direct connection (port 5432) - ensure IPv6 is available"
+        );
       }
 
       return config;

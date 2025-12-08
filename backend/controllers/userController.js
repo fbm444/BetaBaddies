@@ -390,9 +390,11 @@ class UserController {
 
   // Handle Google OAuth callback and create session
   handleGoogleCallback = asyncHandler(async (req, res, next) => {
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+    
     // After passport authenticates, req.user is populated
     if (!req.user) {
-      return res.redirect("/login?error=oauth_failed");
+      return res.redirect(`${frontendUrl}/login?error=oauth_failed`);
     }
 
     // Create session
@@ -400,9 +402,7 @@ class UserController {
     req.session.userEmail = req.user.email;
 
     // Redirect to frontend
-    res.redirect(
-      `${process.env.FRONTEND_URL || "http://localhost:3000"}/dashboard`
-    );
+    res.redirect(`${frontendUrl}/dashboard`);
   });
 
   // LinkedIn OAuth - initiate authentication
@@ -412,12 +412,14 @@ class UserController {
 
   // LinkedIn OAuth - handle callback with error handling
   linkedinCallback = (req, res, next) => {
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+    
     passport.authenticate("linkedin", { session: false }, (err, user, info) => {
       // Check for OAuth errors from LinkedIn URL parameters
       if (req.query.error) {
         console.error("❌ LinkedIn OAuth error from URL:", req.query.error, req.query.error_description);
         return res.redirect(
-          `/login?error=linkedin_oauth_failed&details=${encodeURIComponent(req.query.error_description || req.query.error)}`
+          `${frontendUrl}/login?error=linkedin_oauth_failed&details=${encodeURIComponent(req.query.error_description || req.query.error)}`
         );
       }
 
@@ -425,7 +427,7 @@ class UserController {
       if (err) {
         console.error("❌ LinkedIn OAuth passport error:", err);
         return res.redirect(
-          `/login?error=linkedin_oauth_failed&details=${encodeURIComponent(err.message || "Authentication failed")}`
+          `${frontendUrl}/login?error=linkedin_oauth_failed&details=${encodeURIComponent(err.message || "Authentication failed")}`
         );
       }
 
@@ -438,7 +440,7 @@ class UserController {
           req.passportError = info.message;
         } else {
           return res.redirect(
-            `/login?error=linkedin_oauth_failed&details=${encodeURIComponent(info.message)}`
+            `${frontendUrl}/login?error=linkedin_oauth_failed&details=${encodeURIComponent(info.message)}`
           );
         }
       }
@@ -454,11 +456,13 @@ class UserController {
 
   // Handle LinkedIn OAuth callback and create session
   handleLinkedInCallback = asyncHandler(async (req, res, next) => {
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+    
     // Check for OAuth errors from LinkedIn
     if (req.query.error) {
       console.error("❌ LinkedIn OAuth error:", req.query.error, req.query.error_description);
       return res.redirect(
-        `/login?error=linkedin_oauth_failed&details=${encodeURIComponent(req.query.error_description || req.query.error)}`
+        `${frontendUrl}/login?error=linkedin_oauth_failed&details=${encodeURIComponent(req.query.error_description || req.query.error)}`
       );
     }
 
@@ -470,12 +474,12 @@ class UserController {
         // Note: passport-linkedin-oauth2 stores tokens, but we might need to get them differently
         // For now, redirect to error page
         return res.redirect(
-          `/login?error=linkedin_oauth_failed&details=${encodeURIComponent("Failed to authenticate with LinkedIn. Please try again.")}`
+          `${frontendUrl}/login?error=linkedin_oauth_failed&details=${encodeURIComponent("Failed to authenticate with LinkedIn. Please try again.")}`
         );
       } catch (manualError) {
         console.error("❌ Manual fetch also failed:", manualError);
         return res.redirect(
-          `/login?error=linkedin_oauth_failed&details=${encodeURIComponent("Failed to fetch LinkedIn profile")}`
+          `${frontendUrl}/login?error=linkedin_oauth_failed&details=${encodeURIComponent("Failed to fetch LinkedIn profile")}`
         );
       }
     }
@@ -483,7 +487,7 @@ class UserController {
     // After passport authenticates, req.user is populated
     if (!req.user) {
       console.error("❌ LinkedIn OAuth: req.user not populated after authentication");
-      return res.redirect("/login?error=oauth_failed");
+      return res.redirect(`${frontendUrl}/login?error=oauth_failed`);
     }
 
     // Create session
@@ -511,7 +515,6 @@ class UserController {
     }
 
     // Redirect directly to analytics networking page to show LinkedIn network
-    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
     res.redirect(`${frontendUrl}/analytics?linkedin=connected&tab=network`);
   });
 

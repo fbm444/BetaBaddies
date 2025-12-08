@@ -1644,8 +1644,7 @@ class ResumeController {
 
       // Determine if we're using cloud storage
       const useCloudStorage =
-        process.env.CLOUD_PROVIDER &&
-        process.env.CLOUD_PROVIDER !== "local";
+        process.env.CLOUD_PROVIDER && process.env.CLOUD_PROVIDER !== "local";
       const cloudProvider = new CloudProvider();
 
       let parsedContent;
@@ -1656,13 +1655,14 @@ class ResumeController {
         // existingResumeTemplate could be:
         // 1. An S3 key (e.g., "templates/template_123.pdf")
         // 2. A local path (legacy - will fail gracefully)
-        
+
         const templatePath = template.existingResumeTemplate.trim();
-        
+
         // Check if it looks like an S3 key (no leading slash, no absolute path)
-        const isLikelyS3Key = !templatePath.startsWith("/") && 
-                              !templatePath.startsWith(process.cwd()) &&
-                              !path.isAbsolute(templatePath);
+        const isLikelyS3Key =
+          !templatePath.startsWith("/") &&
+          !templatePath.startsWith(process.cwd()) &&
+          !path.isAbsolute(templatePath);
 
         if (isLikelyS3Key) {
           // Try to fetch from S3
@@ -1675,7 +1675,10 @@ class ResumeController {
             );
           } catch (s3Error) {
             // S3 fetch failed - return graceful error
-            console.error("Failed to fetch template file from S3:", s3Error.message);
+            console.error(
+              "Failed to fetch template file from S3:",
+              s3Error.message
+            );
             return res.status(200).json({
               ok: true,
               data: {

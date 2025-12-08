@@ -21,14 +21,16 @@ passport.deserializeUser(async (id, done) => {
 
 // Google OAuth Strategy (only register if credentials are available)
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  // Construct full callback URL from BACKEND_URL if not explicitly set
+  const googleCallbackUrl = process.env.GOOGLE_CALLBACK_URL ||
+    (process.env.BACKEND_URL || process.env.SERVER_URL || "http://localhost:3001") + "/api/v1/users/auth/google/callback";
+  
   passport.use(
     new GoogleStrategy(
       {
         clientID: process.env.GOOGLE_CLIENT_ID,
         clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        callbackURL:
-          process.env.GOOGLE_CALLBACK_URL ||
-          "/api/v1/users/auth/google/callback",
+        callbackURL: googleCallbackUrl,
       },
       async (accessToken, refreshToken, profile, done) => {
         try {
@@ -78,14 +80,16 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
 
 // LinkedIn OAuth Strategy (only register if credentials are available)
 if (process.env.LINKEDIN_CLIENT_ID && process.env.LINKEDIN_CLIENT_SECRET) {
+  // Construct full callback URL from BACKEND_URL if not explicitly set
+  const linkedinCallbackUrl = process.env.LINKEDIN_CALLBACK_URL ||
+    (process.env.BACKEND_URL || process.env.SERVER_URL || "http://localhost:3001") + "/api/v1/users/auth/linkedin/callback";
+  
   // Create a custom strategy that overrides userProfile to use OpenID Connect UserInfo endpoint
   const linkedinStrategy = new LinkedInStrategy(
     {
       clientID: process.env.LINKEDIN_CLIENT_ID,
       clientSecret: process.env.LINKEDIN_CLIENT_SECRET,
-      callbackURL:
-        process.env.LINKEDIN_CALLBACK_URL ||
-        "/api/v1/users/auth/linkedin/callback",
+      callbackURL: linkedinCallbackUrl,
       scope: ["openid", "profile", "email"],
     },
     async (accessToken, refreshToken, profile, done) => {

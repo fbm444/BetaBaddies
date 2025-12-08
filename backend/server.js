@@ -177,7 +177,11 @@ const rateLimitWindowMs =
   parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000; // 15 minutes
 const rateLimitMax =
   parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) ||
-  (process.env.NODE_ENV === "production" ? 100 : 1000);
+  (process.env.NODE_ENV === "production" ? 1000 : 1000); // Increased to 1000 for production
+
+// Log rate limit configuration
+console.log("🚦 Rate Limit Configuration:");
+console.log(`   Max requests: ${rateLimitMax} per ${rateLimitWindowMs / 1000 / 60} minutes`);
 
 const limiter = rateLimit({
   windowMs: rateLimitWindowMs,

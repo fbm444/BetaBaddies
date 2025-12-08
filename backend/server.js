@@ -181,7 +181,11 @@ const rateLimitMax =
 
 // Log rate limit configuration
 console.log("🚦 Rate Limit Configuration:");
-console.log(`   Max requests: ${rateLimitMax} per ${rateLimitWindowMs / 1000 / 60} minutes`);
+console.log(
+  `   Max requests: ${rateLimitMax} per ${
+    rateLimitWindowMs / 1000 / 60
+  } minutes`
+);
 
 const limiter = rateLimit({
   windowMs: rateLimitWindowMs,

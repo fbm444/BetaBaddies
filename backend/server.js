@@ -228,7 +228,6 @@ if (!sessionSecret && isProduction) {
 }
 
 // Session cookie configuration
-const isProduction = process.env.NODE_ENV === "production";
 const isHttps =
   process.env.BACKEND_URL?.startsWith("https") ||
   process.env.FRONTEND_URL?.startsWith("https") ||

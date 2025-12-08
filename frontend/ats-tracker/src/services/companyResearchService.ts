@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api/v1';
+// Use environment variable or fallback to relative path (for proxy)
+const API_BASE = import.meta.env.VITE_API_URL || 
+  (import.meta.env.VITE_API_BASE ? `${import.meta.env.VITE_API_BASE}/api/v1` : '/api/v1');
 
 export interface CompanyInfo {
   id: string;
@@ -122,7 +124,7 @@ const companyResearchService = {
   // Trigger automated research for a job
   async fetchCompanyResearch(jobId: string): Promise<any> {
     const response = await axios.post(
-      `${API_BASE_URL}/company-research/fetch/${jobId}`,
+      `${API_BASE}/company-research/fetch/${jobId}`,
       {},
       { withCredentials: true }
     );
@@ -131,7 +133,7 @@ const companyResearchService = {
 
   // Get all researched companies for the user
   async getResearchedCompanies(limit = 50, offset = 0): Promise<ResearchedCompany[]> {
-    const response = await axios.get(`${API_BASE_URL}/company-research`, {
+    const response = await axios.get(`${API_BASE}/company-research`, {
       params: { limit, offset },
       withCredentials: true,
     });
@@ -140,7 +142,7 @@ const companyResearchService = {
 
   // Get complete research for a specific job
   async getCompanyResearchByJobId(jobId: string): Promise<CompleteCompanyResearch> {
-    const response = await axios.get(`${API_BASE_URL}/company-research/job/${jobId}`, {
+    const response = await axios.get(`${API_BASE}/company-research/job/${jobId}`, {
       withCredentials: true,
     });
     return response.data.data.research;
@@ -148,7 +150,7 @@ const companyResearchService = {
 
   // Generate AI summary for a job's company research
   async generateAISummary(jobId: string): Promise<AISummary> {
-    const response = await axios.get(`${API_BASE_URL}/company-research/job/${jobId}/ai-summary`, {
+    const response = await axios.get(`${API_BASE}/company-research/job/${jobId}/ai-summary`, {
       withCredentials: true,
     });
     return response.data.data.aiSummary;
@@ -159,7 +161,7 @@ const companyResearchService = {
     options?: { roleTitle?: string; refresh?: boolean }
   ): Promise<InterviewInsightsResponse> {
     const response = await axios.get(
-      `${API_BASE_URL}/company-research/job/${jobId}/interview-insights`,
+      `${API_BASE}/company-research/job/${jobId}/interview-insights`,
       {
         params: {
           role: options?.roleTitle,
@@ -173,7 +175,7 @@ const companyResearchService = {
 
   // Create or update company info
   async upsertCompanyInfo(jobId: string, companyData: Partial<CompanyInfo>): Promise<CompanyInfo> {
-    const response = await axios.post(`${API_BASE_URL}/company-research/job/${jobId}`, companyData, {
+    const response = await axios.post(`${API_BASE}/company-research/job/${jobId}`, companyData, {
       withCredentials: true,
     });
     return response.data.data.companyInfo;
@@ -181,7 +183,7 @@ const companyResearchService = {
 
   // Delete company research
   async deleteCompanyResearch(jobId: string): Promise<void> {
-    await axios.delete(`${API_BASE_URL}/company-research/job/${jobId}`, {
+    await axios.delete(`${API_BASE}/company-research/job/${jobId}`, {
       withCredentials: true,
     });
   },
@@ -189,7 +191,7 @@ const companyResearchService = {
   // Add company media
   async addCompanyMedia(companyInfoId: string, platform: string, link: string): Promise<CompanyMedia> {
     const response = await axios.post(
-      `${API_BASE_URL}/company-research/${companyInfoId}/media`,
+      `${API_BASE}/company-research/${companyInfoId}/media`,
       { platform, link },
       { withCredentials: true }
     );
@@ -198,7 +200,7 @@ const companyResearchService = {
 
   // Get company media
   async getCompanyMedia(companyInfoId: string): Promise<CompanyMedia[]> {
-    const response = await axios.get(`${API_BASE_URL}/company-research/${companyInfoId}/media`, {
+    const response = await axios.get(`${API_BASE}/company-research/${companyInfoId}/media`, {
       withCredentials: true,
     });
     return response.data.data.media;
@@ -206,7 +208,7 @@ const companyResearchService = {
 
   // Delete company media
   async deleteCompanyMedia(mediaId: string): Promise<void> {
-    await axios.delete(`${API_BASE_URL}/company-research/media/${mediaId}`, {
+    await axios.delete(`${API_BASE}/company-research/media/${mediaId}`, {
       withCredentials: true,
     });
   },
@@ -223,7 +225,7 @@ const companyResearchService = {
     }
   ): Promise<CompanyNews> {
     const response = await axios.post(
-      `${API_BASE_URL}/company-research/${companyInfoId}/news`,
+      `${API_BASE}/company-research/${companyInfoId}/news`,
       newsData,
       { withCredentials: true }
     );
@@ -232,7 +234,7 @@ const companyResearchService = {
 
   // Get company news
   async getCompanyNews(companyInfoId: string, type?: string, limit = 20, offset = 0): Promise<CompanyNews[]> {
-    const response = await axios.get(`${API_BASE_URL}/company-research/${companyInfoId}/news`, {
+    const response = await axios.get(`${API_BASE}/company-research/${companyInfoId}/news`, {
       params: { type, limit, offset },
       withCredentials: true,
     });
@@ -241,7 +243,7 @@ const companyResearchService = {
 
   // Delete company news
   async deleteCompanyNews(newsId: string): Promise<void> {
-    await axios.delete(`${API_BASE_URL}/company-research/news/${newsId}`, {
+    await axios.delete(`${API_BASE}/company-research/news/${newsId}`, {
       withCredentials: true,
     });
   },

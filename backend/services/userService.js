@@ -188,13 +188,16 @@ class UserService {
   // Get user by email (authentication only)
   async getUserByEmail(email) {
     try {
+      // Normalize email to lowercase for case-insensitive lookup
+      const normalizedEmail = email?.toLowerCase().trim();
+      
       const query = `
         SELECT u_id, email, password, created_at, updated_at, google_id, linkedin_id, auth_provider
         FROM users
-        WHERE email = $1
+        WHERE LOWER(email) = $1
       `;
 
-      const result = await database.query(query, [email]);
+      const result = await database.query(query, [normalizedEmail]);
       return result.rows[0] || null;
     } catch (error) {
       console.error("❌ Error getting user by email:", error);

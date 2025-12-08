@@ -67,44 +67,94 @@ app.use(
 );
 
 // CORS configuration
+const corsOrigin =
+  process.env.CORS_ORIGIN ||
+  process.env.FRONTEND_URL ||
+  "http://localhost:3000";
+const corsOrigins = corsOrigin.split(",").map((origin) => origin.trim());
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+
+      // In development, allow all origins
+      if (process.env.NODE_ENV === "development") {
+        return callback(null, true);
+      }
+
+      // In production, check against allowed origins
+      if (corsOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   })
 );
 
 // Rate limiting
+const rateLimitWindowMs =
+  parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000; // 15 minutes
+const rateLimitMax =
+  parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) ||
+  (process.env.NODE_ENV === "production" ? 100 : 1000);
+
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000, // limit each IP to 1000 requests per windowMs (increased for development)
+  windowMs: rateLimitWindowMs,
+  max: rateLimitMax,
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res, next) => {
-    res.setHeader("X-RateLimit-Status", "exceeded");
-    console.warn(
-      `[RateLimit] Threshold exceeded for ${req.ip}. Allowing request to proceed in development mode.`
-    );
-    next();
+    if (process.env.NODE_ENV === "development") {
+      res.setHeader("X-RateLimit-Status", "exceeded");
+      console.warn(
+        `[RateLimit] Threshold exceeded for ${req.ip}. Allowing request to proceed in development mode.`
+      );
+      next();
+    } else {
+      res.status(429).json({
+        ok: false,
+        error: {
+          code: "RATE_LIMIT_EXCEEDED",
+          message: "Too many requests. Please try again later.",
+        },
+      });
+    }
   },
 });
 
 app.use(limiter);
 
 // Logging
-app.use(morgan("combined"));
+const logFormat =
+  process.env.LOG_FORMAT ||
+  (process.env.NODE_ENV === "production" ? "combined" : "dev");
+app.use(morgan(logFormat));
 
 // Body parsing
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+const uploadMaxSize = process.env.UPLOAD_MAX_SIZE || "10mb";
+app.use(express.json({ limit: uploadMaxSize }));
+app.use(express.urlencoded({ extended: true, limit: uploadMaxSize }));
 
 // Session configuration
+const isProduction = process.env.NODE_ENV === "production";
+const sessionSecret =
+  process.env.SESSION_SECRET ||
+  (isProduction ? null : "your-secret-key-change-in-production");
+
+if (!sessionSecret && isProduction) {
+  console.error("❌ ERROR: SESSION_SECRET must be set in production!");
+  process.exit(1);
+}
+
 app.use(
   session({
-    secret:
-      process.env.SESSION_SECRET || "your-secret-key-change-in-production",
+    secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
     cookie: {
@@ -121,17 +171,84 @@ app.use(
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Serve static files from uploads directory
-app.use("/uploads", express.static("uploads"));
+// Serve static files from uploads directory (only in development with local storage)
+const useLocalStorage =
+  !process.env.CLOUD_PROVIDER || process.env.CLOUD_PROVIDER === "local";
+if (process.env.NODE_ENV === "development" && useLocalStorage) {
+  app.use("/uploads", express.static("uploads"));
+} else if (process.env.NODE_ENV === "production" && useLocalStorage) {
+  // In production with local storage, still serve files but log warning
+  console.warn(
+    "⚠️ WARNING: Using local file storage in production. Consider using cloud storage."
+  );
+  app.use("/uploads", express.static("uploads"));
+}
 
 // Health check endpoint
-app.get("/health", (req, res) => {
+app.get("/health", async (req, res) => {
+  const checks = {
+    database: false,
+    timestamp: new Date().toISOString(),
+    version: process.env.APP_VERSION || "1.0.0",
+    environment: process.env.NODE_ENV || "development",
+  };
+
+  // Check database connectivity
+  try {
+    await database.query("SELECT 1");
+    checks.database = true;
+  } catch (error) {
+    checks.database = false;
+    checks.databaseError = error.message;
+  }
+
+  const isHealthy = checks.database;
+  const statusCode = isHealthy ? 200 : 503;
+
+  res.status(statusCode).json({
+    ok: isHealthy,
+    data: {
+      status: isHealthy ? "healthy" : "unhealthy",
+      checks,
+    },
+  });
+});
+
+// Readiness probe (for Kubernetes/container orchestration)
+app.get("/health/ready", async (req, res) => {
+  try {
+    // Check critical dependencies
+    await database.query("SELECT 1");
+
+    // If cloud storage is configured, could check connectivity here
+    // For now, just check database
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        status: "ready",
+        timestamp: new Date().toISOString(),
+      },
+    });
+  } catch (error) {
+    res.status(503).json({
+      ok: false,
+      data: {
+        status: "not ready",
+        error: error.message,
+        timestamp: new Date().toISOString(),
+      },
+    });
+  }
+});
+
+// Liveness probe (simple check that app is running)
+app.get("/health/live", (req, res) => {
   res.status(200).json({
     ok: true,
     data: {
-      status: "healthy",
+      status: "alive",
       timestamp: new Date().toISOString(),
-      version: "1.0.0",
     },
   });
 });

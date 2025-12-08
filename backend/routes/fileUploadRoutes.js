@@ -32,6 +32,9 @@ router.get("/:fileId", validateFileId, fileUploadController.getFileById);
 
 router.get("/:fileId/content", validateFileId, fileUploadController.serveFile);
 
+// Proxy endpoint for profile pictures - generates fresh signed URLs on-demand
+router.get("/profile-picture/:fileId/url", validateFileId, fileUploadController.getProfilePictureUrl);
+
 router.delete("/:fileId", validateFileId, fileUploadController.deleteFile);
 
 export default router;

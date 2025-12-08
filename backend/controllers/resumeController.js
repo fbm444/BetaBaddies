@@ -20,6 +20,7 @@ import certificationService from "../services/certificationService.js";
 import fileUploadService from "../services/fileUploadService.js";
 import jobOpportunityService from "../services/jobOpportunityService.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
+import CloudProvider from "../services/cloud/cloudProvider.js";
 import fs from "fs/promises";
 import path from "path";
 import multer from "multer";
@@ -885,21 +886,18 @@ class ResumeController {
       });
     }
 
-    // Use existing exportService - it already does direct PDF generation
+    // Use existing exportService - returns buffer directly
     const result = await resumeExportService.exportPDF(resumeData.id, userId, {
       filename,
     });
 
-    // Read file content and send it
-    const fileContent = await fs.readFile(result.filePath);
-
-    // Send file content with proper headers
+    // Send buffer directly with proper headers
     res.setHeader("Content-Type", result.contentType || "application/pdf");
     res.setHeader(
       "Content-Disposition",
       `attachment; filename="${result.fileName}"`
     );
-    res.send(fileContent);
+    res.send(result.buffer);
   });
 
   // Export to PDF (legacy method - kept for backward compatibility)
@@ -924,43 +922,21 @@ class ResumeController {
       watermark: watermark === "true",
     });
 
-    // Check if file exists
-    try {
-      await fs.access(result.filePath);
-    } catch (error) {
-      return res.status(404).json({
-        ok: false,
-        error: {
-          code: "FILE_NOT_FOUND",
-          message: "Export file not found",
-        },
-      });
-    }
-
-    // Read file content and send it
-    // For PDF and DOCX, read as binary (no encoding)
-    const isBinary =
-      result.contentType === "application/pdf" ||
-      result.contentType?.includes("application/vnd.openxmlformats");
-
-    const fileContent = isBinary
-      ? await fs.readFile(result.filePath)
-      : await fs.readFile(result.filePath, "utf8");
-
-    // Send file content with proper headers
-    res.setHeader("Content-Type", result.contentType || "text/html");
+    // Send buffer directly with proper headers
+    res.setHeader("Content-Type", result.contentType || "application/pdf");
     res.setHeader(
       "Content-Disposition",
       `attachment; filename="${result.fileName}"`
     );
-    res.send(fileContent);
+    res.send(result.buffer);
   });
 
   // Export to DOCX from HTML (new method - receives HTML from frontend)
   // Note: HTML is ignored, we use resumeData.id to fetch from database
   exportDOCXFromHTML = asyncHandler(async (req, res) => {
     const userId = req.session.userId;
-    const { html, filename, resumeData, watermark, theme, printOptimized } = req.body;
+    const { html, filename, resumeData, watermark, theme, printOptimized } =
+      req.body;
 
     // Require resumeData for reliable export
     if (!resumeData || !resumeData.id) {
@@ -973,7 +949,7 @@ class ResumeController {
       });
     }
 
-    // Use existing exportService - it already does direct DOCX generation
+    // Use existing exportService - returns buffer directly
     const result = await resumeExportService.exportDOCX(resumeData.id, userId, {
       filename,
       watermark,
@@ -981,10 +957,7 @@ class ResumeController {
       printOptimized,
     });
 
-    // Read file content and send it
-    const fileContent = await fs.readFile(result.filePath);
-
-    // Send file content with proper headers
+    // Send buffer directly with proper headers
     res.setHeader(
       "Content-Type",
       result.contentType ||
@@ -994,7 +967,7 @@ class ResumeController {
       "Content-Disposition",
       `attachment; filename="${result.fileName}"`
     );
-    res.send(fileContent);
+    res.send(result.buffer);
   });
 
   // Export to DOCX (legacy method - kept for backward compatibility)
@@ -1018,36 +991,17 @@ class ResumeController {
       filename,
     });
 
-    // Check if file exists
-    try {
-      await fs.access(result.filePath);
-    } catch (error) {
-      return res.status(404).json({
-        ok: false,
-        error: {
-          code: "FILE_NOT_FOUND",
-          message: "Export file not found",
-        },
-      });
-    }
-
-    // Read file content and send it
-    // For PDF and DOCX, read as binary (no encoding)
-    const isBinary =
-      result.contentType === "application/pdf" ||
-      result.contentType?.includes("application/vnd.openxmlformats");
-
-    const fileContent = isBinary
-      ? await fs.readFile(result.filePath)
-      : await fs.readFile(result.filePath, "utf8");
-
-    // Send file content with proper headers
-    res.setHeader("Content-Type", result.contentType || "text/plain");
+    // Send buffer directly with proper headers
+    res.setHeader(
+      "Content-Type",
+      result.contentType ||
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    );
     res.setHeader(
       "Content-Disposition",
       `attachment; filename="${result.fileName}"`
     );
-    res.send(fileContent);
+    res.send(result.buffer);
   });
 
   // Export to TXT
@@ -1071,36 +1025,13 @@ class ResumeController {
       filename,
     });
 
-    // Check if file exists
-    try {
-      await fs.access(result.filePath);
-    } catch (error) {
-      return res.status(404).json({
-        ok: false,
-        error: {
-          code: "FILE_NOT_FOUND",
-          message: "Export file not found",
-        },
-      });
-    }
-
-    // Read file content and send it
-    // For PDF and DOCX, read as binary (no encoding)
-    const isBinary =
-      result.contentType === "application/pdf" ||
-      result.contentType?.includes("application/vnd.openxmlformats");
-
-    const fileContent = isBinary
-      ? await fs.readFile(result.filePath)
-      : await fs.readFile(result.filePath, "utf8");
-
-    // Send file content with proper headers
+    // Send buffer directly with proper headers
     res.setHeader("Content-Type", result.contentType || "text/plain");
     res.setHeader(
       "Content-Disposition",
       `attachment; filename="${result.fileName}"`
     );
-    res.send(fileContent);
+    res.send(result.buffer);
   });
 
   // Export to HTML
@@ -1125,29 +1056,13 @@ class ResumeController {
       watermark: watermark === "true",
     });
 
-    // Check if file exists
-    try {
-      await fs.access(result.filePath);
-    } catch (error) {
-      return res.status(404).json({
-        ok: false,
-        error: {
-          code: "FILE_NOT_FOUND",
-          message: "Export file not found",
-        },
-      });
-    }
-
-    // Read file content and send it
-    const fileContent = await fs.readFile(result.filePath, "utf8");
-
-    // Send file content with proper headers
+    // Send buffer directly with proper headers
     res.setHeader("Content-Type", result.contentType || "text/html");
     res.setHeader(
       "Content-Disposition",
       `attachment; filename="${result.fileName}"`
     );
-    res.send(fileContent);
+    res.send(result.buffer);
   });
 
   // Validation Management
@@ -1160,13 +1075,14 @@ class ResumeController {
 
     try {
       console.log("🔍 Controller: Starting validation for resume:", id);
-      
+
       // Use AI-powered grading validation
-      const validation = await resumeValidationService.validateResumeWithGrading(
-        id,
-        userId,
-        currentResume || null
-      );
+      const validation =
+        await resumeValidationService.validateResumeWithGrading(
+          id,
+          userId,
+          currentResume || null
+        );
 
       console.log("✅ Controller: Validation complete, returning:", {
         hasOverallScore: !!validation.overallScore,
@@ -1176,7 +1092,9 @@ class ResumeController {
 
       // Ensure we're returning the grading format, not the old issues format
       if (validation.issues) {
-        console.error("❌ Controller: Received old format with issues, converting to grading format");
+        console.error(
+          "❌ Controller: Received old format with issues, converting to grading format"
+        );
         // This shouldn't happen, but if it does, convert to grading format
         throw new Error("Validation service returned old format");
       }
@@ -1195,9 +1113,11 @@ class ResumeController {
         summary: "Validation failed. Please try again.",
         highlights: [],
         sectionGrades: [],
-        recommendations: ["Please try validating again. If the issue persists, contact support."],
+        recommendations: [
+          "Please try validating again. If the issue persists, contact support.",
+        ],
       };
-      
+
       res.status(200).json({
         ok: true,
         data: fallbackGrading,
@@ -1609,53 +1529,65 @@ class ResumeController {
       }
 
       try {
-        // Save file to local file system
-        const fileId = uuidv4();
-        const fileExtension = path.extname(req.file.originalname).toLowerCase();
-        const fileName = `resume_${fileId}${fileExtension}`;
-        const filePath = path.join(
-          process.cwd(),
-          "uploads",
-          "resumes",
-          fileName
+        // Upload resume using FileUploadService (handles cloud/local automatically)
+        const uploadResult = await fileUploadService.uploadResume(
+          userId,
+          req.file
         );
-
-        // Ensure directory exists
-        await fs.mkdir(path.dirname(filePath), { recursive: true });
-
-        // Write file to disk (permanently store it)
-        await fs.writeFile(filePath, req.file.buffer);
 
         try {
           // Parse the resume
-          const parsedContent = await resumeParseService.parseResumeFile(
-            filePath
-          );
+          // For parsing, we need the actual file path or buffer
+          // If cloud storage, use buffer directly (already in memory)
+          // If local storage, use file path
+          const useCloudStorage =
+            process.env.CLOUD_PROVIDER &&
+            process.env.CLOUD_PROVIDER !== "local";
 
-          // Also save file record to database for tracking
-          const fileRecord = await fileUploadService.saveFileRecord({
-            fileId,
-            userId,
-            fileName,
-            originalName: req.file.originalname,
-            filePath: `/uploads/resumes/${fileName}`,
-            fileType: "resume",
-            fileSize: req.file.size,
-            mimeType: req.file.mimetype,
-          });
+          let parsedContent;
+          if (useCloudStorage) {
+            // For cloud storage, parse directly from buffer (no temp file needed)
+            if (!req.file.buffer || req.file.buffer.length === 0) {
+              throw new Error("File buffer is empty or invalid");
+            }
+
+            const fileExtension = req.file.originalname
+              ? path.extname(req.file.originalname).toLowerCase()
+              : req.file.mimetype === "application/pdf"
+              ? ".pdf"
+              : req.file.mimetype?.includes("word")
+              ? ".docx"
+              : ".pdf"; // Default to PDF if unknown
+
+            parsedContent = await resumeParseService.parseResumeFile(
+              req.file.buffer,
+              fileExtension
+            );
+          } else {
+            // Local storage - resolve the file path
+            // uploadResult.filePath is like "/uploads/resumes/resume_xxx.pdf"
+            const fullPath = path.join(
+              process.cwd(),
+              uploadResult.filePath.replace(/^\/+/, "")
+            );
+            parsedContent = await resumeParseService.parseResumeFile(fullPath);
+          }
 
           res.status(200).json({
             ok: true,
             data: {
               content: parsedContent.content || parsedContent,
-              message: parsedContent.message || "Resume parsed and stored successfully",
-              fileId: fileRecord.fileId,
-              fileName: fileRecord.fileName,
-              filePath: fileRecord.filePath,
+              message:
+                parsedContent.message ||
+                "Resume parsed and stored successfully",
+              fileId: uploadResult.fileId,
+              fileName: uploadResult.fileName,
+              filePath: uploadResult.filePath,
             },
           });
         } catch (parseError) {
-          // Keep the file even if parsing fails - user might want to retry
+          // File is already uploaded and saved, parsing failed
+          // User can retry parsing later
           console.error("Parse error but file kept:", parseError);
           throw parseError;
         }
@@ -1691,45 +1623,118 @@ class ResumeController {
       }
 
       // Check if template has an existing resume file
-      if (!template.existingResumeTemplate) {
-        return res.status(400).json({
-          ok: false,
-          error: {
-            code: "NO_TEMPLATE_FILE",
-            message: "Template does not have an existing resume file",
+      if (
+        !template.existingResumeTemplate ||
+        template.existingResumeTemplate.trim() === ""
+      ) {
+        // This is not an error - templates don't always have existing resume files
+        // Return a more graceful response that the frontend can handle
+        return res.status(200).json({
+          ok: true,
+          data: {
+            content: null,
+            message:
+              "This template does not have an existing resume file to parse. You can create a new resume from scratch.",
+            templateId: template.id,
+            templateName: template.templateName,
+            hasExistingFile: false,
           },
         });
       }
 
-      // Resolve file path (existingResumeTemplate is a file path)
-      const filePath = path.join(
-        process.cwd(),
-        template.existingResumeTemplate.startsWith("/")
-          ? template.existingResumeTemplate.slice(1)
-          : template.existingResumeTemplate
-      );
+      // Determine if we're using cloud storage
+      const useCloudStorage =
+        process.env.CLOUD_PROVIDER &&
+        process.env.CLOUD_PROVIDER !== "local";
+      const cloudProvider = new CloudProvider();
 
-      // Check if file exists
-      try {
-        await fs.access(filePath);
-      } catch (error) {
-        return res.status(404).json({
-          ok: false,
-          error: {
-            code: "FILE_NOT_FOUND",
-            message: "Template resume file not found",
-          },
-        });
+      let parsedContent;
+      let fileExtension;
+
+      if (useCloudStorage) {
+        // Cloud storage mode - try to fetch from S3
+        // existingResumeTemplate could be:
+        // 1. An S3 key (e.g., "templates/template_123.pdf")
+        // 2. A local path (legacy - will fail gracefully)
+        
+        const templatePath = template.existingResumeTemplate.trim();
+        
+        // Check if it looks like an S3 key (no leading slash, no absolute path)
+        const isLikelyS3Key = !templatePath.startsWith("/") && 
+                              !templatePath.startsWith(process.cwd()) &&
+                              !path.isAbsolute(templatePath);
+
+        if (isLikelyS3Key) {
+          // Try to fetch from S3
+          try {
+            const fileBuffer = await cloudProvider.getFileContent(templatePath);
+            fileExtension = path.extname(templatePath).toLowerCase() || ".pdf";
+            parsedContent = await resumeParseService.parseResumeFile(
+              fileBuffer,
+              fileExtension
+            );
+          } catch (s3Error) {
+            // S3 fetch failed - return graceful error
+            console.error("Failed to fetch template file from S3:", s3Error.message);
+            return res.status(200).json({
+              ok: true,
+              data: {
+                content: null,
+                message:
+                  "Template resume file is not available in cloud storage. You can create a new resume from scratch or upload your own resume file.",
+                templateId: template.id,
+                templateName: template.templateName,
+                hasExistingFile: false,
+              },
+            });
+          }
+        } else {
+          // Looks like a local path, but we're in cloud mode
+          // Return graceful error
+          return res.status(200).json({
+            ok: true,
+            data: {
+              content: null,
+              message:
+                "Template resume file is configured for local filesystem, but cloud storage is enabled. Please upload your own resume file or contact support.",
+              templateId: template.id,
+              templateName: template.templateName,
+              hasExistingFile: false,
+            },
+          });
+        }
+      } else {
+        // Local storage mode - use filesystem
+        const filePath = path.join(
+          process.cwd(),
+          template.existingResumeTemplate.startsWith("/")
+            ? template.existingResumeTemplate.slice(1)
+            : template.existingResumeTemplate
+        );
+
+        // Check if file exists
+        try {
+          await fs.access(filePath);
+        } catch (error) {
+          return res.status(404).json({
+            ok: false,
+            error: {
+              code: "FILE_NOT_FOUND",
+              message: "Template resume file not found",
+            },
+          });
+        }
+
+        // Parse the resume file
+        parsedContent = await resumeParseService.parseResumeFile(filePath);
       }
-
-      // Parse the resume file
-      const parsedContent = await resumeParseService.parseResumeFile(filePath);
 
       res.status(200).json({
         ok: true,
         data: {
           content: parsedContent.content || parsedContent,
-          message: parsedContent.message || "Template resume parsed successfully",
+          message:
+            parsedContent.message || "Template resume parsed successfully",
           templateId: template.id,
           templateName: template.templateName,
         },
@@ -1768,7 +1773,9 @@ class ResumeController {
       if (currentResume) {
         // Use the current resume being previewed (may have unsaved changes)
         resume = currentResume;
-        console.log("✅ AI Context - Using current resume from frontend (may have unsaved changes)");
+        console.log(
+          "✅ AI Context - Using current resume from frontend (may have unsaved changes)"
+        );
       } else if (resumeId && resumeId !== "new") {
         // Fall back to database resume if currentResume not provided
         try {
@@ -1784,12 +1791,18 @@ class ResumeController {
       let jobOpportunity = null;
       if (jobId) {
         try {
-          const jobResponse = await jobOpportunityService.getJobOpportunityById(jobId, userId);
+          const jobResponse = await jobOpportunityService.getJobOpportunityById(
+            jobId,
+            userId
+          );
           if (jobResponse) {
             jobOpportunity = jobResponse;
           }
         } catch (err) {
-          console.log("Failed to fetch job opportunity for AI context:", err.message);
+          console.log(
+            "Failed to fetch job opportunity for AI context:",
+            err.message
+          );
         }
       }
 
@@ -1925,7 +1938,10 @@ class ResumeController {
 
     try {
       // Step 1: Fetch job opportunity details
-      const jobOpportunity = await jobOpportunityService.getJobOpportunityById(jobId, userId);
+      const jobOpportunity = await jobOpportunityService.getJobOpportunityById(
+        jobId,
+        userId
+      );
       if (!jobOpportunity) {
         return res.status(404).json({
           ok: false,
@@ -1949,10 +1965,13 @@ class ResumeController {
 
       const profileData = profile.status === "fulfilled" ? profile.value : null;
       const employment = jobs.status === "fulfilled" ? jobs.value : [];
-      const educationData = education.status === "fulfilled" ? education.value : [];
+      const educationData =
+        education.status === "fulfilled" ? education.value : [];
       const skillsData = skills.status === "fulfilled" ? skills.value : [];
-      const projectsData = projects.status === "fulfilled" ? projects.value : [];
-      const certificationsData = certifications.status === "fulfilled" ? certifications.value : [];
+      const projectsData =
+        projects.status === "fulfilled" ? projects.value : [];
+      const certificationsData =
+        certifications.status === "fulfilled" ? certifications.value : [];
 
       // Step 3: Create initial resume
       const resumeName = `Resume for ${jobOpportunity.title} at ${jobOpportunity.company}`;
@@ -1969,9 +1988,10 @@ class ResumeController {
             lastName: profileData?.last_name || "",
             email: profileData?.email || "",
             phone: profileData?.phone || "",
-            location: profileData?.city && profileData?.state
-              ? `${profileData.city}, ${profileData.state}`
-              : profileData?.city || profileData?.state || "",
+            location:
+              profileData?.city && profileData?.state
+                ? `${profileData.city}, ${profileData.state}`
+                : profileData?.city || profileData?.state || "",
             linkedIn: "",
             portfolio: "",
           },
@@ -1989,38 +2009,67 @@ class ResumeController {
       });
 
       // Step 4: Build comprehensive user data strings for AI prompt
-      const employmentText = employment.length > 0
-        ? employment.map((job) =>
-            `- ${job.title} at ${job.company}${job.startDate ? ` (${job.startDate} - ${job.endDate || 'Present'})` : ''}\n  ${job.description || ''}`
-          ).join('\n')
-        : 'No employment history';
+      const employmentText =
+        employment.length > 0
+          ? employment
+              .map(
+                (job) =>
+                  `- ${job.title} at ${job.company}${
+                    job.startDate
+                      ? ` (${job.startDate} - ${job.endDate || "Present"})`
+                      : ""
+                  }\n  ${job.description || ""}`
+              )
+              .join("\n")
+          : "No employment history";
 
-      const educationText = educationData.length > 0
-        ? educationData.map((edu) =>
-            `- ${edu.degreeType || ''} in ${edu.field || ''} from ${edu.school || ''}${edu.endDate ? ` (${edu.endDate})` : ''}`
-          ).join('\n')
-        : 'No education entries';
+      const educationText =
+        educationData.length > 0
+          ? educationData
+              .map(
+                (edu) =>
+                  `- ${edu.degreeType || ""} in ${edu.field || ""} from ${
+                    edu.school || ""
+                  }${edu.endDate ? ` (${edu.endDate})` : ""}`
+              )
+              .join("\n")
+          : "No education entries";
 
       // Format skills with categories for better context
-      const skillsText = skillsData.length > 0
-        ? skillsData.map((skill) => {
-            const skillName = skill.name || skill.skillName || '';
-            const category = skill.category || 'Technical';
-            return `${skillName} (${category})`;
-          }).join(', ')
-        : 'No skills listed';
+      const skillsText =
+        skillsData.length > 0
+          ? skillsData
+              .map((skill) => {
+                const skillName = skill.name || skill.skillName || "";
+                const category = skill.category || "Technical";
+                return `${skillName} (${category})`;
+              })
+              .join(", ")
+          : "No skills listed";
 
-      const projectsText = projectsData.length > 0
-        ? projectsData.map((proj) =>
-            `- ${proj.name}${proj.description ? `: ${proj.description}` : ''}${proj.technologies ? ` (${proj.technologies})` : ''}`
-          ).join('\n')
-        : 'No projects listed';
+      const projectsText =
+        projectsData.length > 0
+          ? projectsData
+              .map(
+                (proj) =>
+                  `- ${proj.name}${
+                    proj.description ? `: ${proj.description}` : ""
+                  }${proj.technologies ? ` (${proj.technologies})` : ""}`
+              )
+              .join("\n")
+          : "No projects listed";
 
-      const certificationsText = certificationsData.length > 0
-        ? certificationsData.map((cert) =>
-            `${cert.name}${cert.org_name ? ` from ${cert.org_name}` : ''}${cert.date_earned ? ` (${cert.date_earned})` : ''}`
-          ).join('\n')
-        : 'No certifications';
+      const certificationsText =
+        certificationsData.length > 0
+          ? certificationsData
+              .map(
+                (cert) =>
+                  `${cert.name}${
+                    cert.org_name ? ` from ${cert.org_name}` : ""
+                  }${cert.date_earned ? ` (${cert.date_earned})` : ""}`
+              )
+              .join("\n")
+          : "No certifications";
 
       // Step 5: Construct AI prompt
       const analysisPrompt = `You are a professional resume tailoring AI. Analyze this job posting and the user's complete profile, then provide:
@@ -2039,21 +2088,33 @@ CRITICAL: The "explanation" field in your JSON response should ONLY contain a fr
 The explanation should be a natural, conversational message explaining what you've done to tailor their resume.
 
 Job Posting:
-Title: ${jobOpportunity.title || 'N/A'}
-Company: ${jobOpportunity.company || 'N/A'}
-${jobOpportunity.location ? `Location: ${jobOpportunity.location}` : ''}
-${jobOpportunity.industry ? `Industry: ${jobOpportunity.industry}` : ''}
-${jobOpportunity.jobType ? `Job Type: ${jobOpportunity.jobType}` : ''}
-${jobOpportunity.description ? `\nDescription:\n${jobOpportunity.description}` : ''}
+Title: ${jobOpportunity.title || "N/A"}
+Company: ${jobOpportunity.company || "N/A"}
+${jobOpportunity.location ? `Location: ${jobOpportunity.location}` : ""}
+${jobOpportunity.industry ? `Industry: ${jobOpportunity.industry}` : ""}
+${jobOpportunity.jobType ? `Job Type: ${jobOpportunity.jobType}` : ""}
+${
+  jobOpportunity.description
+    ? `\nDescription:\n${jobOpportunity.description}`
+    : ""
+}
 
 User Profile:
-Name: ${profileData?.first_name || ''} ${profileData?.last_name || ''}
-Email: ${profileData?.email || ''}
-${profileData?.phone ? `Phone: ${profileData.phone}` : ''}
-${profileData?.city && profileData?.state ? `Location: ${profileData.city}, ${profileData.state}` : profileData?.city ? `City: ${profileData.city}` : profileData?.state ? `State: ${profileData.state}` : ''}
-${profileData?.job_title ? `Current Job Title: ${profileData.job_title}` : ''}
-${profileData?.industry ? `Industry: ${profileData.industry}` : ''}
-${profileData?.bio ? `Bio: ${profileData.bio}` : ''}
+Name: ${profileData?.first_name || ""} ${profileData?.last_name || ""}
+Email: ${profileData?.email || ""}
+${profileData?.phone ? `Phone: ${profileData.phone}` : ""}
+${
+  profileData?.city && profileData?.state
+    ? `Location: ${profileData.city}, ${profileData.state}`
+    : profileData?.city
+    ? `City: ${profileData.city}`
+    : profileData?.state
+    ? `State: ${profileData.state}`
+    : ""
+}
+${profileData?.job_title ? `Current Job Title: ${profileData.job_title}` : ""}
+${profileData?.industry ? `Industry: ${profileData.industry}` : ""}
+${profileData?.bio ? `Bio: ${profileData.bio}` : ""}
 
 Employment History:
 ${employmentText}
@@ -2175,17 +2236,20 @@ CRITICAL FORMATTING RULES:
       const aiMessage = aiResponse.message || "";
 
       let resumeUpdates = {};
-      let explanation = "I've successfully tailored your resume for this position! I've updated your summary, experience, skills, and other sections to better match the job requirements.";
+      let explanation =
+        "I've successfully tailored your resume for this position! I've updated your summary, experience, skills, and other sections to better match the job requirements.";
 
       try {
         // Clean the message - remove markdown code blocks
         let cleanedMessage = aiMessage.trim();
-        cleanedMessage = cleanedMessage.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
-        
+        cleanedMessage = cleanedMessage
+          .replace(/^```(?:json)?\s*/i, "")
+          .replace(/\s*```$/i, "");
+
         // Try to parse as JSON
         const parsed = JSON.parse(cleanedMessage);
         resumeUpdates = parsed.resumeUpdates || {};
-        
+
         // Extract explanation - ensure it's user-friendly
         if (parsed.explanation) {
           explanation = parsed.explanation.trim();
@@ -2198,16 +2262,19 @@ CRITICAL FORMATTING RULES:
             .replace(/```json[\s\S]*?```/g, "")
             .replace(/```[\s\S]*?```/g, "")
             .trim();
-          
+
           // If explanation is empty or too short, use default
           if (!explanation || explanation.length < 20) {
-            explanation = "I've successfully tailored your resume for this position! I've updated your summary, experience, skills, and other sections to better match the job requirements.";
+            explanation =
+              "I've successfully tailored your resume for this position! I've updated your summary, experience, skills, and other sections to better match the job requirements.";
           }
         }
       } catch (e) {
         console.error("Failed to parse AI response as JSON:", e);
         // If JSON parsing fails, try to extract just the explanation part
-        const explanationMatch = aiMessage.match(/explanation["\s:]*([\s\S]*?)(?:\n\n|\n```|$)/i);
+        const explanationMatch = aiMessage.match(
+          /explanation["\s:]*([\s\S]*?)(?:\n\n|\n```|$)/i
+        );
         if (explanationMatch && explanationMatch[1]) {
           explanation = explanationMatch[1]
             .trim()
@@ -2218,29 +2285,32 @@ CRITICAL FORMATTING RULES:
             .replace(/```json[\s\S]*?```/g, "")
             .replace(/```[\s\S]*?```/g, "")
             .trim();
-          
+
           // If explanation is empty or too short, use default
           if (!explanation || explanation.length < 20) {
-            explanation = "I've successfully tailored your resume for this position! I've updated your summary, experience, skills, and other sections to better match the job requirements.";
+            explanation =
+              "I've successfully tailored your resume for this position! I've updated your summary, experience, skills, and other sections to better match the job requirements.";
           }
         } else {
           // Use default explanation if extraction fails
-          explanation = "I've successfully tailored your resume for this position! I've updated your summary, experience, skills, and other sections to better match the job requirements.";
+          explanation =
+            "I've successfully tailored your resume for this position! I've updated your summary, experience, skills, and other sections to better match the job requirements.";
         }
       }
 
       // Step 8: Update resume with AI recommendations
       const updatedContent = { ...newResume.content };
-      
+
       // Preserve personalInfo from initial resume (don't overwrite with AI)
       updatedContent.personalInfo = newResume.content.personalInfo || {
         firstName: profileData?.first_name || "",
         lastName: profileData?.last_name || "",
         email: profileData?.email || "",
         phone: profileData?.phone || "",
-        location: profileData?.city && profileData?.state
-          ? `${profileData.city}, ${profileData.state}`
-          : profileData?.city || profileData?.state || "",
+        location:
+          profileData?.city && profileData?.state
+            ? `${profileData.city}, ${profileData.state}`
+            : profileData?.city || profileData?.state || "",
         linkedIn: profileData?.linkedin || "",
         portfolio: profileData?.portfolio || "",
       };
@@ -2253,48 +2323,60 @@ CRITICAL FORMATTING RULES:
       // Update skills - support both string array (legacy) and object array (with custom groups)
       if (resumeUpdates.skills && Array.isArray(resumeUpdates.skills)) {
         const customGroups = new Set();
-        
+
         updatedContent.skills = resumeUpdates.skills.map((skillItem, index) => {
           // Handle both string format (legacy) and object format (with groups)
           let skillName, skillCategory, skillGroup;
-          
-          if (typeof skillItem === 'string') {
+
+          if (typeof skillItem === "string") {
             // Legacy format: just skill name
             skillName = skillItem;
-            skillCategory = 'Technical';
+            skillCategory = "Technical";
             skillGroup = undefined;
           } else {
             // New format: object with name, category, and optional group
             skillName = skillItem.name || skillItem;
-            skillCategory = skillItem.category || 'Technical';
+            skillCategory = skillItem.category || "Technical";
             skillGroup = skillItem.group || undefined;
-            
+
             // Track custom groups
-            if (skillGroup && !['Technical', 'Languages', 'Soft Skills', 'Industry-Specific'].includes(skillGroup)) {
+            if (
+              skillGroup &&
+              ![
+                "Technical",
+                "Languages",
+                "Soft Skills",
+                "Industry-Specific",
+              ].includes(skillGroup)
+            ) {
               customGroups.add(skillGroup);
             }
           }
-          
-          const matchingSkill = skillsData.find((s) =>
-            (s.name || s.skillName || '').toLowerCase() === skillName.toLowerCase()
+
+          const matchingSkill = skillsData.find(
+            (s) =>
+              (s.name || s.skillName || "").toLowerCase() ===
+              skillName.toLowerCase()
           );
-          
+
           return {
             id: matchingSkill?.id || `skill_${Date.now()}_${index}`,
             name: skillName,
-            category: skillCategory || matchingSkill?.category || 'Technical',
+            category: skillCategory || matchingSkill?.category || "Technical",
             group: skillGroup || undefined, // Custom group if provided
-            proficiency: matchingSkill?.proficiency || 'Intermediate',
+            proficiency: matchingSkill?.proficiency || "Intermediate",
           };
         });
-        
+
         // Store custom groups in sectionConfig (separate from content)
         if (customGroups.size > 0) {
           const currentConfig = newResume.sectionConfig || {};
           const skillsConfig = currentConfig.skills || {};
           const existingCustomGroups = skillsConfig.customGroups || [];
-          const allCustomGroups = [...new Set([...existingCustomGroups, ...Array.from(customGroups)])];
-          
+          const allCustomGroups = [
+            ...new Set([...existingCustomGroups, ...Array.from(customGroups)]),
+          ];
+
           // Store sectionConfig separately (not in content)
           newResume.sectionConfig = {
             ...currentConfig,
@@ -2307,55 +2389,74 @@ CRITICAL FORMATTING RULES:
       }
 
       // Update experience - include ALL entries
-      if (resumeUpdates.experience && Array.isArray(resumeUpdates.experience) && resumeUpdates.experience.length > 0) {
-        const aiExperienceKeys = new Set(resumeUpdates.experience.map((exp) =>
-          `${exp.title || ''}_${exp.company || ''}`.toLowerCase()
-        ));
+      if (
+        resumeUpdates.experience &&
+        Array.isArray(resumeUpdates.experience) &&
+        resumeUpdates.experience.length > 0
+      ) {
+        const aiExperienceKeys = new Set(
+          resumeUpdates.experience.map((exp) =>
+            `${exp.title || ""}_${exp.company || ""}`.toLowerCase()
+          )
+        );
 
-        updatedContent.experience = resumeUpdates.experience.map((exp, index) => {
-          const matchingJob = employment.find((job) =>
-            job.title === exp.title && job.company === exp.company
-          );
-          return {
-            id: exp.id || matchingJob?.id || `exp_${Date.now()}_${index}`,
-            title: exp.title || matchingJob?.title || "",
-            company: exp.company || matchingJob?.company || "",
-            location: exp.location || matchingJob?.location || "",
-            startDate: exp.startDate || matchingJob?.startDate || "",
-            endDate: exp.endDate || matchingJob?.endDate || "",
-            isCurrent: !exp.endDate || exp.endDate === 'Present',
-            description: Array.isArray(exp.description) 
-              ? exp.description 
-              : (typeof exp.description === 'string' 
-                  ? exp.description.split('\n').filter((line) => line.trim()).map((line) => line.trim())
-                  : (matchingJob?.description 
-                      ? (Array.isArray(matchingJob.description) 
-                          ? matchingJob.description 
-                          : (typeof matchingJob.description === 'string' 
-                              ? matchingJob.description.split('\n').filter((line) => line.trim()).map((line) => line.trim())
-                              : []))
-                      : [])),
-            achievements: exp.achievements || matchingJob?.achievements || [],
-          };
-        });
+        updatedContent.experience = resumeUpdates.experience.map(
+          (exp, index) => {
+            const matchingJob = employment.find(
+              (job) => job.title === exp.title && job.company === exp.company
+            );
+            return {
+              id: exp.id || matchingJob?.id || `exp_${Date.now()}_${index}`,
+              title: exp.title || matchingJob?.title || "",
+              company: exp.company || matchingJob?.company || "",
+              location: exp.location || matchingJob?.location || "",
+              startDate: exp.startDate || matchingJob?.startDate || "",
+              endDate: exp.endDate || matchingJob?.endDate || "",
+              isCurrent: !exp.endDate || exp.endDate === "Present",
+              description: Array.isArray(exp.description)
+                ? exp.description
+                : typeof exp.description === "string"
+                ? exp.description
+                    .split("\n")
+                    .filter((line) => line.trim())
+                    .map((line) => line.trim())
+                : matchingJob?.description
+                ? Array.isArray(matchingJob.description)
+                  ? matchingJob.description
+                  : typeof matchingJob.description === "string"
+                  ? matchingJob.description
+                      .split("\n")
+                      .filter((line) => line.trim())
+                      .map((line) => line.trim())
+                  : []
+                : [],
+              achievements: exp.achievements || matchingJob?.achievements || [],
+            };
+          }
+        );
 
         // Add any employment entries not included in AI response
         employment.forEach((job) => {
-          const key = `${job.title || ''}_${job.company || ''}`.toLowerCase();
+          const key = `${job.title || ""}_${job.company || ""}`.toLowerCase();
           if (!aiExperienceKeys.has(key)) {
             updatedContent.experience.push({
-              id: job.id || `exp_${Date.now()}_${updatedContent.experience.length}`,
+              id:
+                job.id ||
+                `exp_${Date.now()}_${updatedContent.experience.length}`,
               title: job.title || "",
               company: job.company || "",
               location: job.location || "",
               startDate: job.startDate || "",
               endDate: job.endDate || "",
-              isCurrent: !job.endDate || job.endDate === 'Present',
-              description: Array.isArray(job.description) 
-                ? job.description 
-                : (typeof job.description === 'string' 
-                    ? job.description.split('\n').filter((line) => line.trim()).map((line) => line.trim())
-                    : []),
+              isCurrent: !job.endDate || job.endDate === "Present",
+              description: Array.isArray(job.description)
+                ? job.description
+                : typeof job.description === "string"
+                ? job.description
+                    .split("\n")
+                    .filter((line) => line.trim())
+                    .map((line) => line.trim())
+                : [],
               achievements: job.achievements || [],
             });
           }
@@ -2369,29 +2470,40 @@ CRITICAL FORMATTING RULES:
           location: job.location || "",
           startDate: job.startDate || "",
           endDate: job.endDate || "",
-          isCurrent: !job.endDate || job.endDate === 'Present',
-          description: Array.isArray(job.description) 
-            ? job.description 
-            : (typeof job.description === 'string' 
-                ? job.description.split('\n').filter((line) => line.trim()).map((line) => line.trim())
-                : []),
+          isCurrent: !job.endDate || job.endDate === "Present",
+          description: Array.isArray(job.description)
+            ? job.description
+            : typeof job.description === "string"
+            ? job.description
+                .split("\n")
+                .filter((line) => line.trim())
+                .map((line) => line.trim())
+            : [],
           achievements: job.achievements || [],
         }));
       }
 
       // Update education
-      if (resumeUpdates.education && Array.isArray(resumeUpdates.education) && resumeUpdates.education.length > 0) {
+      if (
+        resumeUpdates.education &&
+        Array.isArray(resumeUpdates.education) &&
+        resumeUpdates.education.length > 0
+      ) {
         updatedContent.education = resumeUpdates.education.map((edu, index) => {
-          const matchingEdu = educationData.find((e) =>
-            (e.school || '').toLowerCase() === (edu.school || '').toLowerCase() &&
-            (e.degreeType || '').toLowerCase() === (edu.degree || '').toLowerCase()
+          const matchingEdu = educationData.find(
+            (e) =>
+              (e.school || "").toLowerCase() ===
+                (edu.school || "").toLowerCase() &&
+              (e.degreeType || "").toLowerCase() ===
+                (edu.degree || "").toLowerCase()
           );
           return {
             id: edu.id || matchingEdu?.id || `edu_${Date.now()}_${index}`,
             school: edu.school || matchingEdu?.school || "",
             degree: edu.degree || matchingEdu?.degreeType || "",
             field: edu.field || matchingEdu?.field || "",
-            endDate: edu.graduationDate || edu.endDate || matchingEdu?.endDate || "",
+            endDate:
+              edu.graduationDate || edu.endDate || matchingEdu?.endDate || "",
             startDate: edu.startDate || matchingEdu?.startDate || undefined,
             gpa: edu.gpa || matchingEdu?.gpa || undefined,
             honors: edu.honors || matchingEdu?.honors || undefined,
@@ -2411,16 +2523,25 @@ CRITICAL FORMATTING RULES:
       }
 
       // Update projects
-      if (resumeUpdates.projects && Array.isArray(resumeUpdates.projects) && resumeUpdates.projects.length > 0) {
+      if (
+        resumeUpdates.projects &&
+        Array.isArray(resumeUpdates.projects) &&
+        resumeUpdates.projects.length > 0
+      ) {
         updatedContent.projects = resumeUpdates.projects.map((proj, index) => {
-          const matchingProj = projectsData.find((p) =>
-            (p.name || '').toLowerCase() === (proj.name || '').toLowerCase()
+          const matchingProj = projectsData.find(
+            (p) =>
+              (p.name || "").toLowerCase() === (proj.name || "").toLowerCase()
           );
           return {
             id: proj.id || matchingProj?.id || `proj_${Date.now()}_${index}`,
             name: proj.name || matchingProj?.name || "",
             description: proj.description || matchingProj?.description || "",
-            technologies: Array.isArray(proj.technologies) ? proj.technologies : (matchingProj?.technologies ? matchingProj.technologies.split(',').map(t => t.trim()) : []),
+            technologies: Array.isArray(proj.technologies)
+              ? proj.technologies
+              : matchingProj?.technologies
+              ? matchingProj.technologies.split(",").map((t) => t.trim())
+              : [],
             link: proj.link || matchingProj?.link || undefined,
             startDate: proj.startDate || matchingProj?.start_date || undefined,
             endDate: proj.endDate || matchingProj?.end_date || undefined,
@@ -2431,7 +2552,9 @@ CRITICAL FORMATTING RULES:
           id: proj.id || `proj_${Date.now()}_${index}`,
           name: proj.name || "",
           description: proj.description || "",
-          technologies: proj.technologies ? proj.technologies.split(',').map(t => t.trim()) : [],
+          technologies: proj.technologies
+            ? proj.technologies.split(",").map((t) => t.trim())
+            : [],
           link: proj.link || undefined,
           startDate: proj.start_date || undefined,
           endDate: proj.end_date || undefined,
@@ -2439,40 +2562,54 @@ CRITICAL FORMATTING RULES:
       }
 
       // Update certifications
-      if (resumeUpdates.certifications && Array.isArray(resumeUpdates.certifications) && resumeUpdates.certifications.length > 0) {
-        updatedContent.certifications = resumeUpdates.certifications.map((cert, index) => {
-          const matchingCert = certificationsData.find((c) =>
-            (c.name || '').toLowerCase() === (cert.name || '').toLowerCase()
-          );
-          return {
-            id: cert.id || matchingCert?.id || `cert_${Date.now()}_${index}`,
-            name: cert.name || matchingCert?.name || "",
-            organization: cert.organization || matchingCert?.org_name || "",
-            dateEarned: cert.issueDate || matchingCert?.date_earned || "",
-            expirationDate: cert.expiryDate || matchingCert?.expiration_date || undefined,
-          };
-        });
+      if (
+        resumeUpdates.certifications &&
+        Array.isArray(resumeUpdates.certifications) &&
+        resumeUpdates.certifications.length > 0
+      ) {
+        updatedContent.certifications = resumeUpdates.certifications.map(
+          (cert, index) => {
+            const matchingCert = certificationsData.find(
+              (c) =>
+                (c.name || "").toLowerCase() === (cert.name || "").toLowerCase()
+            );
+            return {
+              id: cert.id || matchingCert?.id || `cert_${Date.now()}_${index}`,
+              name: cert.name || matchingCert?.name || "",
+              organization: cert.organization || matchingCert?.org_name || "",
+              dateEarned: cert.issueDate || matchingCert?.date_earned || "",
+              expirationDate:
+                cert.expiryDate || matchingCert?.expiration_date || undefined,
+            };
+          }
+        );
       } else if (certificationsData.length > 0) {
-        updatedContent.certifications = certificationsData.map((cert, index) => ({
-          id: cert.id || `cert_${Date.now()}_${index}`,
-          name: cert.name || "",
-          organization: cert.org_name || "",
-          dateEarned: cert.date_earned || "",
-          expirationDate: cert.expiration_date || undefined,
-        }));
+        updatedContent.certifications = certificationsData.map(
+          (cert, index) => ({
+            id: cert.id || `cert_${Date.now()}_${index}`,
+            name: cert.name || "",
+            organization: cert.org_name || "",
+            dateEarned: cert.date_earned || "",
+            expirationDate: cert.expiration_date || undefined,
+          })
+        );
       }
 
       // Step 9: Update the resume with all changes (including sectionConfig for custom groups)
       const updateData = {
         content: updatedContent,
       };
-      
+
       // Include sectionConfig if it was updated (for custom groups)
       if (newResume.sectionConfig) {
         updateData.sectionConfig = newResume.sectionConfig;
       }
-      
-      const updatedResume = await resumeService.updateResume(newResume.id, userId, updateData);
+
+      const updatedResume = await resumeService.updateResume(
+        newResume.id,
+        userId,
+        updateData
+      );
 
       res.status(200).json({
         ok: true,

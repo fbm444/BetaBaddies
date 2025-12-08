@@ -57,7 +57,7 @@ class FileUploadController {
       } catch (error) {
         console.error("❌ Profile picture upload failed:", error);
         console.error("   Error stack:", error.stack);
-        
+
         if (
           error.message.includes("File size exceeds") ||
           error.message.includes("File type") ||
@@ -71,13 +71,14 @@ class FileUploadController {
             },
           });
         }
-        
+
         // Return a more specific error message
         return res.status(500).json({
           ok: false,
           error: {
             code: "UPLOAD_ERROR",
-            message: error.message || "An unexpected error occurred during upload",
+            message:
+              error.message || "An unexpected error occurred during upload",
           },
         });
       }
@@ -241,31 +242,50 @@ class FileUploadController {
     try {
       const file = await fileUploadService.getFileById(fileId, userId);
 
-      // Check if file exists on disk
+      // Check if file exists
       const fileExists = await fileUploadService.fileExists(file.filePath);
       if (!fileExists) {
         return res.status(404).json({
           ok: false,
           error: {
             code: "FILE_NOT_FOUND",
-            message: "File not found on disk",
+            message: "File not found",
           },
         });
       }
 
-      // Get file content
-      const fileContent = await fileUploadService.getFileContent(file.filePath);
+      // If cloud storage, redirect to signed URL or return URL
+      const useCloudStorage =
+        process.env.CLOUD_PROVIDER && process.env.CLOUD_PROVIDER !== "local";
 
-      // Set appropriate headers
-      res.set({
-        "Content-Type": file.mimeType,
-        "Content-Length": file.fileSize,
-        "Content-Disposition": `inline; filename="${file.originalName}"`,
-      });
+      if (useCloudStorage && file.filePath.startsWith("http")) {
+        // For cloud storage, redirect to the URL or return it
+        // If it's already a full URL, redirect to it
+        return res.redirect(file.filePath);
+      } else if (useCloudStorage) {
+        // Get signed URL for cloud storage
+        const fileUrl = await fileUploadService.getFileUrl(file.filePath);
+        return res.redirect(fileUrl);
+      } else {
+        // Local storage - serve file directly
+        const fileContent = await fileUploadService.getFileContent(
+          file.filePath
+        );
 
-      res.send(fileContent);
+        // Set appropriate headers
+        res.set({
+          "Content-Type": file.mimeType,
+          "Content-Length": file.fileSize,
+          "Content-Disposition": `inline; filename="${file.originalName}"`,
+        });
+
+        res.send(fileContent);
+      }
     } catch (error) {
-      if (error.message.includes("not found")) {
+      if (
+        error.message.includes("not found") ||
+        error.message.includes("File not found")
+      ) {
         return res.status(404).json({
           ok: false,
           error: {
@@ -385,6 +405,66 @@ class FileUploadController {
         count: resumes.length,
       },
     });
+  });
+
+  /**
+   * Get fresh signed URL for profile picture (proxy endpoint)
+   * This generates a new signed URL on-demand, so images never expire
+   */
+  getProfilePictureUrl = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { fileId } = req.params;
+
+    try {
+      const file = await fileUploadService.getFileById(fileId, userId);
+
+      if (!file || file.fileType !== "profile_pic") {
+        return res.status(404).json({
+          ok: false,
+          error: {
+            code: "FILE_NOT_FOUND",
+            message: "Profile picture not found",
+          },
+        });
+      }
+
+      // Generate fresh signed URL (7 days expiration)
+      const fileUrl = await fileUploadService.getFileUrl(file.filePath, {
+        expiresIn: 7 * 24 * 60 * 60, // 7 days
+      });
+
+      let thumbnailUrl = null;
+      if (file.thumbnailPath) {
+        thumbnailUrl = await fileUploadService.getFileUrl(file.thumbnailPath, {
+          expiresIn: 7 * 24 * 60 * 60, // 7 days
+        });
+      }
+
+      res.status(200).json({
+        ok: true,
+        data: {
+          fileUrl,
+          thumbnailUrl,
+          expiresIn: 7 * 24 * 60 * 60, // Tell frontend when it expires
+        },
+      });
+    } catch (error) {
+      logger.error("Error getting profile picture URL", {
+        error: error.message,
+        fileId,
+        userId,
+      });
+      if (error.message.includes("not found")) {
+        return res.status(404).json({
+          ok: false,
+          error: {
+            code: "FILE_NOT_FOUND",
+            message: "Profile picture not found",
+          },
+        });
+      }
+      throw error;
+    }
   });
 
   /**

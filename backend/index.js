@@ -6,7 +6,9 @@ import scheduler from "./services/scheduler.js";
 
 async function main() {
   dotenv.config();
-  const port = process.env.SERVER_PORT || 3001;
+  const port = process.env.SERVER_PORT || process.env.PORT || 3001;
+  const backendUrl = process.env.BACKEND_URL || `http://localhost:${port}`;
+  const nodeEnv = process.env.NODE_ENV || 'development';
 
   try {
     // Setup upload directories
@@ -28,11 +30,12 @@ async function main() {
     // Start server
     app.listen(port, () => {
       console.log(`🚀 Server is running on port ${port}`);
-      console.log(
-        `📊 Health check available at http://localhost:${port}/health`
-      );
-      console.log(`🔗 API base URL: http://localhost:${port}/api/v1`);
-      console.log(`👤 User endpoints: http://localhost:${port}/api/v1/users`);
+      console.log(`🌍 Environment: ${nodeEnv}`);
+      console.log(`📊 Health check available at ${backendUrl}/health`);
+      console.log(`🔗 API base URL: ${backendUrl}/api/v1`);
+      if (nodeEnv === 'development') {
+        console.log(`👤 User endpoints: ${backendUrl}/api/v1/users`);
+      }
     });
 
     // Graceful shutdown

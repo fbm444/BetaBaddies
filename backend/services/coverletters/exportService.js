@@ -1,6 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
 import fs from "fs/promises";
-import fsSync from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import PDFDocument from "pdfkit";
@@ -242,10 +241,10 @@ class CoverLetterExportService {
       const exportFilename =
         filename ||
         `cover_letter_${coverLetter.versionName || coverLetterId}_${fileId}.pdf`;
-      const filePath = path.join(this.exportDir, exportFilename);
 
-      const stream = fsSync.createWriteStream(filePath);
-      doc.pipe(stream);
+      // Collect PDF chunks in memory instead of writing to disk
+      const chunks = [];
+      doc.on('data', (chunk) => chunks.push(chunk));
 
       // Set background color if not white
       const isWhiteBackground = backgroundRgb.r === 255 && backgroundRgb.g === 255 && backgroundRgb.b === 255;
@@ -362,17 +361,17 @@ class CoverLetterExportService {
         { align: "left" }
       );
 
-      // Finalize PDF
+      // Finalize PDF and collect buffer
       doc.end();
 
-      // Wait for stream to finish
-      await new Promise((resolve, reject) => {
-        stream.on("finish", resolve);
-        stream.on("error", reject);
+      // Wait for PDF to finish generating
+      const pdfBuffer = await new Promise((resolve, reject) => {
+        doc.on("end", () => resolve(Buffer.concat(chunks)));
+        doc.on("error", reject);
       });
 
       return {
-        filePath,
+        buffer: pdfBuffer,
         filename: exportFilename,
         mimeType: "application/pdf",
       };
@@ -459,18 +458,16 @@ class CoverLetterExportService {
         ],
       });
 
-      // Export to file
+      // Generate buffer directly
       const fileId = uuidv4();
       const exportFilename =
         filename ||
         `cover_letter_${coverLetter.versionName || coverLetterId}_${fileId}.docx`;
-      const filePath = path.join(this.exportDir, exportFilename);
 
       const buffer = await Packer.toBuffer(doc);
-      await fs.writeFile(filePath, buffer);
 
       return {
-        filePath,
+        buffer: buffer,
         filename: exportFilename,
         mimeType:
           "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -531,17 +528,16 @@ class CoverLetterExportService {
         `${personalInfo.firstName} ${personalInfo.lastName}`.trim() ||
         "Your Name";
 
-      // Write to file
+      // Return text as buffer
       const fileId = uuidv4();
       const exportFilename =
         filename ||
         `cover_letter_${coverLetter.versionName || coverLetterId}_${fileId}.txt`;
-      const filePath = path.join(this.exportDir, exportFilename);
 
-      await fs.writeFile(filePath, text, "utf8");
+      const textBuffer = Buffer.from(text, "utf8");
 
       return {
-        filePath,
+        buffer: textBuffer,
         filename: exportFilename,
         mimeType: "text/plain",
       };
@@ -644,12 +640,12 @@ class CoverLetterExportService {
       const exportFilename =
         filename ||
         `cover_letter_${coverLetter.versionName || coverLetterId}_${fileId}.html`;
-      const filePath = path.join(this.exportDir, exportFilename);
 
-      await fs.writeFile(filePath, html, "utf8");
+      // Return HTML as buffer
+      const htmlBuffer = Buffer.from(html, "utf8");
 
       return {
-        filePath,
+        buffer: htmlBuffer,
         filename: exportFilename,
         mimeType: "text/html",
       };

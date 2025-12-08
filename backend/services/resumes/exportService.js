@@ -131,23 +131,12 @@ class ResumeExportService {
       // Remove extension if present, we'll add .pdf
       const baseFileName = requestedFileName.replace(/\.(pdf|html)$/i, '');
       const fileName = `${baseFileName}.pdf`;
-      const fileExtension = '.pdf';
-      const fileId = uuidv4();
-      const savedFileName = `export_${fileId}${fileExtension}`;
-      const exportDir = path.join(process.cwd(), "uploads", "exports");
       
-      // Ensure exports directory exists
-      await fs.mkdir(exportDir, { recursive: true });
-      
-      // Generate PDF using PDFKit
-      const filePath = path.join(exportDir, savedFileName);
+      // Generate PDF using PDFKit - returns buffer directly
       const pdfBuffer = await this.generatePDF(content, resume, { watermark });
 
-      // Save PDF to disk
-      await fs.writeFile(filePath, pdfBuffer);
-
       return {
-        filePath: filePath,
+        buffer: pdfBuffer,
         fileName: fileName,
         format: "pdf",
         contentType: "application/pdf",
@@ -662,23 +651,12 @@ class ResumeExportService {
       // Remove extension if present, we'll add .docx
       const baseFileName = requestedFileName.replace(/\.(docx|txt)$/i, '');
       const fileName = `${baseFileName}.docx`;
-      const fileExtension = '.docx';
-      const fileId = uuidv4();
-      const savedFileName = `export_${fileId}${fileExtension}`;
-      const exportDir = path.join(process.cwd(), "uploads", "exports");
       
-      // Ensure exports directory exists
-      await fs.mkdir(exportDir, { recursive: true });
-      
-      // Generate DOCX using docx library
-      const filePath = path.join(exportDir, savedFileName);
+      // Generate DOCX using docx library - returns buffer directly
       const docxBuffer = await this.generateDOCX(content, resume, { watermark, theme, printOptimized });
 
-      // Save DOCX to disk
-      await fs.writeFile(filePath, docxBuffer);
-
       return {
-        filePath: filePath,
+        buffer: docxBuffer,
         fileName: fileName,
         format: "docx",
         contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -1304,20 +1282,12 @@ class ResumeExportService {
       const text = this.generatePlainText(content, resume);
 
       const fileName = filename || `resume_${resumeId}_${Date.now()}.txt`;
-      const fileExtension = '.txt';
-      const fileId = uuidv4();
-      const savedFileName = `export_${fileId}${fileExtension}`;
-      const exportDir = path.join(process.cwd(), "uploads", "exports");
       
-      // Ensure exports directory exists
-      await fs.mkdir(exportDir, { recursive: true });
-      
-      // Save file to disk
-      const filePath = path.join(exportDir, savedFileName);
-      await fs.writeFile(filePath, text, 'utf8');
+      // Return text as buffer (convert string to Buffer)
+      const textBuffer = Buffer.from(text, 'utf8');
 
       return {
-        filePath: filePath,
+        buffer: textBuffer,
         fileName: fileName,
         format: "txt",
         contentType: "text/plain",
@@ -1338,20 +1308,12 @@ class ResumeExportService {
       const html = this.generateHTML(content, resume, { watermark });
 
       const fileName = filename || `resume_${resumeId}_${Date.now()}.html`;
-      const fileExtension = '.html';
-      const fileId = uuidv4();
-      const savedFileName = `export_${fileId}${fileExtension}`;
-      const exportDir = path.join(process.cwd(), "uploads", "exports");
       
-      // Ensure exports directory exists
-      await fs.mkdir(exportDir, { recursive: true });
-      
-      // Save file to disk
-      const filePath = path.join(exportDir, savedFileName);
-      await fs.writeFile(filePath, html, 'utf8');
+      // Return HTML as buffer (convert string to Buffer)
+      const htmlBuffer = Buffer.from(html, 'utf8');
 
       return {
-        filePath: filePath,
+        buffer: htmlBuffer,
         fileName: fileName,
         format: "html",
         contentType: "text/html",

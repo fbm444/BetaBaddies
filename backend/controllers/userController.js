@@ -50,8 +50,22 @@ class UserController {
   login = asyncHandler(async (req, res) => {
     const { email, password } = req.body;
 
-    const user = await userService.getUserByEmail(email);
+    // Normalize email to lowercase for case-insensitive lookup
+    const normalizedEmail = email?.toLowerCase().trim();
+
+    if (!normalizedEmail || !password) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "Email and password are required",
+        },
+      });
+    }
+
+    const user = await userService.getUserByEmail(normalizedEmail);
     if (!user) {
+      console.log(`[Login] User not found: ${normalizedEmail}`);
       return res.status(401).json({
         ok: false,
         error: {
@@ -63,12 +77,18 @@ class UserController {
 
     // Check if user has a password (not an OAuth-only user)
     if (!user.password) {
+      console.log(`[Login] User has no password (OAuth-only): ${normalizedEmail}, auth_provider: ${user.auth_provider}`);
+      const providerMessage = user.auth_provider === 'google' 
+        ? "This account was created with Google. Please use Google Sign-In to log in."
+        : user.auth_provider === 'linkedin'
+        ? "This account was created with LinkedIn. Please use LinkedIn Sign-In to log in."
+        : "This account does not have a password set. Please use social sign-in.";
+      
       return res.status(401).json({
         ok: false,
         error: {
           code: "INVALID_CREDENTIALS",
-          message:
-            "This account was created with Google. Please use Google Sign-In to log in.",
+          message: providerMessage,
         },
       });
     }
@@ -78,6 +98,7 @@ class UserController {
       user.password
     );
     if (!isValidPassword) {
+      console.log(`[Login] Invalid password for user: ${normalizedEmail}`);
       return res.status(401).json({
         ok: false,
         error: {
@@ -135,10 +156,30 @@ class UserController {
 
   // Get current user info (authentication only)
   getProfile = asyncHandler(async (req, res) => {
-    const userId = req.session.userId;
+    const userId = req.session?.userId;
+    
+    console.log(`[getProfile] Request received, session userId: ${userId}`);
+    console.log(`[getProfile] Session data:`, {
+      userId: req.session?.userId,
+      userEmail: req.session?.userEmail,
+      cookie: req.headers.cookie ? 'present' : 'missing',
+    });
+
+    if (!userId) {
+      console.log(`[getProfile] No userId in session, returning 401`);
+      return res.status(401).json({
+        ok: false,
+        error: {
+          code: "UNAUTHORIZED",
+          message: "Authentication required",
+        },
+      });
+    }
+
     const user = await userService.getUserById(userId);
 
     if (!user) {
+      console.log(`[getProfile] User not found in database: ${userId}`);
       return res.status(404).json({
         ok: false,
         error: {
@@ -147,6 +188,8 @@ class UserController {
         },
       });
     }
+
+    console.log(`[getProfile] Successfully returning user profile for: ${user.email}`);
 
     res.status(200).json({
       ok: true,

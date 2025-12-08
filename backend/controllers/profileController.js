@@ -4,11 +4,30 @@ import { asyncHandler } from "../middleware/errorHandler.js";
 class ProfileController {
   // Get current user's profile
   getProfile = asyncHandler(async (req, res) => {
-    const userId = req.session.userId;
+    const userId = req.session?.userId;
+    
+    console.log(`[ProfileController.getProfile] Request received, session userId: ${userId}`);
+    console.log(`[ProfileController.getProfile] Session data:`, {
+      userId: req.session?.userId,
+      userEmail: req.session?.userEmail,
+      cookie: req.headers.cookie ? 'present' : 'missing',
+    });
+
+    if (!userId) {
+      console.log(`[ProfileController.getProfile] No userId in session, returning 401`);
+      return res.status(401).json({
+        ok: false,
+        error: {
+          code: "UNAUTHORIZED",
+          message: "Authentication required",
+        },
+      });
+    }
 
     const profile = await profileService.getProfileByUserId(userId);
 
     if (!profile) {
+      console.log(`[ProfileController.getProfile] Profile not found for user: ${userId}`);
       return res.status(404).json({
         ok: false,
         error: {
@@ -17,6 +36,8 @@ class ProfileController {
         },
       });
     }
+
+    console.log(`[ProfileController.getProfile] Successfully returning profile for user: ${userId}`);
 
     res.status(200).json({
       ok: true,

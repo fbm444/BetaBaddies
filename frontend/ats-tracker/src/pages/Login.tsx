@@ -142,7 +142,8 @@ export function Login() {
     }
 
     try {
-      await api.login(email, password);
+      const loginResponse = await api.login(email, password);
+      console.log("Login successful:", loginResponse);
       
       // If there's a pending family invitation, accept it
       if (familyInviteToken) {
@@ -205,18 +206,32 @@ export function Login() {
         }
       }
       
-      // Check account type and redirect accordingly
-      const authResponse = await api.getUserAuth();
-      const userAccountType = authResponse.data?.user?.accountType || 'regular';
+      // Try to get account type, but don't fail if it doesn't work
+      // The session cookie might need a moment to be available
+      let userAccountType = 'regular';
+      try {
+        const authResponse = await api.getUserAuth();
+        userAccountType = authResponse.data?.user?.accountType || 'regular';
+        console.log("Account type retrieved:", userAccountType);
+      } catch (authErr: any) {
+        console.warn("Could not fetch user auth after login (this is OK, will redirect anyway):", authErr);
+        // Use account type from login response if available
+        if (loginResponse?.data?.user?.accountType) {
+          userAccountType = loginResponse.data.user.accountType;
+        }
+      }
       
       // Redirect to dashboard on success - use window.location for full page reload
-      if (userAccountType === 'family_only') {
-        console.log("Login successful, redirecting to:", ROUTES.FAMILY_ONLY_DASHBOARD);
-        window.location.href = ROUTES.FAMILY_ONLY_DASHBOARD;
-      } else {
-        console.log("Login successful, redirecting to:", ROUTES.DASHBOARD);
-        window.location.href = ROUTES.DASHBOARD;
-      }
+      // Small delay to ensure session cookie is set
+      setTimeout(() => {
+        if (userAccountType === 'family_only') {
+          console.log("Login successful, redirecting to:", ROUTES.FAMILY_ONLY_DASHBOARD);
+          window.location.href = ROUTES.FAMILY_ONLY_DASHBOARD;
+        } else {
+          console.log("Login successful, redirecting to:", ROUTES.DASHBOARD);
+          window.location.href = ROUTES.DASHBOARD;
+        }
+      }, 100);
     } catch (err: any) {
       // Provide more specific error messages
       let errorMessage = "Authentication failed";

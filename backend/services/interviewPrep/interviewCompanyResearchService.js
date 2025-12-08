@@ -1,6 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
 import fs from "fs/promises";
-import fsSync from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import PDFDocument from "pdfkit";
@@ -984,10 +983,10 @@ Respond with ONLY a JSON array of strings:
 
       const fileId = uuidv4();
       const exportFilename = `company_research_${research.interview.company}_${fileId}.pdf`;
-      const filePath = path.join(this.exportDir, exportFilename);
 
-      const stream = fsSync.createWriteStream(filePath);
-      doc.pipe(stream);
+      // Collect PDF chunks in memory instead of writing to disk
+      const chunks = [];
+      doc.on('data', (chunk) => chunks.push(chunk));
 
       // Title
       doc.fontSize(24).font("Helvetica-Bold");
@@ -1128,15 +1127,16 @@ Respond with ONLY a JSON array of strings:
 
       doc.end();
 
+      // Wait for PDF to finish generating and return buffer
       return new Promise((resolve, reject) => {
-        stream.on("finish", () => {
+        doc.on("end", () => {
           resolve({
-            filePath,
+            buffer: Buffer.concat(chunks),
             filename: exportFilename,
             mimeType: "application/pdf",
           });
         });
-        stream.on("error", reject);
+        doc.on("error", reject);
       });
     } catch (error) {
       console.error(
@@ -1337,16 +1337,14 @@ Respond with ONLY a JSON array of strings:
         ],
       });
 
-      // Export to file
+      // Generate buffer directly
       const fileId = uuidv4();
       const exportFilename = `company_research_${research.interview.company}_${fileId}.docx`;
-      const filePath = path.join(this.exportDir, exportFilename);
 
       const buffer = await Packer.toBuffer(doc);
-      await fs.writeFile(filePath, buffer);
 
       return {
-        filePath,
+        buffer: buffer,
         filename: exportFilename,
         mimeType:
           "application/vnd.openxmlformats-officedocument.wordprocessingml.document",

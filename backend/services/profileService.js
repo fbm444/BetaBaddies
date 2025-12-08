@@ -34,9 +34,35 @@ class ProfileService {
         return null;
       }
 
+      const profile = result.rows[0];
+
+      // Convert pfp_link to presigned URL if it's an S3 key
+      // For profile pictures, use 7 day expiration
+      if (
+        profile.pfp_link &&
+        !profile.pfp_link.startsWith("http") &&
+        !profile.pfp_link.startsWith("/uploads")
+      ) {
+        // It's likely an S3 key - convert to presigned URL
+        try {
+          profile.pfp_link = await fileUploadService.getFileUrl(
+            profile.pfp_link,
+            {
+              expiresIn: 7 * 24 * 60 * 60, // 7 days
+            }
+          );
+        } catch (error) {
+          console.warn(
+            "⚠️ Could not generate presigned URL for profile picture:",
+            error.message
+          );
+          // Keep original path if conversion fails
+        }
+      }
+
       return {
-        ...result.rows[0],
-        fullName: this.getFullName(result.rows[0]),
+        ...profile,
+        fullName: this.getFullName(profile),
       };
     } catch (error) {
       console.error("❌ Error getting profile:", error);
@@ -280,8 +306,9 @@ class ProfileService {
       const profilePic = files[0];
 
       if (profilePic) {
-        // Return the actual file path from uploads
-        return profilePic.filePath;
+        // Return presigned URL if cloud storage, or local path if local storage
+        // getFileUrl() will handle conversion with 7 day expiration for profile pictures
+        return await fileUploadService.getFileUrl(profilePic.filePath);
       }
 
       // If no profile picture uploaded, get default from profile

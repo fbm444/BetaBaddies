@@ -638,17 +638,12 @@ class CoverLetterController {
       includeLetterhead: includeLetterhead === "true",
     });
 
-    const fileBuffer = await fs.readFile(result.filePath);
-
     res.setHeader("Content-Type", result.mimeType);
     res.setHeader(
       "Content-Disposition",
       `attachment; filename="${result.filename}"`
     );
-    res.send(fileBuffer);
-
-    // Clean up file after sending
-    await fs.unlink(result.filePath).catch(() => {});
+    res.send(result.buffer);
   });
 
   // Export to DOCX
@@ -671,17 +666,12 @@ class CoverLetterController {
       filename,
     });
 
-    const fileBuffer = await fs.readFile(result.filePath);
-
     res.setHeader("Content-Type", result.mimeType);
     res.setHeader(
       "Content-Disposition",
       `attachment; filename="${result.filename}"`
     );
-    res.send(fileBuffer);
-
-    // Clean up file after sending
-    await fs.unlink(result.filePath).catch(() => {});
+    res.send(result.buffer);
   });
 
   // Export to TXT
@@ -704,17 +694,12 @@ class CoverLetterController {
       filename,
     });
 
-    const fileBuffer = await fs.readFile(result.filePath);
-
     res.setHeader("Content-Type", result.mimeType);
     res.setHeader(
       "Content-Disposition",
       `attachment; filename="${result.filename}"`
     );
-    res.send(fileBuffer);
-
-    // Clean up file after sending
-    await fs.unlink(result.filePath).catch(() => {});
+    res.send(result.buffer);
   });
 
   // Export to HTML
@@ -737,17 +722,12 @@ class CoverLetterController {
       filename,
     });
 
-    const fileBuffer = await fs.readFile(result.filePath);
-
     res.setHeader("Content-Type", result.mimeType);
     res.setHeader(
       "Content-Disposition",
       `attachment; filename="${result.filename}"`
     );
-    res.send(fileBuffer);
-
-    // Clean up file after sending
-    await fs.unlink(result.filePath).catch(() => {});
+    res.send(result.buffer);
   });
 
   // ==================== Version Management ====================

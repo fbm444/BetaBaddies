@@ -23,11 +23,19 @@ class ResumeParseService {
   }
 
   /**
-   * Extract text from PDF file
+   * Extract text from PDF file or buffer
+   * @param {string|Buffer} filePathOrBuffer - File path (string) or buffer
    */
-  async extractTextFromPDF(filePath) {
+  async extractTextFromPDF(filePathOrBuffer) {
     try {
-      const dataBuffer = await fs.readFile(filePath);
+      let dataBuffer;
+      if (Buffer.isBuffer(filePathOrBuffer)) {
+        // Already a buffer
+        dataBuffer = filePathOrBuffer;
+      } else {
+        // File path - read from filesystem
+        dataBuffer = await fs.readFile(filePathOrBuffer);
+      }
       const data = await pdfParse(dataBuffer);
       return data.text;
     } catch (error) {
@@ -37,11 +45,19 @@ class ResumeParseService {
   }
 
   /**
-   * Extract text from DOCX file
+   * Extract text from DOCX file or buffer
+   * @param {string|Buffer} filePathOrBuffer - File path (string) or buffer
    */
-  async extractTextFromDOCX(filePath) {
+  async extractTextFromDOCX(filePathOrBuffer) {
     try {
-      const dataBuffer = await fs.readFile(filePath);
+      let dataBuffer;
+      if (Buffer.isBuffer(filePathOrBuffer)) {
+        // Already a buffer
+        dataBuffer = filePathOrBuffer;
+      } else {
+        // File path - read from filesystem
+        dataBuffer = await fs.readFile(filePathOrBuffer);
+      }
       const result = await mammoth.extractRawText({ buffer: dataBuffer });
       return result.value;
     } catch (error) {
@@ -51,15 +67,25 @@ class ResumeParseService {
   }
 
   /**
-   * Extract text from resume file based on file extension
+   * Extract text from resume file or buffer based on file extension
+   * @param {string|Buffer} filePathOrBuffer - File path (string) or buffer
+   * @param {string} [fileExtension] - Optional file extension (required if buffer is provided)
    */
-  async extractTextFromFile(filePath) {
-    const ext = path.extname(filePath).toLowerCase();
+  async extractTextFromFile(filePathOrBuffer, fileExtension = null) {
+    let ext;
+    
+    if (Buffer.isBuffer(filePathOrBuffer)) {
+      // If buffer, use provided extension or default to .pdf
+      ext = fileExtension || ".pdf";
+    } else {
+      // If file path, extract extension
+      ext = path.extname(filePathOrBuffer).toLowerCase();
+    }
 
     if (ext === ".pdf") {
-      return await this.extractTextFromPDF(filePath);
+      return await this.extractTextFromPDF(filePathOrBuffer);
     } else if (ext === ".docx" || ext === ".doc") {
-      return await this.extractTextFromDOCX(filePath);
+      return await this.extractTextFromDOCX(filePathOrBuffer);
     } else {
       throw new Error(`Unsupported file type: ${ext}`);
     }
@@ -330,13 +356,15 @@ Generate a friendly message:`;
   }
 
   /**
-   * Main method to parse a resume file
+   * Main method to parse a resume file or buffer
+   * @param {string|Buffer} filePathOrBuffer - File path (string) or buffer
+   * @param {string} [fileExtension] - Optional file extension (required if buffer is provided)
    */
-  async parseResumeFile(filePath) {
+  async parseResumeFile(filePathOrBuffer, fileExtension = null) {
     try {
-      // Step 1: Extract text from file
+      // Step 1: Extract text from file or buffer
       console.log("📄 Extracting text from resume file...");
-      const resumeText = await this.extractTextFromFile(filePath);
+      const resumeText = await this.extractTextFromFile(filePathOrBuffer, fileExtension);
 
       if (!resumeText || resumeText.trim().length === 0) {
         throw new Error("No text could be extracted from the resume file");

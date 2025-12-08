@@ -96,24 +96,17 @@ class InterviewPrepController {
       format
     );
 
-    // For PDF and DOCX, send file directly
+    // For PDF and DOCX, send buffer directly
     if (format === "pdf" || format === "docx") {
-      const filePath = result.filePath;
       const filename = result.filename;
       const mimeType = result.mimeType;
-
-      const fs = await import("fs/promises");
-      const fileBuffer = await fs.readFile(filePath);
 
       res.setHeader("Content-Type", mimeType);
       res.setHeader(
         "Content-Disposition",
         `attachment; filename="${filename}"`
       );
-      res.send(fileBuffer);
-
-      // Clean up file after sending
-      await fs.unlink(filePath).catch(() => {});
+      res.send(result.buffer);
     } else {
       // For markdown and JSON, send as JSON response
       res.status(200).json({

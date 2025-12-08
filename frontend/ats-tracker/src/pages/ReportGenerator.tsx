@@ -16,7 +16,12 @@ export function ReportGenerator() {
     setGeneratingFormat(format);
 
     try {
-      const response = await fetch('http://localhost:3001/api/v1/reports/generate', {
+      // Use environment variable or fallback to relative path (for proxy)
+      const apiBase = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL 
+        ? `${import.meta.env.VITE_API_BASE_URL}/api/v1` 
+        : '/api/v1';
+      
+      const response = await fetch(`${apiBase}/reports/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

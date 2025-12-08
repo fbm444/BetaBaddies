@@ -10,13 +10,15 @@ function getDbConfig() {
   if (process.env.DATABASE_URL) {
     try {
       const url = new URL(process.env.DATABASE_URL);
+      // Supabase requires SSL connections
+      // Use rejectUnauthorized: false for Supabase's self-signed certificates
       return {
         user: url.username,
         password: url.password,
         host: url.hostname,
         port: parseInt(url.port) || 5432,
         database: url.pathname.slice(1), // Remove leading '/'
-        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+        ssl: { rejectUnauthorized: false }, // Required for Supabase
       };
     } catch (error) {
       console.error("❌ Error parsing DATABASE_URL:", error.message);
@@ -31,7 +33,7 @@ function getDbConfig() {
     database: process.env.DB_NAME || "ats_tracker",
     password: process.env.DB_PASS || "ats_password",
     port: parseInt(process.env.DB_PORT) || 5432,
-    ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+    ssl: process.env.DB_SSL === "true" ? { rejectUnauthorized: false } : false,
   };
 }
 

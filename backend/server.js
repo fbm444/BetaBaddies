@@ -227,20 +227,33 @@ if (!sessionSecret && isProduction) {
   process.exit(1);
 }
 
+// Session cookie configuration
+const isProduction = process.env.NODE_ENV === "production";
+const isHttps =
+  process.env.BACKEND_URL?.startsWith("https") ||
+  process.env.FRONTEND_URL?.startsWith("https") ||
+  isProduction;
+
 app.use(
   session({
     secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: false, // Set to false for local development, even in production mode
-      httpOnly: true,
+      secure: isHttps, // true for HTTPS (production), false for HTTP (local dev)
+      httpOnly: true, // Prevents JavaScript access to cookie
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      sameSite: "lax", // Use lax for local development - allows cookies on redirects
-      domain: undefined, // Let browser set domain automatically
+      sameSite: isHttps ? "none" : "lax", // "none" for cross-origin HTTPS, "lax" for same-origin
+      domain: undefined, // Let browser set domain automatically (works for cross-origin)
     },
   })
 );
+
+// Log session configuration
+console.log("🍪 Session Configuration:");
+console.log(`   secure: ${isHttps} (HTTPS: ${isHttps})`);
+console.log(`   sameSite: ${isHttps ? "none" : "lax"}`);
+console.log(`   httpOnly: true`);
 
 // Initialize Passport middleware
 app.use(passport.initialize());

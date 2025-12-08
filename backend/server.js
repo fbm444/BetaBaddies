@@ -51,6 +51,10 @@ import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 
 const app = express();
 
+// Trust proxy - required for Railway and other cloud platforms
+// This allows Express to correctly identify client IPs behind proxies
+app.set("trust proxy", true);
+
 // Security middleware
 app.use(
   helmet({
@@ -67,10 +71,32 @@ app.use(
 );
 
 // CORS configuration
-const corsOrigin =
+// Support multiple origins: production, preview deployments, and custom domains
+let corsOrigin =
   process.env.CORS_ORIGIN ||
   process.env.FRONTEND_URL ||
   "http://localhost:3000";
+
+// If FRONTEND_URL is set, automatically add common Vercel patterns
+if (process.env.FRONTEND_URL && !process.env.CORS_ORIGIN) {
+  const baseUrl = process.env.FRONTEND_URL;
+  // Extract base domain (e.g., beta-baddies-72i5blr64-ats-trackers-projects.vercel.app)
+  const urlMatch = baseUrl.match(/https?:\/\/([^/]+)/);
+  if (urlMatch) {
+    const domain = urlMatch[1];
+    // Add production domain if it's a preview URL
+    if (domain.includes("-") && domain.endsWith(".vercel.app")) {
+      // Also allow the main vercel.app domain (without preview hash)
+      const mainDomain =
+        domain.split("-").slice(0, -1).join("-") + ".vercel.app";
+      corsOrigin = `${baseUrl},https://${mainDomain},https://beta-baddies.vercel.app`;
+    } else {
+      // If it's already the main domain, also allow preview URLs
+      corsOrigin = `${baseUrl},https://beta-baddies-*.vercel.app`;
+    }
+  }
+}
+
 const corsOrigins = corsOrigin.split(",").map((origin) => origin.trim());
 
 // Log CORS configuration on startup
@@ -102,17 +128,42 @@ app.use(
       );
 
       // Check against allowed origins (case-insensitive)
-      const isAllowed = normalizedAllowed.some(
-        (allowed) => allowed.toLowerCase() === normalizedOrigin.toLowerCase()
-      );
+      // Also support wildcard patterns like *.vercel.app
+      const isAllowed = normalizedAllowed.some((allowed) => {
+        const allowedLower = allowed.toLowerCase();
+        const originLower = normalizedOrigin.toLowerCase();
+
+        // Exact match
+        if (allowedLower === originLower) return true;
+
+        // Wildcard pattern match (e.g., *.vercel.app)
+        if (allowedLower.includes("*")) {
+          const pattern = allowedLower.replace(/\*/g, ".*");
+          const regex = new RegExp(`^${pattern}$`);
+          return regex.test(originLower);
+        }
+
+        return false;
+      });
 
       if (isAllowed) {
         console.log(`✅ CORS: Allowing origin: ${origin}`);
         callback(null, true);
       } else {
         console.error(`❌ CORS: Blocked origin: ${origin}`);
+        console.error(`   Normalized origin: ${normalizedOrigin}`);
         console.error(`   Allowed origins: ${normalizedAllowed.join(", ")}`);
-        callback(new Error("Not allowed by CORS"));
+        console.error(`   NODE_ENV: ${process.env.NODE_ENV}`);
+        console.error(`   FRONTEND_URL: ${process.env.FRONTEND_URL}`);
+        console.error(`   CORS_ORIGIN: ${process.env.CORS_ORIGIN}`);
+        // Return the origin that was requested for debugging
+        callback(
+          new Error(
+            `CORS: Origin ${origin} not allowed. Allowed: ${normalizedAllowed.join(
+              ", "
+            )}`
+          )
+        );
       }
     },
     credentials: true,

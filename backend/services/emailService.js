@@ -1,7 +1,7 @@
 /**
  * Email Service for sending notifications
  * Development: Logs to console
- * Production: Uses nodemailer with SMTP
+ * Production: Uses AWS SES (if USE_AWS_SES is set) or nodemailer with SMTP
  */
 
 import nodemailer from "nodemailer";
@@ -9,11 +9,53 @@ import nodemailer from "nodemailer";
 class EmailService {
   constructor() {
     this.transporter = null;
+    this.sesClient = null;
+    this.useSES = process.env.USE_AWS_SES === "true";
     this.initializationPromise = null;
-    this.initializeTransporter();
+    this.initializeEmailService();
   }
 
-  async initializeTransporter() {
+  async initializeEmailService() {
+    if (this.useSES) {
+      await this.initializeSES();
+    } else {
+      await this.initializeSMTP();
+    }
+  }
+
+  async initializeSES() {
+    try {
+      const { SESClient } = await import("@aws-sdk/client-ses");
+
+      // Check for required AWS credentials
+      if (
+        !process.env.AWS_ACCESS_KEY_ID ||
+        !process.env.AWS_SECRET_ACCESS_KEY
+      ) {
+        console.warn(
+          "⚠️ Email service: USE_AWS_SES is set but AWS credentials not found. Emails will only be logged to console."
+        );
+        return;
+      }
+
+      this.sesClient = new SESClient({
+        region: process.env.AWS_REGION || "us-east-1",
+        credentials: {
+          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+        },
+      });
+
+      console.log("✅ Email service initialized with AWS SES");
+    } catch (error) {
+      console.error("❌ AWS SES initialization failed:", error);
+      console.error("Error details:", error.message);
+      this.sesClient = null;
+      // Don't throw - allow app to continue, emails will just log to console
+    }
+  }
+
+  async initializeSMTP() {
     // Initialize if SMTP credentials are provided (not just in production)
     if (
       process.env.SMTP_HOST &&
@@ -36,11 +78,34 @@ class EmailService {
           tls: {
             rejectUnauthorized: false, // For self-signed certificates
           },
+          connectionTimeout: 10000, // 10 seconds to establish connection
+          socketTimeout: 10000, // 10 seconds for socket operations
+          greetingTimeout: 5000, // 5 seconds for SMTP greeting
+          // Retry configuration
+          pool: true, // Use connection pooling
+          maxConnections: 5, // Maximum number of connections in pool
+          maxMessages: 100, // Maximum messages per connection
         });
 
-        // Verify connection configuration
-        await this.transporter.verify();
-        console.log("✅ Email service initialized successfully");
+        // Verify connection configuration with timeout
+        try {
+          await Promise.race([
+            this.transporter.verify(),
+            new Promise((_, reject) =>
+              setTimeout(
+                () => reject(new Error("SMTP verification timeout")),
+                10000
+              )
+            ),
+          ]);
+        } catch (verifyError) {
+          console.warn(
+            "⚠️ SMTP verification failed or timed out, but transporter will still attempt to send emails:",
+            verifyError.message
+          );
+          // Don't fail initialization - allow emails to be attempted
+        }
+        console.log("✅ Email service initialized with SMTP");
       } catch (error) {
         console.error("❌ Email service initialization failed:", error);
         console.error("Error details:", error.message);
@@ -55,31 +120,46 @@ class EmailService {
   }
 
   /**
-   * Ensure transporter is initialized before sending emails
+   * Ensure email service is initialized before sending emails
    */
   async ensureInitialized() {
-    if (
-      !this.transporter &&
-      process.env.SMTP_HOST &&
-      process.env.SMTP_USER &&
-      process.env.SMTP_PASS
-    ) {
-      if (!this.initializationPromise) {
-        this.initializationPromise = this.initializeTransporter().catch(
-          (error) => {
+    if (this.useSES) {
+      if (!this.sesClient) {
+        if (!this.initializationPromise) {
+          this.initializationPromise = this.initializeSES().catch((error) => {
+            // Reset promise on failure so we can retry later
+            this.initializationPromise = null;
+            console.error("Failed to initialize AWS SES:", error.message);
+          });
+        }
+        try {
+          await this.initializationPromise;
+        } catch (error) {
+          // Already handled in catch above, just ensure we don't throw
+        }
+      }
+    } else {
+      if (
+        !this.transporter &&
+        process.env.SMTP_HOST &&
+        process.env.SMTP_USER &&
+        process.env.SMTP_PASS
+      ) {
+        if (!this.initializationPromise) {
+          this.initializationPromise = this.initializeSMTP().catch((error) => {
             // Reset promise on failure so we can retry later
             this.initializationPromise = null;
             console.error(
               "Failed to initialize email transporter:",
               error.message
             );
-          }
-        );
-      }
-      try {
-        await this.initializationPromise;
-      } catch (error) {
-        // Already handled in catch above, just ensure we don't throw
+          });
+        }
+        try {
+          await this.initializationPromise;
+        } catch (error) {
+          // Already handled in catch above, just ensure we don't throw
+        }
       }
     }
   }
@@ -119,11 +199,11 @@ class EmailService {
    * @returns {Promise<void>}
    */
   async sendAccountDeletionConfirmation(email) {
-    // Ensure transporter is initialized
+    // Ensure email service is initialized
     await this.ensureInitialized();
 
-    // If no transporter configured, log to console (development mode)
-    if (!this.transporter) {
+    // If no email service configured, log to console (development mode)
+    if (!(this.useSES ? this.sesClient : this.transporter)) {
       console.log("\n========== ACCOUNT DELETION EMAIL ==========");
       console.log(`To: ${email}`);
       console.log("Subject: Account Deletion Confirmation - ATS Tracker");
@@ -137,8 +217,8 @@ class EmailService {
       return;
     }
 
-    // Use nodemailer to send email
-    if (!this.transporter) {
+    // Use email service to send email
+    if (!(this.useSES ? this.sesClient : this.transporter)) {
       console.error("❌ Email service not initialized");
       return;
     }
@@ -172,7 +252,7 @@ class EmailService {
     };
 
     try {
-      await this.transporter.sendMail(mailOptions);
+      await this.sendMailWithTimeout(mailOptions);
       console.log("✅ Account deletion email sent to:", email);
     } catch (error) {
       console.error("❌ Error sending deletion email:", error);
@@ -191,11 +271,11 @@ class EmailService {
       process.env.FRONTEND_URL || "http://localhost:3000"
     }/reset-password?token=${resetToken}`;
 
-    // Ensure transporter is initialized
+    // Ensure email service is initialized
     await this.ensureInitialized();
 
-    // If no transporter configured, log to console (development mode)
-    if (!this.transporter) {
+    // If no email service configured, log to console (development mode)
+    if (!(this.useSES ? this.sesClient : this.transporter)) {
       console.log("\n========== PASSWORD RESET EMAIL ==========");
       console.log(`To: ${email}`);
       console.log("Subject: Password Reset Request - ATS Tracker");
@@ -213,8 +293,8 @@ class EmailService {
       return;
     }
 
-    // Use nodemailer to send email
-    if (!this.transporter) {
+    // Use email service to send email
+    if (!(this.useSES ? this.sesClient : this.transporter)) {
       console.error("❌ Email service not initialized");
       return;
     }
@@ -254,7 +334,7 @@ class EmailService {
     };
 
     try {
-      await this.transporter.sendMail(mailOptions);
+      await this.sendMailWithTimeout(mailOptions);
       console.log("✅ Password reset email sent to:", email);
     } catch (error) {
       console.error("❌ Error sending password reset email:", error);
@@ -285,11 +365,11 @@ class EmailService {
     const appUrl = process.env.FRONTEND_URL || "http://localhost:3000";
     const acceptUrl = `${appUrl}/collaboration/teams/accept-invite?token=${invitationToken}`;
 
-    // Ensure transporter is initialized
+    // Ensure email service is initialized
     await this.ensureInitialized();
 
-    // If no transporter configured, log to console (development mode)
-    if (!this.transporter) {
+    // If no email service configured, log to console (development mode)
+    if (!(this.useSES ? this.sesClient : this.transporter)) {
       console.log("\n========== TEAM INVITATION EMAIL ==========");
       console.log(`To: ${email}`);
       console.log("Subject: Team Invitation - ATS Tracker");
@@ -307,8 +387,8 @@ class EmailService {
       return;
     }
 
-    // Use nodemailer to send email
-    if (!this.transporter) {
+    // Use email service to send email
+    if (!(this.useSES ? this.sesClient : this.transporter)) {
       console.error("❌ Email service not initialized");
       return;
     }
@@ -357,7 +437,7 @@ class EmailService {
     };
 
     try {
-      await this.transporter.sendMail(mailOptions);
+      await this.sendMailWithTimeout(mailOptions);
       console.log("✅ Team invitation email sent to:", email);
     } catch (error) {
       console.error("❌ Error sending team invitation email:", error);
@@ -420,11 +500,11 @@ class EmailService {
       daysRemainingText = `<p style="color: #F59E0B; font-weight: bold; font-size: 16px;">⏰ ${daysRemaining} days remaining</p>`;
     }
 
-    // Ensure transporter is initialized
+    // Ensure email service is initialized
     await this.ensureInitialized();
 
-    // If no transporter configured, log to console (development mode)
-    if (!this.transporter) {
+    // If no email service configured, log to console (development mode)
+    if (!(this.useSES ? this.sesClient : this.transporter)) {
       console.log("\n========== DEADLINE REMINDER EMAIL ==========");
       console.log(`To: ${email}`);
       console.log("Subject: Application Deadline Reminder - ATS Tracker");
@@ -442,8 +522,8 @@ class EmailService {
       return;
     }
 
-    // Use nodemailer to send email
-    if (!this.transporter) {
+    // Use email service to send email
+    if (!(this.useSES ? this.sesClient : this.transporter)) {
       console.error("❌ Email service not initialized");
       return;
     }
@@ -511,7 +591,7 @@ class EmailService {
     };
 
     try {
-      await this.transporter.sendMail(mailOptions);
+      await this.sendMailWithTimeout(mailOptions);
       console.log("✅ Deadline reminder email sent to:", email);
     } catch (error) {
       console.error("❌ Error sending deadline reminder email:", error);
@@ -574,11 +654,11 @@ class EmailService {
       interviewerInfo += "</p>";
     }
 
-    // Ensure transporter is initialized
+    // Ensure email service is initialized
     await this.ensureInitialized();
 
-    // If no transporter configured, log to console (development mode)
-    if (!this.transporter) {
+    // If no email service configured, log to console (development mode)
+    if (!(this.useSES ? this.sesClient : this.transporter)) {
       console.log("\n========== INTERVIEW REMINDER EMAIL ==========");
       console.log(`To: ${email}`);
       console.log(
@@ -600,8 +680,8 @@ class EmailService {
       return;
     }
 
-    // Use nodemailer to send email
-    if (!this.transporter) {
+    // Use email service to send email
+    if (!(this.useSES ? this.sesClient : this.transporter)) {
       console.error("❌ Email service not initialized");
       return;
     }
@@ -662,7 +742,7 @@ class EmailService {
     };
 
     try {
-      await this.transporter.sendMail(mailOptions);
+      await this.sendMailWithTimeout(mailOptions);
       console.log(
         `✅ Interview reminder email sent to: ${email} (${reminderType})`
       );
@@ -694,11 +774,11 @@ class EmailService {
       personalizedMessage,
     } = referralDetails;
 
-    // Ensure transporter is initialized
+    // Ensure email service is initialized
     await this.ensureInitialized();
 
-    // If no transporter configured, log to console (development mode)
-    if (!this.transporter) {
+    // If no email service configured, log to console (development mode)
+    if (!(this.useSES ? this.sesClient : this.transporter)) {
       console.log("\n========== REFERRAL REQUEST EMAIL ==========");
       console.log(`To: ${contactEmail}`);
       console.log(`Subject: Referral Request: ${jobTitle} at ${jobCompany}`);
@@ -720,8 +800,8 @@ class EmailService {
       return;
     }
 
-    // Use nodemailer to send email
-    if (!this.transporter) {
+    // Use email service to send email
+    if (!(this.useSES ? this.sesClient : this.transporter)) {
       console.error("❌ Email service not initialized");
       return;
     }
@@ -788,7 +868,7 @@ class EmailService {
     };
 
     try {
-      await this.transporter.sendMail(mailOptions);
+      await this.sendMailWithTimeout(mailOptions);
       console.log("✅ Referral request email sent to:", contactEmail);
     } catch (error) {
       console.error("❌ Error sending referral request email:", error);
@@ -815,11 +895,11 @@ class EmailService {
   async sendThankYouNoteEmail(emailData) {
     const { to, recipientName, subject, body, senderEmail } = emailData;
 
-    // Ensure transporter is initialized
+    // Ensure email service is initialized
     await this.ensureInitialized();
 
-    // If no transporter configured, log to console (development mode)
-    if (!this.transporter) {
+    // If no email service configured, log to console (development mode)
+    if (!(this.useSES ? this.sesClient : this.transporter)) {
       console.log("\n========== THANK-YOU NOTE EMAIL ==========");
       console.log(`To: ${to}`);
       console.log(`Subject: ${subject}`);
@@ -828,8 +908,8 @@ class EmailService {
       return;
     }
 
-    // Use nodemailer to send email
-    if (!this.transporter) {
+    // Use email service to send email
+    if (!(this.useSES ? this.sesClient : this.transporter)) {
       console.error("❌ Email service not initialized");
       return;
     }
@@ -853,7 +933,7 @@ class EmailService {
     };
 
     try {
-      await this.transporter.sendMail(mailOptions);
+      await this.sendMailWithTimeout(mailOptions);
       console.log(`✅ Thank-you note email sent to: ${to}`);
     } catch (error) {
       console.error("❌ Error sending thank-you note email:", error);
@@ -877,11 +957,11 @@ class EmailService {
     const { contactName, requesterName, jobTitle, jobCompany, message } =
       gratitudeDetails;
 
-    // Ensure transporter is initialized
+    // Ensure email service is initialized
     await this.ensureInitialized();
 
-    // If no transporter configured, log to console (development mode)
-    if (!this.transporter) {
+    // If no email service configured, log to console (development mode)
+    if (!(this.useSES ? this.sesClient : this.transporter)) {
       console.log("\n========== GRATITUDE MESSAGE EMAIL ==========");
       console.log(`To: ${contactEmail}`);
       console.log(`Subject: Thank You for Your Referral`);
@@ -891,8 +971,8 @@ class EmailService {
       return;
     }
 
-    // Use nodemailer to send email
-    if (!this.transporter) {
+    // Use email service to send email
+    if (!(this.useSES ? this.sesClient : this.transporter)) {
       console.error("❌ Email service not initialized");
       return;
     }
@@ -940,7 +1020,7 @@ class EmailService {
     };
 
     try {
-      await this.transporter.sendMail(mailOptions);
+      await this.sendMailWithTimeout(mailOptions);
       console.log("✅ Gratitude message email sent to:", contactEmail);
     } catch (error) {
       console.error("❌ Error sending gratitude message email:", error);
@@ -964,11 +1044,11 @@ class EmailService {
     const { writerName, jobTitle, jobCompany, referralLetter } =
       referralDetails;
 
-    // Ensure transporter is initialized
+    // Ensure email service is initialized
     await this.ensureInitialized();
 
-    // If no transporter configured, log to console (development mode)
-    if (!this.transporter) {
+    // If no email service configured, log to console (development mode)
+    if (!(this.useSES ? this.sesClient : this.transporter)) {
       console.log("\n========== REFERRAL LETTER EMAIL ==========");
       console.log(`To: ${requesterEmail}`);
       console.log(`Subject: Referral Letter for ${jobTitle} at ${jobCompany}`);
@@ -987,8 +1067,8 @@ class EmailService {
       return;
     }
 
-    // Use nodemailer to send email
-    if (!this.transporter) {
+    // Use email service to send email
+    if (!(this.useSES ? this.sesClient : this.transporter)) {
       console.error("❌ Email service not initialized");
       return;
     }
@@ -1049,7 +1129,7 @@ class EmailService {
     };
 
     try {
-      await this.transporter.sendMail(mailOptions);
+      await this.sendMailWithTimeout(mailOptions);
       console.log("✅ Referral letter email sent to:", requesterEmail);
     } catch (error) {
       console.error("❌ Error sending referral letter email:", error);

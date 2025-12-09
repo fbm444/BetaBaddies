@@ -1,6 +1,6 @@
-import database from '../services/database.js';
-import marketIntelligenceService from '../services/marketIntelligenceService.js';
-import blsService from '../services/externalApis/blsService.js';
+import database from '../../services/database.js';
+import marketIntelligenceService from '../../services/marketIntelligenceService.js';
+import blsService from '../../services/externalApis/blsService.js';
 
 /**
  * Population script for market intelligence data

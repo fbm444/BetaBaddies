@@ -17,29 +17,46 @@ Server will run on `http://localhost:3001`
 
 ### Environment Variables
 
-Create a `.env` file in the backend directory. You can copy from `.env.example`:
+Create a `.env` file in the backend directory. Copy from `.env.example`:
+
+```bash
+cp .env.example .env
+```
+
+See `backend/.env.example` for all available environment variables.
+
+**Key Environment Variables:**
 
 ```env
-# Database Configuration
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=ats_tracker
-DB_USER=postgres
-DB_PASS=your_password
+# Environment Configuration
+NODE_ENV=development          # development, staging, or production
+ENVIRONMENT=development       # Overrides NODE_ENV if set
+LOG_LEVEL=DEBUG              # DEBUG, INFO, WARN, ERROR (defaults by env)
 
 # Server Configuration
 SERVER_PORT=3001
-SESSION_SECRET=your-secret-key-change-in-production
-NODE_ENV=development
+BACKEND_URL=http://localhost:3001
 FRONTEND_URL=http://localhost:3000
 
-# OpenAI Configuration (for AI Resume Parsing)
-# Get your API key from: https://platform.openai.com/api-keys
-OPENAI_API_KEY=your_openai_api_key_here
+# Database (use DATABASE_URL for cloud, or individual params for local)
+DATABASE_URL=postgresql://user:pass@host:6543/db?pgbouncer=true
 
-# Optional: Custom OpenAI API URL (for using proxy or different endpoint)
-# OPENAI_API_URL=https://api.openai.com/v1
+# Email (choose AWS SES or SMTP)
+USE_AWS_SES=false
+AWS_SES_FROM_EMAIL=ats.tracker12@gmail.com
+# OR
+SMTP_HOST=smtp.gmail.com
+SMTP_USER=your_email@gmail.com
+SMTP_PASS=your_app_password
+
+# OpenAI API
+OPENAI_API_KEY=your_openai_api_key_here
 ```
+
+**Logging Levels by Environment:**
+- **Development**: DEBUG (all logs with emojis, human-readable)
+- **Staging**: INFO (info, warn, error - structured JSON)
+- **Production**: WARN (warn, error only - structured JSON, sensitive data sanitized)
 
 **Getting an OpenAI API Key:**
 1. Go to [https://platform.openai.com/](https://platform.openai.com/)

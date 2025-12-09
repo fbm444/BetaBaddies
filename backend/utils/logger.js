@@ -12,9 +12,26 @@ const LOG_LEVELS = {
 
 class Logger {
   constructor() {
+    this.environment = this.getEnvironment();
     this.level = this.getLogLevel();
-    this.isProduction = process.env.NODE_ENV === 'production';
-    this.isDevelopment = process.env.NODE_ENV === 'development';
+    this.isProduction = this.environment === "production";
+    this.isStaging = this.environment === "staging";
+    this.isDevelopment = this.environment === "development";
+  }
+
+  getEnvironment() {
+    // Check NODE_ENV first, then ENVIRONMENT (for Railway/Vercel)
+    const nodeEnv = process.env.NODE_ENV?.toLowerCase();
+    const envVar = process.env.ENVIRONMENT?.toLowerCase();
+
+    // Priority: ENVIRONMENT > NODE_ENV > default to development
+    if (envVar && ["development", "staging", "production"].includes(envVar)) {
+      return envVar;
+    }
+    if (nodeEnv && ["development", "staging", "production"].includes(nodeEnv)) {
+      return nodeEnv;
+    }
+    return "development"; // Default fallback
   }
 
   getLogLevel() {
@@ -22,10 +39,20 @@ class Logger {
     if (envLevel && LOG_LEVELS[envLevel] !== undefined) {
       return LOG_LEVELS[envLevel];
     }
-    // Default: ERROR in production, DEBUG in development
-    return process.env.NODE_ENV === 'production' 
-      ? LOG_LEVELS.ERROR 
-      : LOG_LEVELS.DEBUG;
+
+    // Default log levels by environment:
+    // - Development: DEBUG (all logs)
+    // - Staging: INFO (info, warn, error)
+    // - Production: ERROR (only errors and warnings)
+    switch (this.environment) {
+      case "production":
+        return LOG_LEVELS.WARN; // WARN and ERROR in production
+      case "staging":
+        return LOG_LEVELS.INFO; // INFO, WARN, ERROR in staging
+      case "development":
+      default:
+        return LOG_LEVELS.DEBUG; // All logs in development
+    }
   }
 
   shouldLog(level) {
@@ -35,33 +62,86 @@ class Logger {
   formatMessage(level, message, data = {}) {
     const timestamp = new Date().toISOString();
     const levelName = Object.keys(LOG_LEVELS).find(
-      key => LOG_LEVELS[key] === level
+      (key) => LOG_LEVELS[key] === level
     );
 
-    if (this.isProduction) {
-      // Structured JSON logging for production
+    // Sanitize sensitive data in production/staging
+    const sanitizedData = this.sanitizeData(data, level);
+
+    if (this.isProduction || this.isStaging) {
+      // Structured JSON logging for production/staging
       return JSON.stringify({
         timestamp,
         level: levelName,
         message,
-        ...data,
-        environment: process.env.NODE_ENV,
+        environment: this.environment,
+        ...sanitizedData,
       });
     } else {
       // Human-readable logging for development
-      const emoji = {
-        ERROR: '❌',
-        WARN: '⚠️',
-        INFO: 'ℹ️',
-        DEBUG: '🔍',
-      }[levelName] || '📝';
+      const emoji =
+        {
+          ERROR: "❌",
+          WARN: "⚠️",
+          INFO: "ℹ️",
+          DEBUG: "🔍",
+        }[levelName] || "📝";
 
       let output = `${emoji} [${levelName}] ${message}`;
-      if (Object.keys(data).length > 0) {
-        output += `\n   ${JSON.stringify(data, null, 2)}`;
+      if (Object.keys(sanitizedData).length > 0) {
+        output += `\n   ${JSON.stringify(sanitizedData, null, 2)}`;
       }
       return output;
     }
+  }
+
+  /**
+   * Sanitize sensitive data from logs in production/staging
+   */
+  sanitizeData(data, level) {
+    if (this.isDevelopment) {
+      return data; // Show all data in development
+    }
+
+    const sensitiveKeys = [
+      "password",
+      "token",
+      "secret",
+      "apiKey",
+      "accessKey",
+      "refreshToken",
+      "authorization",
+      "cookie",
+      "session",
+      "creditCard",
+      "ssn",
+      "email", // Optionally sanitize email in production
+    ];
+
+    const sanitized = { ...data };
+
+    // Remove sensitive keys or mask them
+    for (const key of Object.keys(sanitized)) {
+      const lowerKey = key.toLowerCase();
+      if (sensitiveKeys.some((sk) => lowerKey.includes(sk))) {
+        if (level === LOG_LEVELS.ERROR && this.isProduction) {
+          // Keep key name but mask value for errors
+          sanitized[key] = "[REDACTED]";
+        } else {
+          // Remove entirely for non-error logs
+          delete sanitized[key];
+        }
+      }
+    }
+
+    // Sanitize nested objects
+    for (const key of Object.keys(sanitized)) {
+      if (typeof sanitized[key] === "object" && sanitized[key] !== null) {
+        sanitized[key] = this.sanitizeData(sanitized[key], level);
+      }
+    }
+
+    return sanitized;
   }
 
   error(message, error = null, data = {}) {
@@ -73,15 +153,19 @@ class Logger {
         message: error.message,
         stack: this.isDevelopment ? error.stack : undefined,
         code: error.code,
-        ...(error.response && { status: error.response.status }),
+        name: error.name,
+        ...(error.response && {
+          status: error.response.status,
+          statusText: error.response.statusText,
+        }),
       };
     }
 
     const formatted = this.formatMessage(LOG_LEVELS.ERROR, message, logData);
     console.error(formatted);
 
-    // In production, send to error tracking service (e.g., Sentry)
-    if (this.isProduction && error) {
+    // In production/staging, send to error tracking service (e.g., Sentry)
+    if ((this.isProduction || this.isStaging) && error) {
       this.sendToErrorTracking(error, { message, ...logData });
     }
   }
@@ -115,27 +199,32 @@ class Logger {
 
   // Convenience methods for common patterns
   logDatabaseQuery(query, duration, rowCount) {
-    this.debug('Database query executed', {
-      query: query.substring(0, 100) + '...',
+    this.debug("Database query executed", {
+      query: query.substring(0, 100) + "...",
       duration: `${duration}ms`,
       rows: rowCount,
     });
   }
 
   logApiRequest(method, path, statusCode, duration) {
-    const level = statusCode >= 500 ? LOG_LEVELS.ERROR : 
-                  statusCode >= 400 ? LOG_LEVELS.WARN : 
-                  LOG_LEVELS.INFO;
-    
+    const level =
+      statusCode >= 500
+        ? LOG_LEVELS.ERROR
+        : statusCode >= 400
+        ? LOG_LEVELS.WARN
+        : LOG_LEVELS.INFO;
+
     if (this.shouldLog(level)) {
       this.formatMessage(level, `${method} ${path}`, {
         statusCode,
         duration: `${duration}ms`,
       });
-      console.log(this.formatMessage(level, `${method} ${path}`, {
-        statusCode,
-        duration: `${duration}ms`,
-      }));
+      console.log(
+        this.formatMessage(level, `${method} ${path}`, {
+          statusCode,
+          duration: `${duration}ms`,
+        })
+      );
     }
   }
 
@@ -150,4 +239,3 @@ class Logger {
 
 // Export singleton instance
 export default new Logger();
-

@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 import { v4 as uuidv4 } from "uuid";
 import bcrypt from "bcrypt";
-import database from "../services/database.js";
+import database from "../../services/database.js";
 
 dotenv.config();
 

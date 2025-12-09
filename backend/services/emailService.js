@@ -5,6 +5,7 @@
  */
 
 import nodemailer from "nodemailer";
+import logger from "../utils/logger.js";
 
 class EmailService {
   constructor() {
@@ -32,8 +33,8 @@ class EmailService {
         !process.env.AWS_ACCESS_KEY_ID ||
         !process.env.AWS_SECRET_ACCESS_KEY
       ) {
-        console.warn(
-          "⚠️ Email service: USE_AWS_SES is set but AWS credentials not found. Emails will only be logged to console."
+        logger.warn(
+          "Email service: USE_AWS_SES is set but AWS credentials not found. Emails will only be logged to console."
         );
         return;
       }
@@ -46,10 +47,13 @@ class EmailService {
         },
       });
 
-      console.log("✅ Email service initialized with AWS SES");
+      logger.info("Email service initialized with AWS SES", {
+        region: process.env.AWS_REGION || "us-east-1",
+      });
     } catch (error) {
-      console.error("❌ AWS SES initialization failed:", error);
-      console.error("Error details:", error.message);
+      logger.error("AWS SES initialization failed", error, {
+        region: process.env.AWS_REGION || "us-east-1",
+      });
       this.sesClient = null;
       // Don't throw - allow app to continue, emails will just log to console
     }
@@ -99,22 +103,27 @@ class EmailService {
             ),
           ]);
         } catch (verifyError) {
-          console.warn(
-            "⚠️ SMTP verification failed or timed out, but transporter will still attempt to send emails:",
-            verifyError.message
+          logger.warn(
+            "SMTP verification failed or timed out, but transporter will still attempt to send emails",
+            { error: verifyError.message }
           );
           // Don't fail initialization - allow emails to be attempted
         }
-        console.log("✅ Email service initialized with SMTP");
+        logger.info("Email service initialized with SMTP", {
+          host: process.env.SMTP_HOST,
+          port: port,
+        });
       } catch (error) {
-        console.error("❌ Email service initialization failed:", error);
-        console.error("Error details:", error.message);
+        logger.error("Email service initialization failed", error, {
+          host: process.env.SMTP_HOST,
+          port: port,
+        });
         this.transporter = null;
         // Don't throw - allow app to continue, emails will just log to console
       }
     } else {
-      console.warn(
-        "⚠️ Email service: SMTP credentials not configured. Emails will only be logged to console."
+      logger.warn(
+        "Email service: SMTP credentials not configured. Emails will only be logged to console."
       );
     }
   }
@@ -129,7 +138,7 @@ class EmailService {
           this.initializationPromise = this.initializeSES().catch((error) => {
             // Reset promise on failure so we can retry later
             this.initializationPromise = null;
-            console.error("Failed to initialize AWS SES:", error.message);
+            logger.error("Failed to initialize AWS SES", error);
           });
         }
         try {
@@ -149,10 +158,7 @@ class EmailService {
           this.initializationPromise = this.initializeSMTP().catch((error) => {
             // Reset promise on failure so we can retry later
             this.initializationPromise = null;
-            console.error(
-              "Failed to initialize email transporter:",
-              error.message
-            );
+            logger.error("Failed to initialize email transporter", error);
           });
         }
         try {
@@ -437,9 +443,13 @@ class EmailService {
 
     try {
       await this.sendMailWithTimeout(mailOptions);
-      console.log("✅ Password reset email sent to:", email);
+      logger.info("Password reset email sent", {
+        email: email.substring(0, 5) + "***",
+      });
     } catch (error) {
-      console.error("❌ Error sending password reset email:", error);
+      logger.error("Error sending password reset email", error, {
+        email: email.substring(0, 5) + "***",
+      });
 
       // Check for Gmail quota/rate limit errors
       if (this.isQuotaError(error)) {

@@ -3,7 +3,7 @@
  * Run with: node backend/scripts/seedProspectiveJobs.js
  */
 
-import database from "../services/database.js";
+import database from "../../services/database.js";
 import { v4 as uuidv4 } from "uuid";
 
 // Mock prospective jobs data

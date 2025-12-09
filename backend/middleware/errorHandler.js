@@ -1,3 +1,5 @@
+import logger from "../utils/logger.js";
+
 // Async handler wrapper to catch errors in async route handlers
 export const asyncHandler = (fn) => (req, res, next) => {
   Promise.resolve(fn(req, res, next)).catch(next);
@@ -5,8 +7,6 @@ export const asyncHandler = (fn) => (req, res, next) => {
 
 // Centralized error handler
 export const errorHandler = (err, req, res, next) => {
-  console.error("🚨 API Error:", err.message || err);
-
   // Only log detailed error information in development or for unexpected errors
   const knownErrorCodes = ["23505", "23503", "23514", "DUPLICATE_SKILL"];
   const isKnownError =
@@ -21,9 +21,17 @@ export const errorHandler = (err, req, res, next) => {
       "RATE_LIMIT_EXCEEDED",
     ].includes(err.message);
 
-  if (!isKnownError) {
-    console.error("🚨 Unexpected error details:", {
+  if (isKnownError) {
+    logger.warn("API Error (known)", {
       message: err.message,
+      code: err.code,
+      path: req.path,
+      method: req.method,
+    });
+  } else {
+    logger.error("API Error (unexpected)", err, {
+      path: req.path,
+      method: req.method,
       code: err.code,
       constraint: err.constraint,
       detail: err.detail,
@@ -215,14 +223,10 @@ export const errorHandler = (err, req, res, next) => {
   
   // Log full error details for debugging
   if (errorMessage.includes("is_default") || errorMessage.includes("column") || errorMessage.includes("does not exist")) {
-    console.error("🚨 Database column error detected:", {
-      message: errorMessage,
-      code: err.code,
-      detail: err.detail,
-      hint: err.hint,
-      stack: err.stack,
+    logger.error("Database column error detected", err, {
       query: err.query,
       position: err.position,
+      hint: err.hint,
     });
   }
   

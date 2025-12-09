@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import database from "./services/database.js";
 import { setupUploadDirectories, createGitkeepFiles } from "./utils/setupDirectories.js";
 import scheduler from "./services/scheduler.js";
+import logger from "./utils/logger.js";
 
 async function main() {
   dotenv.config();
@@ -17,49 +18,54 @@ async function main() {
 
     // Test database connection
     await database.query("SELECT NOW()");
-    console.log("✅ Success: Connected to PostgreSQL database");
+    logger.info("Connected to PostgreSQL database");
 
     // Start scheduler service for reminders
     try {
       scheduler.start();
+      logger.info("Scheduler service started");
     } catch (error) {
-      console.error("⚠️ Warning: Failed to start scheduler:", error.message);
-      console.log("   Reminder emails will not be sent automatically");
+      logger.warn("Failed to start scheduler", { error: error.message });
+      logger.info("Reminder emails will not be sent automatically");
     }
 
     // Start server
     // Listen on 0.0.0.0 to accept connections from all network interfaces (required for Railway/cloud)
     app.listen(port, '0.0.0.0', () => {
-      console.log(`🚀 Server is running on port ${port}`);
-      console.log(`🌍 Environment: ${nodeEnv}`);
-      console.log(`📊 Health check available at ${backendUrl}/health`);
-      console.log(`🔗 API base URL: ${backendUrl}/api/v1`);
+      logger.info("Server started", {
+        port,
+        environment: nodeEnv,
+        healthCheck: `${backendUrl}/health`,
+        apiBase: `${backendUrl}/api/v1`,
+      });
       if (nodeEnv === 'development') {
-        console.log(`👤 User endpoints: ${backendUrl}/api/v1/users`);
+        logger.debug("User endpoints available", {
+          users: `${backendUrl}/api/v1/users`,
+        });
       }
     });
 
     // Graceful shutdown
     process.on("SIGINT", async () => {
-      console.log("Received SIGINT. Graceful shutdown...");
+      logger.info("Received SIGINT. Graceful shutdown...");
       scheduler.stop();
       await database.close();
       process.exit(0);
     });
 
     process.on("SIGTERM", async () => {
-      console.log("Received SIGTERM. Graceful shutdown...");
+      logger.info("Received SIGTERM. Graceful shutdown...");
       scheduler.stop();
       await database.close();
       process.exit(0);
     });
   } catch (error) {
-    console.error(
-      "❌ Error: Could not connect to PostgreSQL database:",
-      error.message
-    );
+    logger.error("Could not connect to PostgreSQL database", error);
     process.exit(1);
   }
 }
 
-main().catch(console.error);
+main().catch((error) => {
+  logger.error("Fatal error in main", error);
+  process.exit(1);
+});

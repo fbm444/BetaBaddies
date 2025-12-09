@@ -5,6 +5,7 @@ import helmet from "helmet";
 import morgan from "morgan";
 import rateLimit from "express-rate-limit";
 import passport from "./config/passport.js";
+import logger from "./utils/logger.js";
 
 // Import routes
 import userRoutes from "./routes/userRoutes.js";
@@ -100,22 +101,23 @@ if (process.env.FRONTEND_URL && !process.env.CORS_ORIGIN) {
 const corsOrigins = corsOrigin.split(",").map((origin) => origin.trim());
 
 // Log CORS configuration on startup
-console.log("🌐 CORS Configuration:");
-console.log(`   Allowed origins: ${corsOrigins.join(", ")}`);
-console.log(`   NODE_ENV: ${process.env.NODE_ENV || "development"}`);
+logger.info("CORS Configuration", {
+  allowedOrigins: corsOrigins,
+  nodeEnv: process.env.NODE_ENV || "development",
+});
 
 app.use(
   cors({
     origin: (origin, callback) => {
       // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) {
-        console.log("✅ CORS: Allowing request with no origin");
+        logger.debug("CORS: Allowing request with no origin");
         return callback(null, true);
       }
 
       // In development, allow all origins
       if (process.env.NODE_ENV === "development") {
-        console.log(`✅ CORS: Development mode - allowing origin: ${origin}`);
+        logger.debug("CORS: Development mode - allowing origin", { origin });
         return callback(null, true);
       }
 
@@ -147,15 +149,17 @@ app.use(
       });
 
       if (isAllowed) {
-        console.log(`✅ CORS: Allowing origin: ${origin}`);
+        logger.debug("CORS: Allowing origin", { origin });
         callback(null, true);
       } else {
-        console.error(`❌ CORS: Blocked origin: ${origin}`);
-        console.error(`   Normalized origin: ${normalizedOrigin}`);
-        console.error(`   Allowed origins: ${normalizedAllowed.join(", ")}`);
-        console.error(`   NODE_ENV: ${process.env.NODE_ENV}`);
-        console.error(`   FRONTEND_URL: ${process.env.FRONTEND_URL}`);
-        console.error(`   CORS_ORIGIN: ${process.env.CORS_ORIGIN}`);
+        logger.warn("CORS: Blocked origin", {
+          origin,
+          normalizedOrigin,
+          allowedOrigins: normalizedAllowed,
+          nodeEnv: process.env.NODE_ENV,
+          frontendUrl: process.env.FRONTEND_URL,
+          corsOrigin: process.env.CORS_ORIGIN,
+        });
         // Return the origin that was requested for debugging
         callback(
           new Error(
@@ -180,12 +184,10 @@ const rateLimitMax =
   (process.env.NODE_ENV === "production" ? 1000 : 1000); // Increased to 1000 for production
 
 // Log rate limit configuration
-console.log("🚦 Rate Limit Configuration:");
-console.log(
-  `   Max requests: ${rateLimitMax} per ${
-    rateLimitWindowMs / 1000 / 60
-  } minutes`
-);
+logger.info("Rate Limit Configuration", {
+  maxRequests: rateLimitMax,
+  windowMinutes: rateLimitWindowMs / 1000 / 60,
+});
 
 const limiter = rateLimit({
   windowMs: rateLimitWindowMs,
@@ -195,9 +197,10 @@ const limiter = rateLimit({
   handler: (req, res, next) => {
     if (process.env.NODE_ENV === "development") {
       res.setHeader("X-RateLimit-Status", "exceeded");
-      console.warn(
-        `[RateLimit] Threshold exceeded for ${req.ip}. Allowing request to proceed in development mode.`
-      );
+      logger.warn("Rate limit exceeded (development mode - allowing)", {
+        ip: req.ip,
+        path: req.path,
+      });
       next();
     } else {
       res.status(429).json({

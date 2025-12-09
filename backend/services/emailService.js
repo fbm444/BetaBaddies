@@ -165,6 +165,105 @@ class EmailService {
   }
 
   /**
+   * Send email via AWS SES
+   * @param {object} mailOptions - Email options (from, to, subject, html, text, replyTo)
+   * @param {number} timeoutMs - Timeout in milliseconds (default: 15000)
+   * @returns {Promise<any>}
+   */
+  async sendViaSES(mailOptions, timeoutMs = 15000) {
+    if (!this.sesClient) {
+      throw new Error("AWS SES client not initialized");
+    }
+
+    const { SendEmailCommand } = await import("@aws-sdk/client-ses");
+
+    // Convert mailOptions to SES format
+    const sesParams = {
+      Source:
+        mailOptions.from || process.env.EMAIL_FROM || "noreply@atstracker.com",
+      Destination: {
+        ToAddresses: Array.isArray(mailOptions.to)
+          ? mailOptions.to
+          : [mailOptions.to],
+      },
+      Message: {
+        Subject: {
+          Data: mailOptions.subject,
+          Charset: "UTF-8",
+        },
+        Body: {
+          Html: {
+            Data: mailOptions.html || mailOptions.text || "",
+            Charset: "UTF-8",
+          },
+        },
+      },
+    };
+
+    // Add text body if provided
+    if (mailOptions.text && mailOptions.html) {
+      sesParams.Message.Body.Text = {
+        Data: mailOptions.text,
+        Charset: "UTF-8",
+      };
+    } else if (mailOptions.text && !mailOptions.html) {
+      sesParams.Message.Body = {
+        Text: {
+          Data: mailOptions.text,
+          Charset: "UTF-8",
+        },
+      };
+    }
+
+    // Add reply-to if provided
+    if (mailOptions.replyTo) {
+      sesParams.ReplyToAddresses = Array.isArray(mailOptions.replyTo)
+        ? mailOptions.replyTo
+        : [mailOptions.replyTo];
+    }
+
+    const command = new SendEmailCommand(sesParams);
+
+    return Promise.race([
+      this.sesClient.send(command),
+      new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error(`Email send timeout after ${timeoutMs}ms`)),
+          timeoutMs
+        )
+      ),
+    ]);
+  }
+
+  /**
+   * Send email with timeout protection (routes to SES or SMTP based on configuration)
+   * @param {object} mailOptions - Nodemailer mail options (works with both SES and SMTP)
+   * @param {number} timeoutMs - Timeout in milliseconds (default: 15000)
+   * @returns {Promise<any>}
+   */
+  async sendMailWithTimeout(mailOptions, timeoutMs = 15000) {
+    if (this.useSES) {
+      if (!this.sesClient) {
+        throw new Error("AWS SES client not initialized");
+      }
+      return this.sendViaSES(mailOptions, timeoutMs);
+    } else {
+      if (!this.transporter) {
+        throw new Error("Email transporter not initialized");
+      }
+      return Promise.race([
+        this.transporter.sendMail(mailOptions),
+        new Promise((_, reject) =>
+          setTimeout(
+            () => reject(new Error(`Email send timeout after ${timeoutMs}ms`)),
+            timeoutMs
+          )
+        ),
+      ]);
+    }
+  }
+
+  /**
    * Check if an error is a Gmail quota/rate limit error
    * @param {Error} error - The error to check
    * @returns {boolean} - True if it's a quota error

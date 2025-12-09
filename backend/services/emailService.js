@@ -177,10 +177,13 @@ class EmailService {
 
     const { SendEmailCommand } = await import("@aws-sdk/client-ses");
 
+    // Use AWS_SES_FROM_EMAIL env variable or default to ats.tracker12@gmail.com
+    const sesFromEmail =
+      process.env.AWS_SES_FROM_EMAIL || "ats.tracker12@gmail.com";
+
     // Convert mailOptions to SES format
     const sesParams = {
-      Source:
-        mailOptions.from || process.env.EMAIL_FROM || "noreply@atstracker.com",
+      Source: sesFromEmail,
       Destination: {
         ToAddresses: Array.isArray(mailOptions.to)
           ? mailOptions.to

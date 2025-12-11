@@ -1,5 +1,6 @@
 import githubService from "../services/githubService.js";
 import projectService from "../services/projectService.js";
+import skillService from "../services/skillService.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 
 class GitHubController {
@@ -334,8 +335,27 @@ class GitHubController {
     res.status(200).json({
       ok: true,
       data: {
-        contributions,
-        count: contributions.length,
+        contributions: contributions.dailyContributions,
+        allContributions: contributions.allContributions,
+        statistics: contributions.statistics,
+        count: contributions.dailyContributions.length,
+      },
+    });
+  });
+
+  /**
+   * Get overall contribution statistics
+   * GET /api/v1/github/contributions/overall
+   */
+  getOverallContributions = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+
+    const stats = await githubService.getOverallContributionStats(userId);
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        statistics: stats,
       },
     });
   });
@@ -401,11 +421,59 @@ class GitHubController {
     // Create the project
     const project = await projectService.createProject(userId, projectData);
 
+    // Automatically add technologies as skills if they don't already exist
+    const technologies = new Set();
+    
+    // Extract technologies from repository.languages (object with language names as keys)
+    if (repository.languages && typeof repository.languages === 'object') {
+      Object.keys(repository.languages).forEach((lang) => {
+        if (lang && lang.trim()) {
+          technologies.add(lang.trim());
+        }
+      });
+    }
+    
+    // Also include the primary language if it exists and wasn't already added
+    if (repository.language && repository.language.trim()) {
+      technologies.add(repository.language.trim());
+    }
+
+    // Add each technology as a skill if it doesn't already exist
+    const addedSkills = [];
+    const skippedSkills = [];
+    
+    for (const tech of technologies) {
+      try {
+        // Check if skill already exists
+        const existingSkill = await skillService.getSkillByUserIdAndName(userId, tech);
+        
+        if (!existingSkill) {
+          // Create new skill with default values
+          const newSkill = await skillService.createSkill(userId, {
+            skillName: tech,
+            proficiency: "Intermediate", // Default proficiency
+            category: "Technical", // Default category for programming languages
+          });
+          addedSkills.push(tech);
+        } else {
+          skippedSkills.push(tech);
+        }
+      } catch (error) {
+        // Log error but don't fail the project creation
+        console.error(`Failed to add skill "${tech}" for user ${userId}:`, error);
+        // Continue with other technologies
+      }
+    }
+
     res.status(201).json({
       ok: true,
       data: {
         project,
         message: "Project created from GitHub repository successfully",
+        skillsAdded: addedSkills.length,
+        skillsSkipped: skippedSkills.length,
+        addedSkills: addedSkills,
+        skippedSkills: skippedSkills,
       },
     });
   });

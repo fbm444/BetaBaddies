@@ -22,6 +22,7 @@ router.put("/repositories/:id/featured", githubController.setFeatured);
 router.post("/repositories/:id/skills", githubController.linkToSkills);
 router.get("/repositories/:id/contributions", githubController.getContributions);
 router.post("/repositories/:id/add-to-projects", githubController.addToProjects);
+router.get("/contributions/overall", githubController.getOverallContributions);
 
 export default router;
 

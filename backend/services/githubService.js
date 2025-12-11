@@ -478,7 +478,7 @@ class GitHubService {
    * @param {string} owner - Repository owner
    * @param {string} repo - Repository name
    * @param {string} username - GitHub username
-   * @returns {Promise<Array>} Contribution activity
+   * @returns {Promise<Object>} Contribution activity with statistics
    */
   async fetchContributionActivity(accessToken, owner, repo, username) {
     try {
@@ -500,32 +500,218 @@ class GitHubService {
       );
 
       if (!userContributions) {
-        return [];
+        return {
+          dailyContributions: [],
+          statistics: {
+            totalCommits: 0,
+            totalAdditions: 0,
+            totalDeletions: 0,
+            averageCommitsPerWeek: 0,
+            averageCommitsPerDay: 0,
+            mostActiveWeek: null,
+            commitFrequency: "No activity",
+            weeksActive: 0,
+          },
+        };
       }
 
       // Transform weeks data to daily contributions
       const dailyContributions = [];
+      let totalCommits = 0;
+      let totalAdditions = 0;
+      let totalDeletions = 0;
+      let maxWeekCommits = 0;
+      let mostActiveWeek = null;
+
       userContributions.weeks.forEach((week) => {
         const weekStart = new Date(week.w * 1000);
-        for (let i = 0; i < 7; i++) {
-          const date = new Date(weekStart);
-          date.setDate(date.getDate() + i);
-          dailyContributions.push({
-            date: date.toISOString().split("T")[0],
-            commits: Math.floor(week.c / 7), // Approximate daily commits
-            additions: Math.floor(week.a / 7),
-            deletions: Math.floor(week.d / 7),
-          });
+        const weekCommits = week.c || 0;
+        const weekAdditions = week.a || 0;
+        const weekDeletions = week.d || 0;
+
+        totalCommits += weekCommits;
+        totalAdditions += weekAdditions;
+        totalDeletions += weekDeletions;
+
+        if (weekCommits > maxWeekCommits) {
+          maxWeekCommits = weekCommits;
+          mostActiveWeek = {
+            week: weekStart.toISOString().split("T")[0],
+            commits: weekCommits,
+            additions: weekAdditions,
+            deletions: weekDeletions,
+          };
+        }
+
+        // Distribute commits across the week (more accurate than dividing by 7)
+        if (weekCommits > 0) {
+          // Create daily entries for this week
+          for (let i = 0; i < 7; i++) {
+            const date = new Date(weekStart);
+            date.setDate(date.getDate() + i);
+            // Distribute commits proportionally (simplified - assumes uniform distribution)
+            dailyContributions.push({
+              date: date.toISOString().split("T")[0],
+              commits: i < weekCommits % 7 
+                ? Math.ceil(weekCommits / 7) 
+                : Math.floor(weekCommits / 7),
+              additions: Math.floor(weekAdditions / 7),
+              deletions: Math.floor(weekDeletions / 7),
+            });
+          }
         }
       });
 
-      return dailyContributions;
+      // Calculate statistics
+      const weeksActive = userContributions.weeks.filter(
+        (w) => w.c > 0
+      ).length;
+      const averageCommitsPerWeek =
+        weeksActive > 0 ? totalCommits / weeksActive : 0;
+      const averageCommitsPerDay =
+        dailyContributions.length > 0
+          ? totalCommits / dailyContributions.length
+          : 0;
+
+      // Determine commit frequency
+      let commitFrequency = "No activity";
+      if (averageCommitsPerDay >= 5) {
+        commitFrequency = "Very Active";
+      } else if (averageCommitsPerDay >= 2) {
+        commitFrequency = "Active";
+      } else if (averageCommitsPerDay >= 0.5) {
+        commitFrequency = "Moderate";
+      } else if (averageCommitsPerDay > 0) {
+        commitFrequency = "Occasional";
+      }
+
+      // Get last 30 days of activity for better visualization
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const recentContributions = dailyContributions.filter(
+        (contrib) => new Date(contrib.date) >= thirtyDaysAgo
+      );
+
+      return {
+        dailyContributions: recentContributions,
+        allContributions: dailyContributions,
+        statistics: {
+          totalCommits,
+          totalAdditions,
+          totalDeletions,
+          averageCommitsPerWeek: Math.round(averageCommitsPerWeek * 100) / 100,
+          averageCommitsPerDay: Math.round(averageCommitsPerDay * 100) / 100,
+          mostActiveWeek,
+          commitFrequency,
+          weeksActive,
+          totalWeeks: userContributions.weeks.length,
+        },
+      };
     } catch (error) {
       console.warn(
         `⚠️ Could not fetch contribution activity for ${owner}/${repo}:`,
         error.message
       );
-      return [];
+      return {
+        dailyContributions: [],
+        allContributions: [],
+        statistics: {
+          totalCommits: 0,
+          totalAdditions: 0,
+          totalDeletions: 0,
+          averageCommitsPerWeek: 0,
+          averageCommitsPerDay: 0,
+          mostActiveWeek: null,
+          commitFrequency: "No activity",
+          weeksActive: 0,
+          totalWeeks: 0,
+        },
+      };
+    }
+  }
+
+  /**
+   * Get overall contribution statistics for all user repositories
+   * @param {string} userId - User ID
+   * @returns {Promise<Object>} Overall contribution statistics
+   */
+  async getOverallContributionStats(userId) {
+    try {
+      const accessToken = await this.getGitHubAccessToken(userId);
+      const username = await this.getGitHubUsername(userId);
+
+      if (!accessToken || !username) {
+        return {
+          totalCommits: 0,
+          totalRepositories: 0,
+          averageCommitsPerRepo: 0,
+          mostActiveRepository: null,
+          commitFrequency: "No activity",
+        };
+      }
+
+      const repositories = await this.getUserRepositories(userId, {
+        includePrivate: false,
+      });
+
+      let totalCommits = 0;
+      let repoStats = [];
+
+      // Fetch contribution stats for each repository
+      for (const repo of repositories.slice(0, 20)) {
+        // Limit to 20 repos to avoid rate limiting
+        try {
+          const [owner, repoName] = repo.fullName.split("/");
+          const contributions = await this.fetchContributionActivity(
+            accessToken,
+            owner,
+            repoName,
+            username
+          );
+
+          if (contributions.statistics.totalCommits > 0) {
+            totalCommits += contributions.statistics.totalCommits;
+            repoStats.push({
+              repositoryId: repo.id,
+              repositoryName: repo.name,
+              commits: contributions.statistics.totalCommits,
+              frequency: contributions.statistics.commitFrequency,
+            });
+          }
+        } catch (error) {
+          console.warn(
+            `⚠️ Could not fetch stats for ${repo.name}:`,
+            error.message
+          );
+        }
+      }
+
+      // Sort by commits
+      repoStats.sort((a, b) => b.commits - a.commits);
+
+      return {
+        totalCommits,
+        totalRepositories: repositories.length,
+        averageCommitsPerRepo:
+          repositories.length > 0
+            ? Math.round((totalCommits / repositories.length) * 100) / 100
+            : 0,
+        mostActiveRepository: repoStats[0] || null,
+        commitFrequency:
+          totalCommits > 0
+            ? totalCommits / 30 >= 5
+              ? "Very Active"
+              : totalCommits / 30 >= 2
+              ? "Active"
+              : totalCommits / 30 >= 0.5
+              ? "Moderate"
+              : "Occasional"
+            : "No activity",
+        topRepositories: repoStats.slice(0, 5),
+      };
+    } catch (error) {
+      console.error("❌ Error getting overall contribution stats:", error);
+      throw error;
     }
   }
 

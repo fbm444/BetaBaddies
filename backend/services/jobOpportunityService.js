@@ -784,7 +784,9 @@ class JobOpportunityService {
             values.push(updatePayload[key] ?? null);
           } else if (key === "applicationDeadline") {
             updates.push(`${column} = $${paramIndex++}`);
-            values.push(updatePayload[key] ?? null);
+            // Convert empty strings to null for date fields
+            const deadlineValue = updatePayload[key];
+            values.push(deadlineValue && deadlineValue.trim() !== "" ? deadlineValue.trim() : null);
           } else if (key === "status") {
             // Status field - will update the value
             updates.push(`${column} = $${paramIndex++}`);

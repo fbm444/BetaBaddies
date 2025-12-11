@@ -230,7 +230,11 @@ class GmailService {
           }
         } catch (error) {
           console.error(`Error fetching message ${message.id}:`, error);
-          // Continue with other messages even if one fails
+          // If it's a connection error, stop trying to fetch more messages
+          if (error.message && error.message.includes("Gmail not connected")) {
+            throw new Error("Gmail not connected. Please reconnect your Gmail account.");
+          }
+          // Continue with other messages for other errors
         }
       }
 

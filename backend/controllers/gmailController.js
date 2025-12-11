@@ -30,15 +30,56 @@ class GmailController {
     const userId = state || req.session.userId;
 
     if (!code) {
-      return res.redirect(
-        `${process.env.FRONTEND_URL || "http://localhost:3000"}/job-opportunities?gmail_error=no_code`
-      );
+      // Return HTML that closes the popup and signals success/error to parent
+      return res.send(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Gmail Connection Error</title>
+          </head>
+          <body>
+            <p>Connection cancelled. You can close this window now.</p>
+            <script>
+              try {
+                if (window.opener && !window.opener.closed) {
+                  window.opener.postMessage({ type: 'gmail_oauth', status: 'error', error: 'no_code' }, '*');
+                }
+                setTimeout(function() {
+                  window.close();
+                }, 500);
+              } catch (e) {
+                window.location.href = '${process.env.FRONTEND_URL || "http://localhost:3000"}/job-opportunities?gmail_error=no_code';
+              }
+            </script>
+          </body>
+        </html>
+      `);
     }
 
     if (!userId) {
-      return res.redirect(
-        `${process.env.FRONTEND_URL || "http://localhost:3000"}/job-opportunities?gmail_error=unauthorized`
-      );
+      return res.send(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Gmail Connection Error</title>
+          </head>
+          <body>
+            <p>Unauthorized. You can close this window now.</p>
+            <script>
+              try {
+                if (window.opener && !window.opener.closed) {
+                  window.opener.postMessage({ type: 'gmail_oauth', status: 'error', error: 'unauthorized' }, '*');
+                }
+                setTimeout(function() {
+                  window.close();
+                }, 500);
+              } catch (e) {
+                window.location.href = '${process.env.FRONTEND_URL || "http://localhost:3000"}/job-opportunities?gmail_error=unauthorized';
+              }
+            </script>
+          </body>
+        </html>
+      `);
     }
 
     try {
@@ -50,14 +91,89 @@ class GmailController {
         tokens.expiry_date
       );
 
-      res.redirect(
-        `${process.env.FRONTEND_URL || "http://localhost:3000"}/job-opportunities?gmail=connected`
-      );
+      // Return HTML that signals success to parent (parent will close popup)
+      return res.send(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Gmail Connected</title>
+            <style>
+              body {
+                font-family: Arial, sans-serif;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+                margin: 0;
+                background: #f5f5f5;
+              }
+              .message {
+                text-align: center;
+                padding: 20px;
+                background: white;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+              }
+            </style>
+          </head>
+          <body>
+            <div class="message">
+              <h2>✓ Gmail Connected Successfully!</h2>
+              <p>You can close this window now.</p>
+            </div>
+            <script>
+              (function() {
+                try {
+                  if (window.opener && !window.opener.closed) {
+                    window.opener.postMessage({ type: 'gmail_oauth', status: 'success' }, '*');
+                    // Try to close, but don't rely on it
+                    setTimeout(function() {
+                      try {
+                        window.close();
+                      } catch (e) {
+                        // Browser may block window.close(), that's okay - parent will close it
+                      }
+                    }, 1000);
+                  } else {
+                    // Fallback: redirect if no opener
+                    setTimeout(function() {
+                      window.location.href = '${process.env.FRONTEND_URL || "http://localhost:3000"}/job-opportunities?gmail=connected';
+                    }, 2000);
+                  }
+                } catch (e) {
+                  console.error('Error in callback:', e);
+                  window.location.href = '${process.env.FRONTEND_URL || "http://localhost:3000"}/job-opportunities?gmail=connected';
+                }
+              })();
+            </script>
+          </body>
+        </html>
+      `);
     } catch (error) {
       console.error("Error handling Gmail callback:", error);
-      res.redirect(
-        `${process.env.FRONTEND_URL || "http://localhost:3000"}/job-opportunities?gmail_error=connection_failed`
-      );
+      return res.send(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Gmail Connection Error</title>
+          </head>
+          <body>
+            <p>Connection failed. You can close this window now.</p>
+            <script>
+              try {
+                if (window.opener && !window.opener.closed) {
+                  window.opener.postMessage({ type: 'gmail_oauth', status: 'error', error: 'connection_failed' }, '*');
+                }
+                setTimeout(function() {
+                  window.close();
+                }, 500);
+              } catch (e) {
+                window.location.href = '${process.env.FRONTEND_URL || "http://localhost:3000"}/job-opportunities?gmail_error=connection_failed';
+              }
+            </script>
+          </body>
+        </html>
+      `);
     }
   });
 

@@ -46,6 +46,7 @@ import referralRequestRoutes from "./routes/referralRequestRoutes.js";
 import networkingGoalRoutes from "./routes/networkingGoalRoutes.js";
 import linkedinRoutes from "./routes/linkedinRoutes.js";
 import networkingRoutes from "./routes/networkingRoutes.js";
+import githubRoutes from "./routes/githubRoutes.js";
 
 // Import middleware
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
@@ -177,6 +178,7 @@ app.use("/api/v1/network/referrals", referralRequestRoutes);
 app.use("/api/v1/network/goals", networkingGoalRoutes);
 app.use("/api/v1/networking", networkingRoutes);
 app.use("/api/v1/linkedin", linkedinRoutes);
+app.use("/api/v1/github", githubRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

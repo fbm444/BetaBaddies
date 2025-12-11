@@ -36,6 +36,12 @@ router.get("/search", certificationController.search);
 // Get certifications by organization
 router.get("/organization", certificationController.getByOrganization);
 
+// Get certifications by category
+router.get("/category", certificationController.getByCategory);
+
+// Upload badge image
+router.post("/badge-image", certificationController.uploadBadgeImage);
+
 // Get certification by ID (must be after other routes to avoid conflicts)
 router.get("/:id", validateCertificationId, certificationController.getById);
 

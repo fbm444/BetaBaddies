@@ -100,7 +100,6 @@ jobs:
     if: success()
     environment:
       name: production
-      url: ${{ secrets.RAILWAY_PRODUCTION_BACKEND_URL }}
 
     steps:
       - name: Checkout code
@@ -152,7 +151,6 @@ jobs:
     if: success()
     environment:
       name: production
-      url: ${{ secrets.VERCEL_PRODUCTION_URL }}
 
     steps:
       - name: Checkout code

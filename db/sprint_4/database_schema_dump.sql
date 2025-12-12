@@ -10,1763 +10,217 @@ SET lock_timeout = 0;
 SET idle_in_transaction_session_timeout = 0;
 SET client_encoding = 'UTF8';
 SET standard_conforming_strings = on;
+-- Note: Supabase may require extensions to be enabled in the dashboard first
+-- Go to: Database > Extensions and enable: pgcrypto, uuid-ossp
 SELECT pg_catalog.set_config('search_path', '', false);
 SET check_function_bodies = false;
 SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
 
-ALTER TABLE IF EXISTS ONLY public.writing_progress_tracking DROP CONSTRAINT IF EXISTS writing_progress_tracking_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.writing_practice_sessions DROP CONSTRAINT IF EXISTS writing_practice_sessions_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.writing_practice_sessions DROP CONSTRAINT IF EXISTS writing_practice_sessions_question_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.writing_feedback DROP CONSTRAINT IF EXISTS writing_feedback_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.writing_feedback DROP CONSTRAINT IF EXISTS writing_feedback_session_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.whiteboarding_practice DROP CONSTRAINT IF EXISTS whiteboarding_practice_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.users DROP CONSTRAINT IF EXISTS users_team_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.user_cohorts DROP CONSTRAINT IF EXISTS user_cohorts_enterprise_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.time_tracking DROP CONSTRAINT IF EXISTS time_tracking_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.time_logs DROP CONSTRAINT IF EXISTS time_logs_user_fkey;
-ALTER TABLE IF EXISTS ONLY public.time_logs DROP CONSTRAINT IF EXISTS time_logs_job_fkey;
-ALTER TABLE IF EXISTS ONLY public.technical_prep_challenges DROP CONSTRAINT IF EXISTS technical_prep_challenges_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.technical_prep_challenges DROP CONSTRAINT IF EXISTS technical_prep_challenges_job_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.technical_prep_attempts DROP CONSTRAINT IF EXISTS technical_prep_attempts_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.technical_prep_attempts DROP CONSTRAINT IF EXISTS technical_prep_attempts_challenge_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.team_members DROP CONSTRAINT IF EXISTS team_members_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.team_members DROP CONSTRAINT IF EXISTS team_members_team_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.team_members DROP CONSTRAINT IF EXISTS team_members_invited_by_fkey;
-ALTER TABLE IF EXISTS ONLY public.team_invitations DROP CONSTRAINT IF EXISTS team_invitations_team_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.team_invitations DROP CONSTRAINT IF EXISTS team_invitations_invited_by_fkey;
-ALTER TABLE IF EXISTS ONLY public.team_dashboards DROP CONSTRAINT IF EXISTS team_dashboards_team_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.team_billing DROP CONSTRAINT IF EXISTS team_billing_team_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.support_groups DROP CONSTRAINT IF EXISTS support_groups_created_by_fkey;
-ALTER TABLE IF EXISTS ONLY public.support_group_resources DROP CONSTRAINT IF EXISTS support_group_resources_group_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.support_group_resources DROP CONSTRAINT IF EXISTS support_group_resources_created_by_fkey;
-ALTER TABLE IF EXISTS ONLY public.support_group_referrals DROP CONSTRAINT IF EXISTS support_group_referrals_posted_by_fkey;
-ALTER TABLE IF EXISTS ONLY public.support_group_referrals DROP CONSTRAINT IF EXISTS support_group_referrals_group_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.support_group_posts DROP CONSTRAINT IF EXISTS support_group_posts_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.support_group_posts DROP CONSTRAINT IF EXISTS support_group_posts_group_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.support_group_post_likes DROP CONSTRAINT IF EXISTS support_group_post_likes_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.support_group_post_likes DROP CONSTRAINT IF EXISTS support_group_post_likes_post_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.support_group_post_likes DROP CONSTRAINT IF EXISTS support_group_post_likes_comment_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.support_group_post_comments DROP CONSTRAINT IF EXISTS support_group_post_comments_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.support_group_post_comments DROP CONSTRAINT IF EXISTS support_group_post_comments_post_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.support_group_post_comments DROP CONSTRAINT IF EXISTS support_group_post_comments_parent_comment_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.support_group_networking_impact DROP CONSTRAINT IF EXISTS support_group_networking_impact_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.support_group_networking_impact DROP CONSTRAINT IF EXISTS support_group_networking_impact_related_referral_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.support_group_networking_impact DROP CONSTRAINT IF EXISTS support_group_networking_impact_related_post_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.support_group_networking_impact DROP CONSTRAINT IF EXISTS support_group_networking_impact_group_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.support_group_memberships DROP CONSTRAINT IF EXISTS support_group_memberships_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.support_group_memberships DROP CONSTRAINT IF EXISTS support_group_memberships_group_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.support_group_challenges DROP CONSTRAINT IF EXISTS support_group_challenges_group_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.support_group_challenges DROP CONSTRAINT IF EXISTS support_group_challenges_created_by_fkey;
-ALTER TABLE IF EXISTS ONLY public.support_group_challenge_participants DROP CONSTRAINT IF EXISTS support_group_challenge_participants_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.support_group_challenge_participants DROP CONSTRAINT IF EXISTS support_group_challenge_participants_challenge_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.support_effectiveness_tracking DROP CONSTRAINT IF EXISTS support_effectiveness_tracking_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.support_effectiveness_tracking DROP CONSTRAINT IF EXISTS support_effectiveness_tracking_family_member_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.success_patterns DROP CONSTRAINT IF EXISTS success_patterns_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.skills DROP CONSTRAINT IF EXISTS skills_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.shared_jobs DROP CONSTRAINT IF EXISTS shared_jobs_team_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.shared_jobs DROP CONSTRAINT IF EXISTS shared_jobs_shared_by_fkey;
-ALTER TABLE IF EXISTS ONLY public.shared_jobs DROP CONSTRAINT IF EXISTS shared_jobs_job_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.shared_documents DROP CONSTRAINT IF EXISTS shared_documents_team_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.shared_documents DROP CONSTRAINT IF EXISTS shared_documents_shared_with_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.shared_documents DROP CONSTRAINT IF EXISTS shared_documents_shared_by_fkey;
-ALTER TABLE IF EXISTS ONLY public.salary_progression_tracking DROP CONSTRAINT IF EXISTS salary_progression_tracking_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.salary_progression_tracking DROP CONSTRAINT IF EXISTS salary_progression_tracking_job_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.salary_progression_history DROP CONSTRAINT IF EXISTS salary_progression_history_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.salary_progression_history DROP CONSTRAINT IF EXISTS salary_progression_history_negotiation_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.salary_progression_history DROP CONSTRAINT IF EXISTS salary_progression_history_job_opportunity_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.salary_negotiations DROP CONSTRAINT IF EXISTS salary_negotiations_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.salary_negotiations DROP CONSTRAINT IF EXISTS salary_negotiations_job_opportunity_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.salary_negotiation_prep DROP CONSTRAINT IF EXISTS salary_negotiation_prep_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.salary_negotiation_prep DROP CONSTRAINT IF EXISTS salary_negotiation_prep_job_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.review_comments DROP CONSTRAINT IF EXISTS review_comments_team_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.review_comments DROP CONSTRAINT IF EXISTS review_comments_reviewer_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.review_comments DROP CONSTRAINT IF EXISTS review_comments_review_request_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.review_comments DROP CONSTRAINT IF EXISTS review_comments_parent_comment_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.resume DROP CONSTRAINT IF EXISTS resume_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.resume_tailoring DROP CONSTRAINT IF EXISTS resume_tailoring_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.resume_tailoring DROP CONSTRAINT IF EXISTS resume_tailoring_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.resume_comments DROP CONSTRAINT IF EXISTS resume_comments_resume_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.relationship_maintenance_reminders DROP CONSTRAINT IF EXISTS relationship_maintenance_reminders_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.relationship_maintenance_reminders DROP CONSTRAINT IF EXISTS relationship_maintenance_reminders_contact_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.relationship_health_tracking DROP CONSTRAINT IF EXISTS relationship_health_tracking_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.relationship_health_tracking DROP CONSTRAINT IF EXISTS relationship_health_tracking_contact_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.referral_requests DROP CONSTRAINT IF EXISTS referral_requests_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.referral_requests DROP CONSTRAINT IF EXISTS referral_requests_template_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.referral_requests DROP CONSTRAINT IF EXISTS referral_requests_job_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.referral_requests DROP CONSTRAINT IF EXISTS referral_requests_contact_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.reference_requests DROP CONSTRAINT IF EXISTS reference_requests_template_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.reference_requests DROP CONSTRAINT IF EXISTS reference_requests_reference_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.reference_requests DROP CONSTRAINT IF EXISTS reference_requests_job_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.reference_portfolios DROP CONSTRAINT IF EXISTS reference_portfolios_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.question_practice_sessions DROP CONSTRAINT IF EXISTS question_practice_sessions_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.question_practice_sessions DROP CONSTRAINT IF EXISTS question_practice_sessions_question_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.question_practice_sessions DROP CONSTRAINT IF EXISTS question_practice_sessions_job_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.prospectivejobs DROP CONSTRAINT IF EXISTS prospectivejobs_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.prospectivejob_material_history DROP CONSTRAINT IF EXISTS prospectivejob_material_history_job_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.projects DROP CONSTRAINT IF EXISTS projects_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.progress_sharing_settings DROP CONSTRAINT IF EXISTS progress_sharing_settings_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.progress_sharing_settings DROP CONSTRAINT IF EXISTS progress_sharing_settings_shared_with_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.progress_shares DROP CONSTRAINT IF EXISTS progress_shares_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.progress_shares DROP CONSTRAINT IF EXISTS progress_shares_shared_with_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.progress_shares DROP CONSTRAINT IF EXISTS progress_shares_shared_with_team_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.progress_reports DROP CONSTRAINT IF EXISTS progress_reports_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.program_effectiveness_analytics DROP CONSTRAINT IF EXISTS program_effectiveness_analytics_enterprise_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.program_effectiveness_analytics DROP CONSTRAINT IF EXISTS program_effectiveness_analytics_cohort_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.profiles DROP CONSTRAINT IF EXISTS profiles_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.professional_references DROP CONSTRAINT IF EXISTS professional_references_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.professional_references DROP CONSTRAINT IF EXISTS professional_references_contact_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.professional_contacts DROP CONSTRAINT IF EXISTS professional_contacts_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.professional_contacts DROP CONSTRAINT IF EXISTS professional_contacts_contact_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.productivity_analysis DROP CONSTRAINT IF EXISTS productivity_analysis_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.preparation_tasks DROP CONSTRAINT IF EXISTS preparation_tasks_team_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.preparation_tasks DROP CONSTRAINT IF EXISTS preparation_tasks_assigned_to_fkey;
-ALTER TABLE IF EXISTS ONLY public.preparation_tasks DROP CONSTRAINT IF EXISTS preparation_tasks_assigned_by_fkey;
-ALTER TABLE IF EXISTS ONLY public.prediction_history DROP CONSTRAINT IF EXISTS prediction_history_prediction_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.prediction_accuracy_metrics DROP CONSTRAINT IF EXISTS prediction_accuracy_metrics_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.performance_trends DROP CONSTRAINT IF EXISTS performance_trends_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.performance_predictions DROP CONSTRAINT IF EXISTS performance_predictions_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.peer_referrals DROP CONSTRAINT IF EXISTS peer_referrals_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.peer_referrals DROP CONSTRAINT IF EXISTS peer_referrals_job_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.peer_referrals DROP CONSTRAINT IF EXISTS peer_referrals_group_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.networking_messages DROP CONSTRAINT IF EXISTS networking_messages_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.networking_messages DROP CONSTRAINT IF EXISTS networking_messages_coffee_chat_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.networking_goals DROP CONSTRAINT IF EXISTS networking_goals_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.networking_goals DROP CONSTRAINT IF EXISTS networking_goals_event_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.networking_events DROP CONSTRAINT IF EXISTS networking_events_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.networking_campaigns DROP CONSTRAINT IF EXISTS networking_campaigns_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.network_roi_analytics DROP CONSTRAINT IF EXISTS network_roi_analytics_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.nerves_management_exercises DROP CONSTRAINT IF EXISTS nerves_management_exercises_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.nerves_management_exercises DROP CONSTRAINT IF EXISTS nerves_management_exercises_session_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.negotiation_confidence_exercises DROP CONSTRAINT IF EXISTS negotiation_confidence_exercises_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.negotiation_confidence_exercises DROP CONSTRAINT IF EXISTS negotiation_confidence_exercises_negotiation_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.mutual_connections DROP CONSTRAINT IF EXISTS mutual_connections_mutual_contact_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.mutual_connections DROP CONSTRAINT IF EXISTS mutual_connections_contact_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.mock_interview_sessions DROP CONSTRAINT IF EXISTS mock_interview_sessions_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.mock_interview_sessions DROP CONSTRAINT IF EXISTS mock_interview_sessions_job_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.mock_interview_sessions DROP CONSTRAINT IF EXISTS mock_interview_sessions_interview_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.mock_interview_questions DROP CONSTRAINT IF EXISTS mock_interview_questions_session_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.mock_interview_messages DROP CONSTRAINT IF EXISTS mock_interview_messages_session_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.mock_interview_followups DROP CONSTRAINT IF EXISTS mock_interview_followups_question_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.mock_interview_comments DROP CONSTRAINT IF EXISTS mock_interview_comments_session_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.mock_interview_comments DROP CONSTRAINT IF EXISTS mock_interview_comments_mentor_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.mock_interview_comments DROP CONSTRAINT IF EXISTS mock_interview_comments_mentee_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.milestones DROP CONSTRAINT IF EXISTS milestones_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.milestones DROP CONSTRAINT IF EXISTS milestones_team_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.message_reactions DROP CONSTRAINT IF EXISTS message_reactions_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.message_reactions DROP CONSTRAINT IF EXISTS message_reactions_message_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.mentor_shared_data DROP CONSTRAINT IF EXISTS mentor_shared_data_team_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.mentor_shared_data DROP CONSTRAINT IF EXISTS mentor_shared_data_relationship_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.mentor_relationships DROP CONSTRAINT IF EXISTS mentor_relationships_mentor_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.mentor_relationships DROP CONSTRAINT IF EXISTS mentor_relationships_mentee_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.mentor_feedback DROP CONSTRAINT IF EXISTS mentor_feedback_relationship_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.mentor_dashboard_views DROP CONSTRAINT IF EXISTS mentor_dashboard_views_mentor_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.mentor_dashboard_views DROP CONSTRAINT IF EXISTS mentor_dashboard_views_mentee_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.mentor_dashboard_data DROP CONSTRAINT IF EXISTS mentor_dashboard_data_relationship_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.market_intelligence DROP CONSTRAINT IF EXISTS market_intelligence_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.market_insights DROP CONSTRAINT IF EXISTS market_insights_user_fkey;
-ALTER TABLE IF EXISTS ONLY public.linkedin_profile_optimization DROP CONSTRAINT IF EXISTS linkedin_profile_optimization_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.linkedin_networking_templates DROP CONSTRAINT IF EXISTS linkedin_networking_templates_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.linkedin_network_contacts DROP CONSTRAINT IF EXISTS linkedin_network_contacts_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.jobs DROP CONSTRAINT IF EXISTS jobs_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.job_search_metrics DROP CONSTRAINT IF EXISTS job_search_metrics_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.job_opportunities DROP CONSTRAINT IF EXISTS job_opportunities_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.job_comments DROP CONSTRAINT IF EXISTS job_comments_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.job_comments DROP CONSTRAINT IF EXISTS job_comments_team_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.job_comments DROP CONSTRAINT IF EXISTS job_comments_parent_comment_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.job_comments DROP CONSTRAINT IF EXISTS job_comments_job_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.interview_success_probability DROP CONSTRAINT IF EXISTS interview_success_probability_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.interview_success_probability DROP CONSTRAINT IF EXISTS interview_success_probability_interview_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.interview_success_predictions DROP CONSTRAINT IF EXISTS interview_success_predictions_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.interview_success_predictions DROP CONSTRAINT IF EXISTS interview_success_predictions_job_opportunity_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.interview_success_predictions DROP CONSTRAINT IF EXISTS interview_success_predictions_interview_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.interview_response_coaching DROP CONSTRAINT IF EXISTS interview_response_coaching_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.interview_response_coaching DROP CONSTRAINT IF EXISTS interview_response_coaching_question_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.interview_response_coaching DROP CONSTRAINT IF EXISTS interview_response_coaching_practice_session_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.interview_question_banks DROP CONSTRAINT IF EXISTS interview_question_banks_job_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.interview_preparation_tasks DROP CONSTRAINT IF EXISTS interview_preparation_tasks_team_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.interview_preparation_tasks DROP CONSTRAINT IF EXISTS interview_preparation_tasks_assigned_to_fkey;
-ALTER TABLE IF EXISTS ONLY public.interview_preparation_tasks DROP CONSTRAINT IF EXISTS interview_preparation_tasks_assigned_by_fkey;
-ALTER TABLE IF EXISTS ONLY public.interview_preparation_checklists DROP CONSTRAINT IF EXISTS interview_preparation_checklists_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.interview_preparation_checklists DROP CONSTRAINT IF EXISTS interview_preparation_checklists_interview_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.interview_performance_tracking DROP CONSTRAINT IF EXISTS interview_performance_tracking_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.interview_followups DROP CONSTRAINT IF EXISTS interview_followups_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.interview_followups DROP CONSTRAINT IF EXISTS interview_followups_interview_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.interview_analytics DROP CONSTRAINT IF EXISTS interview_analytics_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.interview_analytics DROP CONSTRAINT IF EXISTS interview_analytics_interview_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.informational_interviews DROP CONSTRAINT IF EXISTS informational_interviews_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.informational_interviews DROP CONSTRAINT IF EXISTS informational_interviews_template_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.informational_interviews DROP CONSTRAINT IF EXISTS informational_interviews_contact_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.group_memberships DROP CONSTRAINT IF EXISTS group_memberships_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.group_memberships DROP CONSTRAINT IF EXISTS group_memberships_group_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.group_discussions DROP CONSTRAINT IF EXISTS group_discussions_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.group_discussions DROP CONSTRAINT IF EXISTS group_discussions_group_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.group_challenges DROP CONSTRAINT IF EXISTS group_challenges_group_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.goal_milestones DROP CONSTRAINT IF EXISTS goal_milestones_goal_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.github_repository_skills DROP CONSTRAINT IF EXISTS github_repository_skills_skill_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.github_repository_skills DROP CONSTRAINT IF EXISTS github_repository_skills_repository_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.github_repositories DROP CONSTRAINT IF EXISTS github_repositories_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.github_contributions DROP CONSTRAINT IF EXISTS github_contributions_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.github_contributions DROP CONSTRAINT IF EXISTS github_contributions_repository_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.interview_thank_you_notes DROP CONSTRAINT IF EXISTS fk_thank_you_notes_interview;
-ALTER TABLE IF EXISTS ONLY public.cover_letter_template_usage DROP CONSTRAINT IF EXISTS fk_template_usage_user;
-ALTER TABLE IF EXISTS ONLY public.cover_letter_template_usage DROP CONSTRAINT IF EXISTS fk_template_usage_template;
-ALTER TABLE IF EXISTS ONLY public.resume DROP CONSTRAINT IF EXISTS fk_resume_template;
-ALTER TABLE IF EXISTS ONLY public.resume DROP CONSTRAINT IF EXISTS fk_resume_parent;
-ALTER TABLE IF EXISTS ONLY public.resume DROP CONSTRAINT IF EXISTS fk_resume_job_opportunity;
-ALTER TABLE IF EXISTS ONLY public.interview_reminders DROP CONSTRAINT IF EXISTS fk_reminders_interview;
-ALTER TABLE IF EXISTS ONLY public.interview_preparation_tasks DROP CONSTRAINT IF EXISTS fk_preparation_tasks_interview;
-ALTER TABLE IF EXISTS ONLY public.interview_pre_assessment DROP CONSTRAINT IF EXISTS fk_pre_assessment_user;
-ALTER TABLE IF EXISTS ONLY public.interview_pre_assessment DROP CONSTRAINT IF EXISTS fk_pre_assessment_interview;
-ALTER TABLE IF EXISTS ONLY public.practice_sessions DROP CONSTRAINT IF EXISTS fk_practice_sessions_user;
-ALTER TABLE IF EXISTS ONLY public.interview_post_reflection DROP CONSTRAINT IF EXISTS fk_post_reflection_user;
-ALTER TABLE IF EXISTS ONLY public.interview_post_reflection DROP CONSTRAINT IF EXISTS fk_post_reflection_interview;
-ALTER TABLE IF EXISTS ONLY public.cover_letter_performance DROP CONSTRAINT IF EXISTS fk_performance_job;
-ALTER TABLE IF EXISTS ONLY public.cover_letter_performance DROP CONSTRAINT IF EXISTS fk_performance_coverletter;
-ALTER TABLE IF EXISTS ONLY public.job_opportunities DROP CONSTRAINT IF EXISTS fk_job_opportunities_resume;
-ALTER TABLE IF EXISTS ONLY public.job_opportunities DROP CONSTRAINT IF EXISTS fk_job_opportunities_coverletter;
-ALTER TABLE IF EXISTS ONLY public.interviews DROP CONSTRAINT IF EXISTS fk_interviews_user;
-ALTER TABLE IF EXISTS ONLY public.interviews DROP CONSTRAINT IF EXISTS fk_interviews_rescheduled_to;
-ALTER TABLE IF EXISTS ONLY public.interviews DROP CONSTRAINT IF EXISTS fk_interviews_rescheduled_from;
-ALTER TABLE IF EXISTS ONLY public.interviews DROP CONSTRAINT IF EXISTS fk_interviews_job_opportunity;
-ALTER TABLE IF EXISTS ONLY public.interview_feedback DROP CONSTRAINT IF EXISTS fk_interview_feedback_user;
-ALTER TABLE IF EXISTS ONLY public.interview_feedback DROP CONSTRAINT IF EXISTS fk_interview_feedback_interview;
-ALTER TABLE IF EXISTS ONLY public.interview_follow_ups DROP CONSTRAINT IF EXISTS fk_follow_ups_interview;
-ALTER TABLE IF EXISTS ONLY public.coverletter DROP CONSTRAINT IF EXISTS fk_coverletter_template;
-ALTER TABLE IF EXISTS ONLY public.coverletter DROP CONSTRAINT IF EXISTS fk_coverletter_parent;
-ALTER TABLE IF EXISTS ONLY public.coverletter DROP CONSTRAINT IF EXISTS fk_coverletter_job;
-ALTER TABLE IF EXISTS ONLY public.interview_conflicts DROP CONSTRAINT IF EXISTS fk_conflicts_interview;
-ALTER TABLE IF EXISTS ONLY public.interview_conflicts DROP CONSTRAINT IF EXISTS fk_conflicts_conflicting_interview;
-ALTER TABLE IF EXISTS ONLY public.family_wellbeing_tracking DROP CONSTRAINT IF EXISTS family_wellbeing_tracking_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.family_wellbeing_tracking DROP CONSTRAINT IF EXISTS family_wellbeing_tracking_tracked_by_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.family_support_suggestions DROP CONSTRAINT IF EXISTS family_support_suggestions_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.family_support_suggestions DROP CONSTRAINT IF EXISTS family_support_suggestions_family_member_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.family_support_access DROP CONSTRAINT IF EXISTS family_support_access_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.family_support_access DROP CONSTRAINT IF EXISTS family_support_access_invitation_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.family_progress_summaries DROP CONSTRAINT IF EXISTS family_progress_summaries_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.family_member_views DROP CONSTRAINT IF EXISTS family_member_views_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.family_member_views DROP CONSTRAINT IF EXISTS family_member_views_family_member_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.family_invitations DROP CONSTRAINT IF EXISTS family_invitations_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.family_invitations DROP CONSTRAINT IF EXISTS family_invitations_invited_by_fkey;
-ALTER TABLE IF EXISTS ONLY public.family_educational_resources DROP CONSTRAINT IF EXISTS family_educational_resources_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.family_communications DROP CONSTRAINT IF EXISTS family_communications_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.family_communications DROP CONSTRAINT IF EXISTS family_communications_family_member_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.family_celebrations DROP CONSTRAINT IF EXISTS family_celebrations_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.family_celebrations DROP CONSTRAINT IF EXISTS family_celebrations_family_member_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.family_boundary_settings DROP CONSTRAINT IF EXISTS family_boundary_settings_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.family_boundary_settings DROP CONSTRAINT IF EXISTS family_boundary_settings_family_member_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.external_advisors DROP CONSTRAINT IF EXISTS external_advisors_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.event_registrations DROP CONSTRAINT IF EXISTS event_registrations_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.event_registrations DROP CONSTRAINT IF EXISTS event_registrations_event_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.event_connections DROP CONSTRAINT IF EXISTS event_connections_event_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.event_connections DROP CONSTRAINT IF EXISTS event_connections_contact_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.enterprise_accounts DROP CONSTRAINT IF EXISTS enterprise_accounts_admin_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.email_links DROP CONSTRAINT IF EXISTS email_links_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.email_links DROP CONSTRAINT IF EXISTS email_links_job_opportunity_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.educations DROP CONSTRAINT IF EXISTS educations_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.document_versions DROP CONSTRAINT IF EXISTS document_versions_created_by_fkey;
-ALTER TABLE IF EXISTS ONLY public.document_review_requests DROP CONSTRAINT IF EXISTS document_review_requests_reviewer_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.document_review_requests DROP CONSTRAINT IF EXISTS document_review_requests_requestor_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.document_approvals DROP CONSTRAINT IF EXISTS document_approvals_review_request_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.document_approvals DROP CONSTRAINT IF EXISTS document_approvals_approver_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.discovered_contacts DROP CONSTRAINT IF EXISTS discovered_contacts_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.custom_reports DROP CONSTRAINT IF EXISTS custom_reports_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.coverletter DROP CONSTRAINT IF EXISTS coverletter_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.coverletter DROP CONSTRAINT IF EXISTS coverletter_template_is_fkey;
-ALTER TABLE IF EXISTS ONLY public.coverletter DROP CONSTRAINT IF EXISTS coverletter_parent_coverletter_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.coverletter DROP CONSTRAINT IF EXISTS coverletter_comments_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.contact_job_links DROP CONSTRAINT IF EXISTS contact_job_links_job_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.contact_job_links DROP CONSTRAINT IF EXISTS contact_job_links_contact_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.contact_interactions DROP CONSTRAINT IF EXISTS contact_interactions_contact_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.contact_categories DROP CONSTRAINT IF EXISTS contact_categories_contact_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.competitive_benchmarks DROP CONSTRAINT IF EXISTS competitive_benchmarks_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.company_news DROP CONSTRAINT IF EXISTS company_news_company_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.company_media DROP CONSTRAINT IF EXISTS company_media_company_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.company_interview_insights DROP CONSTRAINT IF EXISTS company_interview_insights_job_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.company_info DROP CONSTRAINT IF EXISTS company_info_job_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.cohort_memberships DROP CONSTRAINT IF EXISTS cohort_memberships_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.cohort_memberships DROP CONSTRAINT IF EXISTS cohort_memberships_cohort_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.coffee_chats DROP CONSTRAINT IF EXISTS coffee_chats_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.coffee_chats DROP CONSTRAINT IF EXISTS coffee_chats_job_opportunity_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.coffee_chats DROP CONSTRAINT IF EXISTS coffee_chats_contact_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.coaching_sessions DROP CONSTRAINT IF EXISTS coaching_sessions_mentor_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.coaching_sessions DROP CONSTRAINT IF EXISTS coaching_sessions_mentee_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.chat_participants DROP CONSTRAINT IF EXISTS chat_participants_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.chat_participants DROP CONSTRAINT IF EXISTS chat_participants_conversation_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.chat_notifications DROP CONSTRAINT IF EXISTS chat_notifications_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.chat_notifications DROP CONSTRAINT IF EXISTS chat_notifications_message_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.chat_notifications DROP CONSTRAINT IF EXISTS chat_notifications_conversation_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.chat_messages DROP CONSTRAINT IF EXISTS chat_messages_sender_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.chat_messages DROP CONSTRAINT IF EXISTS chat_messages_parent_message_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.chat_messages DROP CONSTRAINT IF EXISTS chat_messages_conversation_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.chat_conversations DROP CONSTRAINT IF EXISTS chat_conversations_team_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.chat_conversations DROP CONSTRAINT IF EXISTS chat_conversations_created_by_fkey;
-ALTER TABLE IF EXISTS ONLY public.certifications DROP CONSTRAINT IF EXISTS certifications_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.career_goals DROP CONSTRAINT IF EXISTS career_goals_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.campaign_outreach DROP CONSTRAINT IF EXISTS campaign_outreach_contact_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.campaign_outreach DROP CONSTRAINT IF EXISTS campaign_outreach_campaign_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.campaign_ab_testing DROP CONSTRAINT IF EXISTS campaign_ab_testing_campaign_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.calendar_sync_settings DROP CONSTRAINT IF EXISTS calendar_sync_settings_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.archived_prospectivejobs DROP CONSTRAINT IF EXISTS archived_prospectivejobs_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.archived_prospectivejobs DROP CONSTRAINT IF EXISTS archived_prospectivejobs_current_resume_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.application_success_analysis DROP CONSTRAINT IF EXISTS application_success_analysis_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.api_usage_reports DROP CONSTRAINT IF EXISTS api_usage_reports_service_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.api_usage_logs DROP CONSTRAINT IF EXISTS api_usage_logs_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.api_usage_logs DROP CONSTRAINT IF EXISTS api_usage_logs_service_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.api_response_times DROP CONSTRAINT IF EXISTS api_response_times_service_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.api_quotas DROP CONSTRAINT IF EXISTS api_quotas_service_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.api_error_logs DROP CONSTRAINT IF EXISTS api_error_logs_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.api_error_logs DROP CONSTRAINT IF EXISTS api_error_logs_service_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.api_alerts DROP CONSTRAINT IF EXISTS api_alerts_service_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.advisor_shared_data DROP CONSTRAINT IF EXISTS advisor_shared_data_advisor_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.advisor_sessions DROP CONSTRAINT IF EXISTS advisor_sessions_advisor_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.advisor_recommendations DROP CONSTRAINT IF EXISTS advisor_recommendations_advisor_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.advisor_performance_evaluation DROP CONSTRAINT IF EXISTS advisor_performance_evaluation_advisor_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.activity_logs DROP CONSTRAINT IF EXISTS activity_logs_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.activity_logs DROP CONSTRAINT IF EXISTS activity_logs_team_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.accountability_relationships DROP CONSTRAINT IF EXISTS accountability_relationships_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.accountability_relationships DROP CONSTRAINT IF EXISTS accountability_relationships_partner_id_fkey;
-DROP TRIGGER IF EXISTS update_writing_sessions_timestamp ON public.writing_practice_sessions;
-DROP TRIGGER IF EXISTS update_writing_prompts_timestamp ON public.writing_practice_prompts;
-DROP TRIGGER IF EXISTS update_support_groups_timestamp ON public.support_groups;
-DROP TRIGGER IF EXISTS update_support_group_resources_timestamp ON public.support_group_resources;
-DROP TRIGGER IF EXISTS update_support_group_referrals_timestamp ON public.support_group_referrals;
-DROP TRIGGER IF EXISTS update_support_group_posts_timestamp ON public.support_group_posts;
-DROP TRIGGER IF EXISTS update_support_group_post_comments_timestamp ON public.support_group_post_comments;
-DROP TRIGGER IF EXISTS update_support_group_challenges_timestamp ON public.support_group_challenges;
-DROP TRIGGER IF EXISTS update_post_count_trigger ON public.support_group_posts;
-DROP TRIGGER IF EXISTS update_member_count_trigger ON public.support_group_memberships;
-DROP TRIGGER IF EXISTS update_job_opportunities_updated_at ON public.job_opportunities;
-DROP TRIGGER IF EXISTS update_interview_prediction_timestamp ON public.interview_success_predictions;
-DROP TRIGGER IF EXISTS update_email_links_updated_at ON public.email_links;
-DROP TRIGGER IF EXISTS update_comment_count_trigger ON public.support_group_post_comments;
-DROP TRIGGER IF EXISTS update_api_services_timestamp ON public.api_services;
-DROP TRIGGER IF EXISTS update_api_quotas_timestamp ON public.api_quotas;
-DROP TRIGGER IF EXISTS update_accuracy_metrics_timestamp ON public.prediction_accuracy_metrics;
-DROP TRIGGER IF EXISTS trigger_update_time_logs_timestamp ON public.time_logs;
-DROP TRIGGER IF EXISTS trigger_update_salary_negotiation_timestamp ON public.salary_negotiations;
-DROP TRIGGER IF EXISTS trigger_update_mock_interview_comment_timestamp ON public.mock_interview_comments;
-DROP TRIGGER IF EXISTS trg_update_thank_you_notes_updated_at ON public.interview_thank_you_notes;
-DROP TRIGGER IF EXISTS trg_update_status_change_time ON public.prospectivejobs;
-DROP TRIGGER IF EXISTS trg_update_reminders_updated_at ON public.interview_reminders;
-DROP TRIGGER IF EXISTS trg_update_preparation_tasks_updated_at ON public.interview_preparation_tasks;
-DROP TRIGGER IF EXISTS trg_update_pre_assessment_updated_at ON public.interview_pre_assessment;
-DROP TRIGGER IF EXISTS trg_update_practice_sessions_updated_at ON public.practice_sessions;
-DROP TRIGGER IF EXISTS trg_update_market_intelligence_cache_timestamp ON public.market_intelligence_cache;
-DROP TRIGGER IF EXISTS trg_update_market_insights_timestamp ON public.market_insights;
-DROP TRIGGER IF EXISTS trg_update_interviews_updated_at ON public.interviews;
-DROP TRIGGER IF EXISTS trg_update_interview_feedback_updated_at ON public.interview_feedback;
-DROP TRIGGER IF EXISTS trg_update_follow_ups_updated_at ON public.interview_follow_ups;
-DROP TRIGGER IF EXISTS trg_update_certification_timestamp ON public.certifications;
-DROP TRIGGER IF EXISTS trg_teams_updated_at ON public.teams;
-DROP TRIGGER IF EXISTS trg_team_billing_updated_at ON public.team_billing;
-DROP TRIGGER IF EXISTS trg_salary_negotiation_prep_updated_at ON public.salary_negotiation_prep;
-DROP TRIGGER IF EXISTS trg_resume_timestamp ON public.resume;
-DROP TRIGGER IF EXISTS trg_relationship_health_tracking_updated_at ON public.relationship_health_tracking;
-DROP TRIGGER IF EXISTS trg_referral_requests_updated_at ON public.referral_requests;
-DROP TRIGGER IF EXISTS trg_progress_sharing_settings_updated_at ON public.progress_sharing_settings;
-DROP TRIGGER IF EXISTS trg_professional_references_updated_at ON public.professional_references;
-DROP TRIGGER IF EXISTS trg_professional_contacts_updated_at ON public.professional_contacts;
-DROP TRIGGER IF EXISTS trg_performance_predictions_updated_at ON public.performance_predictions;
-DROP TRIGGER IF EXISTS trg_networking_goals_updated_at ON public.networking_goals;
-DROP TRIGGER IF EXISTS trg_networking_events_updated_at ON public.networking_events;
-DROP TRIGGER IF EXISTS trg_networking_campaigns_updated_at ON public.networking_campaigns;
-DROP TRIGGER IF EXISTS trg_mentor_dashboard_views_updated_at ON public.mentor_dashboard_views;
-DROP TRIGGER IF EXISTS trg_log_material_history ON public.prospectivejobs;
-DROP TRIGGER IF EXISTS trg_linkedin_profile_optimization_updated_at ON public.linkedin_profile_optimization;
-DROP TRIGGER IF EXISTS trg_interview_success_probability_updated_at ON public.interview_success_probability;
-DROP TRIGGER IF EXISTS trg_interview_preparation_checklists_updated_at ON public.interview_preparation_checklists;
-DROP TRIGGER IF EXISTS trg_informational_interviews_updated_at ON public.informational_interviews;
-DROP TRIGGER IF EXISTS trg_enterprise_accounts_updated_at ON public.enterprise_accounts;
-DROP TRIGGER IF EXISTS trg_custom_reports_updated_at ON public.custom_reports;
-DROP TRIGGER IF EXISTS trg_coverletter_timestamp ON public.coverletter;
-DROP TRIGGER IF EXISTS trg_company_interview_insights_updated_at ON public.company_interview_insights;
-DROP TRIGGER IF EXISTS trg_career_goals_updated_at ON public.career_goals;
-DROP TRIGGER IF EXISTS trg_auto_archive_jobs ON public.prospectivejobs;
-DROP TRIGGER IF EXISTS trg_advisor_recommendations_updated_at ON public.advisor_recommendations;
-DROP TRIGGER IF EXISTS set_updated_at ON public.users;
-DROP TRIGGER IF EXISTS lowercaseemail ON public.users;
-DROP INDEX IF EXISTS public.ux_geocoding_cache_query;
-DROP INDEX IF EXISTS public.unique_post_like;
-DROP INDEX IF EXISTS public.unique_monthly_challenge;
-DROP INDEX IF EXISTS public.unique_comment_like;
-DROP INDEX IF EXISTS public.shared_documents_unique_share;
-DROP INDEX IF EXISTS public.idx_writing_sessions_user_id;
-DROP INDEX IF EXISTS public.idx_writing_sessions_user_date;
-DROP INDEX IF EXISTS public.idx_writing_sessions_session_type;
-DROP INDEX IF EXISTS public.idx_writing_sessions_session_date;
-DROP INDEX IF EXISTS public.idx_writing_prompts_difficulty;
-DROP INDEX IF EXISTS public.idx_writing_prompts_category;
-DROP INDEX IF EXISTS public.idx_writing_prompts_active;
-DROP INDEX IF EXISTS public.idx_writing_progress_user_metric;
-DROP INDEX IF EXISTS public.idx_writing_progress_user_id;
-DROP INDEX IF EXISTS public.idx_writing_progress_period;
-DROP INDEX IF EXISTS public.idx_writing_progress_metric;
-DROP INDEX IF EXISTS public.idx_writing_practice_sessions_user_id;
-DROP INDEX IF EXISTS public.idx_writing_feedback_user_id;
-DROP INDEX IF EXISTS public.idx_writing_feedback_session_id;
-DROP INDEX IF EXISTS public.idx_writing_feedback_overall_score;
-DROP INDEX IF EXISTS public.idx_writing_feedback_created_at;
-DROP INDEX IF EXISTS public.idx_users_linkedin_id;
-DROP INDEX IF EXISTS public.idx_users_google_id;
-DROP INDEX IF EXISTS public.idx_users_github_username;
-DROP INDEX IF EXISTS public.idx_users_account_type;
-DROP INDEX IF EXISTS public.idx_user_cohorts_enterprise_id;
-DROP INDEX IF EXISTS public.idx_time_tracking_user_id;
-DROP INDEX IF EXISTS public.idx_time_logs_user_job_date;
-DROP INDEX IF EXISTS public.idx_time_logs_user_id;
-DROP INDEX IF EXISTS public.idx_time_logs_user_date;
-DROP INDEX IF EXISTS public.idx_time_logs_job_id;
-DROP INDEX IF EXISTS public.idx_time_logs_activity_type;
-DROP INDEX IF EXISTS public.idx_time_logs_activity_date;
-DROP INDEX IF EXISTS public.idx_thank_you_notes_status;
-DROP INDEX IF EXISTS public.idx_thank_you_notes_sent_at;
-DROP INDEX IF EXISTS public.idx_thank_you_notes_interview_id;
-DROP INDEX IF EXISTS public.idx_template_usage_user_id;
-DROP INDEX IF EXISTS public.idx_template_usage_template_id;
-DROP INDEX IF EXISTS public.idx_technical_prep_challenges_user_id;
-DROP INDEX IF EXISTS public.idx_technical_prep_challenges_performance_metrics;
-DROP INDEX IF EXISTS public.idx_team_members_user_id;
-DROP INDEX IF EXISTS public.idx_team_members_team_id;
-DROP INDEX IF EXISTS public.idx_team_invitations_token;
-DROP INDEX IF EXISTS public.idx_team_invitations_team;
-DROP INDEX IF EXISTS public.idx_team_invitations_email;
-DROP INDEX IF EXISTS public.idx_support_groups_is_public;
-DROP INDEX IF EXISTS public.idx_support_groups_is_active;
-DROP INDEX IF EXISTS public.idx_support_groups_industry;
-DROP INDEX IF EXISTS public.idx_support_groups_created_at;
-DROP INDEX IF EXISTS public.idx_support_groups_category;
-DROP INDEX IF EXISTS public.idx_support_group_resources_resource_type;
-DROP INDEX IF EXISTS public.idx_support_group_resources_is_featured;
-DROP INDEX IF EXISTS public.idx_support_group_resources_group_id;
-DROP INDEX IF EXISTS public.idx_support_group_resources_created_at;
-DROP INDEX IF EXISTS public.idx_support_group_referrals_posted_by;
-DROP INDEX IF EXISTS public.idx_support_group_referrals_is_active;
-DROP INDEX IF EXISTS public.idx_support_group_referrals_group_id;
-DROP INDEX IF EXISTS public.idx_support_group_referrals_created_at;
-DROP INDEX IF EXISTS public.idx_support_group_posts_user_id;
-DROP INDEX IF EXISTS public.idx_support_group_posts_post_type;
-DROP INDEX IF EXISTS public.idx_support_group_posts_is_pinned;
-DROP INDEX IF EXISTS public.idx_support_group_posts_group_id;
-DROP INDEX IF EXISTS public.idx_support_group_posts_group_created;
-DROP INDEX IF EXISTS public.idx_support_group_posts_created_at;
-DROP INDEX IF EXISTS public.idx_support_group_post_comments_user_id;
-DROP INDEX IF EXISTS public.idx_support_group_post_comments_post_id;
-DROP INDEX IF EXISTS public.idx_support_group_post_comments_parent;
-DROP INDEX IF EXISTS public.idx_support_group_post_comments_created_at;
-DROP INDEX IF EXISTS public.idx_support_group_memberships_user_id;
-DROP INDEX IF EXISTS public.idx_support_group_memberships_is_active;
-DROP INDEX IF EXISTS public.idx_support_group_memberships_group_id;
-DROP INDEX IF EXISTS public.idx_support_group_challenges_is_active;
-DROP INDEX IF EXISTS public.idx_support_group_challenges_group_id;
-DROP INDEX IF EXISTS public.idx_support_group_challenges_global;
-DROP INDEX IF EXISTS public.idx_support_group_challenges_dates;
-DROP INDEX IF EXISTS public.idx_support_effectiveness_family_member;
-DROP INDEX IF EXISTS public.idx_success_patterns_user_id;
-DROP INDEX IF EXISTS public.idx_skill_demand_trend;
-DROP INDEX IF EXISTS public.idx_skill_demand_skill;
-DROP INDEX IF EXISTS public.idx_skill_demand_period;
-DROP INDEX IF EXISTS public.idx_skill_demand_location;
-DROP INDEX IF EXISTS public.idx_skill_demand_industry;
-DROP INDEX IF EXISTS public.idx_shared_jobs_team;
-DROP INDEX IF EXISTS public.idx_shared_jobs_shared_by;
-DROP INDEX IF EXISTS public.idx_shared_jobs_job;
-DROP INDEX IF EXISTS public.idx_shared_documents_team;
-DROP INDEX IF EXISTS public.idx_shared_documents_shared_with_user;
-DROP INDEX IF EXISTS public.idx_shared_documents_shared_by;
-DROP INDEX IF EXISTS public.idx_shared_documents_document;
-DROP INDEX IF EXISTS public.idx_salary_progression_user_id;
-DROP INDEX IF EXISTS public.idx_salary_progression_tracking_user_id;
-DROP INDEX IF EXISTS public.idx_salary_progression_negotiation_id;
-DROP INDEX IF EXISTS public.idx_salary_progression_effective_date;
-DROP INDEX IF EXISTS public.idx_salary_negotiations_user_id;
-DROP INDEX IF EXISTS public.idx_salary_negotiations_status;
-DROP INDEX IF EXISTS public.idx_salary_negotiations_job_opportunity_id;
-DROP INDEX IF EXISTS public.idx_salary_negotiation_prep_user_id;
-DROP INDEX IF EXISTS public.idx_review_comments_team_document;
-DROP INDEX IF EXISTS public.idx_review_comments_reviewer;
-DROP INDEX IF EXISTS public.idx_review_comments_review;
-DROP INDEX IF EXISTS public.idx_review_comments_resolved;
-DROP INDEX IF EXISTS public.idx_review_comments_parent;
-DROP INDEX IF EXISTS public.idx_resume_user_id_created;
-DROP INDEX IF EXISTS public.idx_resume_template_id;
-DROP INDEX IF EXISTS public.idx_resume_parent_id;
-DROP INDEX IF EXISTS public.idx_resume_job_id;
-DROP INDEX IF EXISTS public.idx_resume_is_master;
-DROP INDEX IF EXISTS public.idx_reminders_status;
-DROP INDEX IF EXISTS public.idx_reminders_scheduled_at;
-DROP INDEX IF EXISTS public.idx_reminders_interview_id;
-DROP INDEX IF EXISTS public.idx_relationship_maintenance_reminders_user_id;
-DROP INDEX IF EXISTS public.idx_referral_requests_user_id;
-DROP INDEX IF EXISTS public.idx_referral_requests_job_id;
-DROP INDEX IF EXISTS public.idx_question_practice_sessions_user_id;
-DROP INDEX IF EXISTS public.idx_question_practice_sessions_question_id;
-DROP INDEX IF EXISTS public.idx_progress_sharing_settings_user_id;
-DROP INDEX IF EXISTS public.idx_progress_shares_user;
-DROP INDEX IF EXISTS public.idx_progress_shares_team;
-DROP INDEX IF EXISTS public.idx_progress_shares_shared_with_user;
-DROP INDEX IF EXISTS public.idx_professional_references_user_id;
-DROP INDEX IF EXISTS public.idx_professional_contacts_user_id;
-DROP INDEX IF EXISTS public.idx_professional_contacts_contact_user_id;
-DROP INDEX IF EXISTS public.idx_productivity_analysis_user_id;
-DROP INDEX IF EXISTS public.idx_preparation_tasks_team;
-DROP INDEX IF EXISTS public.idx_preparation_tasks_interview_id;
-DROP INDEX IF EXISTS public.idx_preparation_tasks_due_date;
-DROP INDEX IF EXISTS public.idx_preparation_tasks_completed;
-DROP INDEX IF EXISTS public.idx_preparation_tasks_assigned_to;
-DROP INDEX IF EXISTS public.idx_preparation_tasks_assigned_by;
-DROP INDEX IF EXISTS public.idx_predictions_user_id;
-DROP INDEX IF EXISTS public.idx_predictions_probability;
-DROP INDEX IF EXISTS public.idx_predictions_job_opportunity_id;
-DROP INDEX IF EXISTS public.idx_predictions_interview_id;
-DROP INDEX IF EXISTS public.idx_predictions_calculated_at;
-DROP INDEX IF EXISTS public.idx_prediction_history_timestamp;
-DROP INDEX IF EXISTS public.idx_prediction_history_prediction_id;
-DROP INDEX IF EXISTS public.idx_pre_assessment_user_id;
-DROP INDEX IF EXISTS public.idx_pre_assessment_interview_id;
-DROP INDEX IF EXISTS public.idx_pre_assessment_created_at;
-DROP INDEX IF EXISTS public.idx_practice_sessions_user_id;
-DROP INDEX IF EXISTS public.idx_practice_sessions_session_date;
-DROP INDEX IF EXISTS public.idx_practice_sessions_format;
-DROP INDEX IF EXISTS public.idx_post_reflection_user_id;
-DROP INDEX IF EXISTS public.idx_post_reflection_interview_id;
-DROP INDEX IF EXISTS public.idx_performance_trends_user_id;
-DROP INDEX IF EXISTS public.idx_performance_predictions_user_id;
-DROP INDEX IF EXISTS public.idx_performance_job_id;
-DROP INDEX IF EXISTS public.idx_performance_coverletter_id;
-DROP INDEX IF EXISTS public.idx_networking_messages_user_id;
-DROP INDEX IF EXISTS public.idx_networking_messages_sent;
-DROP INDEX IF EXISTS public.idx_networking_messages_coffee_chat_id;
-DROP INDEX IF EXISTS public.idx_networking_impact_user_id;
-DROP INDEX IF EXISTS public.idx_networking_impact_metric;
-DROP INDEX IF EXISTS public.idx_networking_impact_group_id;
-DROP INDEX IF EXISTS public.idx_networking_impact_date;
-DROP INDEX IF EXISTS public.idx_networking_goals_user_id;
-DROP INDEX IF EXISTS public.idx_networking_goals_event_id;
-DROP INDEX IF EXISTS public.idx_networking_events_user_id;
-DROP INDEX IF EXISTS public.idx_networking_events_cancelled;
-DROP INDEX IF EXISTS public.idx_networking_campaigns_user_id;
-DROP INDEX IF EXISTS public.idx_network_roi_analytics_user_id;
-DROP INDEX IF EXISTS public.idx_nerves_exercises_user_id;
-DROP INDEX IF EXISTS public.idx_nerves_exercises_type;
-DROP INDEX IF EXISTS public.idx_nerves_exercises_session_id;
-DROP INDEX IF EXISTS public.idx_nerves_exercises_completed;
-DROP INDEX IF EXISTS public.idx_mock_interview_sessions_user_id;
-DROP INDEX IF EXISTS public.idx_mock_interview_sessions_status;
-DROP INDEX IF EXISTS public.idx_mock_interview_questions_session_id;
-DROP INDEX IF EXISTS public.idx_mock_interview_messages_session_id;
-DROP INDEX IF EXISTS public.idx_mock_interview_messages_created_at;
-DROP INDEX IF EXISTS public.idx_mock_interview_comments_session_id;
-DROP INDEX IF EXISTS public.idx_mock_interview_comments_mentor_id;
-DROP INDEX IF EXISTS public.idx_mock_interview_comments_mentee_id;
-DROP INDEX IF EXISTS public.idx_milestones_user;
-DROP INDEX IF EXISTS public.idx_milestones_type;
-DROP INDEX IF EXISTS public.idx_milestones_team;
-DROP INDEX IF EXISTS public.idx_message_reactions_message;
-DROP INDEX IF EXISTS public.idx_mentor_relationships_mentor_id;
-DROP INDEX IF EXISTS public.idx_mentor_relationships_mentee_id;
-DROP INDEX IF EXISTS public.idx_mentor_dashboard_views_mentor_id;
-DROP INDEX IF EXISTS public.idx_mentor_dashboard_views_mentee_id;
-DROP INDEX IF EXISTS public.idx_market_intelligence_user_id;
-DROP INDEX IF EXISTS public.idx_market_intelligence_data;
-DROP INDEX IF EXISTS public.idx_market_intelligence_cache_type;
-DROP INDEX IF EXISTS public.idx_market_intelligence_cache_key;
-DROP INDEX IF EXISTS public.idx_market_intelligence_cache_expires;
-DROP INDEX IF EXISTS public.idx_market_insights_user_status;
-DROP INDEX IF EXISTS public.idx_market_insights_user;
-DROP INDEX IF EXISTS public.idx_market_insights_type;
-DROP INDEX IF EXISTS public.idx_market_insights_supporting_data;
-DROP INDEX IF EXISTS public.idx_market_insights_status;
-DROP INDEX IF EXISTS public.idx_market_insights_priority;
-DROP INDEX IF EXISTS public.idx_market_insights_expires;
-DROP INDEX IF EXISTS public.idx_linkedin_networking_templates_user_id;
-DROP INDEX IF EXISTS public.idx_linkedin_network_user_id;
-DROP INDEX IF EXISTS public.idx_linkedin_network_linkedin_id;
-DROP INDEX IF EXISTS public.idx_linkedin_network_industry;
-DROP INDEX IF EXISTS public.idx_linkedin_network_company;
-DROP INDEX IF EXISTS public.idx_job_search_metrics_user_id;
-DROP INDEX IF EXISTS public.idx_job_opportunities_user_id;
-DROP INDEX IF EXISTS public.idx_job_opportunities_user_archived;
-DROP INDEX IF EXISTS public.idx_job_opportunities_status_updated_at;
-DROP INDEX IF EXISTS public.idx_job_opportunities_status;
-DROP INDEX IF EXISTS public.idx_job_opportunities_resume_id;
-DROP INDEX IF EXISTS public.idx_job_opportunities_deadline;
-DROP INDEX IF EXISTS public.idx_job_opportunities_coverletter_id;
-DROP INDEX IF EXISTS public.idx_job_opportunities_archived;
-DROP INDEX IF EXISTS public.idx_job_opportunities_application_history;
-DROP INDEX IF EXISTS public.idx_job_opp_submitted_at;
-DROP INDEX IF EXISTS public.idx_job_opp_application_source;
-DROP INDEX IF EXISTS public.idx_job_opp_application_method;
-DROP INDEX IF EXISTS public.idx_job_comments_team;
-DROP INDEX IF EXISTS public.idx_job_comments_parent;
-DROP INDEX IF EXISTS public.idx_job_comments_job;
-DROP INDEX IF EXISTS public.idx_interviews_user_id;
-DROP INDEX IF EXISTS public.idx_interviews_type;
-DROP INDEX IF EXISTS public.idx_interviews_status;
-DROP INDEX IF EXISTS public.idx_interviews_scheduled_at;
-DROP INDEX IF EXISTS public.idx_interviews_rescheduled_to;
-DROP INDEX IF EXISTS public.idx_interviews_rescheduled_from;
-DROP INDEX IF EXISTS public.idx_interviews_outcome;
-DROP INDEX IF EXISTS public.idx_interviews_job_opportunity_id;
-DROP INDEX IF EXISTS public.idx_interviews_is_practice;
-DROP INDEX IF EXISTS public.idx_interviews_google_calendar_event_id;
-DROP INDEX IF EXISTS public.idx_interviews_format;
-DROP INDEX IF EXISTS public.idx_interviews_conflict_detected;
-DROP INDEX IF EXISTS public.idx_interview_success_probability_user_id;
-DROP INDEX IF EXISTS public.idx_interview_response_coaching_user_id;
-DROP INDEX IF EXISTS public.idx_interview_question_banks_job_id;
-DROP INDEX IF EXISTS public.idx_interview_preparation_tasks_interview_id;
-DROP INDEX IF EXISTS public.idx_interview_preparation_checklists_interview_id;
-DROP INDEX IF EXISTS public.idx_interview_performance_tracking_user_id;
-DROP INDEX IF EXISTS public.idx_interview_followups_interview_id;
-DROP INDEX IF EXISTS public.idx_interview_feedback_user_skill;
-DROP INDEX IF EXISTS public.idx_interview_feedback_user_id;
-DROP INDEX IF EXISTS public.idx_interview_feedback_theme;
-DROP INDEX IF EXISTS public.idx_interview_feedback_skill_area;
-DROP INDEX IF EXISTS public.idx_interview_feedback_sentiment;
-DROP INDEX IF EXISTS public.idx_interview_feedback_interview_id;
-DROP INDEX IF EXISTS public.idx_interview_analytics_user_id;
-DROP INDEX IF EXISTS public.idx_informational_interviews_user_id;
-DROP INDEX IF EXISTS public.idx_group_memberships_user_id;
-DROP INDEX IF EXISTS public.idx_group_memberships_group_id;
-DROP INDEX IF EXISTS public.idx_github_repos_user_id;
-DROP INDEX IF EXISTS public.idx_github_repos_last_synced;
-DROP INDEX IF EXISTS public.idx_github_repos_language;
-DROP INDEX IF EXISTS public.idx_github_repos_github_repo_id;
-DROP INDEX IF EXISTS public.idx_github_repos_featured;
-DROP INDEX IF EXISTS public.idx_github_repo_skills_skill;
-DROP INDEX IF EXISTS public.idx_github_repo_skills_repo;
-DROP INDEX IF EXISTS public.idx_github_contributions_user;
-DROP INDEX IF EXISTS public.idx_github_contributions_repo;
-DROP INDEX IF EXISTS public.idx_github_contributions_date;
-DROP INDEX IF EXISTS public.idx_geocoding_cache_location;
-DROP INDEX IF EXISTS public.idx_follow_ups_interview_id;
-DROP INDEX IF EXISTS public.idx_follow_ups_due_date;
-DROP INDEX IF EXISTS public.idx_follow_ups_completed;
-DROP INDEX IF EXISTS public.idx_follow_ups_action_type;
-DROP INDEX IF EXISTS public.idx_family_wellbeing_user;
-DROP INDEX IF EXISTS public.idx_family_wellbeing_tracker;
-DROP INDEX IF EXISTS public.idx_family_support_suggestions_user;
-DROP INDEX IF EXISTS public.idx_family_support_suggestions_type;
-DROP INDEX IF EXISTS public.idx_family_support_suggestions_family_member;
-DROP INDEX IF EXISTS public.idx_family_member_views_user;
-DROP INDEX IF EXISTS public.idx_family_member_views_family;
-DROP INDEX IF EXISTS public.idx_family_invitations_user;
-DROP INDEX IF EXISTS public.idx_family_invitations_token;
-DROP INDEX IF EXISTS public.idx_family_invitations_email;
-DROP INDEX IF EXISTS public.idx_family_educational_resources_user;
-DROP INDEX IF EXISTS public.idx_family_educational_resources_type;
-DROP INDEX IF EXISTS public.idx_family_educational_resources_category;
-DROP INDEX IF EXISTS public.idx_family_communications_user;
-DROP INDEX IF EXISTS public.idx_family_communications_unread;
-DROP INDEX IF EXISTS public.idx_family_communications_family_member;
-DROP INDEX IF EXISTS public.idx_family_celebrations_user;
-DROP INDEX IF EXISTS public.idx_family_celebrations_shared;
-DROP INDEX IF EXISTS public.idx_family_celebrations_family_member;
-DROP INDEX IF EXISTS public.idx_family_boundary_settings_user;
-DROP INDEX IF EXISTS public.idx_family_boundary_settings_family_member;
-DROP INDEX IF EXISTS public.idx_external_advisors_user_id;
-DROP INDEX IF EXISTS public.idx_event_registrations_user_id;
-DROP INDEX IF EXISTS public.idx_event_registrations_event_id;
-DROP INDEX IF EXISTS public.idx_event_connections_event_id;
-DROP INDEX IF EXISTS public.idx_enterprise_accounts_admin_user_id;
-DROP INDEX IF EXISTS public.idx_email_links_user_id;
-DROP INDEX IF EXISTS public.idx_email_links_job_opportunity_id;
-DROP INDEX IF EXISTS public.idx_email_links_gmail_message_id;
-DROP INDEX IF EXISTS public.idx_email_links_email_date;
-DROP INDEX IF EXISTS public.idx_document_versions_document;
-DROP INDEX IF EXISTS public.idx_document_versions_created_by;
-DROP INDEX IF EXISTS public.idx_document_review_requests_reviewer_id;
-DROP INDEX IF EXISTS public.idx_document_review_requests_requestor_id;
-DROP INDEX IF EXISTS public.idx_document_review_requests_document;
-DROP INDEX IF EXISTS public.idx_document_approvals_review_request_id;
-DROP INDEX IF EXISTS public.idx_document_approvals_document;
-DROP INDEX IF EXISTS public.idx_discovered_contacts_user_id;
-DROP INDEX IF EXISTS public.idx_custom_reports_user_id;
-DROP INDEX IF EXISTS public.idx_coverletter_user_id_created;
-DROP INDEX IF EXISTS public.idx_coverletter_template_id;
-DROP INDEX IF EXISTS public.idx_coverletter_parent_id;
-DROP INDEX IF EXISTS public.idx_coverletter_job_id;
-DROP INDEX IF EXISTS public.idx_coverletter_is_master;
-DROP INDEX IF EXISTS public.idx_contact_interactions_contact_id;
-DROP INDEX IF EXISTS public.idx_conflicts_resolved;
-DROP INDEX IF EXISTS public.idx_conflicts_interview_id;
-DROP INDEX IF EXISTS public.idx_conflicts_conflicting_interview_id;
-DROP INDEX IF EXISTS public.idx_confidence_exercises_user_id;
-DROP INDEX IF EXISTS public.idx_confidence_exercises_type;
-DROP INDEX IF EXISTS public.idx_confidence_exercises_negotiation_id;
-DROP INDEX IF EXISTS public.idx_competitive_benchmarks_user_id;
-DROP INDEX IF EXISTS public.idx_company_interview_insights_expires_at;
-DROP INDEX IF EXISTS public.idx_company_interview_insights_company;
-DROP INDEX IF EXISTS public.idx_coffee_chats_user_id;
-DROP INDEX IF EXISTS public.idx_coffee_chats_status;
-DROP INDEX IF EXISTS public.idx_coffee_chats_scheduled_date;
-DROP INDEX IF EXISTS public.idx_coffee_chats_job_opportunity_id;
-DROP INDEX IF EXISTS public.idx_coffee_chats_contact_id;
-DROP INDEX IF EXISTS public.idx_coaching_sessions_mentor_id;
-DROP INDEX IF EXISTS public.idx_chat_participants_user;
-DROP INDEX IF EXISTS public.idx_chat_participants_conversation;
-DROP INDEX IF EXISTS public.idx_chat_notifications_user;
-DROP INDEX IF EXISTS public.idx_chat_notifications_conversation;
-DROP INDEX IF EXISTS public.idx_chat_messages_sender;
-DROP INDEX IF EXISTS public.idx_chat_messages_parent;
-DROP INDEX IF EXISTS public.idx_chat_messages_conversation;
-DROP INDEX IF EXISTS public.idx_chat_conversations_type;
-DROP INDEX IF EXISTS public.idx_chat_conversations_team;
-DROP INDEX IF EXISTS public.idx_chat_conversations_related;
-DROP INDEX IF EXISTS public.idx_challenge_participants_user_id;
-DROP INDEX IF EXISTS public.idx_challenge_participants_challenge_id;
-DROP INDEX IF EXISTS public.idx_certifications_user_category;
-DROP INDEX IF EXISTS public.idx_certifications_platform;
-DROP INDEX IF EXISTS public.idx_certifications_category;
-DROP INDEX IF EXISTS public.idx_career_goals_user_id;
-DROP INDEX IF EXISTS public.idx_calendar_sync_settings_user_id;
-DROP INDEX IF EXISTS public.idx_application_success_analysis_user_id;
-DROP INDEX IF EXISTS public.idx_api_usage_logs_user_id;
-DROP INDEX IF EXISTS public.idx_api_usage_logs_success;
-DROP INDEX IF EXISTS public.idx_api_usage_logs_service_id;
-DROP INDEX IF EXISTS public.idx_api_usage_logs_created_at;
-DROP INDEX IF EXISTS public.idx_api_response_times_service_id;
-DROP INDEX IF EXISTS public.idx_api_response_times_created_at;
-DROP INDEX IF EXISTS public.idx_api_quotas_service_id;
-DROP INDEX IF EXISTS public.idx_api_quotas_period;
-DROP INDEX IF EXISTS public.idx_api_error_logs_service_id;
-DROP INDEX IF EXISTS public.idx_api_error_logs_error_code;
-DROP INDEX IF EXISTS public.idx_api_error_logs_created_at;
-DROP INDEX IF EXISTS public.idx_api_alerts_service_id;
-DROP INDEX IF EXISTS public.idx_api_alerts_resolved;
-DROP INDEX IF EXISTS public.idx_activity_logs_user;
-DROP INDEX IF EXISTS public.idx_activity_logs_type;
-DROP INDEX IF EXISTS public.idx_activity_logs_team;
-DROP INDEX IF EXISTS public.idx_activity_logs_role;
-ALTER TABLE IF EXISTS ONLY public.writing_progress_tracking DROP CONSTRAINT IF EXISTS writing_progress_tracking_pkey;
-ALTER TABLE IF EXISTS ONLY public.writing_practice_sessions DROP CONSTRAINT IF EXISTS writing_practice_sessions_pkey;
-ALTER TABLE IF EXISTS ONLY public.writing_practice_prompts DROP CONSTRAINT IF EXISTS writing_practice_prompts_pkey;
-ALTER TABLE IF EXISTS ONLY public.writing_feedback DROP CONSTRAINT IF EXISTS writing_feedback_pkey;
-ALTER TABLE IF EXISTS ONLY public.whiteboarding_practice DROP CONSTRAINT IF EXISTS whiteboarding_practice_pkey;
-ALTER TABLE IF EXISTS ONLY public.users DROP CONSTRAINT IF EXISTS users_pkey;
-ALTER TABLE IF EXISTS ONLY public.users DROP CONSTRAINT IF EXISTS users_email_key;
-ALTER TABLE IF EXISTS ONLY public.user_cohorts DROP CONSTRAINT IF EXISTS user_cohorts_pkey;
-ALTER TABLE IF EXISTS ONLY public.interview_success_predictions DROP CONSTRAINT IF EXISTS unique_user_job_prediction;
-ALTER TABLE IF EXISTS ONLY public.cover_letter_template_usage DROP CONSTRAINT IF EXISTS unique_template_user;
-ALTER TABLE IF EXISTS ONLY public.interview_pre_assessment DROP CONSTRAINT IF EXISTS unique_pre_assessment_per_interview;
-ALTER TABLE IF EXISTS ONLY public.interview_post_reflection DROP CONSTRAINT IF EXISTS unique_post_reflection_per_interview;
-ALTER TABLE IF EXISTS ONLY public.support_group_memberships DROP CONSTRAINT IF EXISTS unique_membership;
-ALTER TABLE IF EXISTS ONLY public.interview_reminders DROP CONSTRAINT IF EXISTS unique_interview_reminder;
-ALTER TABLE IF EXISTS ONLY public.email_links DROP CONSTRAINT IF EXISTS unique_email_link;
-ALTER TABLE IF EXISTS ONLY public.interview_conflicts DROP CONSTRAINT IF EXISTS unique_conflict_pair;
-ALTER TABLE IF EXISTS ONLY public.support_group_challenge_participants DROP CONSTRAINT IF EXISTS unique_challenge_participant;
-ALTER TABLE IF EXISTS ONLY public.time_tracking DROP CONSTRAINT IF EXISTS time_tracking_pkey;
-ALTER TABLE IF EXISTS ONLY public.time_logs DROP CONSTRAINT IF EXISTS time_logs_pkey;
-ALTER TABLE IF EXISTS ONLY public.technical_prep_challenges DROP CONSTRAINT IF EXISTS technical_prep_challenges_pkey;
-ALTER TABLE IF EXISTS ONLY public.technical_prep_attempts DROP CONSTRAINT IF EXISTS technical_prep_attempts_pkey;
-ALTER TABLE IF EXISTS ONLY public.teams DROP CONSTRAINT IF EXISTS teams_pkey;
-ALTER TABLE IF EXISTS ONLY public.team_members DROP CONSTRAINT IF EXISTS team_members_pkey;
-ALTER TABLE IF EXISTS ONLY public.team_invitations DROP CONSTRAINT IF EXISTS team_invitations_pkey;
-ALTER TABLE IF EXISTS ONLY public.team_invitations DROP CONSTRAINT IF EXISTS team_invitations_invitation_token_key;
-ALTER TABLE IF EXISTS ONLY public.team_dashboards DROP CONSTRAINT IF EXISTS team_dashboards_pkey;
-ALTER TABLE IF EXISTS ONLY public.team_billing DROP CONSTRAINT IF EXISTS team_billing_pkey;
-ALTER TABLE IF EXISTS ONLY public.support_groups DROP CONSTRAINT IF EXISTS support_groups_pkey;
-ALTER TABLE IF EXISTS ONLY public.support_groups DROP CONSTRAINT IF EXISTS support_groups_name_unique;
-ALTER TABLE IF EXISTS ONLY public.support_group_resources DROP CONSTRAINT IF EXISTS support_group_resources_pkey;
-ALTER TABLE IF EXISTS ONLY public.support_group_referrals DROP CONSTRAINT IF EXISTS support_group_referrals_pkey;
-ALTER TABLE IF EXISTS ONLY public.support_group_posts DROP CONSTRAINT IF EXISTS support_group_posts_pkey;
-ALTER TABLE IF EXISTS ONLY public.support_group_post_likes DROP CONSTRAINT IF EXISTS support_group_post_likes_pkey;
-ALTER TABLE IF EXISTS ONLY public.support_group_post_comments DROP CONSTRAINT IF EXISTS support_group_post_comments_pkey;
-ALTER TABLE IF EXISTS ONLY public.support_group_networking_impact DROP CONSTRAINT IF EXISTS support_group_networking_impact_pkey;
-ALTER TABLE IF EXISTS ONLY public.support_group_memberships DROP CONSTRAINT IF EXISTS support_group_memberships_pkey;
-ALTER TABLE IF EXISTS ONLY public.support_group_challenges DROP CONSTRAINT IF EXISTS support_group_challenges_pkey;
-ALTER TABLE IF EXISTS ONLY public.support_group_challenge_participants DROP CONSTRAINT IF EXISTS support_group_challenge_participants_pkey;
-ALTER TABLE IF EXISTS ONLY public.support_effectiveness_tracking DROP CONSTRAINT IF EXISTS support_effectiveness_tracking_pkey;
-ALTER TABLE IF EXISTS ONLY public.success_patterns DROP CONSTRAINT IF EXISTS success_patterns_pkey;
-ALTER TABLE IF EXISTS ONLY public.skills DROP CONSTRAINT IF EXISTS skills_user_skill_unique;
-ALTER TABLE IF EXISTS ONLY public.skills DROP CONSTRAINT IF EXISTS skills_pkey;
-ALTER TABLE IF EXISTS ONLY public.skill_demand_trends DROP CONSTRAINT IF EXISTS skill_demand_trends_pkey;
-ALTER TABLE IF EXISTS ONLY public.shared_jobs DROP CONSTRAINT IF EXISTS shared_jobs_pkey;
-ALTER TABLE IF EXISTS ONLY public.shared_jobs DROP CONSTRAINT IF EXISTS shared_jobs_job_id_team_id_key;
-ALTER TABLE IF EXISTS ONLY public.shared_documents DROP CONSTRAINT IF EXISTS shared_documents_pkey;
-ALTER TABLE IF EXISTS ONLY public.salary_progression_tracking DROP CONSTRAINT IF EXISTS salary_progression_tracking_pkey;
-ALTER TABLE IF EXISTS ONLY public.salary_progression_history DROP CONSTRAINT IF EXISTS salary_progression_history_pkey;
-ALTER TABLE IF EXISTS ONLY public.salary_negotiations DROP CONSTRAINT IF EXISTS salary_negotiations_pkey;
-ALTER TABLE IF EXISTS ONLY public.salary_negotiation_prep DROP CONSTRAINT IF EXISTS salary_negotiation_prep_pkey;
-ALTER TABLE IF EXISTS ONLY public.review_comments DROP CONSTRAINT IF EXISTS review_comments_pkey;
-ALTER TABLE IF EXISTS ONLY public.resume_template DROP CONSTRAINT IF EXISTS resume_template_pkey;
-ALTER TABLE IF EXISTS ONLY public.resume_tailoring DROP CONSTRAINT IF EXISTS resume_tailoring_pkey;
-ALTER TABLE IF EXISTS ONLY public.resume DROP CONSTRAINT IF EXISTS resume_pkey;
-ALTER TABLE IF EXISTS ONLY public.resume_comments DROP CONSTRAINT IF EXISTS resume_comments_pkey;
-ALTER TABLE IF EXISTS ONLY public.report_templates DROP CONSTRAINT IF EXISTS report_templates_pkey;
-ALTER TABLE IF EXISTS ONLY public.relationship_maintenance_reminders DROP CONSTRAINT IF EXISTS relationship_maintenance_reminders_pkey;
-ALTER TABLE IF EXISTS ONLY public.relationship_health_tracking DROP CONSTRAINT IF EXISTS relationship_health_tracking_pkey;
-ALTER TABLE IF EXISTS ONLY public.referral_templates DROP CONSTRAINT IF EXISTS referral_templates_pkey;
-ALTER TABLE IF EXISTS ONLY public.referral_requests DROP CONSTRAINT IF EXISTS referral_requests_pkey;
-ALTER TABLE IF EXISTS ONLY public.reference_requests DROP CONSTRAINT IF EXISTS reference_requests_pkey;
-ALTER TABLE IF EXISTS ONLY public.reference_request_templates DROP CONSTRAINT IF EXISTS reference_request_templates_pkey;
-ALTER TABLE IF EXISTS ONLY public.reference_portfolios DROP CONSTRAINT IF EXISTS reference_portfolios_pkey;
-ALTER TABLE IF EXISTS ONLY public.question_practice_sessions DROP CONSTRAINT IF EXISTS question_practice_sessions_pkey;
-ALTER TABLE IF EXISTS ONLY public.prospectivejobs DROP CONSTRAINT IF EXISTS prospectivejobs_pkey;
-ALTER TABLE IF EXISTS ONLY public.prospectivejob_material_history DROP CONSTRAINT IF EXISTS prospectivejob_material_history_pkey;
-ALTER TABLE IF EXISTS ONLY public.projects DROP CONSTRAINT IF EXISTS projects_pkey;
-ALTER TABLE IF EXISTS ONLY public.progress_sharing_settings DROP CONSTRAINT IF EXISTS progress_sharing_settings_pkey;
-ALTER TABLE IF EXISTS ONLY public.progress_shares DROP CONSTRAINT IF EXISTS progress_shares_pkey;
-ALTER TABLE IF EXISTS ONLY public.progress_reports DROP CONSTRAINT IF EXISTS progress_reports_pkey;
-ALTER TABLE IF EXISTS ONLY public.program_effectiveness_analytics DROP CONSTRAINT IF EXISTS program_effectiveness_analytics_pkey;
-ALTER TABLE IF EXISTS ONLY public.profiles DROP CONSTRAINT IF EXISTS profiles_pkey;
-ALTER TABLE IF EXISTS ONLY public.professional_references DROP CONSTRAINT IF EXISTS professional_references_pkey;
-ALTER TABLE IF EXISTS ONLY public.professional_contacts DROP CONSTRAINT IF EXISTS professional_contacts_pkey;
-ALTER TABLE IF EXISTS ONLY public.productivity_analysis DROP CONSTRAINT IF EXISTS productivity_analysis_pkey;
-ALTER TABLE IF EXISTS ONLY public.preparation_tasks DROP CONSTRAINT IF EXISTS preparation_tasks_pkey;
-ALTER TABLE IF EXISTS ONLY public.prediction_history DROP CONSTRAINT IF EXISTS prediction_history_pkey;
-ALTER TABLE IF EXISTS ONLY public.prediction_accuracy_metrics DROP CONSTRAINT IF EXISTS prediction_accuracy_metrics_pkey;
-ALTER TABLE IF EXISTS ONLY public.practice_sessions DROP CONSTRAINT IF EXISTS practice_sessions_pkey;
-ALTER TABLE IF EXISTS ONLY public.performance_trends DROP CONSTRAINT IF EXISTS performance_trends_pkey;
-ALTER TABLE IF EXISTS ONLY public.performance_predictions DROP CONSTRAINT IF EXISTS performance_predictions_pkey;
-ALTER TABLE IF EXISTS ONLY public.peer_referrals DROP CONSTRAINT IF EXISTS peer_referrals_pkey;
-ALTER TABLE IF EXISTS ONLY public.networking_messages DROP CONSTRAINT IF EXISTS networking_messages_pkey;
-ALTER TABLE IF EXISTS ONLY public.networking_goals DROP CONSTRAINT IF EXISTS networking_goals_pkey;
-ALTER TABLE IF EXISTS ONLY public.networking_events DROP CONSTRAINT IF EXISTS networking_events_pkey;
-ALTER TABLE IF EXISTS ONLY public.networking_campaigns DROP CONSTRAINT IF EXISTS networking_campaigns_pkey;
-ALTER TABLE IF EXISTS ONLY public.network_roi_analytics DROP CONSTRAINT IF EXISTS network_roi_analytics_pkey;
-ALTER TABLE IF EXISTS ONLY public.nerves_management_exercises DROP CONSTRAINT IF EXISTS nerves_management_exercises_pkey;
-ALTER TABLE IF EXISTS ONLY public.negotiation_confidence_exercises DROP CONSTRAINT IF EXISTS negotiation_confidence_exercises_pkey;
-ALTER TABLE IF EXISTS ONLY public.mutual_connections DROP CONSTRAINT IF EXISTS mutual_connections_pkey;
-ALTER TABLE IF EXISTS ONLY public.mock_interview_sessions DROP CONSTRAINT IF EXISTS mock_interview_sessions_pkey;
-ALTER TABLE IF EXISTS ONLY public.mock_interview_questions DROP CONSTRAINT IF EXISTS mock_interview_questions_pkey;
-ALTER TABLE IF EXISTS ONLY public.mock_interview_messages DROP CONSTRAINT IF EXISTS mock_interview_messages_pkey;
-ALTER TABLE IF EXISTS ONLY public.mock_interview_followups DROP CONSTRAINT IF EXISTS mock_interview_followups_pkey;
-ALTER TABLE IF EXISTS ONLY public.mock_interview_comments DROP CONSTRAINT IF EXISTS mock_interview_comments_pkey;
-ALTER TABLE IF EXISTS ONLY public.milestones DROP CONSTRAINT IF EXISTS milestones_pkey;
-ALTER TABLE IF EXISTS ONLY public.message_reactions DROP CONSTRAINT IF EXISTS message_reactions_pkey;
-ALTER TABLE IF EXISTS ONLY public.message_reactions DROP CONSTRAINT IF EXISTS message_reactions_message_id_user_id_reaction_type_key;
-ALTER TABLE IF EXISTS ONLY public.mentor_shared_data DROP CONSTRAINT IF EXISTS mentor_shared_data_pkey;
-ALTER TABLE IF EXISTS ONLY public.mentor_relationships DROP CONSTRAINT IF EXISTS mentor_relationships_pkey;
-ALTER TABLE IF EXISTS ONLY public.mentor_feedback DROP CONSTRAINT IF EXISTS mentor_feedback_pkey;
-ALTER TABLE IF EXISTS ONLY public.mentor_dashboard_views DROP CONSTRAINT IF EXISTS mentor_dashboard_views_pkey;
-ALTER TABLE IF EXISTS ONLY public.mentor_dashboard_data DROP CONSTRAINT IF EXISTS mentor_dashboard_data_pkey;
-ALTER TABLE IF EXISTS ONLY public.market_salary_data DROP CONSTRAINT IF EXISTS market_salary_data_pkey;
-ALTER TABLE IF EXISTS ONLY public.market_intelligence DROP CONSTRAINT IF EXISTS market_intelligence_pkey;
-ALTER TABLE IF EXISTS ONLY public.market_intelligence_cache DROP CONSTRAINT IF EXISTS market_intelligence_cache_unique_key;
-ALTER TABLE IF EXISTS ONLY public.market_intelligence_cache DROP CONSTRAINT IF EXISTS market_intelligence_cache_pkey;
-ALTER TABLE IF EXISTS ONLY public.market_insights DROP CONSTRAINT IF EXISTS market_insights_pkey;
-ALTER TABLE IF EXISTS ONLY public.linkedin_profile_optimization DROP CONSTRAINT IF EXISTS linkedin_profile_optimization_pkey;
-ALTER TABLE IF EXISTS ONLY public.linkedin_networking_templates DROP CONSTRAINT IF EXISTS linkedin_networking_templates_pkey;
-ALTER TABLE IF EXISTS ONLY public.linkedin_network_contacts DROP CONSTRAINT IF EXISTS linkedin_network_contacts_pkey;
-ALTER TABLE IF EXISTS ONLY public.linkedin_network_contacts DROP CONSTRAINT IF EXISTS linkedin_network_contacts_linkedin_id_key;
-ALTER TABLE IF EXISTS ONLY public.jobs DROP CONSTRAINT IF EXISTS jobs_pkey;
-ALTER TABLE IF EXISTS ONLY public.job_search_metrics DROP CONSTRAINT IF EXISTS job_search_metrics_pkey;
-ALTER TABLE IF EXISTS ONLY public.job_opportunities DROP CONSTRAINT IF EXISTS job_opportunities_pkey;
-ALTER TABLE IF EXISTS ONLY public.job_comments DROP CONSTRAINT IF EXISTS job_comments_pkey;
-ALTER TABLE IF EXISTS ONLY public.interviews DROP CONSTRAINT IF EXISTS interviews_pkey;
-ALTER TABLE IF EXISTS ONLY public.interview_thank_you_notes DROP CONSTRAINT IF EXISTS interview_thank_you_notes_pkey;
-ALTER TABLE IF EXISTS ONLY public.interview_success_probability DROP CONSTRAINT IF EXISTS interview_success_probability_pkey;
-ALTER TABLE IF EXISTS ONLY public.interview_success_predictions DROP CONSTRAINT IF EXISTS interview_success_predictions_pkey;
-ALTER TABLE IF EXISTS ONLY public.interview_response_coaching DROP CONSTRAINT IF EXISTS interview_response_coaching_pkey;
-ALTER TABLE IF EXISTS ONLY public.interview_reminders DROP CONSTRAINT IF EXISTS interview_reminders_pkey;
-ALTER TABLE IF EXISTS ONLY public.interview_question_banks DROP CONSTRAINT IF EXISTS interview_question_banks_pkey;
-ALTER TABLE IF EXISTS ONLY public.interview_preparation_tasks DROP CONSTRAINT IF EXISTS interview_preparation_tasks_pkey;
-ALTER TABLE IF EXISTS ONLY public.interview_preparation_checklists DROP CONSTRAINT IF EXISTS interview_preparation_checklists_pkey;
-ALTER TABLE IF EXISTS ONLY public.interview_pre_assessment DROP CONSTRAINT IF EXISTS interview_pre_assessment_pkey;
-ALTER TABLE IF EXISTS ONLY public.interview_post_reflection DROP CONSTRAINT IF EXISTS interview_post_reflection_pkey;
-ALTER TABLE IF EXISTS ONLY public.interview_performance_tracking DROP CONSTRAINT IF EXISTS interview_performance_tracking_pkey;
-ALTER TABLE IF EXISTS ONLY public.interview_followups DROP CONSTRAINT IF EXISTS interview_followups_pkey;
-ALTER TABLE IF EXISTS ONLY public.interview_follow_ups DROP CONSTRAINT IF EXISTS interview_follow_ups_pkey;
-ALTER TABLE IF EXISTS ONLY public.interview_feedback DROP CONSTRAINT IF EXISTS interview_feedback_pkey;
-ALTER TABLE IF EXISTS ONLY public.interview_conflicts DROP CONSTRAINT IF EXISTS interview_conflicts_pkey;
-ALTER TABLE IF EXISTS ONLY public.interview_analytics DROP CONSTRAINT IF EXISTS interview_analytics_pkey;
-ALTER TABLE IF EXISTS ONLY public.informational_interviews DROP CONSTRAINT IF EXISTS informational_interviews_pkey;
-ALTER TABLE IF EXISTS ONLY public.informational_interview_templates DROP CONSTRAINT IF EXISTS informational_interview_templates_pkey;
-ALTER TABLE IF EXISTS ONLY public.industry_trends DROP CONSTRAINT IF EXISTS industry_trends_pkey;
-ALTER TABLE IF EXISTS ONLY public.group_memberships DROP CONSTRAINT IF EXISTS group_memberships_pkey;
-ALTER TABLE IF EXISTS ONLY public.group_discussions DROP CONSTRAINT IF EXISTS group_discussions_pkey;
-ALTER TABLE IF EXISTS ONLY public.group_challenges DROP CONSTRAINT IF EXISTS group_challenges_pkey;
-ALTER TABLE IF EXISTS ONLY public.goal_milestones DROP CONSTRAINT IF EXISTS goal_milestones_pkey;
-ALTER TABLE IF EXISTS ONLY public.github_repository_skills DROP CONSTRAINT IF EXISTS github_repository_skills_repository_id_skill_id_key;
-ALTER TABLE IF EXISTS ONLY public.github_repository_skills DROP CONSTRAINT IF EXISTS github_repository_skills_pkey;
-ALTER TABLE IF EXISTS ONLY public.github_repositories DROP CONSTRAINT IF EXISTS github_repositories_user_id_github_repo_id_key;
-ALTER TABLE IF EXISTS ONLY public.github_repositories DROP CONSTRAINT IF EXISTS github_repositories_pkey;
-ALTER TABLE IF EXISTS ONLY public.github_contributions DROP CONSTRAINT IF EXISTS github_contributions_user_id_repository_id_date_key;
-ALTER TABLE IF EXISTS ONLY public.github_contributions DROP CONSTRAINT IF EXISTS github_contributions_pkey;
-ALTER TABLE IF EXISTS ONLY public.geocoding_cache DROP CONSTRAINT IF EXISTS geocoding_cache_query_unique;
-ALTER TABLE IF EXISTS ONLY public.geocoding_cache DROP CONSTRAINT IF EXISTS geocoding_cache_pkey;
-ALTER TABLE IF EXISTS ONLY public.followup_templates DROP CONSTRAINT IF EXISTS followup_templates_pkey;
-ALTER TABLE IF EXISTS ONLY public.files DROP CONSTRAINT IF EXISTS files_pkey;
-ALTER TABLE IF EXISTS ONLY public.feedback_themes DROP CONSTRAINT IF EXISTS feedback_themes_theme_name_key;
-ALTER TABLE IF EXISTS ONLY public.feedback_themes DROP CONSTRAINT IF EXISTS feedback_themes_pkey;
-ALTER TABLE IF EXISTS ONLY public.family_wellbeing_tracking DROP CONSTRAINT IF EXISTS family_wellbeing_tracking_pkey;
-ALTER TABLE IF EXISTS ONLY public.family_support_suggestions DROP CONSTRAINT IF EXISTS family_support_suggestions_pkey;
-ALTER TABLE IF EXISTS ONLY public.family_support_access DROP CONSTRAINT IF EXISTS family_support_access_pkey;
-ALTER TABLE IF EXISTS ONLY public.family_progress_summaries DROP CONSTRAINT IF EXISTS family_progress_summaries_pkey;
-ALTER TABLE IF EXISTS ONLY public.family_member_views DROP CONSTRAINT IF EXISTS family_member_views_user_id_family_member_id_key;
-ALTER TABLE IF EXISTS ONLY public.family_member_views DROP CONSTRAINT IF EXISTS family_member_views_pkey;
-ALTER TABLE IF EXISTS ONLY public.family_invitations DROP CONSTRAINT IF EXISTS family_invitations_pkey;
-ALTER TABLE IF EXISTS ONLY public.family_invitations DROP CONSTRAINT IF EXISTS family_invitations_invitation_token_key;
-ALTER TABLE IF EXISTS ONLY public.family_educational_resources DROP CONSTRAINT IF EXISTS family_educational_resources_pkey;
-ALTER TABLE IF EXISTS ONLY public.family_communications DROP CONSTRAINT IF EXISTS family_communications_pkey;
-ALTER TABLE IF EXISTS ONLY public.family_celebrations DROP CONSTRAINT IF EXISTS family_celebrations_pkey;
-ALTER TABLE IF EXISTS ONLY public.family_boundary_settings DROP CONSTRAINT IF EXISTS family_boundary_settings_user_id_family_member_user_id_sett_key;
-ALTER TABLE IF EXISTS ONLY public.family_boundary_settings DROP CONSTRAINT IF EXISTS family_boundary_settings_pkey;
-ALTER TABLE IF EXISTS ONLY public.external_advisors DROP CONSTRAINT IF EXISTS external_advisors_pkey;
-ALTER TABLE IF EXISTS ONLY public.event_registrations DROP CONSTRAINT IF EXISTS event_registrations_unique;
-ALTER TABLE IF EXISTS ONLY public.event_registrations DROP CONSTRAINT IF EXISTS event_registrations_pkey;
-ALTER TABLE IF EXISTS ONLY public.event_connections DROP CONSTRAINT IF EXISTS event_connections_pkey;
-ALTER TABLE IF EXISTS ONLY public.enterprise_accounts DROP CONSTRAINT IF EXISTS enterprise_accounts_pkey;
-ALTER TABLE IF EXISTS ONLY public.email_links DROP CONSTRAINT IF EXISTS email_links_pkey;
-ALTER TABLE IF EXISTS ONLY public.educations DROP CONSTRAINT IF EXISTS educations_pkey;
-ALTER TABLE IF EXISTS ONLY public.document_versions DROP CONSTRAINT IF EXISTS document_versions_pkey;
-ALTER TABLE IF EXISTS ONLY public.document_versions DROP CONSTRAINT IF EXISTS document_versions_document_type_document_id_version_number_key;
-ALTER TABLE IF EXISTS ONLY public.document_review_requests DROP CONSTRAINT IF EXISTS document_review_requests_pkey;
-ALTER TABLE IF EXISTS ONLY public.document_approvals DROP CONSTRAINT IF EXISTS document_approvals_pkey;
-ALTER TABLE IF EXISTS ONLY public.discovered_contacts DROP CONSTRAINT IF EXISTS discovered_contacts_pkey;
-ALTER TABLE IF EXISTS ONLY public.custom_reports DROP CONSTRAINT IF EXISTS custom_reports_pkey;
-ALTER TABLE IF EXISTS ONLY public.coverletter_template DROP CONSTRAINT IF EXISTS coverletter_template_pkey;
-ALTER TABLE IF EXISTS ONLY public.coverletter DROP CONSTRAINT IF EXISTS coverletter_pkey;
-ALTER TABLE IF EXISTS ONLY public.cover_letter_template_usage DROP CONSTRAINT IF EXISTS cover_letter_template_usage_pkey;
-ALTER TABLE IF EXISTS ONLY public.cover_letter_performance DROP CONSTRAINT IF EXISTS cover_letter_performance_pkey;
-ALTER TABLE IF EXISTS ONLY public.contact_job_links DROP CONSTRAINT IF EXISTS contact_job_links_pkey;
-ALTER TABLE IF EXISTS ONLY public.contact_interactions DROP CONSTRAINT IF EXISTS contact_interactions_pkey;
-ALTER TABLE IF EXISTS ONLY public.contact_categories DROP CONSTRAINT IF EXISTS contact_categories_pkey;
-ALTER TABLE IF EXISTS ONLY public.competitive_benchmarks DROP CONSTRAINT IF EXISTS competitive_benchmarks_pkey;
-ALTER TABLE IF EXISTS ONLY public.company_news DROP CONSTRAINT IF EXISTS company_news_pkey;
-ALTER TABLE IF EXISTS ONLY public.company_media DROP CONSTRAINT IF EXISTS company_media_pkey;
-ALTER TABLE IF EXISTS ONLY public.company_interview_insights DROP CONSTRAINT IF EXISTS company_interview_insights_pkey;
-ALTER TABLE IF EXISTS ONLY public.company_interview_insights DROP CONSTRAINT IF EXISTS company_interview_insights_company_role_key;
-ALTER TABLE IF EXISTS ONLY public.company_info DROP CONSTRAINT IF EXISTS company_info_pkey;
-ALTER TABLE IF EXISTS ONLY public.cohort_memberships DROP CONSTRAINT IF EXISTS cohort_memberships_pkey;
-ALTER TABLE IF EXISTS ONLY public.coffee_chats DROP CONSTRAINT IF EXISTS coffee_chats_pkey;
-ALTER TABLE IF EXISTS ONLY public.coaching_sessions DROP CONSTRAINT IF EXISTS coaching_sessions_pkey;
-ALTER TABLE IF EXISTS ONLY public.chat_participants DROP CONSTRAINT IF EXISTS chat_participants_pkey;
-ALTER TABLE IF EXISTS ONLY public.chat_participants DROP CONSTRAINT IF EXISTS chat_participants_conversation_id_user_id_key;
-ALTER TABLE IF EXISTS ONLY public.chat_notifications DROP CONSTRAINT IF EXISTS chat_notifications_pkey;
-ALTER TABLE IF EXISTS ONLY public.chat_messages DROP CONSTRAINT IF EXISTS chat_messages_pkey;
-ALTER TABLE IF EXISTS ONLY public.chat_conversations DROP CONSTRAINT IF EXISTS chat_conversations_pkey;
-ALTER TABLE IF EXISTS ONLY public.certifications DROP CONSTRAINT IF EXISTS certifications_pkey;
-ALTER TABLE IF EXISTS ONLY public.career_goals DROP CONSTRAINT IF EXISTS career_goals_pkey;
-ALTER TABLE IF EXISTS ONLY public.campaign_outreach DROP CONSTRAINT IF EXISTS campaign_outreach_pkey;
-ALTER TABLE IF EXISTS ONLY public.campaign_ab_testing DROP CONSTRAINT IF EXISTS campaign_ab_testing_pkey;
-ALTER TABLE IF EXISTS ONLY public.calendar_sync_settings DROP CONSTRAINT IF EXISTS calendar_sync_settings_user_id_key;
-ALTER TABLE IF EXISTS ONLY public.calendar_sync_settings DROP CONSTRAINT IF EXISTS calendar_sync_settings_pkey;
-ALTER TABLE IF EXISTS ONLY public.archived_prospectivejobs DROP CONSTRAINT IF EXISTS archived_prospectivejobs_pkey;
-ALTER TABLE IF EXISTS ONLY public.application_success_analysis DROP CONSTRAINT IF EXISTS application_success_analysis_pkey;
-ALTER TABLE IF EXISTS ONLY public.api_usage_reports DROP CONSTRAINT IF EXISTS api_usage_reports_service_id_report_week_start_key;
-ALTER TABLE IF EXISTS ONLY public.api_usage_reports DROP CONSTRAINT IF EXISTS api_usage_reports_pkey;
-ALTER TABLE IF EXISTS ONLY public.api_usage_logs DROP CONSTRAINT IF EXISTS api_usage_logs_pkey;
-ALTER TABLE IF EXISTS ONLY public.api_services DROP CONSTRAINT IF EXISTS api_services_service_name_key;
-ALTER TABLE IF EXISTS ONLY public.api_services DROP CONSTRAINT IF EXISTS api_services_pkey;
-ALTER TABLE IF EXISTS ONLY public.api_response_times DROP CONSTRAINT IF EXISTS api_response_times_pkey;
-ALTER TABLE IF EXISTS ONLY public.api_quotas DROP CONSTRAINT IF EXISTS api_quotas_service_id_period_type_period_start_key;
-ALTER TABLE IF EXISTS ONLY public.api_quotas DROP CONSTRAINT IF EXISTS api_quotas_pkey;
-ALTER TABLE IF EXISTS ONLY public.api_error_logs DROP CONSTRAINT IF EXISTS api_error_logs_pkey;
-ALTER TABLE IF EXISTS ONLY public.api_alerts DROP CONSTRAINT IF EXISTS api_alerts_pkey;
-ALTER TABLE IF EXISTS ONLY public.advisor_shared_data DROP CONSTRAINT IF EXISTS advisor_shared_data_pkey;
-ALTER TABLE IF EXISTS ONLY public.advisor_sessions DROP CONSTRAINT IF EXISTS advisor_sessions_pkey;
-ALTER TABLE IF EXISTS ONLY public.advisor_recommendations DROP CONSTRAINT IF EXISTS advisor_recommendations_pkey;
-ALTER TABLE IF EXISTS ONLY public.advisor_performance_evaluation DROP CONSTRAINT IF EXISTS advisor_performance_evaluation_pkey;
-ALTER TABLE IF EXISTS ONLY public.activity_logs DROP CONSTRAINT IF EXISTS activity_logs_pkey;
-ALTER TABLE IF EXISTS ONLY public.accountability_relationships DROP CONSTRAINT IF EXISTS accountability_relationships_pkey;
-ALTER TABLE IF EXISTS public.api_usage_reports ALTER COLUMN id DROP DEFAULT;
-ALTER TABLE IF EXISTS public.api_usage_logs ALTER COLUMN id DROP DEFAULT;
-ALTER TABLE IF EXISTS public.api_services ALTER COLUMN id DROP DEFAULT;
-ALTER TABLE IF EXISTS public.api_response_times ALTER COLUMN id DROP DEFAULT;
-ALTER TABLE IF EXISTS public.api_quotas ALTER COLUMN id DROP DEFAULT;
-ALTER TABLE IF EXISTS public.api_error_logs ALTER COLUMN id DROP DEFAULT;
-ALTER TABLE IF EXISTS public.api_alerts ALTER COLUMN id DROP DEFAULT;
-DROP TABLE IF EXISTS public.writing_progress_tracking;
-DROP TABLE IF EXISTS public.writing_practice_sessions;
-DROP TABLE IF EXISTS public.writing_practice_prompts;
-DROP TABLE IF EXISTS public.writing_feedback;
-DROP TABLE IF EXISTS public.whiteboarding_practice;
-DROP TABLE IF EXISTS public.users;
-DROP TABLE IF EXISTS public.user_cohorts;
-DROP TABLE IF EXISTS public.time_tracking;
-DROP TABLE IF EXISTS public.time_logs;
-DROP TABLE IF EXISTS public.technical_prep_challenges;
-DROP TABLE IF EXISTS public.technical_prep_attempts;
-DROP TABLE IF EXISTS public.teams;
-DROP TABLE IF EXISTS public.team_members;
-DROP TABLE IF EXISTS public.team_invitations;
-DROP TABLE IF EXISTS public.team_dashboards;
-DROP TABLE IF EXISTS public.team_billing;
-DROP TABLE IF EXISTS public.support_groups;
-DROP TABLE IF EXISTS public.support_group_resources;
-DROP TABLE IF EXISTS public.support_group_referrals;
-DROP TABLE IF EXISTS public.support_group_posts;
-DROP TABLE IF EXISTS public.support_group_post_likes;
-DROP TABLE IF EXISTS public.support_group_post_comments;
-DROP TABLE IF EXISTS public.support_group_networking_impact;
-DROP TABLE IF EXISTS public.support_group_memberships;
-DROP TABLE IF EXISTS public.support_group_challenges;
-DROP TABLE IF EXISTS public.support_group_challenge_participants;
-DROP TABLE IF EXISTS public.support_effectiveness_tracking;
-DROP TABLE IF EXISTS public.success_patterns;
-DROP TABLE IF EXISTS public.skills;
-DROP TABLE IF EXISTS public.skill_demand_trends;
-DROP TABLE IF EXISTS public.shared_jobs;
-DROP TABLE IF EXISTS public.shared_documents;
-DROP TABLE IF EXISTS public.salary_progression_tracking;
-DROP TABLE IF EXISTS public.salary_progression_history;
-DROP TABLE IF EXISTS public.salary_negotiations;
-DROP TABLE IF EXISTS public.salary_negotiation_prep;
-DROP TABLE IF EXISTS public.review_comments;
-DROP TABLE IF EXISTS public.resume_template;
-DROP TABLE IF EXISTS public.resume_tailoring;
-DROP TABLE IF EXISTS public.resume_comments;
-DROP TABLE IF EXISTS public.resume;
-DROP TABLE IF EXISTS public.report_templates;
-DROP TABLE IF EXISTS public.relationship_maintenance_reminders;
-DROP TABLE IF EXISTS public.relationship_health_tracking;
-DROP TABLE IF EXISTS public.referral_templates;
-DROP TABLE IF EXISTS public.referral_requests;
-DROP TABLE IF EXISTS public.reference_requests;
-DROP TABLE IF EXISTS public.reference_request_templates;
-DROP TABLE IF EXISTS public.reference_portfolios;
-DROP TABLE IF EXISTS public.question_practice_sessions;
-DROP TABLE IF EXISTS public.prospectivejobs;
-DROP TABLE IF EXISTS public.prospectivejob_material_history;
-DROP TABLE IF EXISTS public.projects;
-DROP TABLE IF EXISTS public.progress_sharing_settings;
-DROP TABLE IF EXISTS public.progress_shares;
-DROP TABLE IF EXISTS public.progress_reports;
-DROP TABLE IF EXISTS public.program_effectiveness_analytics;
-DROP TABLE IF EXISTS public.profiles;
-DROP TABLE IF EXISTS public.professional_references;
-DROP TABLE IF EXISTS public.professional_contacts;
-DROP TABLE IF EXISTS public.productivity_analysis;
-DROP TABLE IF EXISTS public.preparation_tasks;
-DROP TABLE IF EXISTS public.prediction_history;
-DROP TABLE IF EXISTS public.prediction_accuracy_metrics;
-DROP TABLE IF EXISTS public.practice_sessions;
-DROP TABLE IF EXISTS public.performance_trends;
-DROP TABLE IF EXISTS public.performance_predictions;
-DROP TABLE IF EXISTS public.peer_referrals;
-DROP TABLE IF EXISTS public.networking_messages;
-DROP TABLE IF EXISTS public.networking_goals;
-DROP TABLE IF EXISTS public.networking_events;
-DROP TABLE IF EXISTS public.networking_campaigns;
-DROP TABLE IF EXISTS public.network_roi_analytics;
-DROP TABLE IF EXISTS public.nerves_management_exercises;
-DROP TABLE IF EXISTS public.negotiation_confidence_exercises;
-DROP TABLE IF EXISTS public.mutual_connections;
-DROP TABLE IF EXISTS public.mock_interview_sessions;
-DROP TABLE IF EXISTS public.mock_interview_questions;
-DROP TABLE IF EXISTS public.mock_interview_messages;
-DROP TABLE IF EXISTS public.mock_interview_followups;
-DROP TABLE IF EXISTS public.mock_interview_comments;
-DROP TABLE IF EXISTS public.milestones;
-DROP TABLE IF EXISTS public.message_reactions;
-DROP TABLE IF EXISTS public.mentor_shared_data;
-DROP TABLE IF EXISTS public.mentor_relationships;
-DROP TABLE IF EXISTS public.mentor_feedback;
-DROP TABLE IF EXISTS public.mentor_dashboard_views;
-DROP TABLE IF EXISTS public.mentor_dashboard_data;
-DROP TABLE IF EXISTS public.market_salary_data;
-DROP TABLE IF EXISTS public.market_intelligence_cache;
-DROP TABLE IF EXISTS public.market_intelligence;
-DROP TABLE IF EXISTS public.market_insights;
-DROP TABLE IF EXISTS public.linkedin_profile_optimization;
-DROP TABLE IF EXISTS public.linkedin_networking_templates;
-DROP TABLE IF EXISTS public.linkedin_network_contacts;
-DROP TABLE IF EXISTS public.jobs;
-DROP TABLE IF EXISTS public.job_search_metrics;
-DROP TABLE IF EXISTS public.job_opportunities;
-DROP TABLE IF EXISTS public.job_comments;
-DROP TABLE IF EXISTS public.interviews;
-DROP TABLE IF EXISTS public.interview_thank_you_notes;
-DROP TABLE IF EXISTS public.interview_success_probability;
-DROP TABLE IF EXISTS public.interview_success_predictions;
-DROP TABLE IF EXISTS public.interview_response_coaching;
-DROP TABLE IF EXISTS public.interview_reminders;
-DROP TABLE IF EXISTS public.interview_question_banks;
-DROP TABLE IF EXISTS public.interview_preparation_tasks;
-DROP TABLE IF EXISTS public.interview_preparation_checklists;
-DROP TABLE IF EXISTS public.interview_pre_assessment;
-DROP TABLE IF EXISTS public.interview_post_reflection;
-DROP TABLE IF EXISTS public.interview_performance_tracking;
-DROP TABLE IF EXISTS public.interview_followups;
-DROP TABLE IF EXISTS public.interview_follow_ups;
-DROP TABLE IF EXISTS public.interview_feedback;
-DROP TABLE IF EXISTS public.interview_conflicts;
-DROP TABLE IF EXISTS public.interview_analytics;
-DROP TABLE IF EXISTS public.informational_interviews;
-DROP TABLE IF EXISTS public.informational_interview_templates;
-DROP TABLE IF EXISTS public.industry_trends;
-DROP TABLE IF EXISTS public.group_memberships;
-DROP TABLE IF EXISTS public.group_discussions;
-DROP TABLE IF EXISTS public.group_challenges;
-DROP TABLE IF EXISTS public.goal_milestones;
-DROP TABLE IF EXISTS public.github_repository_skills;
-DROP TABLE IF EXISTS public.github_repositories;
-DROP TABLE IF EXISTS public.github_contributions;
-DROP TABLE IF EXISTS public.geocoding_cache;
-DROP TABLE IF EXISTS public.followup_templates;
-DROP TABLE IF EXISTS public.files;
-DROP TABLE IF EXISTS public.feedback_themes;
-DROP TABLE IF EXISTS public.family_wellbeing_tracking;
-DROP TABLE IF EXISTS public.family_support_suggestions;
-DROP TABLE IF EXISTS public.family_support_access;
-DROP TABLE IF EXISTS public.family_progress_summaries;
-DROP TABLE IF EXISTS public.family_member_views;
-DROP TABLE IF EXISTS public.family_invitations;
-DROP TABLE IF EXISTS public.family_educational_resources;
-DROP TABLE IF EXISTS public.family_communications;
-DROP TABLE IF EXISTS public.family_celebrations;
-DROP TABLE IF EXISTS public.family_boundary_settings;
-DROP TABLE IF EXISTS public.external_advisors;
-DROP TABLE IF EXISTS public.event_registrations;
-DROP TABLE IF EXISTS public.event_connections;
-DROP TABLE IF EXISTS public.enterprise_accounts;
-DROP TABLE IF EXISTS public.email_links;
-DROP TABLE IF EXISTS public.educations;
-DROP TABLE IF EXISTS public.document_versions;
-DROP TABLE IF EXISTS public.document_review_requests;
-DROP TABLE IF EXISTS public.document_approvals;
-DROP TABLE IF EXISTS public.discovered_contacts;
-DROP TABLE IF EXISTS public.custom_reports;
-DROP TABLE IF EXISTS public.coverletter_template;
-DROP TABLE IF EXISTS public.coverletter;
-DROP TABLE IF EXISTS public.cover_letter_template_usage;
-DROP TABLE IF EXISTS public.cover_letter_performance;
-DROP TABLE IF EXISTS public.contact_job_links;
-DROP TABLE IF EXISTS public.contact_interactions;
-DROP TABLE IF EXISTS public.contact_categories;
-DROP TABLE IF EXISTS public.competitive_benchmarks;
-DROP TABLE IF EXISTS public.company_news;
-DROP TABLE IF EXISTS public.company_media;
-DROP TABLE IF EXISTS public.company_interview_insights;
-DROP TABLE IF EXISTS public.company_info;
-DROP TABLE IF EXISTS public.cohort_memberships;
-DROP TABLE IF EXISTS public.coffee_chats;
-DROP TABLE IF EXISTS public.coaching_sessions;
-DROP TABLE IF EXISTS public.chat_participants;
-DROP TABLE IF EXISTS public.chat_notifications;
-DROP TABLE IF EXISTS public.chat_messages;
-DROP TABLE IF EXISTS public.chat_conversations;
-DROP TABLE IF EXISTS public.certifications;
-DROP TABLE IF EXISTS public.career_goals;
-DROP TABLE IF EXISTS public.campaign_outreach;
-DROP TABLE IF EXISTS public.campaign_ab_testing;
-DROP TABLE IF EXISTS public.calendar_sync_settings;
-DROP TABLE IF EXISTS public.archived_prospectivejobs;
-DROP TABLE IF EXISTS public.application_success_analysis;
-DROP SEQUENCE IF EXISTS public.api_usage_reports_id_seq;
-DROP TABLE IF EXISTS public.api_usage_reports;
-DROP SEQUENCE IF EXISTS public.api_usage_logs_id_seq;
-DROP TABLE IF EXISTS public.api_usage_logs;
-DROP SEQUENCE IF EXISTS public.api_services_id_seq;
-DROP TABLE IF EXISTS public.api_services;
-DROP SEQUENCE IF EXISTS public.api_response_times_id_seq;
-DROP TABLE IF EXISTS public.api_response_times;
-DROP SEQUENCE IF EXISTS public.api_quotas_id_seq;
-DROP TABLE IF EXISTS public.api_quotas;
-DROP SEQUENCE IF EXISTS public.api_error_logs_id_seq;
-DROP TABLE IF EXISTS public.api_error_logs;
-DROP SEQUENCE IF EXISTS public.api_alerts_id_seq;
-DROP TABLE IF EXISTS public.api_alerts;
-DROP TABLE IF EXISTS public.advisor_shared_data;
-DROP TABLE IF EXISTS public.advisor_sessions;
-DROP TABLE IF EXISTS public.advisor_recommendations;
-DROP TABLE IF EXISTS public.advisor_performance_evaluation;
-DROP TABLE IF EXISTS public.activity_logs;
-DROP TABLE IF EXISTS public.accountability_relationships;
-DROP FUNCTION IF EXISTS public.update_writing_practice_timestamp();
-DROP FUNCTION IF EXISTS public.update_time_logs_timestamp();
-DROP FUNCTION IF EXISTS public.update_thank_you_notes_updated_at();
-DROP FUNCTION IF EXISTS public.update_support_group_timestamp();
-DROP FUNCTION IF EXISTS public.update_support_group_post_count();
-DROP FUNCTION IF EXISTS public.update_support_group_member_count();
-DROP FUNCTION IF EXISTS public.update_support_group_like_count();
-DROP FUNCTION IF EXISTS public.update_support_group_comment_count();
-DROP FUNCTION IF EXISTS public.update_status_change_time();
-DROP FUNCTION IF EXISTS public.update_salary_negotiation_timestamp();
-DROP FUNCTION IF EXISTS public.update_resume_timestamp();
-DROP FUNCTION IF EXISTS public.update_reminders_updated_at();
-DROP FUNCTION IF EXISTS public.update_prediction_timestamp();
-DROP FUNCTION IF EXISTS public.update_pre_assessment_updated_at();
-DROP FUNCTION IF EXISTS public.update_mock_interview_comment_timestamp();
-DROP FUNCTION IF EXISTS public.update_market_intelligence_timestamp();
-DROP FUNCTION IF EXISTS public.update_interviews_updated_at();
-DROP FUNCTION IF EXISTS public.update_interview_feedback_updated_at();
-DROP FUNCTION IF EXISTS public.update_follow_ups_updated_at();
-DROP FUNCTION IF EXISTS public.update_coverletter_timestamp();
-DROP FUNCTION IF EXISTS public.update_certification_timestamp();
-DROP FUNCTION IF EXISTS public.lower_email();
-DROP FUNCTION IF EXISTS public.log_material_history();
-DROP FUNCTION IF EXISTS public.cleanup_expired_market_insights();
-DROP FUNCTION IF EXISTS public.cleanup_expired_market_cache();
-DROP FUNCTION IF EXISTS public.auto_archive_jobs();
-DROP FUNCTION IF EXISTS public.addupdatetime();
-DROP EXTENSION IF EXISTS "uuid-ossp";
-DROP EXTENSION IF EXISTS pgcrypto;
 --
--- Name: pgcrypto; Type: EXTENSION; Schema: -; Owner: -
+-- Create required extensions for Supabase/PostgreSQL
+-- These are needed for gen_random_uuid() and other functions
 --
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public;
-
-
---
--- Name: EXTENSION pgcrypto; Type: COMMENT; Schema: -; Owner: -
---
-
-COMMENT ON EXTENSION pgcrypto IS 'cryptographic functions';
-
-
---
--- Name: uuid-ossp; Type: EXTENSION; Schema: -; Owner: -
---
-
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA public;
 
-
 --
--- Name: EXTENSION "uuid-ossp"; Type: COMMENT; Schema: -; Owner: -
+-- Dropping all tables first
 --
-
-COMMENT ON EXTENSION "uuid-ossp" IS 'generate universally unique identifiers (UUIDs)';
-
-
---
--- Name: addupdatetime(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.addupdatetime() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-    NEW.updated_at = NOW();
-    RETURN NEW;
-END;
-$$;
-
-
---
--- Name: auto_archive_jobs(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.auto_archive_jobs() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-    IF NEW.autoarchive_time_limit <= CURRENT_DATE THEN
-        INSERT INTO archived_prospectivejobs (
-            id, user_id, deadline, description, industry, job_type,
-            job_title, company, location, salary_low, salary_high, stage,
-            status_change_time, personal_notes, salary_notes, date_added,
-            job_url, current_resume_id, current_coverletter
-        )
-        VALUES (
-            NEW.id, NEW.user_id, NEW.deadline, NEW.description, NEW.industry, NEW.job_type,
-            NEW.job_title, NEW.company, NEW.location, NEW.salary_low, NEW.salary_high, NEW.stage,
-            NEW.status_change_time, NEW.personal_notes, NEW.salary_notes, NEW.date_added,
-            NEW.job_url, NULL, NEW.current_coverletter
-        );
-
-        DELETE FROM prospectivejobs WHERE id = NEW.id;
-        RETURN NULL;
-    END IF;
-
-    RETURN NEW;
-END;
-$$;
-
-
---
--- Name: cleanup_expired_market_cache(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.cleanup_expired_market_cache() RETURNS integer
-    LANGUAGE plpgsql
-    AS $$
-DECLARE
-    deleted_count INTEGER;
-BEGIN
-    DELETE FROM public.market_intelligence_cache
-    WHERE expires_at < NOW();
-    
-    GET DIAGNOSTICS deleted_count = ROW_COUNT;
-    RETURN deleted_count;
-END;
-$$;
-
-
---
--- Name: FUNCTION cleanup_expired_market_cache(); Type: COMMENT; Schema: public; Owner: -
---
-
-COMMENT ON FUNCTION public.cleanup_expired_market_cache() IS 'Removes expired cache entries from market_intelligence_cache';
-
-
---
--- Name: cleanup_expired_market_insights(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.cleanup_expired_market_insights() RETURNS integer
-    LANGUAGE plpgsql
-    AS $$
-DECLARE
-    deleted_count INTEGER;
-BEGIN
-    DELETE FROM public.market_insights
-    WHERE expires_at IS NOT NULL AND expires_at < NOW();
-    
-    GET DIAGNOSTICS deleted_count = ROW_COUNT;
-    RETURN deleted_count;
-END;
-$$;
-
-
---
--- Name: FUNCTION cleanup_expired_market_insights(); Type: COMMENT; Schema: public; Owner: -
---
-
-COMMENT ON FUNCTION public.cleanup_expired_market_insights() IS 'Removes expired insights from market_insights table';
-
-
---
--- Name: log_material_history(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.log_material_history() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-    IF TG_OP = 'DELETE' THEN
-        INSERT INTO prospectivejob_material_history (job_id, resume_version, coverletter_version)
-        VALUES (
-            OLD.id,
-            OLD.current_resume,
-            OLD.current_coverletter
-        );
-        RETURN OLD;
-    END IF;
-
-    IF (NEW.current_resume IS DISTINCT FROM OLD.current_resume)
-    OR (NEW.current_coverletter IS DISTINCT FROM OLD.current_coverletter) THEN
-        INSERT INTO prospectivejob_material_history (job_id, resume_version, coverletter_version)
-        VALUES (
-            NEW.id,
-            NEW.current_resume,
-            NEW.current_coverletter
-        );
-    END IF;
-
-    RETURN NEW;
-END;
-$$;
-
-
---
--- Name: lower_email(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.lower_email() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-    NEW.email = LOWER(NEW.email);
-    RETURN NEW;
-END;
-$$;
-
-
---
--- Name: update_certification_timestamp(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.update_certification_timestamp() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-    NEW.updated_at = CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$;
-
-
---
--- Name: update_coverletter_timestamp(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.update_coverletter_timestamp() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-    NEW.updated_at := CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$;
-
-
---
--- Name: update_follow_ups_updated_at(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.update_follow_ups_updated_at() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-    NEW.updated_at := CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$;
-
-
---
--- Name: update_interview_feedback_updated_at(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.update_interview_feedback_updated_at() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-    NEW.updated_at := CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$;
-
-
---
--- Name: update_interviews_updated_at(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.update_interviews_updated_at() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-    NEW.updated_at = now();
-    RETURN NEW;
-END;
-$$;
-
-
---
--- Name: update_market_intelligence_timestamp(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.update_market_intelligence_timestamp() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-    NEW.updated_at = CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$;
-
-
---
--- Name: update_mock_interview_comment_timestamp(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.update_mock_interview_comment_timestamp() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-    NEW.updated_at = now();
-    RETURN NEW;
-END;
-$$;
-
-
---
--- Name: update_pre_assessment_updated_at(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.update_pre_assessment_updated_at() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-    NEW.updated_at := CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$;
-
-
---
--- Name: update_prediction_timestamp(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.update_prediction_timestamp() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-    NEW.last_updated = now();
-    RETURN NEW;
-END;
-$$;
-
-
---
--- Name: update_reminders_updated_at(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.update_reminders_updated_at() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-    NEW.updated_at := CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$;
-
-
---
--- Name: update_resume_timestamp(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.update_resume_timestamp() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-    NEW.updated_at := CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$;
-
-
---
--- Name: update_salary_negotiation_timestamp(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.update_salary_negotiation_timestamp() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-    NEW.updated_at = now();
-    RETURN NEW;
-END;
-$$;
-
-
---
--- Name: update_status_change_time(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.update_status_change_time() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-    IF NEW.stage IS DISTINCT FROM OLD.stage THEN
-        NEW.status_change_time := CURRENT_TIMESTAMP;
-    END IF;
-    RETURN NEW;
-END;
-$$;
-
-
---
--- Name: update_support_group_comment_count(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.update_support_group_comment_count() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-    IF TG_OP = 'INSERT' THEN
-        UPDATE support_group_posts 
-        SET comment_count = (
-            SELECT COUNT(*) 
-            FROM support_group_post_comments 
-            WHERE post_id = NEW.post_id
-        )
-        WHERE id = NEW.post_id;
-        RETURN NEW;
-    ELSIF TG_OP = 'DELETE' THEN
-        UPDATE support_group_posts 
-        SET comment_count = (
-            SELECT COUNT(*) 
-            FROM support_group_post_comments 
-            WHERE post_id = OLD.post_id
-        )
-        WHERE id = OLD.post_id;
-        RETURN OLD;
-    END IF;
-    RETURN NULL;
-END;
-$$;
-
-
---
--- Name: update_support_group_like_count(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.update_support_group_like_count() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-    IF TG_OP = 'INSERT' THEN
-        IF NEW.post_id IS NOT NULL THEN
-            UPDATE support_group_posts 
-            SET like_count = (
-                SELECT COUNT(*) 
-                FROM support_group_post_likes 
-                WHERE post_id = NEW.post_id
-            )
-            WHERE id = NEW.post_id;
-        ELSIF NEW.comment_id IS NOT NULL THEN
-            UPDATE support_group_post_comments 
-            SET like_count = (
-                SELECT COUNT(*) 
-                FROM support_group_post_likes 
-                WHERE comment_id = NEW.comment_id
-            )
-            WHERE id = NEW.comment_id;
-        END IF;
-        RETURN NEW;
-    ELSIF TG_OP = 'DELETE' THEN
-        IF OLD.post_id IS NOT NULL THEN
-            UPDATE support_group_posts 
-            SET like_count = (
-                SELECT COUNT(*) 
-                FROM support_group_post_likes 
-                WHERE post_id = OLD.post_id
-            )
-            WHERE id = OLD.post_id;
-        ELSIF OLD.comment_id IS NOT NULL THEN
-            UPDATE support_group_post_comments 
-            SET like_count = (
-                SELECT COUNT(*) 
-                FROM support_group_post_likes 
-                WHERE comment_id = OLD.comment_id
-            )
-            WHERE id = OLD.comment_id;
-        END IF;
-        RETURN OLD;
-    END IF;
-    RETURN NULL;
-END;
-$$;
-
-
---
--- Name: update_support_group_member_count(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.update_support_group_member_count() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-    IF TG_OP = 'INSERT' THEN
-        UPDATE support_groups 
-        SET member_count = (
-            SELECT COUNT(*) 
-            FROM support_group_memberships 
-            WHERE group_id = NEW.group_id AND is_active = true
-        )
-        WHERE id = NEW.group_id;
-        RETURN NEW;
-    ELSIF TG_OP = 'UPDATE' THEN
-        IF OLD.is_active != NEW.is_active THEN
-            UPDATE support_groups 
-            SET member_count = (
-                SELECT COUNT(*) 
-                FROM support_group_memberships 
-                WHERE group_id = NEW.group_id AND is_active = true
-            )
-            WHERE id = NEW.group_id;
-        END IF;
-        RETURN NEW;
-    ELSIF TG_OP = 'DELETE' THEN
-        UPDATE support_groups 
-        SET member_count = (
-            SELECT COUNT(*) 
-            FROM support_group_memberships 
-            WHERE group_id = OLD.group_id AND is_active = true
-        )
-        WHERE id = OLD.group_id;
-        RETURN OLD;
-    END IF;
-    RETURN NULL;
-END;
-$$;
-
-
---
--- Name: update_support_group_post_count(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.update_support_group_post_count() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-    IF TG_OP = 'INSERT' THEN
-        UPDATE support_groups 
-        SET post_count = (
-            SELECT COUNT(*) 
-            FROM support_group_posts 
-            WHERE group_id = NEW.group_id
-        )
-        WHERE id = NEW.group_id;
-        RETURN NEW;
-    ELSIF TG_OP = 'DELETE' THEN
-        UPDATE support_groups 
-        SET post_count = (
-            SELECT COUNT(*) 
-            FROM support_group_posts 
-            WHERE group_id = OLD.group_id
-        )
-        WHERE id = OLD.group_id;
-        RETURN OLD;
-    END IF;
-    RETURN NULL;
-END;
-$$;
-
-
---
--- Name: update_support_group_timestamp(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.update_support_group_timestamp() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-    NEW.updated_at = now();
-    RETURN NEW;
-END;
-$$;
-
-
---
--- Name: update_thank_you_notes_updated_at(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.update_thank_you_notes_updated_at() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-    NEW.updated_at := CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$;
-
-
---
--- Name: update_time_logs_timestamp(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.update_time_logs_timestamp() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-    NEW.updated_at = CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$;
-
-
---
--- Name: update_writing_practice_timestamp(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.update_writing_practice_timestamp() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-    NEW.updated_at = CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$;
-
-
+DROP TABLE IF EXISTS public.writing_progress_tracking CASCADE;
+DROP TABLE IF EXISTS public.writing_practice_sessions CASCADE;
+DROP TABLE IF EXISTS public.writing_practice_prompts CASCADE;
+DROP TABLE IF EXISTS public.writing_feedback CASCADE;
+DROP TABLE IF EXISTS public.whiteboarding_practice CASCADE;
+DROP TABLE IF EXISTS public.users CASCADE;
+DROP TABLE IF EXISTS public.user_cohorts CASCADE;
+DROP TABLE IF EXISTS public.time_tracking CASCADE;
+DROP TABLE IF EXISTS public.time_logs CASCADE;
+DROP TABLE IF EXISTS public.technical_prep_challenges CASCADE;
+DROP TABLE IF EXISTS public.technical_prep_attempts CASCADE;
+DROP TABLE IF EXISTS public.teams CASCADE;
+DROP TABLE IF EXISTS public.team_members CASCADE;
+DROP TABLE IF EXISTS public.team_invitations CASCADE;
+DROP TABLE IF EXISTS public.team_dashboards CASCADE;
+DROP TABLE IF EXISTS public.team_billing CASCADE;
+DROP TABLE IF EXISTS public.support_groups CASCADE;
+DROP TABLE IF EXISTS public.support_group_resources CASCADE;
+DROP TABLE IF EXISTS public.support_group_referrals CASCADE;
+DROP TABLE IF EXISTS public.support_group_posts CASCADE;
+DROP TABLE IF EXISTS public.support_group_post_likes CASCADE;
+DROP TABLE IF EXISTS public.support_group_post_comments CASCADE;
+DROP TABLE IF EXISTS public.support_group_networking_impact CASCADE;
+DROP TABLE IF EXISTS public.support_group_memberships CASCADE;
+DROP TABLE IF EXISTS public.support_group_challenges CASCADE;
+DROP TABLE IF EXISTS public.support_group_challenge_participants CASCADE;
+DROP TABLE IF EXISTS public.support_effectiveness_tracking CASCADE;
+DROP TABLE IF EXISTS public.success_patterns CASCADE;
+DROP TABLE IF EXISTS public.skills CASCADE;
+DROP TABLE IF EXISTS public.skill_demand_trends CASCADE;
+DROP TABLE IF EXISTS public.shared_jobs CASCADE;
+DROP TABLE IF EXISTS public.shared_documents CASCADE;
+DROP TABLE IF EXISTS public.salary_progression_tracking CASCADE;
+DROP TABLE IF EXISTS public.salary_progression_history CASCADE;
+DROP TABLE IF EXISTS public.salary_negotiations CASCADE;
+DROP TABLE IF EXISTS public.salary_negotiation_prep CASCADE;
+DROP TABLE IF EXISTS public.review_comments CASCADE;
+DROP TABLE IF EXISTS public.resume_template CASCADE;
+DROP TABLE IF EXISTS public.resume_tailoring CASCADE;
+DROP TABLE IF EXISTS public.resume_comments CASCADE;
+DROP TABLE IF EXISTS public.resume CASCADE;
+DROP TABLE IF EXISTS public.report_templates CASCADE;
+DROP TABLE IF EXISTS public.relationship_maintenance_reminders CASCADE;
+DROP TABLE IF EXISTS public.relationship_health_tracking CASCADE;
+DROP TABLE IF EXISTS public.referral_templates CASCADE;
+DROP TABLE IF EXISTS public.referral_requests CASCADE;
+DROP TABLE IF EXISTS public.reference_requests CASCADE;
+DROP TABLE IF EXISTS public.reference_request_templates CASCADE;
+DROP TABLE IF EXISTS public.reference_portfolios CASCADE;
+DROP TABLE IF EXISTS public.question_practice_sessions CASCADE;
+DROP TABLE IF EXISTS public.prospectivejobs CASCADE;
+DROP TABLE IF EXISTS public.prospectivejob_material_history CASCADE;
+DROP TABLE IF EXISTS public.projects CASCADE;
+DROP TABLE IF EXISTS public.progress_sharing_settings CASCADE;
+DROP TABLE IF EXISTS public.progress_shares CASCADE;
+DROP TABLE IF EXISTS public.progress_reports CASCADE;
+DROP TABLE IF EXISTS public.program_effectiveness_analytics CASCADE;
+DROP TABLE IF EXISTS public.profiles CASCADE;
+DROP TABLE IF EXISTS public.professional_references CASCADE;
+DROP TABLE IF EXISTS public.professional_contacts CASCADE;
+DROP TABLE IF EXISTS public.productivity_analysis CASCADE;
+DROP TABLE IF EXISTS public.preparation_tasks CASCADE;
+DROP TABLE IF EXISTS public.prediction_history CASCADE;
+DROP TABLE IF EXISTS public.prediction_accuracy_metrics CASCADE;
+DROP TABLE IF EXISTS public.practice_sessions CASCADE;
+DROP TABLE IF EXISTS public.performance_trends CASCADE;
+DROP TABLE IF EXISTS public.performance_predictions CASCADE;
+DROP TABLE IF EXISTS public.peer_referrals CASCADE;
+DROP TABLE IF EXISTS public.networking_messages CASCADE;
+DROP TABLE IF EXISTS public.networking_goals CASCADE;
+DROP TABLE IF EXISTS public.networking_events CASCADE;
+DROP TABLE IF EXISTS public.networking_campaigns CASCADE;
+DROP TABLE IF EXISTS public.network_roi_analytics CASCADE;
+DROP TABLE IF EXISTS public.nerves_management_exercises CASCADE;
+DROP TABLE IF EXISTS public.negotiation_confidence_exercises CASCADE;
+DROP TABLE IF EXISTS public.mutual_connections CASCADE;
+DROP TABLE IF EXISTS public.mock_interview_sessions CASCADE;
+DROP TABLE IF EXISTS public.mock_interview_questions CASCADE;
+DROP TABLE IF EXISTS public.mock_interview_messages CASCADE;
+DROP TABLE IF EXISTS public.mock_interview_followups CASCADE;
+DROP TABLE IF EXISTS public.mock_interview_comments CASCADE;
+DROP TABLE IF EXISTS public.milestones CASCADE;
+DROP TABLE IF EXISTS public.message_reactions CASCADE;
+DROP TABLE IF EXISTS public.mentor_shared_data CASCADE;
+DROP TABLE IF EXISTS public.mentor_relationships CASCADE;
+DROP TABLE IF EXISTS public.mentor_feedback CASCADE;
+DROP TABLE IF EXISTS public.mentor_dashboard_views CASCADE;
+DROP TABLE IF EXISTS public.mentor_dashboard_data CASCADE;
+DROP TABLE IF EXISTS public.market_salary_data CASCADE;
+DROP TABLE IF EXISTS public.market_intelligence_cache CASCADE;
+DROP TABLE IF EXISTS public.market_intelligence CASCADE;
+DROP TABLE IF EXISTS public.market_insights CASCADE;
+DROP TABLE IF EXISTS public.linkedin_profile_optimization CASCADE;
+DROP TABLE IF EXISTS public.linkedin_networking_templates CASCADE;
+DROP TABLE IF EXISTS public.linkedin_network_contacts CASCADE;
+DROP TABLE IF EXISTS public.jobs CASCADE;
+DROP TABLE IF EXISTS public.job_search_metrics CASCADE;
+DROP TABLE IF EXISTS public.job_opportunities CASCADE;
+DROP TABLE IF EXISTS public.job_comments CASCADE;
+DROP TABLE IF EXISTS public.interviews CASCADE;
+DROP TABLE IF EXISTS public.interview_thank_you_notes CASCADE;
+DROP TABLE IF EXISTS public.interview_success_probability CASCADE;
+DROP TABLE IF EXISTS public.interview_success_predictions CASCADE;
+DROP TABLE IF EXISTS public.interview_response_coaching CASCADE;
+DROP TABLE IF EXISTS public.interview_reminders CASCADE;
+DROP TABLE IF EXISTS public.interview_question_banks CASCADE;
+DROP TABLE IF EXISTS public.interview_preparation_tasks CASCADE;
+DROP TABLE IF EXISTS public.interview_preparation_checklists CASCADE;
+DROP TABLE IF EXISTS public.interview_pre_assessment CASCADE;
+DROP TABLE IF EXISTS public.interview_post_reflection CASCADE;
+DROP TABLE IF EXISTS public.interview_performance_tracking CASCADE;
+DROP TABLE IF EXISTS public.interview_followups CASCADE;
+DROP TABLE IF EXISTS public.interview_follow_ups CASCADE;
+DROP TABLE IF EXISTS public.interview_feedback CASCADE;
+DROP TABLE IF EXISTS public.interview_conflicts CASCADE;
+DROP TABLE IF EXISTS public.interview_analytics CASCADE;
+DROP TABLE IF EXISTS public.informational_interviews CASCADE;
+DROP TABLE IF EXISTS public.informational_interview_templates CASCADE;
+DROP TABLE IF EXISTS public.industry_trends CASCADE;
+DROP TABLE IF EXISTS public.group_memberships CASCADE;
+DROP TABLE IF EXISTS public.group_discussions CASCADE;
+DROP TABLE IF EXISTS public.group_challenges CASCADE;
+DROP TABLE IF EXISTS public.goal_milestones CASCADE;
+DROP TABLE IF EXISTS public.github_repository_skills CASCADE;
+DROP TABLE IF EXISTS public.github_repositories CASCADE;
+DROP TABLE IF EXISTS public.github_contributions CASCADE;
+DROP TABLE IF EXISTS public.geocoding_cache CASCADE;
+DROP TABLE IF EXISTS public.followup_templates CASCADE;
+DROP TABLE IF EXISTS public.files CASCADE;
+DROP TABLE IF EXISTS public.feedback_themes CASCADE;
+DROP TABLE IF EXISTS public.family_wellbeing_tracking CASCADE;
+DROP TABLE IF EXISTS public.family_support_suggestions CASCADE;
+DROP TABLE IF EXISTS public.family_support_access CASCADE;
+DROP TABLE IF EXISTS public.family_progress_summaries CASCADE;
+DROP TABLE IF EXISTS public.family_member_views CASCADE;
+DROP TABLE IF EXISTS public.family_invitations CASCADE;
+DROP TABLE IF EXISTS public.family_educational_resources CASCADE;
+DROP TABLE IF EXISTS public.family_communications CASCADE;
+DROP TABLE IF EXISTS public.family_celebrations CASCADE;
+DROP TABLE IF EXISTS public.family_boundary_settings CASCADE;
+DROP TABLE IF EXISTS public.external_advisors CASCADE;
+DROP TABLE IF EXISTS public.event_registrations CASCADE;
+DROP TABLE IF EXISTS public.event_connections CASCADE;
+DROP TABLE IF EXISTS public.enterprise_accounts CASCADE;
+DROP TABLE IF EXISTS public.email_links CASCADE;
+DROP TABLE IF EXISTS public.educations CASCADE;
+DROP TABLE IF EXISTS public.document_versions CASCADE;
+DROP TABLE IF EXISTS public.document_review_requests CASCADE;
+DROP TABLE IF EXISTS public.document_approvals CASCADE;
+DROP TABLE IF EXISTS public.discovered_contacts CASCADE;
+DROP TABLE IF EXISTS public.custom_reports CASCADE;
+DROP TABLE IF EXISTS public.coverletter_template CASCADE;
+DROP TABLE IF EXISTS public.coverletter CASCADE;
+DROP TABLE IF EXISTS public.cover_letter_template_usage CASCADE;
+DROP TABLE IF EXISTS public.cover_letter_performance CASCADE;
+DROP TABLE IF EXISTS public.contact_job_links CASCADE;
+DROP TABLE IF EXISTS public.contact_interactions CASCADE;
+DROP TABLE IF EXISTS public.contact_categories CASCADE;
+DROP TABLE IF EXISTS public.competitive_benchmarks CASCADE;
+DROP TABLE IF EXISTS public.company_news CASCADE;
+DROP TABLE IF EXISTS public.company_media CASCADE;
+DROP TABLE IF EXISTS public.company_interview_insights CASCADE;
+DROP TABLE IF EXISTS public.company_info CASCADE;
+DROP TABLE IF EXISTS public.cohort_memberships CASCADE;
+DROP TABLE IF EXISTS public.coffee_chats CASCADE;
+DROP TABLE IF EXISTS public.coaching_sessions CASCADE;
+DROP TABLE IF EXISTS public.chat_participants CASCADE;
+DROP TABLE IF EXISTS public.chat_notifications CASCADE;
+DROP TABLE IF EXISTS public.chat_messages CASCADE;
+DROP TABLE IF EXISTS public.chat_conversations CASCADE;
+DROP TABLE IF EXISTS public.certifications CASCADE;
+DROP TABLE IF EXISTS public.career_goals CASCADE;
+DROP TABLE IF EXISTS public.campaign_outreach CASCADE;
+DROP TABLE IF EXISTS public.campaign_ab_testing CASCADE;
+DROP TABLE IF EXISTS public.calendar_sync_settings CASCADE;
+DROP TABLE IF EXISTS public.archived_prospectivejobs CASCADE;
+DROP TABLE IF EXISTS public.application_success_analysis CASCADE;
+DROP TABLE IF EXISTS public.api_usage_reports CASCADE;
+DROP TABLE IF EXISTS public.api_usage_logs CASCADE;
+DROP TABLE IF EXISTS public.api_services CASCADE;
+DROP TABLE IF EXISTS public.api_response_times CASCADE;
+DROP TABLE IF EXISTS public.api_quotas CASCADE;
+DROP TABLE IF EXISTS public.api_error_logs CASCADE;
+DROP TABLE IF EXISTS public.api_alerts CASCADE;
+DROP TABLE IF EXISTS public.advisor_shared_data CASCADE;
+DROP TABLE IF EXISTS public.advisor_sessions CASCADE;
+DROP TABLE IF EXISTS public.advisor_recommendations CASCADE;
+DROP TABLE IF EXISTS public.advisor_performance_evaluation CASCADE;
+DROP TABLE IF EXISTS public.activity_logs CASCADE;
+DROP TABLE IF EXISTS public.accountability_relationships CASCADE;
+
+-- Creating tables
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
@@ -11155,6 +9609,549 @@ CREATE UNIQUE INDEX unique_post_like ON public.support_group_post_likes USING bt
 --
 
 CREATE UNIQUE INDEX ux_geocoding_cache_query ON public.geocoding_cache USING btree (lower(query));
+
+
+--
+-- Create all required functions before creating triggers
+--
+
+CREATE OR REPLACE FUNCTION public.addupdatetime() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: auto_archive_jobs(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION public.auto_archive_jobs() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    IF NEW.autoarchive_time_limit <= CURRENT_DATE THEN
+        INSERT INTO archived_prospectivejobs (
+            id, user_id, deadline, description, industry, job_type,
+            job_title, company, location, salary_low, salary_high, stage,
+            status_change_time, personal_notes, salary_notes, date_added,
+            job_url, current_resume_id, current_coverletter
+        )
+        VALUES (
+            NEW.id, NEW.user_id, NEW.deadline, NEW.description, NEW.industry, NEW.job_type,
+            NEW.job_title, NEW.company, NEW.location, NEW.salary_low, NEW.salary_high, NEW.stage,
+            NEW.status_change_time, NEW.personal_notes, NEW.salary_notes, NEW.date_added,
+            NEW.job_url, NULL, NEW.current_coverletter
+        );
+
+        DELETE FROM prospectivejobs WHERE id = NEW.id;
+        RETURN NULL;
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: cleanup_expired_market_cache(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION public.cleanup_expired_market_cache() RETURNS integer
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+    deleted_count INTEGER;
+BEGIN
+    DELETE FROM public.market_intelligence_cache
+    WHERE expires_at < NOW();
+    
+    GET DIAGNOSTICS deleted_count = ROW_COUNT;
+    RETURN deleted_count;
+END;
+$$;
+
+
+--
+-- Name: FUNCTION cleanup_expired_market_cache(); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.cleanup_expired_market_cache() IS 'Removes expired cache entries from market_intelligence_cache';
+
+
+--
+-- Name: cleanup_expired_market_insights(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION public.cleanup_expired_market_insights() RETURNS integer
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+    deleted_count INTEGER;
+BEGIN
+    DELETE FROM public.market_insights
+    WHERE expires_at IS NOT NULL AND expires_at < NOW();
+    
+    GET DIAGNOSTICS deleted_count = ROW_COUNT;
+    RETURN deleted_count;
+END;
+$$;
+
+
+--
+-- Name: FUNCTION cleanup_expired_market_insights(); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.cleanup_expired_market_insights() IS 'Removes expired insights from market_insights table';
+
+
+--
+-- Name: log_material_history(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION public.log_material_history() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    IF TG_OP = 'DELETE' THEN
+        INSERT INTO prospectivejob_material_history (job_id, resume_version, coverletter_version)
+        VALUES (
+            OLD.id,
+            OLD.current_resume,
+            OLD.current_coverletter
+        );
+        RETURN OLD;
+    END IF;
+
+    IF (NEW.current_resume IS DISTINCT FROM OLD.current_resume)
+    OR (NEW.current_coverletter IS DISTINCT FROM OLD.current_coverletter) THEN
+        INSERT INTO prospectivejob_material_history (job_id, resume_version, coverletter_version)
+        VALUES (
+            NEW.id,
+            NEW.current_resume,
+            NEW.current_coverletter
+        );
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: lower_email(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION public.lower_email() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    NEW.email = LOWER(NEW.email);
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: update_certification_timestamp(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION public.update_certification_timestamp() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: update_coverletter_timestamp(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION public.update_coverletter_timestamp() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    NEW.updated_at := CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: update_follow_ups_updated_at(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION public.update_follow_ups_updated_at() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    NEW.updated_at := CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: update_interview_feedback_updated_at(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION public.update_interview_feedback_updated_at() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    NEW.updated_at := CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: update_interviews_updated_at(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION public.update_interviews_updated_at() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    NEW.updated_at = now();
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: update_market_intelligence_timestamp(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION public.update_market_intelligence_timestamp() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: update_mock_interview_comment_timestamp(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION public.update_mock_interview_comment_timestamp() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    NEW.updated_at = now();
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: update_pre_assessment_updated_at(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION public.update_pre_assessment_updated_at() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    NEW.updated_at := CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: update_prediction_timestamp(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION public.update_prediction_timestamp() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    NEW.last_updated = now();
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: update_reminders_updated_at(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION public.update_reminders_updated_at() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    NEW.updated_at := CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: update_resume_timestamp(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION public.update_resume_timestamp() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    NEW.updated_at := CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: update_salary_negotiation_timestamp(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION public.update_salary_negotiation_timestamp() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    NEW.updated_at = now();
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: update_status_change_time(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION public.update_status_change_time() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    IF NEW.stage IS DISTINCT FROM OLD.stage THEN
+        NEW.status_change_time := CURRENT_TIMESTAMP;
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: update_support_group_comment_count(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION public.update_support_group_comment_count() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        UPDATE support_group_posts 
+        SET comment_count = (
+            SELECT COUNT(*) 
+            FROM support_group_post_comments 
+            WHERE post_id = NEW.post_id
+        )
+        WHERE id = NEW.post_id;
+        RETURN NEW;
+    ELSIF TG_OP = 'DELETE' THEN
+        UPDATE support_group_posts 
+        SET comment_count = (
+            SELECT COUNT(*) 
+            FROM support_group_post_comments 
+            WHERE post_id = OLD.post_id
+        )
+        WHERE id = OLD.post_id;
+        RETURN OLD;
+    END IF;
+    RETURN NULL;
+END;
+$$;
+
+
+--
+-- Name: update_support_group_like_count(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION public.update_support_group_like_count() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        IF NEW.post_id IS NOT NULL THEN
+            UPDATE support_group_posts 
+            SET like_count = (
+                SELECT COUNT(*) 
+                FROM support_group_post_likes 
+                WHERE post_id = NEW.post_id
+            )
+            WHERE id = NEW.post_id;
+        ELSIF NEW.comment_id IS NOT NULL THEN
+            UPDATE support_group_post_comments 
+            SET like_count = (
+                SELECT COUNT(*) 
+                FROM support_group_post_likes 
+                WHERE comment_id = NEW.comment_id
+            )
+            WHERE id = NEW.comment_id;
+        END IF;
+        RETURN NEW;
+    ELSIF TG_OP = 'DELETE' THEN
+        IF OLD.post_id IS NOT NULL THEN
+            UPDATE support_group_posts 
+            SET like_count = (
+                SELECT COUNT(*) 
+                FROM support_group_post_likes 
+                WHERE post_id = OLD.post_id
+            )
+            WHERE id = OLD.post_id;
+        ELSIF OLD.comment_id IS NOT NULL THEN
+            UPDATE support_group_post_comments 
+            SET like_count = (
+                SELECT COUNT(*) 
+                FROM support_group_post_likes 
+                WHERE comment_id = OLD.comment_id
+            )
+            WHERE id = OLD.comment_id;
+        END IF;
+        RETURN OLD;
+    END IF;
+    RETURN NULL;
+END;
+$$;
+
+
+--
+-- Name: update_support_group_member_count(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION public.update_support_group_member_count() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        UPDATE support_groups 
+        SET member_count = (
+            SELECT COUNT(*) 
+            FROM support_group_memberships 
+            WHERE group_id = NEW.group_id AND is_active = true
+        )
+        WHERE id = NEW.group_id;
+        RETURN NEW;
+    ELSIF TG_OP = 'UPDATE' THEN
+        IF OLD.is_active != NEW.is_active THEN
+            UPDATE support_groups 
+            SET member_count = (
+                SELECT COUNT(*) 
+                FROM support_group_memberships 
+                WHERE group_id = NEW.group_id AND is_active = true
+            )
+            WHERE id = NEW.group_id;
+        END IF;
+        RETURN NEW;
+    ELSIF TG_OP = 'DELETE' THEN
+        UPDATE support_groups 
+        SET member_count = (
+            SELECT COUNT(*) 
+            FROM support_group_memberships 
+            WHERE group_id = OLD.group_id AND is_active = true
+        )
+        WHERE id = OLD.group_id;
+        RETURN OLD;
+    END IF;
+    RETURN NULL;
+END;
+$$;
+
+
+--
+-- Name: update_support_group_post_count(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION public.update_support_group_post_count() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        UPDATE support_groups 
+        SET post_count = (
+            SELECT COUNT(*) 
+            FROM support_group_posts 
+            WHERE group_id = NEW.group_id
+        )
+        WHERE id = NEW.group_id;
+        RETURN NEW;
+    ELSIF TG_OP = 'DELETE' THEN
+        UPDATE support_groups 
+        SET post_count = (
+            SELECT COUNT(*) 
+            FROM support_group_posts 
+            WHERE group_id = OLD.group_id
+        )
+        WHERE id = OLD.group_id;
+        RETURN OLD;
+    END IF;
+    RETURN NULL;
+END;
+$$;
+
+
+--
+-- Name: update_support_group_timestamp(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION public.update_support_group_timestamp() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    NEW.updated_at = now();
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: update_thank_you_notes_updated_at(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION public.update_thank_you_notes_updated_at() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    NEW.updated_at := CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: update_time_logs_timestamp(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION public.update_time_logs_timestamp() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: update_writing_practice_timestamp(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION public.update_writing_practice_timestamp() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$;
 
 
 --

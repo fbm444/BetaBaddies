@@ -19,14 +19,13 @@ class HistoricalPerformanceService {
         `SELECT 
           outcome,
           interview_type,
-          interview_date,
-          job_opportunity_id,
-          feedback_score
+          COALESCE(scheduled_at, date) as interview_date,
+          job_opportunity_id
          FROM interviews
          WHERE user_id = $1 
            AND outcome IS NOT NULL
            AND outcome != 'pending'
-         ORDER BY interview_date DESC`,
+         ORDER BY COALESCE(scheduled_at, date) DESC`,
         [userId]
       );
 

@@ -112,7 +112,6 @@ logger.info("CORS Configuration", {
 
 app.use(
   cors({
-<<<<<<< HEAD
     origin: (origin, callback) => {
       // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) {
@@ -333,45 +332,53 @@ app.use(passport.session());
 const useLocalStorage =
   !process.env.CLOUD_PROVIDER || process.env.CLOUD_PROVIDER === "local";
 if (process.env.NODE_ENV === "development" && useLocalStorage) {
-  app.use("/uploads", (req, res, next) => {
-    const origin = req.headers.origin;
-    const allowedOrigins = [
-      process.env.FRONTEND_URL || "http://localhost:3000",
-      "http://localhost:5173", // Vite dev server
-      "http://localhost:3000", // Alternative frontend port
-    ];
-    
-    if (origin && allowedOrigins.includes(origin)) {
-      res.header("Access-Control-Allow-Origin", origin);
-    } else {
-      res.header("Access-Control-Allow-Origin", allowedOrigins[0]);
-    }
-    res.header("Access-Control-Allow-Credentials", "true");
-    res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
-    next();
-  }, express.static("uploads"));
+  app.use(
+    "/uploads",
+    (req, res, next) => {
+      const origin = req.headers.origin;
+      const allowedOrigins = [
+        process.env.FRONTEND_URL || "http://localhost:3000",
+        "http://localhost:5173", // Vite dev server
+        "http://localhost:3000", // Alternative frontend port
+      ];
+
+      if (origin && allowedOrigins.includes(origin)) {
+        res.header("Access-Control-Allow-Origin", origin);
+      } else {
+        res.header("Access-Control-Allow-Origin", allowedOrigins[0]);
+      }
+      res.header("Access-Control-Allow-Credentials", "true");
+      res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
+      next();
+    },
+    express.static("uploads")
+  );
 } else if (process.env.NODE_ENV === "production" && useLocalStorage) {
   // In production with local storage, still serve files but log warning
   console.warn(
     "⚠️ WARNING: Using local file storage in production. Consider using cloud storage."
   );
-  app.use("/uploads", (req, res, next) => {
-    const origin = req.headers.origin;
-    const allowedOrigins = [
-      process.env.FRONTEND_URL || "http://localhost:3000",
-      "http://localhost:5173", // Vite dev server
-      "http://localhost:3000", // Alternative frontend port
-    ];
-    
-    if (origin && allowedOrigins.includes(origin)) {
-      res.header("Access-Control-Allow-Origin", origin);
-    } else {
-      res.header("Access-Control-Allow-Origin", allowedOrigins[0]);
-    }
-    res.header("Access-Control-Allow-Credentials", "true");
-    res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
-    next();
-  }, express.static("uploads"));
+  app.use(
+    "/uploads",
+    (req, res, next) => {
+      const origin = req.headers.origin;
+      const allowedOrigins = [
+        process.env.FRONTEND_URL || "http://localhost:3000",
+        "http://localhost:5173", // Vite dev server
+        "http://localhost:3000", // Alternative frontend port
+      ];
+
+      if (origin && allowedOrigins.includes(origin)) {
+        res.header("Access-Control-Allow-Origin", origin);
+      } else {
+        res.header("Access-Control-Allow-Origin", allowedOrigins[0]);
+      }
+      res.header("Access-Control-Allow-Credentials", "true");
+      res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
+      next();
+    },
+    express.static("uploads")
+  );
 }
 
 // Health check endpoint

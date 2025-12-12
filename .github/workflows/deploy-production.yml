@@ -139,158 +139,158 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PRODUCTION_PROJECT_ID }}
 
-  notify:
-    name: Send Deployment Notification
-    needs: [deploy-frontend]
-    runs-on: ubuntu-latest
-    if: always()
-
-    steps:
-      - name: Send SMS notification via SNS
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION || 'us-east-2' }}
-          PHONE_NUMBER: ${{ secrets.AWS_SNS_PHONE_NUMBER }}
-        run: |
-          # Check if credentials are configured
-          if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ] || [ -z "$PHONE_NUMBER" ]; then
-            echo "⚠️ SMS notification skipped - AWS credentials or phone number not configured"
-            echo "To enable SMS notifications, set these secrets:"
-            echo "  - AWS_ACCESS_KEY_ID"
-            echo "  - AWS_SECRET_ACCESS_KEY"
-            echo "  - AWS_SNS_PHONE_NUMBER"
-            exit 0
-          fi
-
-          # Verify AWS CLI is available
-          if ! command -v aws &> /dev/null; then
-            echo "⚠️ AWS CLI is not installed - skipping SMS notification"
-            exit 0
-          fi
-
-          echo "✅ AWS credentials configured"
-          echo "📍 Region: $AWS_DEFAULT_REGION"
-
-          STATUS="${{ job.status }}"
-          EMOJI=""
-          case "$STATUS" in
-            success)
-              EMOJI="✅"
-              ;;
-            failure)
-              EMOJI="❌"
-              ;;
-            cancelled)
-              EMOJI="⚠️"
-              ;;
-            *)
-              EMOJI="ℹ️"
-              ;;
-          esac
-
-          MESSAGE="${EMOJI} Deployment ${STATUS}: ${{ github.repository }} - Branch: ${{ github.ref_name }} - Commit: ${GITHUB_SHA:0:7}"
-
-          # Truncate to 160 characters (SMS limit)
-          MESSAGE="${MESSAGE:0:160}"
-
-          echo "📱 Sending SMS..."
-          echo "📝 Message: $MESSAGE"
-
-          aws sns publish \
-            --region "$AWS_DEFAULT_REGION" \
-            --phone-number "$PHONE_NUMBER" \
-            --message "$MESSAGE" \
-            --message-attributes '{"AWS.SNS.SMS.SMSType":{"DataType":"String","StringValue":"Transactional"}}' \
-            && echo "✅ SMS sent successfully" \
-            || echo "⚠️ Failed to send SMS - continuing anyway"
-        if: always()
-        continue-on-error: true
-
-      - name: Send email notification via SES
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION || 'us-east-2' }}
-          SES_FROM_EMAIL: ${{ secrets.SES_FROM_EMAIL }}
-          SES_TO_EMAIL: ${{ secrets.SES_TO_EMAIL }}
-        run: |
-          # Check if credentials are configured
-          if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ] || [ -z "$SES_FROM_EMAIL" ] || [ -z "$SES_TO_EMAIL" ]; then
-            echo "⚠️ Email notification skipped - AWS credentials or email addresses not configured"
-            echo "To enable email notifications, set these secrets:"
-            echo "  - AWS_ACCESS_KEY_ID"
-            echo "  - AWS_SECRET_ACCESS_KEY"
-            echo "  - SES_FROM_EMAIL (verified sender email in SES)"
-            echo "  - SES_TO_EMAIL (recipient email)"
-            exit 0
-          fi
-          
-          # Verify AWS CLI is available
-          if ! command -v aws &> /dev/null; then
-            echo "⚠️ AWS CLI is not installed - skipping email notification"
-            exit 0
-          fi
-          
-          STATUS="${{ job.status }}"
-          EMOJI=""
-          case "$STATUS" in
-            success)
-              EMOJI="✅"
-              ;;
-            failure)
-              EMOJI="❌"
-              ;;
-            cancelled)
-              EMOJI="⚠️"
-              ;;
-            *)
-              EMOJI="ℹ️"
-              ;;
-          esac
-          
-          SUBJECT="${EMOJI} Deployment ${STATUS}: ${{ github.repository }}"
-          
-          BODY="Deployment Status: ${STATUS}
-          
-Repository: ${{ github.repository }}
-Branch: ${{ github.ref_name }}
-Commit: ${GITHUB_SHA:0:7}
-Author: ${{ github.actor }}
-Workflow: ${{ github.workflow }}
-Run ID: ${{ github.run_id }}
-
-View deployment: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          
-          echo "📧 Sending email notification..."
-          echo "📤 From: $SES_FROM_EMAIL"
-          echo "📥 To: $SES_TO_EMAIL"
-          
-          # Create temporary file for email body
-          BODY_FILE=$(mktemp)
-          echo "$BODY" > "$BODY_FILE"
-          
-          aws ses send-email \
-            --region "$AWS_DEFAULT_REGION" \
-            --source "$SES_FROM_EMAIL" \
-            --destination "ToAddresses=$SES_TO_EMAIL" \
-            --message "Subject={Data='$SUBJECT',Charset=UTF-8},Body={Text={Data=file://$BODY_FILE,Charset=UTF-8}}" \
-            && echo "✅ Email sent successfully" \
-            || echo "⚠️ Failed to send email - continuing anyway"
-          
-          rm -f "$BODY_FILE"
-        if: always()
-        continue-on-error: true
-
-      - name: Create GitHub deployment
-        uses: actions/github-script@v7
-        with:
-          script: |
-            github.rest.repos.createDeployment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              ref: context.sha,
-              environment: 'production',
-              auto_merge: false,
-              required_contexts: []
-            })
+  # notify:
+  #   name: Send Deployment Notification
+  #   needs: [deploy-frontend]
+  #   runs-on: ubuntu-latest
+  #   if: always()
+  #
+  #   steps:
+  #     - name: Send SMS notification via SNS
+  #       env:
+  #         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  #         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  #         AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION || 'us-east-2' }}
+  #         PHONE_NUMBER: ${{ secrets.AWS_SNS_PHONE_NUMBER }}
+  #       run: |
+  #         # Check if credentials are configured
+  #         if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ] || [ -z "$PHONE_NUMBER" ]; then
+  #           echo "⚠️ SMS notification skipped - AWS credentials or phone number not configured"
+  #           echo "To enable SMS notifications, set these secrets:"
+  #           echo "  - AWS_ACCESS_KEY_ID"
+  #           echo "  - AWS_SECRET_ACCESS_KEY"
+  #           echo "  - AWS_SNS_PHONE_NUMBER"
+  #           exit 0
+  #         fi
+  #
+  #         # Verify AWS CLI is available
+  #         if ! command -v aws &> /dev/null; then
+  #           echo "⚠️ AWS CLI is not installed - skipping SMS notification"
+  #           exit 0
+  #         fi
+  #
+  #         echo "✅ AWS credentials configured"
+  #         echo "📍 Region: $AWS_DEFAULT_REGION"
+  #
+  #         STATUS="${{ job.status }}"
+  #         EMOJI=""
+  #         case "$STATUS" in
+  #           success)
+  #             EMOJI="✅"
+  #             ;;
+  #           failure)
+  #             EMOJI="❌"
+  #             ;;
+  #           cancelled)
+  #             EMOJI="⚠️"
+  #             ;;
+  #           *)
+  #             EMOJI="ℹ️"
+  #             ;;
+  #         esac
+  #
+  #         MESSAGE="${EMOJI} Deployment ${STATUS}: ${{ github.repository }} - Branch: ${{ github.ref_name }} - Commit: ${GITHUB_SHA:0:7}"
+  #
+  #         # Truncate to 160 characters (SMS limit)
+  #         MESSAGE="${MESSAGE:0:160}"
+  #
+  #         echo "📱 Sending SMS..."
+  #         echo "📝 Message: $MESSAGE"
+  #
+  #         aws sns publish \
+  #           --region "$AWS_DEFAULT_REGION" \
+  #           --phone-number "$PHONE_NUMBER" \
+  #           --message "$MESSAGE" \
+  #           --message-attributes '{"AWS.SNS.SMS.SMSType":{"DataType":"String","StringValue":"Transactional"}}' \
+  #           && echo "✅ SMS sent successfully" \
+  #           || echo "⚠️ Failed to send SMS - continuing anyway"
+  #       if: always()
+  #       continue-on-error: true
+  #
+  #     - name: Send email notification via SES
+  #       env:
+  #         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  #         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  #         AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION || 'us-east-2' }}
+  #         SES_FROM_EMAIL: ${{ secrets.SES_FROM_EMAIL }}
+  #         SES_TO_EMAIL: ${{ secrets.SES_TO_EMAIL }}
+  #       run: |
+  #         # Check if credentials are configured
+  #         if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ] || [ -z "$SES_FROM_EMAIL" ] || [ -z "$SES_TO_EMAIL" ]; then
+  #           echo "⚠️ Email notification skipped - AWS credentials or email addresses not configured"
+  #           echo "To enable email notifications, set these secrets:"
+  #           echo "  - AWS_ACCESS_KEY_ID"
+  #           echo "  - AWS_SECRET_ACCESS_KEY"
+  #           echo "  - SES_FROM_EMAIL (verified sender email in SES)"
+  #           echo "  - SES_TO_EMAIL (recipient email)"
+  #           exit 0
+  #         fi
+  #
+  #         # Verify AWS CLI is available
+  #         if ! command -v aws &> /dev/null; then
+  #           echo "⚠️ AWS CLI is not installed - skipping email notification"
+  #           exit 0
+  #         fi
+  #
+  #         STATUS="${{ job.status }}"
+  #         EMOJI=""
+  #         case "$STATUS" in
+  #           success)
+  #             EMOJI="✅"
+  #             ;;
+  #           failure)
+  #             EMOJI="❌"
+  #             ;;
+  #           cancelled)
+  #             EMOJI="⚠️"
+  #             ;;
+  #           *)
+  #             EMOJI="ℹ️"
+  #             ;;
+  #         esac
+  #
+  #         SUBJECT="${EMOJI} Deployment ${STATUS}: ${{ github.repository }}"
+  #
+  #         BODY="Deployment Status: ${STATUS}
+  #
+  # Repository: ${{ github.repository }}
+  # Branch: ${{ github.ref_name }}
+  # Commit: ${GITHUB_SHA:0:7}
+  # Author: ${{ github.actor }}
+  # Workflow: ${{ github.workflow }}
+  # Run ID: ${{ github.run_id }}
+  #
+  # View deployment: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+  #
+  #         echo "📧 Sending email notification..."
+  #         echo "📤 From: $SES_FROM_EMAIL"
+  #         echo "📥 To: $SES_TO_EMAIL"
+  #
+  #         # Create temporary file for email body
+  #         BODY_FILE=$(mktemp)
+  #         echo "$BODY" > "$BODY_FILE"
+  #
+  #         aws ses send-email \
+  #           --region "$AWS_DEFAULT_REGION" \
+  #           --source "$SES_FROM_EMAIL" \
+  #           --destination "ToAddresses=$SES_TO_EMAIL" \
+  #           --message "Subject={Data='$SUBJECT',Charset=UTF-8},Body={Text={Data=file://$BODY_FILE,Charset=UTF-8}}" \
+  #           && echo "✅ Email sent successfully" \
+  #           || echo "⚠️ Failed to send email - continuing anyway"
+  #
+  #         rm -f "$BODY_FILE"
+  #       if: always()
+  #       continue-on-error: true
+  #
+  #     - name: Create GitHub deployment
+  #       uses: actions/github-script@v7
+  #       with:
+  #         script: |
+  #           github.rest.repos.createDeployment({
+  #             owner: context.repo.owner,
+  #             repo: context.repo.repo,
+  #             ref: context.sha,
+  #             environment: 'production',
+  #             auto_merge: false,
+  #             required_contexts: []
+  #           })

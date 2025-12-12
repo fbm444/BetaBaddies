@@ -2,9 +2,9 @@ name: CI Pipeline
 
 on:
   push:
-    branches: [main, development]
+    branches: [main, staging]
   pull_request:
-    branches: [main, development]
+    branches: [main, staging]
 
 jobs:
   test-backend:
@@ -71,9 +71,13 @@ jobs:
           DB_USER: postgres
           DB_PASS: postgres
           SERVER_PORT: 3001
-          NODE_ENV: test
+          NODE_ENV: development
           SESSION_SECRET: test-secret-key
           FRONTEND_URL: http://localhost:3000
+          BACKEND_URL: http://localhost:3001
+          CORS_ORIGIN: http://localhost:3000
+          CLOUD_PROVIDER: local
+          UPLOAD_MAX_SIZE: 10mb
         run: npm run test:all
 
       - name: Upload test results

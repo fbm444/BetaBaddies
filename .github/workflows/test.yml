@@ -2,9 +2,9 @@ name: Backend Tests
 
 on:
   push:
-    branches: [main, development, google-auth]
+    branches: [main, staging, development]
   pull_request:
-    branches: [main, development, google-auth]
+    branches: [main, staging, development]
 
 jobs:
   test:
@@ -70,9 +70,13 @@ jobs:
           DB_USER: postgres
           DB_PASS: postgres
           SERVER_PORT: 3001
-          NODE_ENV: test
+          NODE_ENV: development
           SESSION_SECRET: test-secret-key
           FRONTEND_URL: http://localhost:3000
+          BACKEND_URL: http://localhost:3001
+          CORS_ORIGIN: http://localhost:3000
+          CLOUD_PROVIDER: local
+          UPLOAD_MAX_SIZE: 10mb
         run: npm run test:all
 
       - name: Upload test results

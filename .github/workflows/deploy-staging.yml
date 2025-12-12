@@ -2,7 +2,7 @@ name: Deploy to Staging
 
 on:
   push:
-    branches: [development]
+    branches: [staging]
   workflow_dispatch:
 
 env:
@@ -74,9 +74,13 @@ jobs:
           DB_USER: postgres
           DB_PASS: postgres
           SERVER_PORT: 3001
-          NODE_ENV: test
+          NODE_ENV: development
           SESSION_SECRET: test-secret-key
           FRONTEND_URL: http://localhost:3000
+          BACKEND_URL: http://localhost:3001
+          CORS_ORIGIN: http://localhost:3000
+          CLOUD_PROVIDER: local
+          UPLOAD_MAX_SIZE: 10mb
         run: npm run test:all
 
   deploy-backend:
@@ -142,9 +146,9 @@ jobs:
         uses: 8398a7/action-slack@v3
         with:
           status: ${{ job.status }}
-          text: |
+            text: |
             🚀 Staging Deployment ${{ job.status }}
-            Branch: development
+            Branch: staging
             Commit: ${{ github.sha }}
             Author: ${{ github.actor }}
           webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}

@@ -386,14 +386,29 @@ async function runAllTests() {
       const fileId = testFiles[0].fileId;
       const response = await request(app)
         .get(`/api/v1/files/${fileId}/content`)
-        .set("Cookie", sessionCookie)
-        .expect(200);
+        .set("Cookie", sessionCookie);
 
-      if (!response.body || response.body.length === 0) {
-        throw new Error("Failed to serve file content");
+      // Handle both 200 (local storage) and 302 (cloud storage redirect)
+      if (response.status === 302) {
+        // Cloud storage - redirect is expected
+        if (!response.headers.location) {
+          throw new Error("Redirect missing location header");
+        }
+        console.log(`   ✓ File redirect served successfully (cloud storage)`);
+        console.log(`   ✓ Redirect URL: ${response.headers.location}`);
+      } else if (response.status === 200) {
+        // Local storage - file content should be in body
+        if (!response.body || (Buffer.isBuffer(response.body) && response.body.length === 0)) {
+          throw new Error("Failed to serve file content");
+        }
+        const contentLength = Buffer.isBuffer(response.body) 
+          ? response.body.length 
+          : (response.body.length || 0);
+        console.log(`   ✓ File content served successfully`);
+        console.log(`   ✓ Content length: ${contentLength} bytes`);
+      } else {
+        throw new Error(`Unexpected status code: ${response.status}`);
       }
-      console.log(`   ✓ File content served successfully`);
-      console.log(`   ✓ Content length: ${response.body.length} bytes`);
     }
   );
 

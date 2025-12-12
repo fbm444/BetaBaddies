@@ -146,17 +146,41 @@ jobs:
     if: always()
 
     steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION || 'us-east-2' }}
+      - name: Verify AWS credentials
+        run: |
+          if [ -z "${{ secrets.AWS_ACCESS_KEY_ID }}" ]; then
+            echo "❌ AWS_ACCESS_KEY_ID secret is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.AWS_SECRET_ACCESS_KEY }}" ]; then
+            echo "❌ AWS_SECRET_ACCESS_KEY secret is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.AWS_SNS_PHONE_NUMBER }}" ]; then
+            echo "❌ AWS_SNS_PHONE_NUMBER secret is not set"
+            exit 1
+          fi
+          echo "✅ All required secrets are configured"
 
       - name: Send SMS notification via SNS
         env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION || 'us-east-2' }}
           PHONE_NUMBER: ${{ secrets.AWS_SNS_PHONE_NUMBER }}
         run: |
+          # Verify AWS CLI is available
+          if ! command -v aws &> /dev/null; then
+            echo "❌ AWS CLI is not installed"
+            exit 1
+          fi
+
+          # Verify credentials are set
+          if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
+            echo "❌ AWS credentials are not set in environment"
+            exit 1
+          fi
+
           STATUS="${{ job.status }}"
           EMOJI=""
           case "$STATUS" in
@@ -179,16 +203,23 @@ jobs:
           # Truncate to 160 characters (SMS limit)
           MESSAGE="${MESSAGE:0:160}"
 
-          if [ -z "$PHONE_NUMBER" ]; then
-            echo "❌ AWS_SNS_PHONE_NUMBER is not set"
-            exit 1
-          fi
-
           echo "📱 Sending SMS to $PHONE_NUMBER..."
+          echo "📍 Region: $AWS_DEFAULT_REGION"
+          echo "📝 Message: $MESSAGE"
+
           aws sns publish \
+            --region "$AWS_DEFAULT_REGION" \
             --phone-number "$PHONE_NUMBER" \
             --message "$MESSAGE" \
-            --message-attributes '{"AWS.SNS.SMS.SMSType":{"DataType":"String","StringValue":"Transactional"}}'
+            --message-attributes '{"AWS.SNS.SMS.SMSType":{"DataType":"String","StringValue":"Transactional"}}' \
+            || {
+              echo "❌ Failed to send SMS"
+              echo "Checking AWS credentials..."
+              aws sts get-caller-identity || echo "❌ AWS credentials are invalid"
+              exit 1
+            }
+
+          echo "✅ SMS sent successfully"
         if: always()
         continue-on-error: true
 

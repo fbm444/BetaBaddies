@@ -82,6 +82,34 @@ class MarketIntelligenceService {
    * Get comprehensive salary intelligence
    */
   async getSalaryIntelligence(jobTitle, location = null, industry = null) {
+    // Handle null or empty job title
+    if (!jobTitle || typeof jobTitle !== 'string' || jobTitle.trim().length === 0) {
+      return {
+        jobTitle: jobTitle || 'Unknown',
+        location: location || 'All locations',
+        industry,
+        yourMarket: {
+          sampleSize: 0,
+          median: null,
+          range: { min: null, max: null },
+          percentiles: null,
+          note: 'No job title provided'
+        },
+        nationalBenchmark: {
+          median: null,
+          year: new Date().getFullYear().toString(),
+          yearOverYearChange: null,
+          trend: 'unknown',
+          source: 'Market data unavailable',
+          note: 'Job title is required to fetch salary intelligence'
+        },
+        comparison: null,
+        salaryDistribution: null,
+        generatedAt: new Date().toISOString(),
+        cached: false
+      };
+    }
+
     const cacheKey = `salary:${jobTitle}:${location || 'any'}:${industry || 'any'}`;
     
     // Check cache first
@@ -167,6 +195,17 @@ class MarketIntelligenceService {
    * Get salary data from your database
    */
   async getYourSalaryData(jobTitle, location, industry) {
+    // Handle null or empty job title
+    if (!jobTitle || typeof jobTitle !== 'string') {
+      return {
+        sampleSize: 0,
+        median: null,
+        range: { min: null, max: null },
+        percentiles: null,
+        note: 'No job title provided'
+      };
+    }
+
     // Extract keywords from job title for broader matching
     // e.g., "Senior Software Engineer" -> ["Senior", "Software", "Engineer"]
     const keywords = jobTitle.split(' ').filter(word => 

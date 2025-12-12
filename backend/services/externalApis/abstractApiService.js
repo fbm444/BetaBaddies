@@ -1,4 +1,5 @@
 import axios from "axios";
+import { wrapApiCall } from "../../utils/apiCallWrapper.js";
 
 class AbstractApiService {
   constructor() {
@@ -9,23 +10,47 @@ class AbstractApiService {
   /**
    * Enrich company data using Abstract API
    * @param {string} domain - Company domain (e.g., "google.com")
+   * @param {number} userId - Optional user ID for tracking
    */
-  async enrichCompany(domain) {
+  async enrichCompany(domain, userId = null) {
     if (!this.apiKey) {
       console.warn("⚠️ Abstract API key not configured");
       return null;
     }
 
-    try {
-      const response = await axios.get(this.baseUrl, {
-        params: {
-          api_key: this.apiKey,
-          domain: domain,
-        },
-      });
-
+    return wrapApiCall({
+      serviceName: "abstract_api",
+      endpoint: "enrichCompany",
+      userId,
+      apiCall: async () => {
+        const response = await axios.get(this.baseUrl, {
+          params: {
+            api_key: this.apiKey,
+            domain: domain,
+          },
+        });
+        return response;
+      },
+      fallback: async (error) => {
+        // Fallback: return minimal data structure
+        console.warn("Using fallback for Abstract API enrichment");
+        return {
+          data: {
+            domain: domain,
+            name: null,
+            industry: null,
+            employees_count: null,
+            year_founded: null,
+            description: null,
+            locality: null,
+            country: null,
+            linkedin_url: null,
+            logo: null,
+          },
+        };
+      },
+    }).then((response) => {
       const data = response.data;
-
       return {
         name: data.name || null,
         domain: data.domain || domain,
@@ -38,16 +63,10 @@ class AbstractApiService {
         linkedinUrl: data.linkedin_url || null,
         logoUrl: data.logo || null,
       };
-    } catch (error) {
-      console.error("❌ Error calling Abstract API:", error.message);
-      
-      // Return null on error, allow fallback to other sources
-      if (error.response?.status === 429) {
-        console.warn("⚠️ Abstract API rate limit reached");
-      }
-      
+    }).catch(() => {
+      // Return null if both API and fallback fail
       return null;
-    }
+    });
   }
 
   /**

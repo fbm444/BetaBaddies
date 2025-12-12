@@ -158,6 +158,7 @@ class UserController {
           updatedAt: user.updated_at,
           authProvider: user.auth_provider || null,
           accountType: user.account_type || 'regular',
+          role: user.role || 'candidate',
         },
       },
     });

@@ -6,7 +6,6 @@ on:
   workflow_dispatch:
 
 env:
-  RAILWAY_ENVIRONMENT: production
   NODE_ENV: production
 
 jobs:
@@ -93,53 +92,6 @@ jobs:
             exit $TEST_EXIT_CODE
           fi
 
-  deploy-backend:
-    name: Deploy Backend to Railway (Production)
-    needs: test
-    runs-on: ubuntu-latest
-    if: success()
-    container: ghcr.io/railwayapp/cli:latest
-    environment:
-      name: production
-    env:
-      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-      SVC_ID: ${{ secrets.RAILWAY_PRODUCTION_SERVICE_ID }}
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Deploy to Railway
-        working-directory: ./backend
-        run: railway up --service=${{ env.SVC_ID }}
-
-      - name: Health check
-        run: |
-          echo "🏥 Checking backend health..."
-          BACKEND_URL="${{ secrets.RAILWAY_PRODUCTION_BACKEND_URL }}"
-          if [ -n "$BACKEND_URL" ]; then
-            for i in {1..5}; do
-              if curl -f "$BACKEND_URL/health"; then
-                echo "✅ Backend health check passed"
-                exit 0
-              fi
-              echo "⏳ Health check attempt $i failed, retrying..."
-              sleep 5
-            done
-            echo "❌ Health check failed after 5 attempts"
-            exit 1
-          else
-            echo "⚠️ Backend URL not configured, skipping health check"
-          fi
-
-      - name: Create deployment record
-        if: success()
-        run: |
-          echo "📝 Recording deployment..."
-          echo "Deployment successful at $(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> deployment-history.txt
-          echo "Commit: ${{ github.sha }}" >> deployment-history.txt
-          echo "Branch: ${{ github.ref_name }}" >> deployment-history.txt
-
   deploy-frontend:
     name: Deploy Frontend to Vercel (Production)
     needs: test
@@ -189,7 +141,7 @@ jobs:
 
   notify:
     name: Send Deployment Notification
-    needs: [deploy-backend, deploy-frontend]
+    needs: [deploy-frontend]
     runs-on: ubuntu-latest
     if: always()
 

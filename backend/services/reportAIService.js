@@ -8,9 +8,15 @@ import OpenAI from "openai";
 
 class ReportAIService {
   constructor() {
-    this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (apiKey) {
+      this.openai = new OpenAI({
+        apiKey: apiKey,
+      });
+    } else {
+      this.openai = null;
+      console.warn('⚠️  OpenAI API key not found. AI report generation will use fallback responses.');
+    }
   }
 
   /**
@@ -18,6 +24,11 @@ class ReportAIService {
    */
   async generateReportNarrative(reportData, reportType, templateConfig = {}) {
     try {
+      if (!this.openai) {
+        // Fallback response when OpenAI is not configured
+        return this.getFallbackNarrative(reportData, reportType);
+      }
+
       const dataSummary = this.prepareDataSummary(reportData);
       const systemPrompt = this.getSystemPrompt(reportType);
       const userPrompt = this.getUserPrompt(
@@ -295,10 +306,38 @@ Be specific, quantitative, and personalized. If data is limited, acknowledge it 
   }
 
   /**
+   * Get fallback narrative when OpenAI is not configured
+   */
+  getFallbackNarrative(reportData, reportType) {
+    return this.formatNarrative({
+      executiveSummary: "AI-powered analysis is not currently available. Please check your configuration.",
+      dataQuality: {
+        rating: "unknown",
+        message: "Unable to assess data quality without AI analysis",
+      },
+      keyFindings: [],
+      trendAnalysis: {
+        whatsWorking: [],
+        whatsNotWorking: [],
+        emergingPatterns: [],
+      },
+      recommendations: ["Configure OpenAI API key to enable AI-powered insights"],
+      areasOfConcern: [],
+      strengths: [],
+      nextSteps: [],
+    }, reportType);
+  }
+
+  /**
    * Generate executive summary for sharing
    */
   async generateExecutiveSummary(reportData) {
     try {
+      if (!this.openai) {
+        // Fallback summary when OpenAI is not configured
+        return "AI-powered executive summary generation is not currently available. Please check your configuration.";
+      }
+
       const dataSummary = this.prepareDataSummary(reportData);
 
       const completion = await this.openai.chat.completions.create({

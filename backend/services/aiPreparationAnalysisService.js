@@ -8,9 +8,15 @@ import database from './database.js';
 
 class AIPreparationAnalysisService {
   constructor() {
-    this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (apiKey) {
+      this.openai = new OpenAI({
+        apiKey: apiKey,
+      });
+    } else {
+      this.openai = null;
+      console.warn('⚠️  OpenAI API key not found. AI preparation analysis will use fallback responses.');
+    }
   }
 
   /**
@@ -132,7 +138,44 @@ class AIPreparationAnalysisService {
       // Prepare data summary for AI
       const dataSummary = this.prepareDataForAI(prepData, concluded);
 
-      // Call OpenAI for analysis
+      // Call OpenAI for analysis (if available)
+      if (!this.openai) {
+        // Fallback to general guidance if OpenAI is not configured
+        return {
+          hasData: true,
+          hasSufficientData: true,
+          totalApplications: prepData.length,
+          concludedApplications: concluded.length,
+          dataQuality: {
+            rating: "good",
+            concludedApplications: concluded.length,
+            message: "Data available but AI analysis not configured"
+          },
+          overview: `You have ${concluded.length} concluded application${concluded.length !== 1 ? 's' : ''}. Based on your preparation patterns, focus on consistent preparation time (2-3 hours per application) for best results.`,
+          optimalPrepTime: {
+            hours: 2,
+            reasoning: "Industry standard based on successful job seekers. Track your preparation time to get personalized insights.",
+            confidence: "general_guidance"
+          },
+          keyActivities: [
+            {
+              activity: "Company Research",
+              impact: "high",
+              reasoning: "Understanding company culture and recent developments helps tailor your application."
+            },
+            {
+              activity: "Resume Tailoring",
+              impact: "high",
+              reasoning: "Matching your resume to job requirements increases interview chances."
+            }
+          ],
+          insights: [
+            "Continue tracking preparation activities for better insights",
+            "Focus on quality over quantity in applications"
+          ]
+        };
+      }
+
       const completion = await this.openai.chat.completions.create({
         model: "gpt-4o",
         messages: [

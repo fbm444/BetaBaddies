@@ -92,6 +92,7 @@ jobs:
           UPLOAD_MAX_SIZE: 10mb
           CI: true
           SHOW_TEST_OUTPUT: true
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           set -o pipefail
           echo "🚀 Starting tests..."

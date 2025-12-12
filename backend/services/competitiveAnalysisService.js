@@ -3,9 +3,15 @@ import database from './database.js';
 
 class CompetitiveAnalysisService {
   constructor() {
-    this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (apiKey) {
+      this.openai = new OpenAI({
+        apiKey: apiKey,
+      });
+    } else {
+      this.openai = null;
+      console.warn('⚠️  OpenAI API key not found. Competitive analysis will use fallback responses.');
+    }
   }
 
   /**
@@ -198,6 +204,11 @@ Provide your response in JSON format with the following structure:
   }
 }`;
 
+      if (!this.openai) {
+        // Fallback response when OpenAI is not configured
+        return this.getFallbackAnalysis(userData);
+      }
+
       const completion = await this.openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
@@ -223,6 +234,45 @@ Provide your response in JSON format with the following structure:
       console.error('❌ Error calling OpenAI:', error);
       throw error;
     }
+  }
+
+  /**
+   * Get fallback analysis when OpenAI is not configured
+   */
+  getFallbackAnalysis(userData) {
+    const totalApplications = parseInt(userData.jobStats?.total_applications) || 0;
+    const interviewCount = parseInt(userData.jobStats?.interview_count) || 0;
+    const interviewRate = totalApplications > 0 ? ((interviewCount / totalApplications) * 100).toFixed(1) : 0;
+
+    return {
+      peerBenchmarking: {
+        userApplicationsPerWeek: 0,
+        peerAverage: "Industry average: 5-10 applications per week",
+        topPerformers: "Top performers: 15-20 applications per week",
+        insight: "Configure OpenAI API key to enable personalized benchmarking"
+      },
+      skillGaps: [],
+      marketPositioning: {
+        competitivenessScore: 50,
+        level: "Moderate",
+        strengths: [],
+        insights: ["Configure OpenAI API key to enable AI-powered competitive analysis"]
+      },
+      differentiation: {
+        uniqueValueProposition: "Configure OpenAI API key to enable personalized value proposition analysis",
+        competitiveAdvantages: []
+      },
+      recommendations: {
+        quickWins: ["Configure OpenAI API key to enable AI recommendations"],
+        strategicMoves: [],
+        longTermEdge: []
+      },
+      successPatterns: {
+        avgTimeToOffer: "Configure OpenAI API key for personalized insights",
+        nextCareerStep: "Configure OpenAI API key for personalized guidance",
+        typicalProgression: "Configure OpenAI API key for personalized analysis"
+      }
+    };
   }
 }
 

@@ -19,25 +19,52 @@ const testFiles = [
   { name: "Jobs Service", file: "jobs-service.test.js" },
   { name: "Jobs API", file: "jobs-api.test.js" },
   { name: "Job Opportunities API", file: "job-opportunities-api.test.js" },
-  { name: "Certifications Functionality", file: "certifications-functionality.test.js" },
+  {
+    name: "Certifications Functionality",
+    file: "certifications-functionality.test.js",
+  },
   { name: "Certifications API", file: "certifications-api.test.js" },
   { name: "Profile API", file: "profile-api.test.js" },
   { name: "Projects API", file: "projects-api.test.js" },
-  { name: "Interview Analytics Functionality", file: "interview-analytics-functionality.test.js" },
+  {
+    name: "Interview Analytics Functionality",
+    file: "interview-analytics-functionality.test.js",
+  },
   { name: "Interview Analytics API", file: "interview-analytics-api.test.js" },
-  { name: "Reset Password Functionality", file: "reset-password-functionality.test.js" },
+  {
+    name: "Reset Password Functionality",
+    file: "reset-password-functionality.test.js",
+  },
   { name: "Reset Password API", file: "reset-password-api.test.js" },
   { name: "Education Functionality", file: "education-functionality.test.js" },
   { name: "Skills Functionality", file: "skills-functionality.test.js" },
   { name: "Projects Functionality", file: "projects-functionality.test.js" },
-  { name: "File Upload Functionality", file: "file-upload-functionality.test.js" },
+  {
+    name: "File Upload Functionality",
+    file: "file-upload-functionality.test.js",
+  },
   { name: "File Upload API", file: "file-upload-api.test.js" },
   { name: "Resume Services", file: "resume-services-test.js" },
-  { name: "Writing Practice Functionality", file: "writing-practice-functionality.test.js" },
-  { name: "Writing Prompts Functionality", file: "writing-prompts-functionality.test.js" },
-  { name: "Support Groups Functionality", file: "support-groups-functionality.test.js" },
-  { name: "Salary Negotiation Functionality", file: "salary-negotiation-functionality.test.js" },
-  { name: "Interview Prediction Functionality", file: "interview-prediction-functionality.test.js" },
+  {
+    name: "Writing Practice Functionality",
+    file: "writing-practice-functionality.test.js",
+  },
+  {
+    name: "Writing Prompts Functionality",
+    file: "writing-prompts-functionality.test.js",
+  },
+  {
+    name: "Support Groups Functionality",
+    file: "support-groups-functionality.test.js",
+  },
+  {
+    name: "Salary Negotiation Functionality",
+    file: "salary-negotiation-functionality.test.js",
+  },
+  {
+    name: "Interview Prediction Functionality",
+    file: "interview-prediction-functionality.test.js",
+  },
   { name: "Frontend GitHub Actions", file: "frontend-github-actions.test.js" },
 ];
 
@@ -83,7 +110,7 @@ function runTest(testFile) {
       const summarySection = stdout.match(/Test Summary[\s\S]{0,500}/i);
       if (summarySection) {
         const summaryText = summarySection[0];
-        
+
         // Try various patterns for total
         const totalPatterns = [
           /Total Tests?[^:]*:\s*(\d+)/i,
@@ -139,14 +166,14 @@ function runTest(testFile) {
       if (passed === 0 || failed === 0) {
         const passedMarkers = stdout.match(/✅ PASSED:/g);
         const failedMarkers = stdout.match(/❌ FAILED:/g);
-        
+
         if (passedMarkers) {
           passed = passedMarkers.length;
         }
         if (failedMarkers) {
           failed = failedMarkers.length;
         }
-        
+
         // If we have markers but no total, calculate it
         if (total === 0 && (passed > 0 || failed > 0)) {
           total = passed + failed;
@@ -188,7 +215,7 @@ function runTest(testFile) {
         file: testFile.file,
         passed,
         failed,
-        total: total || (passed + failed),
+        total: total || passed + failed,
         exitCode: code,
         success: code === 0,
       });
@@ -217,7 +244,9 @@ async function runAllTests() {
 
   for (let i = 0; i < testFiles.length; i++) {
     const testFile = testFiles[i];
-    process.stdout.write(`[${i + 1}/${testFiles.length}] Running ${testFile.name}... `);
+    process.stdout.write(
+      `[${i + 1}/${testFiles.length}] Running ${testFile.name}... `
+    );
 
     const result = await runTest(testFile);
     testResults.push(result);
@@ -226,7 +255,9 @@ async function runAllTests() {
     if (result.success) {
       process.stdout.write(`✅ PASSED (${result.passed}/${result.total})\n`);
     } else {
-      process.stdout.write(`❌ FAILED (${result.failed}/${result.total} failed)\n`);
+      process.stdout.write(
+        `❌ FAILED (${result.failed}/${result.total} failed)\n`
+      );
     }
 
     // Small delay between tests
@@ -243,7 +274,13 @@ async function runAllTests() {
 function printSummary(duration) {
   console.log("\n\n");
   console.log("╔" + "═".repeat(78) + "╗");
-  console.log("║" + " ".repeat(20) + "📊 COMPREHENSIVE TEST SUMMARY" + " ".repeat(25) + "║");
+  console.log(
+    "║" +
+      " ".repeat(20) +
+      "📊 COMPREHENSIVE TEST SUMMARY" +
+      " ".repeat(25) +
+      "║"
+  );
   console.log("╚" + "═".repeat(78) + "╝");
   console.log();
 
@@ -253,7 +290,8 @@ function printSummary(duration) {
   const totalFailed = testResults.reduce((sum, r) => sum + r.failed, 0);
   const suitesPassed = testResults.filter((r) => r.success).length;
   const suitesFailed = testResults.filter((r) => !r.success).length;
-  const successRate = totalTests > 0 ? ((totalPassed / totalTests) * 100).toFixed(1) : 0;
+  const successRate =
+    totalTests > 0 ? ((totalPassed / totalTests) * 100).toFixed(1) : 0;
 
   console.log("📈 Overall Statistics:");
   console.log("─".repeat(60));
@@ -277,9 +315,13 @@ function printSummary(duration) {
     const padding = " ".repeat(Math.max(0, 45 - result.name.length));
 
     console.log(
-      `   ${status} [${String(index + 1).padStart(2, "0")}] ${result.name}${padding} ${statusText}`
+      `   ${status} [${String(index + 1).padStart(2, "0")}] ${
+        result.name
+      }${padding} ${statusText}`
     );
-    console.log(`      Tests: ${result.passed}/${result.total} passed, ${result.failed} failed`);
+    console.log(
+      `      Tests: ${result.passed}/${result.total} passed, ${result.failed} failed`
+    );
 
     if (result.error) {
       console.log(`      Error: ${result.error}`);
@@ -313,7 +355,9 @@ function printSummary(duration) {
     testResults
       .filter((r) => r.success && r.failed === 0)
       .forEach((result) => {
-        console.log(`   • ${result.name} (${result.passed}/${result.total} tests)`);
+        console.log(
+          `   • ${result.name} (${result.passed}/${result.total} tests)`
+        );
       });
     console.log();
   }
@@ -321,7 +365,9 @@ function printSummary(duration) {
   // Final status
   console.log("╔" + "═".repeat(78) + "╗");
   if (totalFailed === 0 && suitesFailed === 0) {
-    console.log("║" + " ".repeat(25) + "🎉 ALL TESTS PASSED!" + " ".repeat(30) + "║");
+    console.log(
+      "║" + " ".repeat(25) + "🎉 ALL TESTS PASSED!" + " ".repeat(30) + "║"
+    );
   } else {
     console.log(
       "║" +
@@ -347,4 +393,3 @@ runAllTests().catch((error) => {
   console.error("\n❌ Test runner failed:", error);
   process.exit(1);
 });
-

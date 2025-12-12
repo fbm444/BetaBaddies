@@ -10,8 +10,12 @@ import salaryNegotiationService from "../services/salaryNegotiationService.js";
 import jobOpportunityService from "../services/jobOpportunityService.js";
 import database from "../services/database.js";
 
-console.log("🧪 Testing Salary Negotiation Service Functionality with Database");
-console.log("==================================================================\n");
+console.log(
+  "🧪 Testing Salary Negotiation Service Functionality with Database"
+);
+console.log(
+  "==================================================================\n"
+);
 
 const testEmail = `salary-negotiation-test-${Date.now()}@example.com`;
 const testPassword = "TestPassword123";
@@ -67,9 +71,7 @@ async function setupTestData() {
     );
     createdJobOpportunityIds.push(jobOpp.id);
 
-    console.log(
-      `   ✓ Created test user: ${testEmail} (ID: ${testUserId})`
-    );
+    console.log(`   ✓ Created test user: ${testEmail} (ID: ${testUserId})`);
     console.log(`   ✓ Created test job opportunity: ${jobOpp.id}\n`);
   } catch (error) {
     console.error(`   ❌ Failed to create test data:`, error.message);
@@ -84,10 +86,9 @@ async function cleanupTestData() {
   // Delete negotiations
   for (const negotiationId of createdNegotiationIds) {
     try {
-      await database.query(
-        "DELETE FROM salary_negotiations WHERE id = $1",
-        [negotiationId]
-      );
+      await database.query("DELETE FROM salary_negotiations WHERE id = $1", [
+        negotiationId,
+      ]);
       console.log(`   ✓ Deleted negotiation: ${negotiationId}`);
     } catch (error) {
       console.error(
@@ -100,10 +101,9 @@ async function cleanupTestData() {
   // Delete job opportunities
   for (const jobOppId of createdJobOpportunityIds) {
     try {
-      await database.query(
-        "DELETE FROM job_opportunities WHERE id = $1",
-        [jobOppId]
-      );
+      await database.query("DELETE FROM job_opportunities WHERE id = $1", [
+        jobOppId,
+      ]);
       console.log(`   ✓ Deleted job opportunity: ${jobOppId}`);
     } catch (error) {
       console.error(
@@ -168,11 +168,17 @@ async function runAllTests() {
         throw new Error("Negotiation was not created with an ID");
       }
 
-      if (negotiation.initialOffer?.baseSalary !== offerData.initialOffer.baseSalary) {
+      if (
+        negotiation.initialOffer?.baseSalary !==
+        offerData.initialOffer.baseSalary
+      ) {
         throw new Error("Initial offer base salary mismatch");
       }
 
-      if (negotiation.targetCompensation?.baseSalary !== offerData.targetCompensation.baseSalary) {
+      if (
+        negotiation.targetCompensation?.baseSalary !==
+        offerData.targetCompensation.baseSalary
+      ) {
         throw new Error("Target base salary mismatch");
       }
 
@@ -228,9 +234,8 @@ async function runAllTests() {
 
     // Test 4: Get All Negotiations for User
     await runTest("Get All Negotiations for User", async () => {
-      const negotiations = await salaryNegotiationService.getNegotiationsByUserId(
-        testUserId
-      );
+      const negotiations =
+        await salaryNegotiationService.getNegotiationsByUserId(testUserId);
 
       if (!Array.isArray(negotiations)) {
         throw new Error("Negotiations should be an array");
@@ -252,10 +257,10 @@ async function runAllTests() {
 
     // Test 5: Filter Negotiations by Status
     await runTest("Filter Negotiations by Status", async () => {
-      const negotiations = await salaryNegotiationService.getNegotiationsByUserId(
-        testUserId,
-        { status: "active" }
-      );
+      const negotiations =
+        await salaryNegotiationService.getNegotiationsByUserId(testUserId, {
+          status: "active",
+        });
 
       if (!Array.isArray(negotiations)) {
         throw new Error("Negotiations should be an array");
@@ -266,9 +271,7 @@ async function runAllTests() {
         throw new Error("Not all negotiations match the status filter");
       }
 
-      console.log(
-        `   ✓ Filtered ${negotiations.length} active negotiations`
-      );
+      console.log(`   ✓ Filtered ${negotiations.length} active negotiations`);
     });
 
     // Test 6: Calculate Total Compensation
@@ -280,15 +283,12 @@ async function runAllTests() {
         benefitsValue: 10000,
       };
 
-      const total = salaryNegotiationService.calculateTotalCompensation(
-        compensationData
-      );
+      const total =
+        salaryNegotiationService.calculateTotalCompensation(compensationData);
 
       const expectedTotal = 210000;
       if (total !== expectedTotal) {
-        throw new Error(
-          `Expected total ${expectedTotal}, got ${total}`
-        );
+        throw new Error(`Expected total ${expectedTotal}, got ${total}`);
       }
 
       console.log(`   ✓ Calculated total compensation: $${total}`);
@@ -339,22 +339,31 @@ async function runAllTests() {
       createdJobOpportunityIds.push(jobOpp2.id);
 
       // Try to create duplicate negotiation for same job
-      try {
-        await salaryNegotiationService.createNegotiation(
-          testUserId,
-          jobOpportunityId, // Same job as first negotiation
-          {
-            initialOffer: { baseSalary: 100000 },
-            targetCompensation: { baseSalary: 120000 },
-          }
-        );
-        throw new Error("Should have thrown error for duplicate negotiation");
-      } catch (error) {
-        if (!error.message.includes("already exists")) {
-          throw error;
+      // The service returns the existing negotiation with _alreadyExists flag instead of throwing
+      const result = await salaryNegotiationService.createNegotiation(
+        testUserId,
+        jobOpportunityId, // Same job as first negotiation
+        {
+          initialOffer: { baseSalary: 100000 },
+          targetCompensation: { baseSalary: 120000 },
         }
-        console.log("   ✓ Correctly prevented duplicate negotiation");
+      );
+
+      // Verify that it returned the existing negotiation with the flag
+      if (!result._alreadyExists) {
+        throw new Error(
+          "Should have returned existing negotiation with _alreadyExists flag"
+        );
       }
+
+      // Verify it's the same negotiation we created earlier
+      if (result.id !== negotiationId) {
+        throw new Error("Should have returned the existing negotiation ID");
+      }
+
+      console.log(
+        "   ✓ Correctly returned existing negotiation for duplicate request"
+      );
     });
 
     // Test 9: Error Handling - Invalid Status
@@ -407,7 +416,9 @@ async function runAllTests() {
       process.exit(1);
     } else {
       console.log("\n🎉 All salary negotiation functionality tests passed!");
-      console.log("\n✅ Core salary negotiation components are working correctly:");
+      console.log(
+        "\n✅ Core salary negotiation components are working correctly:"
+      );
       console.log("   • Negotiation creation");
       console.log("   • Negotiation retrieval");
       console.log("   • Negotiation updates");
@@ -427,4 +438,3 @@ async function runAllTests() {
 
 // Run the tests
 runAllTests().catch(console.error);
-

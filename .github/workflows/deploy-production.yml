@@ -81,7 +81,7 @@ jobs:
           CORS_ORIGIN: http://localhost:3000
           CLOUD_PROVIDER: local
           UPLOAD_MAX_SIZE: 10mb
-        run: npm run test:all
+        run: npm run test:all 2>&1 | tee test-output.log || (cat test-output.log && exit 1)
 
   deploy-backend:
     name: Deploy Backend to Railway (Production)

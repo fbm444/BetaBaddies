@@ -204,6 +204,11 @@ ALTER TABLE IF EXISTS ONLY public.group_discussions DROP CONSTRAINT IF EXISTS gr
 ALTER TABLE IF EXISTS ONLY public.group_discussions DROP CONSTRAINT IF EXISTS group_discussions_group_id_fkey;
 ALTER TABLE IF EXISTS ONLY public.group_challenges DROP CONSTRAINT IF EXISTS group_challenges_group_id_fkey;
 ALTER TABLE IF EXISTS ONLY public.goal_milestones DROP CONSTRAINT IF EXISTS goal_milestones_goal_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.github_repository_skills DROP CONSTRAINT IF EXISTS github_repository_skills_skill_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.github_repository_skills DROP CONSTRAINT IF EXISTS github_repository_skills_repository_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.github_repositories DROP CONSTRAINT IF EXISTS github_repositories_user_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.github_contributions DROP CONSTRAINT IF EXISTS github_contributions_user_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.github_contributions DROP CONSTRAINT IF EXISTS github_contributions_repository_id_fkey;
 ALTER TABLE IF EXISTS ONLY public.interview_thank_you_notes DROP CONSTRAINT IF EXISTS fk_thank_you_notes_interview;
 ALTER TABLE IF EXISTS ONLY public.cover_letter_template_usage DROP CONSTRAINT IF EXISTS fk_template_usage_user;
 ALTER TABLE IF EXISTS ONLY public.cover_letter_template_usage DROP CONSTRAINT IF EXISTS fk_template_usage_template;
@@ -257,6 +262,8 @@ ALTER TABLE IF EXISTS ONLY public.event_registrations DROP CONSTRAINT IF EXISTS 
 ALTER TABLE IF EXISTS ONLY public.event_connections DROP CONSTRAINT IF EXISTS event_connections_event_id_fkey;
 ALTER TABLE IF EXISTS ONLY public.event_connections DROP CONSTRAINT IF EXISTS event_connections_contact_id_fkey;
 ALTER TABLE IF EXISTS ONLY public.enterprise_accounts DROP CONSTRAINT IF EXISTS enterprise_accounts_admin_user_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.email_links DROP CONSTRAINT IF EXISTS email_links_user_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.email_links DROP CONSTRAINT IF EXISTS email_links_job_opportunity_id_fkey;
 ALTER TABLE IF EXISTS ONLY public.educations DROP CONSTRAINT IF EXISTS educations_user_id_fkey;
 ALTER TABLE IF EXISTS ONLY public.document_versions DROP CONSTRAINT IF EXISTS document_versions_created_by_fkey;
 ALTER TABLE IF EXISTS ONLY public.document_review_requests DROP CONSTRAINT IF EXISTS document_review_requests_reviewer_id_fkey;
@@ -268,7 +275,6 @@ ALTER TABLE IF EXISTS ONLY public.custom_reports DROP CONSTRAINT IF EXISTS custo
 ALTER TABLE IF EXISTS ONLY public.coverletter DROP CONSTRAINT IF EXISTS coverletter_user_id_fkey;
 ALTER TABLE IF EXISTS ONLY public.coverletter DROP CONSTRAINT IF EXISTS coverletter_template_is_fkey;
 ALTER TABLE IF EXISTS ONLY public.coverletter DROP CONSTRAINT IF EXISTS coverletter_parent_coverletter_id_fkey;
-ALTER TABLE IF EXISTS ONLY public.coverletter DROP CONSTRAINT IF EXISTS coverletter_job_is_fkey;
 ALTER TABLE IF EXISTS ONLY public.coverletter DROP CONSTRAINT IF EXISTS coverletter_comments_id_fkey;
 ALTER TABLE IF EXISTS ONLY public.contact_job_links DROP CONSTRAINT IF EXISTS contact_job_links_job_id_fkey;
 ALTER TABLE IF EXISTS ONLY public.contact_job_links DROP CONSTRAINT IF EXISTS contact_job_links_contact_id_fkey;
@@ -305,6 +311,14 @@ ALTER TABLE IF EXISTS ONLY public.calendar_sync_settings DROP CONSTRAINT IF EXIS
 ALTER TABLE IF EXISTS ONLY public.archived_prospectivejobs DROP CONSTRAINT IF EXISTS archived_prospectivejobs_user_id_fkey;
 ALTER TABLE IF EXISTS ONLY public.archived_prospectivejobs DROP CONSTRAINT IF EXISTS archived_prospectivejobs_current_resume_id_fkey;
 ALTER TABLE IF EXISTS ONLY public.application_success_analysis DROP CONSTRAINT IF EXISTS application_success_analysis_user_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.api_usage_reports DROP CONSTRAINT IF EXISTS api_usage_reports_service_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.api_usage_logs DROP CONSTRAINT IF EXISTS api_usage_logs_user_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.api_usage_logs DROP CONSTRAINT IF EXISTS api_usage_logs_service_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.api_response_times DROP CONSTRAINT IF EXISTS api_response_times_service_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.api_quotas DROP CONSTRAINT IF EXISTS api_quotas_service_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.api_error_logs DROP CONSTRAINT IF EXISTS api_error_logs_user_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.api_error_logs DROP CONSTRAINT IF EXISTS api_error_logs_service_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.api_alerts DROP CONSTRAINT IF EXISTS api_alerts_service_id_fkey;
 ALTER TABLE IF EXISTS ONLY public.advisor_shared_data DROP CONSTRAINT IF EXISTS advisor_shared_data_advisor_id_fkey;
 ALTER TABLE IF EXISTS ONLY public.advisor_sessions DROP CONSTRAINT IF EXISTS advisor_sessions_advisor_id_fkey;
 ALTER TABLE IF EXISTS ONLY public.advisor_recommendations DROP CONSTRAINT IF EXISTS advisor_recommendations_advisor_id_fkey;
@@ -325,7 +339,10 @@ DROP TRIGGER IF EXISTS update_post_count_trigger ON public.support_group_posts;
 DROP TRIGGER IF EXISTS update_member_count_trigger ON public.support_group_memberships;
 DROP TRIGGER IF EXISTS update_job_opportunities_updated_at ON public.job_opportunities;
 DROP TRIGGER IF EXISTS update_interview_prediction_timestamp ON public.interview_success_predictions;
+DROP TRIGGER IF EXISTS update_email_links_updated_at ON public.email_links;
 DROP TRIGGER IF EXISTS update_comment_count_trigger ON public.support_group_post_comments;
+DROP TRIGGER IF EXISTS update_api_services_timestamp ON public.api_services;
+DROP TRIGGER IF EXISTS update_api_quotas_timestamp ON public.api_quotas;
 DROP TRIGGER IF EXISTS update_accuracy_metrics_timestamp ON public.prediction_accuracy_metrics;
 DROP TRIGGER IF EXISTS trigger_update_time_logs_timestamp ON public.time_logs;
 DROP TRIGGER IF EXISTS trigger_update_salary_negotiation_timestamp ON public.salary_negotiations;
@@ -341,6 +358,7 @@ DROP TRIGGER IF EXISTS trg_update_market_insights_timestamp ON public.market_ins
 DROP TRIGGER IF EXISTS trg_update_interviews_updated_at ON public.interviews;
 DROP TRIGGER IF EXISTS trg_update_interview_feedback_updated_at ON public.interview_feedback;
 DROP TRIGGER IF EXISTS trg_update_follow_ups_updated_at ON public.interview_follow_ups;
+DROP TRIGGER IF EXISTS trg_update_certification_timestamp ON public.certifications;
 DROP TRIGGER IF EXISTS trg_teams_updated_at ON public.teams;
 DROP TRIGGER IF EXISTS trg_team_billing_updated_at ON public.team_billing;
 DROP TRIGGER IF EXISTS trg_salary_negotiation_prep_updated_at ON public.salary_negotiation_prep;
@@ -369,6 +387,7 @@ DROP TRIGGER IF EXISTS trg_auto_archive_jobs ON public.prospectivejobs;
 DROP TRIGGER IF EXISTS trg_advisor_recommendations_updated_at ON public.advisor_recommendations;
 DROP TRIGGER IF EXISTS set_updated_at ON public.users;
 DROP TRIGGER IF EXISTS lowercaseemail ON public.users;
+DROP INDEX IF EXISTS public.ux_geocoding_cache_query;
 DROP INDEX IF EXISTS public.unique_post_like;
 DROP INDEX IF EXISTS public.unique_monthly_challenge;
 DROP INDEX IF EXISTS public.unique_comment_like;
@@ -391,6 +410,7 @@ DROP INDEX IF EXISTS public.idx_writing_feedback_overall_score;
 DROP INDEX IF EXISTS public.idx_writing_feedback_created_at;
 DROP INDEX IF EXISTS public.idx_users_linkedin_id;
 DROP INDEX IF EXISTS public.idx_users_google_id;
+DROP INDEX IF EXISTS public.idx_users_github_username;
 DROP INDEX IF EXISTS public.idx_users_account_type;
 DROP INDEX IF EXISTS public.idx_user_cohorts_enterprise_id;
 DROP INDEX IF EXISTS public.idx_time_tracking_user_id;
@@ -610,6 +630,17 @@ DROP INDEX IF EXISTS public.idx_interview_analytics_user_id;
 DROP INDEX IF EXISTS public.idx_informational_interviews_user_id;
 DROP INDEX IF EXISTS public.idx_group_memberships_user_id;
 DROP INDEX IF EXISTS public.idx_group_memberships_group_id;
+DROP INDEX IF EXISTS public.idx_github_repos_user_id;
+DROP INDEX IF EXISTS public.idx_github_repos_last_synced;
+DROP INDEX IF EXISTS public.idx_github_repos_language;
+DROP INDEX IF EXISTS public.idx_github_repos_github_repo_id;
+DROP INDEX IF EXISTS public.idx_github_repos_featured;
+DROP INDEX IF EXISTS public.idx_github_repo_skills_skill;
+DROP INDEX IF EXISTS public.idx_github_repo_skills_repo;
+DROP INDEX IF EXISTS public.idx_github_contributions_user;
+DROP INDEX IF EXISTS public.idx_github_contributions_repo;
+DROP INDEX IF EXISTS public.idx_github_contributions_date;
+DROP INDEX IF EXISTS public.idx_geocoding_cache_location;
 DROP INDEX IF EXISTS public.idx_follow_ups_interview_id;
 DROP INDEX IF EXISTS public.idx_follow_ups_due_date;
 DROP INDEX IF EXISTS public.idx_follow_ups_completed;
@@ -640,6 +671,10 @@ DROP INDEX IF EXISTS public.idx_event_registrations_user_id;
 DROP INDEX IF EXISTS public.idx_event_registrations_event_id;
 DROP INDEX IF EXISTS public.idx_event_connections_event_id;
 DROP INDEX IF EXISTS public.idx_enterprise_accounts_admin_user_id;
+DROP INDEX IF EXISTS public.idx_email_links_user_id;
+DROP INDEX IF EXISTS public.idx_email_links_job_opportunity_id;
+DROP INDEX IF EXISTS public.idx_email_links_gmail_message_id;
+DROP INDEX IF EXISTS public.idx_email_links_email_date;
 DROP INDEX IF EXISTS public.idx_document_versions_document;
 DROP INDEX IF EXISTS public.idx_document_versions_created_by;
 DROP INDEX IF EXISTS public.idx_document_review_requests_reviewer_id;
@@ -682,9 +717,25 @@ DROP INDEX IF EXISTS public.idx_chat_conversations_team;
 DROP INDEX IF EXISTS public.idx_chat_conversations_related;
 DROP INDEX IF EXISTS public.idx_challenge_participants_user_id;
 DROP INDEX IF EXISTS public.idx_challenge_participants_challenge_id;
+DROP INDEX IF EXISTS public.idx_certifications_user_category;
+DROP INDEX IF EXISTS public.idx_certifications_platform;
+DROP INDEX IF EXISTS public.idx_certifications_category;
 DROP INDEX IF EXISTS public.idx_career_goals_user_id;
 DROP INDEX IF EXISTS public.idx_calendar_sync_settings_user_id;
 DROP INDEX IF EXISTS public.idx_application_success_analysis_user_id;
+DROP INDEX IF EXISTS public.idx_api_usage_logs_user_id;
+DROP INDEX IF EXISTS public.idx_api_usage_logs_success;
+DROP INDEX IF EXISTS public.idx_api_usage_logs_service_id;
+DROP INDEX IF EXISTS public.idx_api_usage_logs_created_at;
+DROP INDEX IF EXISTS public.idx_api_response_times_service_id;
+DROP INDEX IF EXISTS public.idx_api_response_times_created_at;
+DROP INDEX IF EXISTS public.idx_api_quotas_service_id;
+DROP INDEX IF EXISTS public.idx_api_quotas_period;
+DROP INDEX IF EXISTS public.idx_api_error_logs_service_id;
+DROP INDEX IF EXISTS public.idx_api_error_logs_error_code;
+DROP INDEX IF EXISTS public.idx_api_error_logs_created_at;
+DROP INDEX IF EXISTS public.idx_api_alerts_service_id;
+DROP INDEX IF EXISTS public.idx_api_alerts_resolved;
 DROP INDEX IF EXISTS public.idx_activity_logs_user;
 DROP INDEX IF EXISTS public.idx_activity_logs_type;
 DROP INDEX IF EXISTS public.idx_activity_logs_team;
@@ -703,6 +754,7 @@ ALTER TABLE IF EXISTS ONLY public.interview_pre_assessment DROP CONSTRAINT IF EX
 ALTER TABLE IF EXISTS ONLY public.interview_post_reflection DROP CONSTRAINT IF EXISTS unique_post_reflection_per_interview;
 ALTER TABLE IF EXISTS ONLY public.support_group_memberships DROP CONSTRAINT IF EXISTS unique_membership;
 ALTER TABLE IF EXISTS ONLY public.interview_reminders DROP CONSTRAINT IF EXISTS unique_interview_reminder;
+ALTER TABLE IF EXISTS ONLY public.email_links DROP CONSTRAINT IF EXISTS unique_email_link;
 ALTER TABLE IF EXISTS ONLY public.interview_conflicts DROP CONSTRAINT IF EXISTS unique_conflict_pair;
 ALTER TABLE IF EXISTS ONLY public.support_group_challenge_participants DROP CONSTRAINT IF EXISTS unique_challenge_participant;
 ALTER TABLE IF EXISTS ONLY public.time_tracking DROP CONSTRAINT IF EXISTS time_tracking_pkey;
@@ -828,6 +880,14 @@ ALTER TABLE IF EXISTS ONLY public.group_memberships DROP CONSTRAINT IF EXISTS gr
 ALTER TABLE IF EXISTS ONLY public.group_discussions DROP CONSTRAINT IF EXISTS group_discussions_pkey;
 ALTER TABLE IF EXISTS ONLY public.group_challenges DROP CONSTRAINT IF EXISTS group_challenges_pkey;
 ALTER TABLE IF EXISTS ONLY public.goal_milestones DROP CONSTRAINT IF EXISTS goal_milestones_pkey;
+ALTER TABLE IF EXISTS ONLY public.github_repository_skills DROP CONSTRAINT IF EXISTS github_repository_skills_repository_id_skill_id_key;
+ALTER TABLE IF EXISTS ONLY public.github_repository_skills DROP CONSTRAINT IF EXISTS github_repository_skills_pkey;
+ALTER TABLE IF EXISTS ONLY public.github_repositories DROP CONSTRAINT IF EXISTS github_repositories_user_id_github_repo_id_key;
+ALTER TABLE IF EXISTS ONLY public.github_repositories DROP CONSTRAINT IF EXISTS github_repositories_pkey;
+ALTER TABLE IF EXISTS ONLY public.github_contributions DROP CONSTRAINT IF EXISTS github_contributions_user_id_repository_id_date_key;
+ALTER TABLE IF EXISTS ONLY public.github_contributions DROP CONSTRAINT IF EXISTS github_contributions_pkey;
+ALTER TABLE IF EXISTS ONLY public.geocoding_cache DROP CONSTRAINT IF EXISTS geocoding_cache_query_unique;
+ALTER TABLE IF EXISTS ONLY public.geocoding_cache DROP CONSTRAINT IF EXISTS geocoding_cache_pkey;
 ALTER TABLE IF EXISTS ONLY public.followup_templates DROP CONSTRAINT IF EXISTS followup_templates_pkey;
 ALTER TABLE IF EXISTS ONLY public.files DROP CONSTRAINT IF EXISTS files_pkey;
 ALTER TABLE IF EXISTS ONLY public.feedback_themes DROP CONSTRAINT IF EXISTS feedback_themes_theme_name_key;
@@ -850,6 +910,7 @@ ALTER TABLE IF EXISTS ONLY public.event_registrations DROP CONSTRAINT IF EXISTS 
 ALTER TABLE IF EXISTS ONLY public.event_registrations DROP CONSTRAINT IF EXISTS event_registrations_pkey;
 ALTER TABLE IF EXISTS ONLY public.event_connections DROP CONSTRAINT IF EXISTS event_connections_pkey;
 ALTER TABLE IF EXISTS ONLY public.enterprise_accounts DROP CONSTRAINT IF EXISTS enterprise_accounts_pkey;
+ALTER TABLE IF EXISTS ONLY public.email_links DROP CONSTRAINT IF EXISTS email_links_pkey;
 ALTER TABLE IF EXISTS ONLY public.educations DROP CONSTRAINT IF EXISTS educations_pkey;
 ALTER TABLE IF EXISTS ONLY public.document_versions DROP CONSTRAINT IF EXISTS document_versions_pkey;
 ALTER TABLE IF EXISTS ONLY public.document_versions DROP CONSTRAINT IF EXISTS document_versions_document_type_document_id_version_number_key;
@@ -886,12 +947,29 @@ ALTER TABLE IF EXISTS ONLY public.calendar_sync_settings DROP CONSTRAINT IF EXIS
 ALTER TABLE IF EXISTS ONLY public.calendar_sync_settings DROP CONSTRAINT IF EXISTS calendar_sync_settings_pkey;
 ALTER TABLE IF EXISTS ONLY public.archived_prospectivejobs DROP CONSTRAINT IF EXISTS archived_prospectivejobs_pkey;
 ALTER TABLE IF EXISTS ONLY public.application_success_analysis DROP CONSTRAINT IF EXISTS application_success_analysis_pkey;
+ALTER TABLE IF EXISTS ONLY public.api_usage_reports DROP CONSTRAINT IF EXISTS api_usage_reports_service_id_report_week_start_key;
+ALTER TABLE IF EXISTS ONLY public.api_usage_reports DROP CONSTRAINT IF EXISTS api_usage_reports_pkey;
+ALTER TABLE IF EXISTS ONLY public.api_usage_logs DROP CONSTRAINT IF EXISTS api_usage_logs_pkey;
+ALTER TABLE IF EXISTS ONLY public.api_services DROP CONSTRAINT IF EXISTS api_services_service_name_key;
+ALTER TABLE IF EXISTS ONLY public.api_services DROP CONSTRAINT IF EXISTS api_services_pkey;
+ALTER TABLE IF EXISTS ONLY public.api_response_times DROP CONSTRAINT IF EXISTS api_response_times_pkey;
+ALTER TABLE IF EXISTS ONLY public.api_quotas DROP CONSTRAINT IF EXISTS api_quotas_service_id_period_type_period_start_key;
+ALTER TABLE IF EXISTS ONLY public.api_quotas DROP CONSTRAINT IF EXISTS api_quotas_pkey;
+ALTER TABLE IF EXISTS ONLY public.api_error_logs DROP CONSTRAINT IF EXISTS api_error_logs_pkey;
+ALTER TABLE IF EXISTS ONLY public.api_alerts DROP CONSTRAINT IF EXISTS api_alerts_pkey;
 ALTER TABLE IF EXISTS ONLY public.advisor_shared_data DROP CONSTRAINT IF EXISTS advisor_shared_data_pkey;
 ALTER TABLE IF EXISTS ONLY public.advisor_sessions DROP CONSTRAINT IF EXISTS advisor_sessions_pkey;
 ALTER TABLE IF EXISTS ONLY public.advisor_recommendations DROP CONSTRAINT IF EXISTS advisor_recommendations_pkey;
 ALTER TABLE IF EXISTS ONLY public.advisor_performance_evaluation DROP CONSTRAINT IF EXISTS advisor_performance_evaluation_pkey;
 ALTER TABLE IF EXISTS ONLY public.activity_logs DROP CONSTRAINT IF EXISTS activity_logs_pkey;
 ALTER TABLE IF EXISTS ONLY public.accountability_relationships DROP CONSTRAINT IF EXISTS accountability_relationships_pkey;
+ALTER TABLE IF EXISTS public.api_usage_reports ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.api_usage_logs ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.api_services ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.api_response_times ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.api_quotas ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.api_error_logs ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.api_alerts ALTER COLUMN id DROP DEFAULT;
 DROP TABLE IF EXISTS public.writing_progress_tracking;
 DROP TABLE IF EXISTS public.writing_practice_sessions;
 DROP TABLE IF EXISTS public.writing_practice_prompts;
@@ -1015,6 +1093,10 @@ DROP TABLE IF EXISTS public.group_memberships;
 DROP TABLE IF EXISTS public.group_discussions;
 DROP TABLE IF EXISTS public.group_challenges;
 DROP TABLE IF EXISTS public.goal_milestones;
+DROP TABLE IF EXISTS public.github_repository_skills;
+DROP TABLE IF EXISTS public.github_repositories;
+DROP TABLE IF EXISTS public.github_contributions;
+DROP TABLE IF EXISTS public.geocoding_cache;
 DROP TABLE IF EXISTS public.followup_templates;
 DROP TABLE IF EXISTS public.files;
 DROP TABLE IF EXISTS public.feedback_themes;
@@ -1032,6 +1114,7 @@ DROP TABLE IF EXISTS public.external_advisors;
 DROP TABLE IF EXISTS public.event_registrations;
 DROP TABLE IF EXISTS public.event_connections;
 DROP TABLE IF EXISTS public.enterprise_accounts;
+DROP TABLE IF EXISTS public.email_links;
 DROP TABLE IF EXISTS public.educations;
 DROP TABLE IF EXISTS public.document_versions;
 DROP TABLE IF EXISTS public.document_review_requests;
@@ -1064,6 +1147,20 @@ DROP TABLE IF EXISTS public.campaign_ab_testing;
 DROP TABLE IF EXISTS public.calendar_sync_settings;
 DROP TABLE IF EXISTS public.archived_prospectivejobs;
 DROP TABLE IF EXISTS public.application_success_analysis;
+DROP SEQUENCE IF EXISTS public.api_usage_reports_id_seq;
+DROP TABLE IF EXISTS public.api_usage_reports;
+DROP SEQUENCE IF EXISTS public.api_usage_logs_id_seq;
+DROP TABLE IF EXISTS public.api_usage_logs;
+DROP SEQUENCE IF EXISTS public.api_services_id_seq;
+DROP TABLE IF EXISTS public.api_services;
+DROP SEQUENCE IF EXISTS public.api_response_times_id_seq;
+DROP TABLE IF EXISTS public.api_response_times;
+DROP SEQUENCE IF EXISTS public.api_quotas_id_seq;
+DROP TABLE IF EXISTS public.api_quotas;
+DROP SEQUENCE IF EXISTS public.api_error_logs_id_seq;
+DROP TABLE IF EXISTS public.api_error_logs;
+DROP SEQUENCE IF EXISTS public.api_alerts_id_seq;
+DROP TABLE IF EXISTS public.api_alerts;
 DROP TABLE IF EXISTS public.advisor_shared_data;
 DROP TABLE IF EXISTS public.advisor_sessions;
 DROP TABLE IF EXISTS public.advisor_recommendations;
@@ -1090,6 +1187,7 @@ DROP FUNCTION IF EXISTS public.update_interviews_updated_at();
 DROP FUNCTION IF EXISTS public.update_interview_feedback_updated_at();
 DROP FUNCTION IF EXISTS public.update_follow_ups_updated_at();
 DROP FUNCTION IF EXISTS public.update_coverletter_timestamp();
+DROP FUNCTION IF EXISTS public.update_certification_timestamp();
 DROP FUNCTION IF EXISTS public.lower_email();
 DROP FUNCTION IF EXISTS public.log_material_history();
 DROP FUNCTION IF EXISTS public.cleanup_expired_market_insights();
@@ -1265,6 +1363,20 @@ CREATE FUNCTION public.lower_email() RETURNS trigger
     AS $$
 BEGIN
     NEW.email = LOWER(NEW.email);
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: update_certification_timestamp(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.update_certification_timestamp() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
     RETURN NEW;
 END;
 $$;
@@ -1655,6 +1767,8 @@ END;
 $$;
 
 
+SET default_tablespace = '';
+
 SET default_table_access_method = heap;
 
 --
@@ -1753,6 +1867,278 @@ CREATE TABLE public.advisor_shared_data (
     data_id uuid,
     shared_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
 );
+
+
+--
+-- Name: api_alerts; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.api_alerts (
+    id integer NOT NULL,
+    service_id integer NOT NULL,
+    alert_type character varying(50) NOT NULL,
+    severity character varying(20) DEFAULT 'warning'::character varying,
+    message text NOT NULL,
+    threshold_value numeric(10,2),
+    current_value numeric(10,2),
+    is_resolved boolean DEFAULT false,
+    resolved_at timestamp without time zone,
+    created_at timestamp without time zone DEFAULT now()
+);
+
+
+--
+-- Name: api_alerts_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.api_alerts_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: api_alerts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.api_alerts_id_seq OWNED BY public.api_alerts.id;
+
+
+--
+-- Name: api_error_logs; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.api_error_logs (
+    id integer NOT NULL,
+    service_id integer NOT NULL,
+    endpoint character varying(500),
+    user_id uuid,
+    error_code character varying(50),
+    error_message text,
+    error_details jsonb,
+    request_payload jsonb,
+    response_status integer,
+    created_at timestamp without time zone DEFAULT now()
+);
+
+
+--
+-- Name: api_error_logs_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.api_error_logs_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: api_error_logs_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.api_error_logs_id_seq OWNED BY public.api_error_logs.id;
+
+
+--
+-- Name: api_quotas; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.api_quotas (
+    id integer NOT NULL,
+    service_id integer NOT NULL,
+    period_type character varying(20) NOT NULL,
+    period_start timestamp without time zone NOT NULL,
+    period_end timestamp without time zone NOT NULL,
+    requests_count integer DEFAULT 0,
+    requests_limit integer DEFAULT 0,
+    tokens_used integer DEFAULT 0,
+    tokens_limit integer DEFAULT 0,
+    cost_usd numeric(10,6) DEFAULT 0,
+    cost_limit_usd numeric(10,6) DEFAULT 0,
+    created_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp without time zone DEFAULT now()
+);
+
+
+--
+-- Name: api_quotas_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.api_quotas_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: api_quotas_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.api_quotas_id_seq OWNED BY public.api_quotas.id;
+
+
+--
+-- Name: api_response_times; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.api_response_times (
+    id integer NOT NULL,
+    service_id integer NOT NULL,
+    endpoint character varying(500),
+    response_time_ms integer NOT NULL,
+    created_at timestamp without time zone DEFAULT now()
+);
+
+
+--
+-- Name: api_response_times_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.api_response_times_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: api_response_times_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.api_response_times_id_seq OWNED BY public.api_response_times.id;
+
+
+--
+-- Name: api_services; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.api_services (
+    id integer NOT NULL,
+    service_name character varying(100) NOT NULL,
+    display_name character varying(200) NOT NULL,
+    base_url text,
+    rate_limit_per_day integer DEFAULT 0,
+    rate_limit_per_hour integer DEFAULT 0,
+    rate_limit_per_minute integer DEFAULT 0,
+    quota_limit_per_month integer DEFAULT 0,
+    is_active boolean DEFAULT true,
+    created_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp without time zone DEFAULT now()
+);
+
+
+--
+-- Name: api_services_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.api_services_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: api_services_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.api_services_id_seq OWNED BY public.api_services.id;
+
+
+--
+-- Name: api_usage_logs; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.api_usage_logs (
+    id integer NOT NULL,
+    service_id integer NOT NULL,
+    endpoint character varying(500),
+    user_id uuid,
+    request_method character varying(10),
+    response_status integer,
+    response_time_ms integer,
+    tokens_used integer,
+    cost_usd numeric(10,6) DEFAULT 0,
+    success boolean DEFAULT true,
+    created_at timestamp without time zone DEFAULT now()
+);
+
+
+--
+-- Name: api_usage_logs_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.api_usage_logs_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: api_usage_logs_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.api_usage_logs_id_seq OWNED BY public.api_usage_logs.id;
+
+
+--
+-- Name: api_usage_reports; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.api_usage_reports (
+    id integer NOT NULL,
+    service_id integer NOT NULL,
+    report_week_start date NOT NULL,
+    report_week_end date NOT NULL,
+    total_requests integer DEFAULT 0,
+    successful_requests integer DEFAULT 0,
+    failed_requests integer DEFAULT 0,
+    total_tokens_used integer DEFAULT 0,
+    total_cost_usd numeric(10,6) DEFAULT 0,
+    avg_response_time_ms numeric(10,2),
+    p95_response_time_ms numeric(10,2),
+    p99_response_time_ms numeric(10,2),
+    error_count integer DEFAULT 0,
+    rate_limit_hits integer DEFAULT 0,
+    report_data jsonb,
+    created_at timestamp without time zone DEFAULT now()
+);
+
+
+--
+-- Name: api_usage_reports_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.api_usage_reports_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: api_usage_reports_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.api_usage_reports_id_seq OWNED BY public.api_usage_reports.id;
 
 
 --
@@ -1893,7 +2279,16 @@ CREATE TABLE public.certifications (
     name character varying(255) NOT NULL,
     org_name character varying(255) NOT NULL,
     date_earned date NOT NULL,
-    expiration_date date
+    expiration_date date,
+    platform character varying(255),
+    badge_image character varying(1000),
+    verification_url character varying(1000),
+    category character varying(50),
+    description text,
+    assessment_scores jsonb,
+    achievements jsonb,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
 );
 
 
@@ -2399,6 +2794,54 @@ CREATE TABLE public.educations (
 
 
 --
+-- Name: email_links; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.email_links (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    job_opportunity_id uuid NOT NULL,
+    gmail_message_id character varying(255) NOT NULL,
+    subject character varying(500),
+    sender_email character varying(255),
+    sender_name character varying(255),
+    snippet text,
+    email_date timestamp with time zone NOT NULL,
+    thread_id character varying(255),
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: TABLE email_links; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.email_links IS 'Stores links between Gmail emails and job opportunities';
+
+
+--
+-- Name: COLUMN email_links.gmail_message_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.email_links.gmail_message_id IS 'Gmail API message ID';
+
+
+--
+-- Name: COLUMN email_links.snippet; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.email_links.snippet IS 'Email preview/snippet text';
+
+
+--
+-- Name: COLUMN email_links.thread_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.email_links.thread_id IS 'Gmail thread ID for grouping related emails';
+
+
+--
 -- Name: enterprise_accounts; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -2680,6 +3123,126 @@ CREATE TABLE public.followup_templates (
     timing_guidance text,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
 );
+
+
+--
+-- Name: geocoding_cache; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.geocoding_cache (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    query text NOT NULL,
+    latitude numeric(10,7),
+    longitude numeric(10,7),
+    display_name text,
+    timezone character varying(100),
+    country character varying(150),
+    region character varying(150),
+    city character varying(150),
+    raw jsonb,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+--
+-- Name: github_contributions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.github_contributions (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    repository_id uuid,
+    date date NOT NULL,
+    commit_count integer DEFAULT 0,
+    additions integer DEFAULT 0,
+    deletions integer DEFAULT 0,
+    created_at timestamp with time zone DEFAULT now()
+);
+
+
+--
+-- Name: TABLE github_contributions; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.github_contributions IS 'Tracks daily contribution activity (commits, additions, deletions)';
+
+
+--
+-- Name: github_repositories; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.github_repositories (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    github_repo_id bigint NOT NULL,
+    name character varying(255) NOT NULL,
+    full_name character varying(500) NOT NULL,
+    description text,
+    html_url character varying(500) NOT NULL,
+    clone_url character varying(500),
+    language character varying(100),
+    languages jsonb,
+    stars_count integer DEFAULT 0,
+    forks_count integer DEFAULT 0,
+    watchers_count integer DEFAULT 0,
+    open_issues_count integer DEFAULT 0,
+    size integer DEFAULT 0,
+    is_private boolean DEFAULT false,
+    is_fork boolean DEFAULT false,
+    is_archived boolean DEFAULT false,
+    is_featured boolean DEFAULT false,
+    default_branch character varying(100),
+    created_at timestamp with time zone,
+    updated_at timestamp with time zone,
+    pushed_at timestamp with time zone,
+    last_synced_at timestamp with time zone DEFAULT now(),
+    topics text[],
+    homepage character varying(500),
+    license_name character varying(255),
+    license_url character varying(500),
+    created_at_db timestamp with time zone DEFAULT now(),
+    updated_at_db timestamp with time zone DEFAULT now()
+);
+
+
+--
+-- Name: TABLE github_repositories; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.github_repositories IS 'Stores GitHub repositories imported by users';
+
+
+--
+-- Name: COLUMN github_repositories.languages; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.github_repositories.languages IS 'JSON object with language names as keys and percentages as values';
+
+
+--
+-- Name: COLUMN github_repositories.is_featured; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.github_repositories.is_featured IS 'User-selected featured repositories for profile showcase';
+
+
+--
+-- Name: github_repository_skills; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.github_repository_skills (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    repository_id uuid NOT NULL,
+    skill_id uuid,
+    created_at timestamp with time zone DEFAULT now()
+);
+
+
+--
+-- Name: TABLE github_repository_skills; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.github_repository_skills IS 'Links GitHub repositories to user skills';
 
 
 --
@@ -3442,7 +4005,17 @@ CREATE TABLE public.job_opportunities (
     interview_scheduled_at timestamp with time zone,
     resume_id uuid,
     coverletter_id uuid,
-    CONSTRAINT check_job_opportunity_status CHECK (((status)::text = ANY ((ARRAY['Interested'::character varying, 'Applied'::character varying, 'Phone Screen'::character varying, 'Interview'::character varying, 'Offer'::character varying, 'Rejected'::character varying])::text[])))
+    location_type character varying(20),
+    latitude numeric(10,7),
+    longitude numeric(10,7),
+    timezone character varying(100),
+    city character varying(150),
+    region character varying(150),
+    country character varying(150),
+    geocoding_confidence numeric(5,2),
+    geocoding_raw jsonb,
+    CONSTRAINT check_job_opportunity_status CHECK (((status)::text = ANY ((ARRAY['Interested'::character varying, 'Applied'::character varying, 'Phone Screen'::character varying, 'Interview'::character varying, 'Offer'::character varying, 'Rejected'::character varying])::text[]))),
+    CONSTRAINT job_opportunities_location_type_check CHECK (((location_type IS NULL) OR (lower((location_type)::text) = ANY (ARRAY['remote'::text, 'hybrid'::text, 'on-site'::text]))))
 );
 
 
@@ -6008,6 +6581,14 @@ CREATE TABLE public.users (
     linkedin_refresh_token text,
     linkedin_token_expires_at timestamp with time zone,
     account_type character varying(50) DEFAULT 'regular'::character varying,
+    github_username character varying(255),
+    github_access_token text,
+    github_token_expires_at timestamp with time zone,
+    github_refresh_token text,
+    gmail_access_token text,
+    gmail_refresh_token text,
+    gmail_token_expiry timestamp with time zone,
+    gmail_sync_enabled boolean DEFAULT false,
     CONSTRAINT users_account_type_check CHECK (((account_type)::text = ANY ((ARRAY['regular'::character varying, 'family_only'::character varying])::text[])))
 );
 
@@ -6052,6 +6633,34 @@ COMMENT ON COLUMN public.users.linkedin_refresh_token IS 'UC-089: LinkedIn OAuth
 --
 
 COMMENT ON COLUMN public.users.linkedin_token_expires_at IS 'UC-089: LinkedIn OAuth token expiration timestamp';
+
+
+--
+-- Name: COLUMN users.gmail_access_token; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.users.gmail_access_token IS 'Gmail OAuth access token';
+
+
+--
+-- Name: COLUMN users.gmail_refresh_token; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.users.gmail_refresh_token IS 'Gmail OAuth refresh token';
+
+
+--
+-- Name: COLUMN users.gmail_token_expiry; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.users.gmail_token_expiry IS 'Gmail OAuth token expiry timestamp';
+
+
+--
+-- Name: COLUMN users.gmail_sync_enabled; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.users.gmail_sync_enabled IS 'Whether Gmail sync is enabled for the user';
 
 
 --
@@ -6245,6 +6854,55 @@ COMMENT ON COLUMN public.writing_progress_tracking.metric_value IS 'Average scor
 
 
 --
+-- Name: api_alerts id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_alerts ALTER COLUMN id SET DEFAULT nextval('public.api_alerts_id_seq'::regclass);
+
+
+--
+-- Name: api_error_logs id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_error_logs ALTER COLUMN id SET DEFAULT nextval('public.api_error_logs_id_seq'::regclass);
+
+
+--
+-- Name: api_quotas id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_quotas ALTER COLUMN id SET DEFAULT nextval('public.api_quotas_id_seq'::regclass);
+
+
+--
+-- Name: api_response_times id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_response_times ALTER COLUMN id SET DEFAULT nextval('public.api_response_times_id_seq'::regclass);
+
+
+--
+-- Name: api_services id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_services ALTER COLUMN id SET DEFAULT nextval('public.api_services_id_seq'::regclass);
+
+
+--
+-- Name: api_usage_logs id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_usage_logs ALTER COLUMN id SET DEFAULT nextval('public.api_usage_logs_id_seq'::regclass);
+
+
+--
+-- Name: api_usage_reports id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_usage_reports ALTER COLUMN id SET DEFAULT nextval('public.api_usage_reports_id_seq'::regclass);
+
+
+--
 -- Name: accountability_relationships accountability_relationships_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6290,6 +6948,86 @@ ALTER TABLE ONLY public.advisor_sessions
 
 ALTER TABLE ONLY public.advisor_shared_data
     ADD CONSTRAINT advisor_shared_data_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: api_alerts api_alerts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_alerts
+    ADD CONSTRAINT api_alerts_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: api_error_logs api_error_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_error_logs
+    ADD CONSTRAINT api_error_logs_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: api_quotas api_quotas_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_quotas
+    ADD CONSTRAINT api_quotas_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: api_quotas api_quotas_service_id_period_type_period_start_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_quotas
+    ADD CONSTRAINT api_quotas_service_id_period_type_period_start_key UNIQUE (service_id, period_type, period_start);
+
+
+--
+-- Name: api_response_times api_response_times_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_response_times
+    ADD CONSTRAINT api_response_times_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: api_services api_services_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_services
+    ADD CONSTRAINT api_services_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: api_services api_services_service_name_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_services
+    ADD CONSTRAINT api_services_service_name_key UNIQUE (service_name);
+
+
+--
+-- Name: api_usage_logs api_usage_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_usage_logs
+    ADD CONSTRAINT api_usage_logs_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: api_usage_reports api_usage_reports_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_usage_reports
+    ADD CONSTRAINT api_usage_reports_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: api_usage_reports api_usage_reports_service_id_report_week_start_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_usage_reports
+    ADD CONSTRAINT api_usage_reports_service_id_report_week_start_key UNIQUE (service_id, report_week_start);
 
 
 --
@@ -6581,6 +7319,14 @@ ALTER TABLE ONLY public.educations
 
 
 --
+-- Name: email_links email_links_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.email_links
+    ADD CONSTRAINT email_links_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: enterprise_accounts enterprise_accounts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6754,6 +7500,70 @@ ALTER TABLE ONLY public.files
 
 ALTER TABLE ONLY public.followup_templates
     ADD CONSTRAINT followup_templates_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: geocoding_cache geocoding_cache_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.geocoding_cache
+    ADD CONSTRAINT geocoding_cache_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: geocoding_cache geocoding_cache_query_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.geocoding_cache
+    ADD CONSTRAINT geocoding_cache_query_unique UNIQUE (query);
+
+
+--
+-- Name: github_contributions github_contributions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.github_contributions
+    ADD CONSTRAINT github_contributions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: github_contributions github_contributions_user_id_repository_id_date_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.github_contributions
+    ADD CONSTRAINT github_contributions_user_id_repository_id_date_key UNIQUE (user_id, repository_id, date);
+
+
+--
+-- Name: github_repositories github_repositories_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.github_repositories
+    ADD CONSTRAINT github_repositories_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: github_repositories github_repositories_user_id_github_repo_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.github_repositories
+    ADD CONSTRAINT github_repositories_user_id_github_repo_id_key UNIQUE (user_id, github_repo_id);
+
+
+--
+-- Name: github_repository_skills github_repository_skills_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.github_repository_skills
+    ADD CONSTRAINT github_repository_skills_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: github_repository_skills github_repository_skills_repository_id_skill_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.github_repository_skills
+    ADD CONSTRAINT github_repository_skills_repository_id_skill_id_key UNIQUE (repository_id, skill_id);
 
 
 --
@@ -7757,6 +8567,14 @@ ALTER TABLE ONLY public.interview_conflicts
 
 
 --
+-- Name: email_links unique_email_link; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.email_links
+    ADD CONSTRAINT unique_email_link UNIQUE (user_id, job_opportunity_id, gmail_message_id);
+
+
+--
 -- Name: interview_reminders unique_interview_reminder; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -7897,6 +8715,97 @@ CREATE INDEX idx_activity_logs_user ON public.activity_logs USING btree (user_id
 
 
 --
+-- Name: idx_api_alerts_resolved; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_api_alerts_resolved ON public.api_alerts USING btree (is_resolved, created_at);
+
+
+--
+-- Name: idx_api_alerts_service_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_api_alerts_service_id ON public.api_alerts USING btree (service_id);
+
+
+--
+-- Name: idx_api_error_logs_created_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_api_error_logs_created_at ON public.api_error_logs USING btree (created_at);
+
+
+--
+-- Name: idx_api_error_logs_error_code; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_api_error_logs_error_code ON public.api_error_logs USING btree (error_code);
+
+
+--
+-- Name: idx_api_error_logs_service_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_api_error_logs_service_id ON public.api_error_logs USING btree (service_id);
+
+
+--
+-- Name: idx_api_quotas_period; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_api_quotas_period ON public.api_quotas USING btree (period_type, period_start);
+
+
+--
+-- Name: idx_api_quotas_service_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_api_quotas_service_id ON public.api_quotas USING btree (service_id);
+
+
+--
+-- Name: idx_api_response_times_created_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_api_response_times_created_at ON public.api_response_times USING btree (created_at);
+
+
+--
+-- Name: idx_api_response_times_service_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_api_response_times_service_id ON public.api_response_times USING btree (service_id);
+
+
+--
+-- Name: idx_api_usage_logs_created_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_api_usage_logs_created_at ON public.api_usage_logs USING btree (created_at);
+
+
+--
+-- Name: idx_api_usage_logs_service_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_api_usage_logs_service_id ON public.api_usage_logs USING btree (service_id);
+
+
+--
+-- Name: idx_api_usage_logs_success; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_api_usage_logs_success ON public.api_usage_logs USING btree (success);
+
+
+--
+-- Name: idx_api_usage_logs_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_api_usage_logs_user_id ON public.api_usage_logs USING btree (user_id);
+
+
+--
 -- Name: idx_application_success_analysis_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -7915,6 +8824,27 @@ CREATE INDEX idx_calendar_sync_settings_user_id ON public.calendar_sync_settings
 --
 
 CREATE INDEX idx_career_goals_user_id ON public.career_goals USING btree (user_id);
+
+
+--
+-- Name: idx_certifications_category; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_certifications_category ON public.certifications USING btree (category);
+
+
+--
+-- Name: idx_certifications_platform; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_certifications_platform ON public.certifications USING btree (platform);
+
+
+--
+-- Name: idx_certifications_user_category; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_certifications_user_category ON public.certifications USING btree (user_id, category);
 
 
 --
@@ -8212,6 +9142,34 @@ CREATE INDEX idx_document_versions_document ON public.document_versions USING bt
 
 
 --
+-- Name: idx_email_links_email_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_email_links_email_date ON public.email_links USING btree (email_date DESC);
+
+
+--
+-- Name: idx_email_links_gmail_message_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_email_links_gmail_message_id ON public.email_links USING btree (gmail_message_id);
+
+
+--
+-- Name: idx_email_links_job_opportunity_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_email_links_job_opportunity_id ON public.email_links USING btree (job_opportunity_id);
+
+
+--
+-- Name: idx_email_links_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_email_links_user_id ON public.email_links USING btree (user_id);
+
+
+--
 -- Name: idx_enterprise_accounts_admin_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -8419,6 +9377,83 @@ CREATE INDEX idx_follow_ups_due_date ON public.interview_follow_ups USING btree 
 --
 
 CREATE INDEX idx_follow_ups_interview_id ON public.interview_follow_ups USING btree (interview_id);
+
+
+--
+-- Name: idx_geocoding_cache_location; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_geocoding_cache_location ON public.geocoding_cache USING btree (country, region, city);
+
+
+--
+-- Name: idx_github_contributions_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_github_contributions_date ON public.github_contributions USING btree (date);
+
+
+--
+-- Name: idx_github_contributions_repo; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_github_contributions_repo ON public.github_contributions USING btree (repository_id);
+
+
+--
+-- Name: idx_github_contributions_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_github_contributions_user ON public.github_contributions USING btree (user_id);
+
+
+--
+-- Name: idx_github_repo_skills_repo; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_github_repo_skills_repo ON public.github_repository_skills USING btree (repository_id);
+
+
+--
+-- Name: idx_github_repo_skills_skill; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_github_repo_skills_skill ON public.github_repository_skills USING btree (skill_id);
+
+
+--
+-- Name: idx_github_repos_featured; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_github_repos_featured ON public.github_repositories USING btree (user_id, is_featured) WHERE (is_featured = true);
+
+
+--
+-- Name: idx_github_repos_github_repo_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_github_repos_github_repo_id ON public.github_repositories USING btree (github_repo_id);
+
+
+--
+-- Name: idx_github_repos_language; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_github_repos_language ON public.github_repositories USING btree (language);
+
+
+--
+-- Name: idx_github_repos_last_synced; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_github_repos_last_synced ON public.github_repositories USING btree (last_synced_at);
+
+
+--
+-- Name: idx_github_repos_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_github_repos_user_id ON public.github_repositories USING btree (user_id);
 
 
 --
@@ -9955,6 +10990,13 @@ CREATE INDEX idx_users_account_type ON public.users USING btree (account_type);
 
 
 --
+-- Name: idx_users_github_username; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_users_github_username ON public.users USING btree (github_username);
+
+
+--
 -- Name: idx_users_google_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -10106,6 +11148,13 @@ CREATE UNIQUE INDEX unique_monthly_challenge ON public.support_group_challenges 
 --
 
 CREATE UNIQUE INDEX unique_post_like ON public.support_group_post_likes USING btree (post_id, user_id) WHERE (post_id IS NOT NULL);
+
+
+--
+-- Name: ux_geocoding_cache_query; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX ux_geocoding_cache_query ON public.geocoding_cache USING btree (lower(query));
 
 
 --
@@ -10305,6 +11354,13 @@ CREATE TRIGGER trg_teams_updated_at BEFORE UPDATE ON public.teams FOR EACH ROW E
 
 
 --
+-- Name: certifications trg_update_certification_timestamp; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_update_certification_timestamp BEFORE UPDATE ON public.certifications FOR EACH ROW EXECUTE FUNCTION public.update_certification_timestamp();
+
+
+--
 -- Name: interview_follow_ups trg_update_follow_ups_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -10410,10 +11466,31 @@ CREATE TRIGGER update_accuracy_metrics_timestamp BEFORE UPDATE ON public.predict
 
 
 --
+-- Name: api_quotas update_api_quotas_timestamp; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_api_quotas_timestamp BEFORE UPDATE ON public.api_quotas FOR EACH ROW EXECUTE FUNCTION public.addupdatetime();
+
+
+--
+-- Name: api_services update_api_services_timestamp; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_api_services_timestamp BEFORE UPDATE ON public.api_services FOR EACH ROW EXECUTE FUNCTION public.addupdatetime();
+
+
+--
 -- Name: support_group_post_comments update_comment_count_trigger; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER update_comment_count_trigger AFTER INSERT OR DELETE ON public.support_group_post_comments FOR EACH ROW EXECUTE FUNCTION public.update_support_group_comment_count();
+
+
+--
+-- Name: email_links update_email_links_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_email_links_updated_at BEFORE UPDATE ON public.email_links FOR EACH ROW EXECUTE FUNCTION public.addupdatetime();
 
 
 --
@@ -10562,6 +11639,70 @@ ALTER TABLE ONLY public.advisor_sessions
 
 ALTER TABLE ONLY public.advisor_shared_data
     ADD CONSTRAINT advisor_shared_data_advisor_id_fkey FOREIGN KEY (advisor_id) REFERENCES public.external_advisors(id) ON DELETE CASCADE;
+
+
+--
+-- Name: api_alerts api_alerts_service_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_alerts
+    ADD CONSTRAINT api_alerts_service_id_fkey FOREIGN KEY (service_id) REFERENCES public.api_services(id) ON DELETE CASCADE;
+
+
+--
+-- Name: api_error_logs api_error_logs_service_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_error_logs
+    ADD CONSTRAINT api_error_logs_service_id_fkey FOREIGN KEY (service_id) REFERENCES public.api_services(id) ON DELETE CASCADE;
+
+
+--
+-- Name: api_error_logs api_error_logs_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_error_logs
+    ADD CONSTRAINT api_error_logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE SET NULL;
+
+
+--
+-- Name: api_quotas api_quotas_service_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_quotas
+    ADD CONSTRAINT api_quotas_service_id_fkey FOREIGN KEY (service_id) REFERENCES public.api_services(id) ON DELETE CASCADE;
+
+
+--
+-- Name: api_response_times api_response_times_service_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_response_times
+    ADD CONSTRAINT api_response_times_service_id_fkey FOREIGN KEY (service_id) REFERENCES public.api_services(id) ON DELETE CASCADE;
+
+
+--
+-- Name: api_usage_logs api_usage_logs_service_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_usage_logs
+    ADD CONSTRAINT api_usage_logs_service_id_fkey FOREIGN KEY (service_id) REFERENCES public.api_services(id) ON DELETE CASCADE;
+
+
+--
+-- Name: api_usage_logs api_usage_logs_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_usage_logs
+    ADD CONSTRAINT api_usage_logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE SET NULL;
+
+
+--
+-- Name: api_usage_reports api_usage_reports_service_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_usage_reports
+    ADD CONSTRAINT api_usage_reports_service_id_fkey FOREIGN KEY (service_id) REFERENCES public.api_services(id) ON DELETE CASCADE;
 
 
 --
@@ -10853,14 +11994,6 @@ ALTER TABLE ONLY public.coverletter
 
 
 --
--- Name: coverletter coverletter_job_is_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.coverletter
-    ADD CONSTRAINT coverletter_job_is_fkey FOREIGN KEY (job_id) REFERENCES public.job_opportunities(id);
-
-
---
 -- Name: coverletter coverletter_parent_coverletter_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -10946,6 +12079,22 @@ ALTER TABLE ONLY public.document_versions
 
 ALTER TABLE ONLY public.educations
     ADD CONSTRAINT educations_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: email_links email_links_job_opportunity_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.email_links
+    ADD CONSTRAINT email_links_job_opportunity_id_fkey FOREIGN KEY (job_opportunity_id) REFERENCES public.job_opportunities(id) ON DELETE CASCADE;
+
+
+--
+-- Name: email_links email_links_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.email_links
+    ADD CONSTRAINT email_links_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
 
 
 --
@@ -11370,6 +12519,46 @@ ALTER TABLE ONLY public.cover_letter_template_usage
 
 ALTER TABLE ONLY public.interview_thank_you_notes
     ADD CONSTRAINT fk_thank_you_notes_interview FOREIGN KEY (interview_id) REFERENCES public.interviews(id) ON DELETE CASCADE;
+
+
+--
+-- Name: github_contributions github_contributions_repository_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.github_contributions
+    ADD CONSTRAINT github_contributions_repository_id_fkey FOREIGN KEY (repository_id) REFERENCES public.github_repositories(id) ON DELETE CASCADE;
+
+
+--
+-- Name: github_contributions github_contributions_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.github_contributions
+    ADD CONSTRAINT github_contributions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: github_repositories github_repositories_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.github_repositories
+    ADD CONSTRAINT github_repositories_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(u_id) ON DELETE CASCADE;
+
+
+--
+-- Name: github_repository_skills github_repository_skills_repository_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.github_repository_skills
+    ADD CONSTRAINT github_repository_skills_repository_id_fkey FOREIGN KEY (repository_id) REFERENCES public.github_repositories(id) ON DELETE CASCADE;
+
+
+--
+-- Name: github_repository_skills github_repository_skills_skill_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.github_repository_skills
+    ADD CONSTRAINT github_repository_skills_skill_id_fkey FOREIGN KEY (skill_id) REFERENCES public.skills(id) ON DELETE CASCADE;
 
 
 --

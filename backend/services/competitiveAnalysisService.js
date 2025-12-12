@@ -1,5 +1,5 @@
-import OpenAI from 'openai';
-import database from './database.js';
+import OpenAI from "openai";
+import database from "./database.js";
 
 class CompetitiveAnalysisService {
   constructor() {
@@ -10,7 +10,9 @@ class CompetitiveAnalysisService {
       });
     } else {
       this.openai = null;
-      console.warn('⚠️  OpenAI API key not found. Competitive analysis will use fallback responses.');
+      console.warn(
+        "⚠️  OpenAI API key not found. Competitive analysis will use fallback responses."
+      );
     }
   }
 
@@ -21,13 +23,13 @@ class CompetitiveAnalysisService {
     try {
       // Gather user data for analysis
       const userData = await this.getUserCompetitiveData(userId);
-      
+
       // Generate AI analysis using OpenAI
       const analysis = await this.generateAnalysisWithAI(userData);
-      
+
       return analysis;
     } catch (error) {
-      console.error('❌ Error generating competitive analysis:', error);
+      console.error("❌ Error generating competitive analysis:", error);
       throw error;
     }
   }
@@ -53,13 +55,16 @@ class CompetitiveAnalysisService {
         FROM profiles
         WHERE user_id = $1
       `;
-      const profileInfoResult = await database.query(profileInfoQuery, [userId]);
+      const profileInfoResult = await database.query(profileInfoQuery, [
+        userId,
+      ]);
       const profileInfo = profileInfoResult.rows[0] || {};
       const basicInfo = {
         ...profileInfo,
-        location: profileInfo.city && profileInfo.state 
-          ? `${profileInfo.city}, ${profileInfo.state}` 
-          : profileInfo.city || profileInfo.state || null
+        location:
+          profileInfo.city && profileInfo.state
+            ? `${profileInfo.city}, ${profileInfo.state}`
+            : profileInfo.city || profileInfo.state || null,
       };
 
       // Get employment history (jobs table)
@@ -135,7 +140,7 @@ class CompetitiveAnalysisService {
         timeStats,
       };
     } catch (error) {
-      console.error('❌ Error gathering user data:', error);
+      console.error("❌ Error gathering user data:", error);
       throw error;
     }
   }
@@ -145,12 +150,21 @@ class CompetitiveAnalysisService {
    */
   async generateAnalysisWithAI(userData) {
     try {
-      const currentRole = userData.employment[0]?.job_title || 'Professional';
-      const topSkills = userData.skills.slice(0, 5).map(s => s.skill_name).join(', ');
-      const totalApplications = parseInt(userData.jobStats.total_applications) || 0;
-      const interviewRate = totalApplications > 0 
-        ? ((parseInt(userData.jobStats.interview_count) || 0) / totalApplications * 100).toFixed(1)
-        : 0;
+      const currentRole = userData.employment[0]?.job_title || "Professional";
+      const topSkills = userData.skills
+        .slice(0, 5)
+        .map((s) => s.skill_name)
+        .join(", ");
+      const totalApplications =
+        parseInt(userData.jobStats.total_applications) || 0;
+      const interviewRate =
+        totalApplications > 0
+          ? (
+              ((parseInt(userData.jobStats.interview_count) || 0) /
+                totalApplications) *
+              100
+            ).toFixed(1)
+          : 0;
 
       const prompt = `You are a career coach AI analyzing a job seeker's competitive position. Based on the following data, provide a comprehensive competitive analysis:
 
@@ -210,28 +224,84 @@ Provide your response in JSON format with the following structure:
       }
 
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: "gpt-4o-mini",
         messages: [
           {
-            role: 'system',
-            content: 'You are an expert career coach and market analyst. Provide data-driven, actionable insights in JSON format only.'
+            role: "system",
+            content:
+              "You are an expert career coach and market analyst. Provide data-driven, actionable insights in JSON format only.",
           },
           {
-            role: 'user',
-            content: prompt
-          }
+            role: "user",
+            content: prompt,
+          },
         ],
         temperature: 0.7,
-        response_format: { type: 'json_object' },
-        stream: false  // Keep non-streaming for now - streaming with JSON mode is tricky
+        response_format: { type: "json_object" },
+        stream: false, // Keep non-streaming for now - streaming with JSON mode is tricky
       });
 
+      // Validate response structure
+      if (
+        !completion ||
+        !completion.choices ||
+        !completion.choices[0] ||
+        !completion.choices[0].message
+      ) {
+        console.error("❌ Invalid OpenAI response structure:", completion);
+        throw new Error("Invalid response from OpenAI API");
+      }
+
       const analysisText = completion.choices[0].message.content;
-      const analysis = JSON.parse(analysisText);
+
+      // Check if response is HTML (error page) instead of JSON
+      if (typeof analysisText !== "string") {
+        console.error(
+          "❌ OpenAI response is not a string:",
+          typeof analysisText
+        );
+        throw new Error("Invalid response format from OpenAI API");
+      }
+
+      if (
+        analysisText.trim().toLowerCase().startsWith("<!doctype") ||
+        analysisText.trim().toLowerCase().startsWith("<html")
+      ) {
+        console.error(
+          "❌ OpenAI returned HTML instead of JSON. This usually indicates an API error or invalid API key."
+        );
+        console.error("Response preview:", analysisText.substring(0, 200));
+        throw new Error(
+          "OpenAI API returned an error page. Please check your API key and configuration."
+        );
+      }
+
+      // Try to parse JSON
+      let analysis;
+      try {
+        analysis = JSON.parse(analysisText);
+      } catch (parseError) {
+        console.error("❌ Failed to parse OpenAI response as JSON");
+        console.error("Response preview:", analysisText.substring(0, 500));
+        throw new Error(
+          `Failed to parse OpenAI response: ${parseError.message}`
+        );
+      }
 
       return analysis;
     } catch (error) {
-      console.error('❌ Error calling OpenAI:', error);
+      console.error("❌ Error calling OpenAI:", error);
+      // If it's a parsing error or HTML response, return fallback instead of throwing
+      if (
+        error.message.includes("parse") ||
+        error.message.includes("HTML") ||
+        error.message.includes("error page")
+      ) {
+        console.warn(
+          "⚠️ Falling back to default analysis due to OpenAI API issue"
+        );
+        return this.getFallbackAnalysis(userData);
+      }
       throw error;
     }
   }
@@ -240,41 +310,48 @@ Provide your response in JSON format with the following structure:
    * Get fallback analysis when OpenAI is not configured
    */
   getFallbackAnalysis(userData) {
-    const totalApplications = parseInt(userData.jobStats?.total_applications) || 0;
+    const totalApplications =
+      parseInt(userData.jobStats?.total_applications) || 0;
     const interviewCount = parseInt(userData.jobStats?.interview_count) || 0;
-    const interviewRate = totalApplications > 0 ? ((interviewCount / totalApplications) * 100).toFixed(1) : 0;
+    const interviewRate =
+      totalApplications > 0
+        ? ((interviewCount / totalApplications) * 100).toFixed(1)
+        : 0;
 
     return {
       peerBenchmarking: {
         userApplicationsPerWeek: 0,
         peerAverage: "Industry average: 5-10 applications per week",
         topPerformers: "Top performers: 15-20 applications per week",
-        insight: "Configure OpenAI API key to enable personalized benchmarking"
+        insight: "Configure OpenAI API key to enable personalized benchmarking",
       },
       skillGaps: [],
       marketPositioning: {
         competitivenessScore: 50,
         level: "Moderate",
         strengths: [],
-        insights: ["Configure OpenAI API key to enable AI-powered competitive analysis"]
+        insights: [
+          "Configure OpenAI API key to enable AI-powered competitive analysis",
+        ],
       },
       differentiation: {
-        uniqueValueProposition: "Configure OpenAI API key to enable personalized value proposition analysis",
-        competitiveAdvantages: []
+        uniqueValueProposition:
+          "Configure OpenAI API key to enable personalized value proposition analysis",
+        competitiveAdvantages: [],
       },
       recommendations: {
         quickWins: ["Configure OpenAI API key to enable AI recommendations"],
         strategicMoves: [],
-        longTermEdge: []
+        longTermEdge: [],
       },
       successPatterns: {
         avgTimeToOffer: "Configure OpenAI API key for personalized insights",
         nextCareerStep: "Configure OpenAI API key for personalized guidance",
-        typicalProgression: "Configure OpenAI API key for personalized analysis"
-      }
+        typicalProgression:
+          "Configure OpenAI API key for personalized analysis",
+      },
     };
   }
 }
 
 export default new CompetitiveAnalysisService();
-

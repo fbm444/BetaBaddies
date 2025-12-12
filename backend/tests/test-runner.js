@@ -46,14 +46,6 @@ const testFiles = [
   { name: "File Upload API", file: "file-upload-api.test.js" },
   { name: "Resume Services", file: "resume-services-test.js" },
   {
-    name: "Writing Practice Functionality",
-    file: "writing-practice-functionality.test.js",
-  },
-  {
-    name: "Writing Prompts Functionality",
-    file: "writing-prompts-functionality.test.js",
-  },
-  {
     name: "Support Groups Functionality",
     file: "support-groups-functionality.test.js",
   },

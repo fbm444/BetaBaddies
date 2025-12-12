@@ -78,7 +78,14 @@ jobs:
           CORS_ORIGIN: http://localhost:3000
           CLOUD_PROVIDER: local
           UPLOAD_MAX_SIZE: 10mb
-        run: npm run test:all 2>&1 | tee test-output.log || (cat test-output.log && exit 1)
+        run: |
+          set -o pipefail
+          npm run test:all 2>&1 | tee test-output.log
+          TEST_EXIT_CODE=${PIPESTATUS[0]}
+          if [ $TEST_EXIT_CODE -ne 0 ]; then
+            echo "❌ Tests failed with exit code $TEST_EXIT_CODE"
+            exit $TEST_EXIT_CODE
+          fi
 
       - name: Upload test results
         if: always()

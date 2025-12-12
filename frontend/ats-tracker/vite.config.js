@@ -27,6 +27,8 @@ export default defineConfig(({ mode }) => {
           target: backendUrl,
           changeOrigin: true,
           secure: false,
+          // Vite proxy automatically forwards Set-Cookie headers
+          // The backend sets cookies with correct domain/path for localhost
         },
         '/uploads': {
           target: backendUrl,

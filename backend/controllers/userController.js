@@ -20,6 +20,18 @@ class UserController {
       req.session.userId = user.id;
       req.session.userEmail = user.email;
 
+      // Explicitly save session before sending response
+      await new Promise((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) {
+            console.error("❌ Error saving session during registration:", err);
+            reject(err);
+          } else {
+            resolve(null);
+          }
+        });
+      });
+
       res.status(201).json({
         ok: true,
         data: {
@@ -108,9 +120,30 @@ class UserController {
       });
     }
 
-    // Set session
+    // Set session data
     req.session.userId = user.u_id;
     req.session.userEmail = user.email;
+
+    console.log(`[Login] Setting session for user: ${user.u_id} (${user.email})`);
+    console.log(`[Login] Session ID: ${req.sessionID}`);
+    console.log(`[Login] Session exists: ${!!req.session}`);
+    console.log(`[Login] Session cookie config:`, req.session?.cookie);
+
+    // Explicitly save session before sending response
+    await new Promise((resolve, reject) => {
+      req.session.save((err) => {
+        if (err) {
+          console.error("❌ Error saving session during login:", err);
+          return reject(err);
+        }
+        console.log(`[Login] Session saved successfully. Session ID: ${req.sessionID}`);
+        console.log(`[Login] Session data after save:`, {
+          userId: req.session.userId,
+          userEmail: req.session.userEmail,
+        });
+        resolve(null);
+      });
+    });
 
     res.status(200).json({
       ok: true,

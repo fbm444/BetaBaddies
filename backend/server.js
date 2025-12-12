@@ -239,31 +239,86 @@ if (!sessionSecret && isProduction) {
 }
 
 // Session cookie configuration
-const isHttps =
-  process.env.BACKEND_URL?.startsWith("https") ||
-  process.env.FRONTEND_URL?.startsWith("https") ||
-  isProduction;
+// For local development, always use HTTP (secure: false)
+// Only use HTTPS cookies when URLs are actually HTTPS
+const isLocalDev =
+  process.env.NODE_ENV === "development" || !process.env.NODE_ENV;
 
-app.use(
-  session({
-    secret: sessionSecret,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: isHttps, // true for HTTPS (production), false for HTTP (local dev)
-      httpOnly: true, // Prevents JavaScript access to cookie
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      sameSite: isHttps ? "none" : "lax", // "none" for cross-origin HTTPS, "lax" for same-origin
-      domain: undefined, // Let browser set domain automatically (works for cross-origin)
-    },
-  })
-);
+// Determine if we should use HTTPS cookies
+// Only use secure cookies if the URLs are actually HTTPS
+// This ensures cookies work correctly in both dev and production
+const finalIsHttps =
+  process.env.BACKEND_URL?.startsWith("https") ||
+  process.env.FRONTEND_URL?.startsWith("https");
+
+// For local development with proxy, use "lax" sameSite and ensure path is set
+const cookieConfig = {
+  secure: finalIsHttps, // true for HTTPS (production), false for HTTP (local dev)
+  httpOnly: true, // Prevents JavaScript access to cookie
+  maxAge: 24 * 60 * 60 * 1000, // 24 hours
+  sameSite: finalIsHttps ? "none" : "lax", // "none" for cross-origin HTTPS, "lax" for same-origin
+  path: "/", // Ensure cookie is available for all paths
+  // Don't set domain - let browser handle it (works for localhost with proxy)
+};
+
+const sessionMiddleware = session({
+  secret: sessionSecret,
+  resave: false,
+  saveUninitialized: true, // Set to true to ensure cookies are set even for new sessions
+  name: "connect.sid", // Explicit session cookie name
+  cookie: cookieConfig,
+  // Ensure cookie is set even for uninitialized sessions
+  rolling: false, // Don't reset expiration on every request
+});
+
+// Add logging middleware to track session creation and cookie handling
+app.use((req, res, next) => {
+  // Log incoming cookies
+  if (req.headers.cookie) {
+    console.log(`[Session] Incoming cookies: ${req.headers.cookie}`);
+  } else {
+    console.log(`[Session] No cookies in request`);
+  }
+  next();
+});
+
+app.use(sessionMiddleware);
+
+// Add middleware to log session after it's created and track cookie setting
+app.use((req, res, next) => {
+  console.log(
+    `[Session] After session middleware - Session ID: ${req.sessionID}`
+  );
+  console.log(`[Session] Session data:`, {
+    userId: req.session?.userId,
+    userEmail: req.session?.userEmail,
+    cookie: req.headers.cookie ? "present" : "missing",
+  });
+
+  // Track when Set-Cookie header is added
+  const originalEnd = res.end;
+  res.end = function (...args) {
+    const setCookie = res.getHeader("Set-Cookie");
+    if (setCookie) {
+      console.log(`[Session] Response Set-Cookie header:`, setCookie);
+    } else if (req.session && req.session.userId) {
+      console.warn(`[Session] ⚠️ Session has userId but no Set-Cookie header!`);
+    }
+    originalEnd.apply(this, args);
+  };
+
+  next();
+});
 
 // Log session configuration
 console.log("🍪 Session Configuration:");
-console.log(`   secure: ${isHttps} (HTTPS: ${isHttps})`);
-console.log(`   sameSite: ${isHttps ? "none" : "lax"}`);
+console.log(`   NODE_ENV: ${process.env.NODE_ENV || "development"}`);
+console.log(`   isLocalDev: ${isLocalDev}`);
+console.log(`   secure: ${finalIsHttps} (HTTPS: ${finalIsHttps})`);
+console.log(`   sameSite: ${finalIsHttps ? "none" : "lax"}`);
 console.log(`   httpOnly: true`);
+console.log(`   path: /`);
+console.log(`   domain: (not set - browser default)`);
 
 // Initialize Passport middleware
 app.use(passport.initialize());

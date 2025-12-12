@@ -395,7 +395,7 @@ class CertificationService {
   // Calculate certification status
   calculateStatus(expirationDate, neverExpires) {
     if (neverExpires) {
-      return "permanent";
+      return "active";
     }
 
     if (!expirationDate) {

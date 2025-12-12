@@ -208,7 +208,7 @@ class CertificationController {
     
     // Filter for current (non-expired) certifications
     const currentCertifications = allCertifications.filter(cert => 
-      cert.status === 'active' || cert.status === 'permanent' || cert.status === 'no_expiration'
+      cert.status === 'active' || cert.status === 'no_expiration'
     );
 
     res.status(200).json({

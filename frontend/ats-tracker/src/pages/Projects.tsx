@@ -3,6 +3,7 @@ import { Icon } from "@iconify/react";
 import { ProjectData, ProjectInput } from "../types";
 import { api } from "../services/api";
 import { isValidUrl, getUrlErrorMessage } from "../utils/urlValidation";
+import { GitHubImportModal } from "../components/GitHubImportModal";
 
 export function Projects() {
   const [projects, setProjects] = useState<ProjectData[]>([]);
@@ -20,6 +21,7 @@ export function Projects() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showGitHubImportModal, setShowGitHubImportModal] = useState(false);
   const [selectedProject, setSelectedProject] = useState<ProjectData | null>(
     null
   );
@@ -330,13 +332,22 @@ export function Projects() {
             Showcase your work and achievements
           </p>
         </div>
-        <button
-          onClick={openAddModal}
-          className="bg-blue-500 text-white px-6 py-3 rounded-xl font-medium hover:bg-blue-600 transition-all flex items-center gap-2 shadow-md"
-        >
-          <Icon icon="mingcute:add-line" width={20} />
-          Add Project
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowGitHubImportModal(true)}
+            className="bg-slate-100 text-slate-700 px-6 py-3 rounded-xl font-medium hover:bg-slate-200 transition-all flex items-center gap-2 shadow-sm"
+          >
+            <Icon icon="mingcute:github-line" width={20} />
+            Import from GitHub
+          </button>
+          <button
+            onClick={openAddModal}
+            className="bg-blue-500 text-white px-6 py-3 rounded-xl font-medium hover:bg-blue-600 transition-all flex items-center gap-2 shadow-md"
+          >
+            <Icon icon="mingcute:add-line" width={20} />
+            Add Project
+          </button>
+        </div>
       </div>
 
       {/* Error banner */}
@@ -1000,6 +1011,17 @@ export function Projects() {
           </div>
         </div>
       )}
+
+      {/* GitHub Import Modal */}
+      <GitHubImportModal
+        isOpen={showGitHubImportModal}
+        onClose={() => setShowGitHubImportModal(false)}
+        onImport={() => {
+          fetchProjects();
+          setShowGitHubImportModal(false);
+        }}
+        existingProjects={projects}
+      />
     </div>
   );
 }

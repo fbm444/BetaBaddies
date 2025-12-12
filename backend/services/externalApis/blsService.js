@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { wrapApiCall } from '../../utils/apiCallWrapper.js';
 
 /**
  * BLS (Bureau of Labor Statistics) API Service
@@ -49,52 +50,58 @@ class BLSService {
    * @param {number} endYear - End year for data
    * @returns {Object|null} Parsed salary data or null on error
    */
-  async getSalaryData(seriesId, startYear = 2020, endYear = 2024) {
+  async getSalaryData(seriesId, startYear = 2020, endYear = 2024, userId = null) {
     if (!seriesId) {
       console.warn('⚠️ No BLS series ID provided');
       return null;
     }
 
-    try {
-      const payload = {
-        seriesid: [seriesId],
-        startyear: startYear.toString(),
-        endyear: endYear.toString(),
-        calculations: true,  // Include percent changes
-        annualaverage: true  // Include annual averages
-      };
+    return wrapApiCall({
+      serviceName: "bls",
+      endpoint: "getSalaryData",
+      userId,
+      apiCall: async () => {
+        const payload = {
+          seriesid: [seriesId],
+          startyear: startYear.toString(),
+          endyear: endYear.toString(),
+          calculations: true,
+          annualaverage: true
+        };
 
-      // Add API key for higher rate limits (500/day vs 25/day)
-      if (this.apiKey) {
-        payload.registrationkey = this.apiKey;
-      } else {
-        console.warn('⚠️ BLS API key not configured. Using public tier (limited to 25 requests/day)');
-      }
+        if (this.apiKey) {
+          payload.registrationkey = this.apiKey;
+        } else {
+          console.warn('⚠️ BLS API key not configured. Using public tier (limited to 25 requests/day)');
+        }
 
-      const response = await axios.post(this.baseUrl, payload, {
-        headers: { 'Content-Type': 'application/json' },
-        timeout: 10000 // 10 second timeout
-      });
+        const response = await axios.post(this.baseUrl, payload, {
+          headers: { 'Content-Type': 'application/json' },
+          timeout: 10000
+        });
 
-      if (response.data.status !== 'REQUEST_SUCCEEDED') {
-        throw new Error(`BLS API error: ${response.data.message || 'Unknown error'}`);
-      }
+        if (response.data.status !== 'REQUEST_SUCCEEDED') {
+          throw new Error(`BLS API error: ${response.data.message || 'Unknown error'}`);
+        }
 
-      const series = response.data.Results.series[0];
-      if (!series || !series.data || series.data.length === 0) {
-        throw new Error('No data returned from BLS');
-      }
+        const series = response.data.Results.series[0];
+        if (!series || !series.data || series.data.length === 0) {
+          throw new Error('No data returned from BLS');
+        }
 
-      return this.parseSalaryData(series);
-      
-    } catch (error) {
-      if (error.response?.status === 429) {
-        console.error('❌ BLS API rate limit exceeded');
-      } else {
-        console.error('❌ Error calling BLS API:', error.message);
-      }
+        return { data: series };
+      },
+      fallback: async (error) => {
+        // Fallback: return null (caller should handle)
+        console.warn("Using fallback for BLS API - returning null");
+        return null;
+      },
+    }).then((response) => {
+      if (!response || !response.data) return null;
+      return this.parseSalaryData(response.data);
+    }).catch(() => {
       return null;
-    }
+    });
   }
 
   /**
@@ -137,9 +144,10 @@ class BLSService {
   /**
    * Get salary for a specific job title
    * @param {string} jobTitle - Job title to look up
+   * @param {number} userId - Optional user ID for tracking
    * @returns {Object|null} Salary data or null
    */
-  async getSalaryForJobTitle(jobTitle) {
+  async getSalaryForJobTitle(jobTitle, userId = null) {
     if (!jobTitle) return null;
 
     const normalizedTitle = jobTitle.toLowerCase().trim();
@@ -181,7 +189,7 @@ class BLSService {
     }
 
     // Get base tech sector wage data
-    const baseData = await this.getSalaryData(this.baseSeries);
+    const baseData = await this.getSalaryData(this.baseSeries, 2020, 2024, userId);
     if (!baseData) {
       return null;
     }
@@ -224,51 +232,66 @@ class BLSService {
   /**
    * Get multiple occupations' data at once
    * @param {Array<string>} seriesIds - Array of BLS series IDs
+   * @param {number} userId - Optional user ID for tracking
    * @returns {Object} Map of series ID to salary data
    */
-  async getMultipleSeries(seriesIds) {
+  async getMultipleSeries(seriesIds, userId = null) {
     if (!seriesIds || seriesIds.length === 0) return {};
 
-    try {
-      // BLS allows up to 50 series per request
-      const batchSize = 50;
-      const batches = [];
-      
-      for (let i = 0; i < seriesIds.length; i += batchSize) {
-        batches.push(seriesIds.slice(i, i + batchSize));
-      }
-
-      const results = {};
-      
-      for (const batch of batches) {
-        const payload = {
-          seriesid: batch,
-          startyear: '2020',
-          endyear: '2024',
-          calculations: true
-        };
-
-        if (this.apiKey) {
-          payload.registrationkey = this.apiKey;
+    return wrapApiCall({
+      serviceName: "bls",
+      endpoint: "getMultipleSeries",
+      userId,
+      apiCall: async () => {
+        // BLS allows up to 50 series per request
+        const batchSize = 50;
+        const batches = [];
+        
+        for (let i = 0; i < seriesIds.length; i += batchSize) {
+          batches.push(seriesIds.slice(i, i + batchSize));
         }
 
-        const response = await axios.post(this.baseUrl, payload, {
-          headers: { 'Content-Type': 'application/json' }
-        });
+        const results = {};
+        
+        for (const batch of batches) {
+          const payload = {
+            seriesid: batch,
+            startyear: '2020',
+            endyear: '2024',
+            calculations: true
+          };
 
-        if (response.data.status === 'REQUEST_SUCCEEDED') {
-          response.data.Results.series.forEach(series => {
-            results[series.seriesID] = this.parseSalaryData(series);
+          if (this.apiKey) {
+            payload.registrationkey = this.apiKey;
+          }
+
+          const response = await axios.post(this.baseUrl, payload, {
+            headers: { 'Content-Type': 'application/json' },
+            timeout: 10000
           });
-        }
-      }
 
-      return results;
-      
-    } catch (error) {
-      console.error('❌ Error getting multiple BLS series:', error.message);
+          if (response.data.status !== 'REQUEST_SUCCEEDED') {
+            throw new Error(`BLS API error: ${response.data.message || 'Unknown error'}`);
+          }
+
+          if (response.data.Results && response.data.Results.series) {
+            response.data.Results.series.forEach(series => {
+              results[series.seriesID] = this.parseSalaryData(series);
+            });
+          }
+        }
+
+        return { data: results };
+      },
+      fallback: async (error) => {
+        console.warn("Using fallback for BLS getMultipleSeries - returning empty object");
+        return { data: {} };
+      },
+    }).then((response) => {
+      return response?.data || {};
+    }).catch(() => {
       return {};
-    }
+    });
   }
 
   /**

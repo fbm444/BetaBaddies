@@ -48,6 +48,7 @@ import { TeamInviteAccept } from "./pages/TeamInviteAccept";
 import { Family } from "./pages/Family";
 import { FamilyInviteAccept } from "./pages/FamilyInviteAccept";
 import { FamilyOnlyDashboard } from "./pages/FamilyOnlyDashboard";
+import { ApiMonitoring } from "./pages/ApiMonitoring";
 import "./App.css";
 
 function App() {
@@ -136,6 +137,7 @@ function App() {
           >
             <Route path={ROUTES.DASHBOARD} element={<Dashboard />} />
             <Route path={ROUTES.BASIC_INFO} element={<BasicInformation />} />
+            <Route path={ROUTES.API_MONITORING} element={<ApiMonitoring />} />
             <Route path={ROUTES.EMPLOYMENT} element={<Employment />} />
             <Route
               path={ROUTES.JOB_OPPORTUNITIES}

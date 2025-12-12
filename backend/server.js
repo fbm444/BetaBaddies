@@ -24,6 +24,7 @@ import companyResearchRoutes from "./routes/companyResearchRoutes.js";
 import interviewRoutes from "./routes/interviewRoutes.js";
 import interviewPrepRoutes from "./routes/interviewPrepRoutes.js";
 import googleCalendarRoutes from "./routes/googleCalendarRoutes.js";
+import gmailRoutes from "./routes/gmailRoutes.js";
 import analyticsRoutes from "./routes/analyticsRoutes.js";
 import goalRoutes from "./routes/goalRoutes.js";
 import marketIntelligenceRoutes from "./routes/marketIntelligenceRoutes.js";
@@ -46,6 +47,9 @@ import referralRequestRoutes from "./routes/referralRequestRoutes.js";
 import networkingGoalRoutes from "./routes/networkingGoalRoutes.js";
 import linkedinRoutes from "./routes/linkedinRoutes.js";
 import networkingRoutes from "./routes/networkingRoutes.js";
+import githubRoutes from "./routes/githubRoutes.js";
+import apiMonitoringRoutes from "./routes/apiMonitoringRoutes.js";
+import geocodingRoutes from "./routes/geocodingRoutes.js";
 
 // Import middleware
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
@@ -108,6 +112,7 @@ logger.info("CORS Configuration", {
 
 app.use(
   cors({
+<<<<<<< HEAD
     origin: (origin, callback) => {
       // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) {
@@ -324,17 +329,49 @@ console.log(`   domain: (not set - browser default)`);
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Serve static files from uploads directory (only in development with local storage)
+// Serve static files from uploads directory with CORS headers
 const useLocalStorage =
   !process.env.CLOUD_PROVIDER || process.env.CLOUD_PROVIDER === "local";
 if (process.env.NODE_ENV === "development" && useLocalStorage) {
-  app.use("/uploads", express.static("uploads"));
+  app.use("/uploads", (req, res, next) => {
+    const origin = req.headers.origin;
+    const allowedOrigins = [
+      process.env.FRONTEND_URL || "http://localhost:3000",
+      "http://localhost:5173", // Vite dev server
+      "http://localhost:3000", // Alternative frontend port
+    ];
+    
+    if (origin && allowedOrigins.includes(origin)) {
+      res.header("Access-Control-Allow-Origin", origin);
+    } else {
+      res.header("Access-Control-Allow-Origin", allowedOrigins[0]);
+    }
+    res.header("Access-Control-Allow-Credentials", "true");
+    res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
+    next();
+  }, express.static("uploads"));
 } else if (process.env.NODE_ENV === "production" && useLocalStorage) {
   // In production with local storage, still serve files but log warning
   console.warn(
     "⚠️ WARNING: Using local file storage in production. Consider using cloud storage."
   );
-  app.use("/uploads", express.static("uploads"));
+  app.use("/uploads", (req, res, next) => {
+    const origin = req.headers.origin;
+    const allowedOrigins = [
+      process.env.FRONTEND_URL || "http://localhost:3000",
+      "http://localhost:5173", // Vite dev server
+      "http://localhost:3000", // Alternative frontend port
+    ];
+    
+    if (origin && allowedOrigins.includes(origin)) {
+      res.header("Access-Control-Allow-Origin", origin);
+    } else {
+      res.header("Access-Control-Allow-Origin", allowedOrigins[0]);
+    }
+    res.header("Access-Control-Allow-Credentials", "true");
+    res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
+    next();
+  }, express.static("uploads"));
 }
 
 // Health check endpoint
@@ -423,6 +460,7 @@ app.use("/api/v1/company-research", companyResearchRoutes);
 app.use("/api/v1/interviews", interviewRoutes);
 app.use("/api/v1/interview-prep", interviewPrepRoutes);
 app.use("/api/v1/calendar", googleCalendarRoutes);
+app.use("/api/v1/gmail", gmailRoutes);
 app.use("/api/v1/analytics", analyticsRoutes);
 app.use("/api/v1/goals", goalRoutes);
 app.use("/api/v1/market-intelligence", marketIntelligenceRoutes);
@@ -445,6 +483,9 @@ app.use("/api/v1/network/referrals", referralRequestRoutes);
 app.use("/api/v1/network/goals", networkingGoalRoutes);
 app.use("/api/v1/networking", networkingRoutes);
 app.use("/api/v1/linkedin", linkedinRoutes);
+app.use("/api/v1/github", githubRoutes);
+app.use("/api/v1/admin/api-monitoring", apiMonitoringRoutes);
+app.use("/api/v1/geocoding", geocodingRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

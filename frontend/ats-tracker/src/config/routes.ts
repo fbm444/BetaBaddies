@@ -50,6 +50,7 @@ export const ROUTES = {
   NETWORK_CONTACTS: "/network/contacts",
   NETWORK_EVENTS: "/network/events",
   NETWORK_REFERRALS: "/network/referrals",
+  API_MONITORING: "/admin/api-monitoring",
 } as const;
 
 // Navigation item type
@@ -86,6 +87,12 @@ export const navigationGroups: NavigationGroup[] = [
         label: "Basic Info",
         icon: "mingcute:user-line",
         path: ROUTES.BASIC_INFO,
+      },
+      {
+        id: "api-monitoring",
+        label: "API Monitoring",
+        icon: "mingcute:chart-line",
+        path: ROUTES.API_MONITORING,
       },
     ],
   },

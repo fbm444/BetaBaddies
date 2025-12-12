@@ -11,6 +11,13 @@ class CertificationService {
       dateEarned,
       expirationDate,
       neverExpires,
+      platform,
+      badgeImage,
+      verificationUrl,
+      category,
+      description,
+      assessmentScores,
+      achievements,
     } = certificationData;
 
     try {
@@ -27,9 +34,10 @@ class CertificationService {
       const query = `
         INSERT INTO certifications (
           id, user_id, name, org_name, date_earned, 
-          expiration_date, never_expires
+          expiration_date, never_expires, platform, badge_image,
+          verification_url, category, description, assessment_scores, achievements
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
         RETURNING *
       `;
 
@@ -41,6 +49,13 @@ class CertificationService {
         dateEarned,
         neverExpires ? null : expirationDate,
         neverExpires || false,
+        platform || null,
+        badgeImage || null,
+        verificationUrl || null,
+        category || null,
+        description || null,
+        assessmentScores ? JSON.stringify(assessmentScores) : null,
+        achievements ? JSON.stringify(achievements) : null,
       ]);
 
       const certification = this.formatCertification(result.rows[0]);
@@ -127,6 +142,13 @@ class CertificationService {
       dateEarned,
       expirationDate,
       neverExpires,
+      platform,
+      badgeImage,
+      verificationUrl,
+      category,
+      description,
+      assessmentScores,
+      achievements,
     } = updateData;
 
     try {
@@ -149,7 +171,14 @@ class CertificationService {
           org_name = COALESCE($4, org_name),
           date_earned = COALESCE($5, date_earned),
           expiration_date = COALESCE($6, expiration_date),
-          never_expires = COALESCE($7, never_expires)
+          never_expires = COALESCE($7, never_expires),
+          platform = COALESCE($8, platform),
+          badge_image = COALESCE($9, badge_image),
+          verification_url = COALESCE($10, verification_url),
+          category = COALESCE($11, category),
+          description = COALESCE($12, description),
+          assessment_scores = COALESCE($13, assessment_scores),
+          achievements = COALESCE($14, achievements)
         WHERE id = $1 AND user_id = $2
         RETURNING *
       `;
@@ -162,6 +191,13 @@ class CertificationService {
         dateEarned || null,
         neverExpires ? null : (expirationDate || null),
         neverExpires !== undefined ? neverExpires : null,
+        platform !== undefined ? platform : null,
+        badgeImage !== undefined ? badgeImage : null,
+        verificationUrl !== undefined ? verificationUrl : null,
+        category !== undefined ? category : null,
+        description !== undefined ? description : null,
+        assessmentScores !== undefined ? JSON.stringify(assessmentScores) : null,
+        achievements !== undefined ? JSON.stringify(achievements) : null,
       ]);
 
       if (result.rows.length === 0) {
@@ -267,6 +303,9 @@ class CertificationService {
           AND (
             LOWER(name) LIKE LOWER($2) 
             OR LOWER(org_name) LIKE LOWER($2)
+            OR LOWER(platform) LIKE LOWER($2)
+            OR LOWER(category) LIKE LOWER($2)
+            OR LOWER(description) LIKE LOWER($2)
           )
         ORDER BY date_earned DESC
       `;
@@ -275,6 +314,24 @@ class CertificationService {
       return result.rows.map(cert => this.formatCertification(cert));
     } catch (error) {
       console.error("❌ Error searching certifications:", error);
+      throw error;
+    }
+  }
+
+  // Get certifications by category
+  async getCertificationsByCategory(userId, category) {
+    try {
+      const query = `
+        SELECT *
+        FROM certifications
+        WHERE user_id = $1 AND category = $2
+        ORDER BY date_earned DESC
+      `;
+
+      const result = await database.query(query, [userId, category]);
+      return result.rows.map(cert => this.formatCertification(cert));
+    } catch (error) {
+      console.error("❌ Error getting certifications by category:", error);
       throw error;
     }
   }
@@ -319,6 +376,15 @@ class CertificationService {
       date_earned: cert.date_earned,
       expiration_date: cert.expiration_date,
       never_expires: cert.never_expires,
+      platform: cert.platform || null,
+      badge_image: cert.badge_image || null,
+      verification_url: cert.verification_url || null,
+      category: cert.category || null,
+      description: cert.description || null,
+      assessment_scores: cert.assessment_scores ? (typeof cert.assessment_scores === 'string' ? cert.assessment_scores : String(cert.assessment_scores)) : null,
+      achievements: cert.achievements ? (typeof cert.achievements === 'string' ? JSON.parse(cert.achievements) : cert.achievements) : null,
+      created_at: cert.created_at || null,
+      updated_at: cert.updated_at || null,
       // Calculate status based on expiration
       status: this.calculateStatus(cert.expiration_date, cert.never_expires),
       // Calculate days until expiration
@@ -329,7 +395,7 @@ class CertificationService {
   // Calculate certification status
   calculateStatus(expirationDate, neverExpires) {
     if (neverExpires) {
-      return "permanent";
+      return "active";
     }
 
     if (!expirationDate) {

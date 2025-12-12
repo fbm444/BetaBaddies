@@ -32,8 +32,8 @@ CREATE TABLE IF NOT EXISTS family_boundary_settings (
     UNIQUE(user_id, family_member_user_id, setting_type)
 );
 
-CREATE INDEX idx_family_boundary_settings_user ON family_boundary_settings(user_id);
-CREATE INDEX idx_family_boundary_settings_family_member ON family_boundary_settings(family_member_user_id);
+CREATE INDEX IF NOT EXISTS idx_family_boundary_settings_user ON family_boundary_settings(user_id);
+CREATE INDEX IF NOT EXISTS idx_family_boundary_settings_family_member ON family_boundary_settings(family_member_user_id);
 
 -- Family Celebrations Table
 CREATE TABLE IF NOT EXISTS family_celebrations (
@@ -48,9 +48,9 @@ CREATE TABLE IF NOT EXISTS family_celebrations (
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_family_celebrations_user ON family_celebrations(user_id, created_at DESC);
-CREATE INDEX idx_family_celebrations_family_member ON family_celebrations(family_member_user_id, created_at DESC);
-CREATE INDEX idx_family_celebrations_shared ON family_celebrations(user_id, shared_with_family) WHERE shared_with_family = true;
+CREATE INDEX IF NOT EXISTS idx_family_celebrations_user ON family_celebrations(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_family_celebrations_family_member ON family_celebrations(family_member_user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_family_celebrations_shared ON family_celebrations(user_id, shared_with_family) WHERE shared_with_family = true;
 
 -- Family Well-being Tracking Table
 CREATE TABLE IF NOT EXISTS family_wellbeing_tracking (
@@ -66,8 +66,8 @@ CREATE TABLE IF NOT EXISTS family_wellbeing_tracking (
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_family_wellbeing_user ON family_wellbeing_tracking(user_id, created_at DESC);
-CREATE INDEX idx_family_wellbeing_tracker ON family_wellbeing_tracking(tracked_by_user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_family_wellbeing_user ON family_wellbeing_tracking(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_family_wellbeing_tracker ON family_wellbeing_tracking(tracked_by_user_id, created_at DESC);
 
 -- Family Support Suggestions Table (AI-generated)
 CREATE TABLE IF NOT EXISTS family_support_suggestions (
@@ -84,9 +84,9 @@ CREATE TABLE IF NOT EXISTS family_support_suggestions (
     applied_at timestamp with time zone
 );
 
-CREATE INDEX idx_family_support_suggestions_user ON family_support_suggestions(user_id, created_at DESC);
-CREATE INDEX idx_family_support_suggestions_family_member ON family_support_suggestions(family_member_user_id, created_at DESC);
-CREATE INDEX idx_family_support_suggestions_type ON family_support_suggestions(suggestion_type, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_family_support_suggestions_user ON family_support_suggestions(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_family_support_suggestions_family_member ON family_support_suggestions(family_member_user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_family_support_suggestions_type ON family_support_suggestions(suggestion_type, created_at DESC);
 
 -- Educational Resources Table
 CREATE TABLE IF NOT EXISTS family_educational_resources (
@@ -100,15 +100,21 @@ CREATE TABLE IF NOT EXISTS family_educational_resources (
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_family_educational_resources_type ON family_educational_resources(resource_type);
-CREATE INDEX idx_family_educational_resources_category ON family_educational_resources(category);
+CREATE INDEX IF NOT EXISTS idx_family_educational_resources_type ON family_educational_resources(resource_type);
+CREATE INDEX IF NOT EXISTS idx_family_educational_resources_category ON family_educational_resources(category);
 
 -- Family Support Impact Tracking (enhance existing table)
-ALTER TABLE support_effectiveness_tracking 
-ADD COLUMN IF NOT EXISTS family_member_user_id uuid REFERENCES users(u_id) ON DELETE SET NULL,
-ADD COLUMN IF NOT EXISTS support_activity_type varchar(50),
-ADD COLUMN IF NOT EXISTS support_activity_details jsonb,
-ADD COLUMN IF NOT EXISTS performance_metrics jsonb;
+-- Only alter if the table exists
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'support_effectiveness_tracking') THEN
+        ALTER TABLE support_effectiveness_tracking 
+        ADD COLUMN IF NOT EXISTS family_member_user_id uuid REFERENCES users(u_id) ON DELETE SET NULL,
+        ADD COLUMN IF NOT EXISTS support_activity_type varchar(50),
+        ADD COLUMN IF NOT EXISTS support_activity_details jsonb,
+        ADD COLUMN IF NOT EXISTS performance_metrics jsonb;
 
-CREATE INDEX IF NOT EXISTS idx_support_effectiveness_family_member ON support_effectiveness_tracking(family_member_user_id, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_support_effectiveness_family_member ON support_effectiveness_tracking(family_member_user_id, created_at DESC);
+    END IF;
+END $$;
 

@@ -99,38 +99,36 @@ class MarketIntelligenceService {
    * Get comprehensive salary intelligence
    */
   async getSalaryIntelligence(jobTitle, location = null, industry = null) {
-    // Handle null/undefined jobTitle
-    if (!jobTitle || typeof jobTitle !== "string" || jobTitle.trim() === "") {
+    // Handle null or empty job title
+    if (!jobTitle || typeof jobTitle !== 'string' || jobTitle.trim().length === 0) {
       return {
-        jobTitle: null,
-        location: location || "All locations",
+        jobTitle: jobTitle || 'Unknown',
+        location: location || 'All locations',
         industry,
         yourMarket: {
-          average: 0,
-          range: { min: 0, max: 0 },
-          percentiles: { p25: 0, median: 0, p75: 0 },
           sampleSize: 0,
-          source: "Your job applications",
+          median: null,
+          range: { min: null, max: null },
+          percentiles: null,
+          note: 'No job title provided'
         },
         nationalBenchmark: {
           median: null,
           year: new Date().getFullYear().toString(),
           yearOverYearChange: null,
-          trend: "unknown",
-          source: "Market data unavailable",
-          note: "Job title is required for salary intelligence",
+          trend: 'unknown',
+          source: 'Market data unavailable',
+          note: 'Job title is required to fetch salary intelligence'
         },
         comparison: null,
         salaryDistribution: null,
         generatedAt: new Date().toISOString(),
-        error: "Job title is required",
+        cached: false
       };
     }
 
-    const cacheKey = `salary:${jobTitle}:${location || "any"}:${
-      industry || "any"
-    }`;
-
+    const cacheKey = `salary:${jobTitle}:${location || 'any'}:${industry || 'any'}`;
+    
     // Check cache first
     const cached = await this.getFromCache(cacheKey, "salary_trends");
     if (cached) {
@@ -226,14 +224,14 @@ class MarketIntelligenceService {
    * Get salary data from your database
    */
   async getYourSalaryData(jobTitle, location, industry) {
-    // Handle null/undefined jobTitle
-    if (!jobTitle || typeof jobTitle !== "string" || jobTitle.trim() === "") {
+    // Handle null or empty job title
+    if (!jobTitle || typeof jobTitle !== 'string') {
       return {
-        average: 0,
-        range: { min: 0, max: 0 },
-        percentiles: { p25: 0, median: 0, p75: 0 },
         sampleSize: 0,
-        source: "Your job applications",
+        median: null,
+        range: { min: null, max: null },
+        percentiles: null,
+        note: 'No job title provided'
       };
     }
 

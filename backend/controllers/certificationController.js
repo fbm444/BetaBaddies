@@ -1,5 +1,27 @@
 import certificationService from "../services/certificationService.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
+import multer from "multer";
+import { v4 as uuidv4 } from "uuid";
+import fs from "fs/promises";
+import path from "path";
+import fileUploadService from "../services/fileUploadService.js";
+
+// Configure multer for memory storage
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB max file size for badge images
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Invalid file type. Only images are allowed."));
+    }
+  },
+});
 
 class CertificationController {
   // Create a new certification
@@ -186,7 +208,7 @@ class CertificationController {
     
     // Filter for current (non-expired) certifications
     const currentCertifications = allCertifications.filter(cert => 
-      cert.status === 'active' || cert.status === 'permanent' || cert.status === 'no_expiration'
+      cert.status === 'active' || cert.status === 'no_expiration'
     );
 
     res.status(200).json({
@@ -209,6 +231,94 @@ class CertificationController {
       data: {
         certifications,
         count: certifications.length,
+      },
+    });
+  });
+
+  // Upload certification badge image
+  uploadBadgeImage = [
+    upload.single("badgeImage"),
+    asyncHandler(async (req, res) => {
+      const userId = req.session.userId;
+
+      if (!req.file) {
+        return res.status(400).json({
+          ok: false,
+          error: {
+            code: "NO_FILE",
+            message: "No file provided",
+          },
+        });
+      }
+
+      try {
+        // Generate unique filename
+        const fileId = uuidv4();
+        const fileExtension = path.extname(req.file.originalname).toLowerCase();
+        const fileName = `cert_badge_${fileId}${fileExtension}`;
+        const uploadDir = path.join(process.cwd(), "uploads", "certification-badges");
+        
+        // Ensure directory exists
+        await fs.mkdir(uploadDir, { recursive: true });
+        
+        const filePath = path.join(uploadDir, fileName);
+        
+        // Write file to disk
+        await fs.writeFile(filePath, req.file.buffer);
+
+        // Return the file path (relative to uploads directory)
+        const relativePath = `/uploads/certification-badges/${fileName}`;
+
+        res.status(201).json({
+          ok: true,
+          data: {
+            filePath: relativePath,
+            fileName: fileName,
+            message: "Badge image uploaded successfully",
+          },
+        });
+      } catch (error) {
+        console.error("❌ Error uploading badge image:", error);
+        if (
+          error.message.includes("File size exceeds") ||
+          error.message.includes("Invalid file type")
+        ) {
+          return res.status(400).json({
+            ok: false,
+            error: {
+              code: "VALIDATION_ERROR",
+              message: error.message,
+            },
+          });
+        }
+        throw error;
+      }
+    }),
+  ];
+
+  // Get certifications by category
+  getByCategory = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { category } = req.query;
+
+    if (!category) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: "MISSING_CATEGORY",
+          message: "Category is required",
+        },
+      });
+    }
+
+    const certifications = await certificationService.getCertificationsByCategory(userId, category);
+
+    res.status(200).json({
+      ok: true,
+      data: {
+        certifications,
+        count: certifications.length,
+        category,
       },
     });
   });

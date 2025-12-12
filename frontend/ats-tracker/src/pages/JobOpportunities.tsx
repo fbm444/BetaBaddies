@@ -22,6 +22,7 @@ import type {
 } from "../components/JobOpportunityFilters";
 import { DeadlineCalendar } from "../components/DeadlineCalendar";
 import { ArchiveModal } from "../components/ArchiveModal";
+import { JobOpportunitiesMapView } from "../components/JobOpportunitiesMapView";
 import { JobStatisticsSection } from "../components/JobStatisticsSection";
 import { JobImportModal } from "../components/JobImportModal";
 
@@ -66,6 +67,7 @@ export function JobOpportunities() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showArchiveModal, setShowArchiveModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showMapView, setShowMapView] = useState(false);
   const [importedJobData, setImportedJobData] = useState<JobOpportunityInput | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<{
     type: "single" | "bulk";
@@ -1066,6 +1068,38 @@ export function JobOpportunities() {
 
       {/* Statistics Section - Only show for active jobs */}
       {!showArchived && <JobStatisticsSection scrollRef={statisticsRef} />}
+
+      {/* Map View Section */}
+      {!showArchived && opportunities.length > 0 && (
+        <div className="mt-8 p-6 bg-white rounded-lg shadow-sm border border-slate-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-slate-900 mb-2">
+                View Job Opportunities on Map
+              </h3>
+              <p className="text-sm text-slate-600">
+                See all your job opportunities plotted on a map relative to your home location.
+                This helps you visualize commute distances and geographic distribution.
+              </p>
+            </div>
+            <button
+              onClick={() => setShowMapView(true)}
+              className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2 font-medium"
+            >
+              <Icon icon="mingcute:map-line" className="w-5 h-5" />
+              Open Map View
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Map View Modal */}
+      {showMapView && (
+        <JobOpportunitiesMapView
+          opportunities={opportunities}
+          onClose={() => setShowMapView(false)}
+        />
+      )}
 
       {/* Import Modal */}
       {showImportModal && (

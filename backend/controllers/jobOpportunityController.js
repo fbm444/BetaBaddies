@@ -6,6 +6,7 @@ import companyService from "../services/companyService.js";
 import jobImportService from "../services/jobImportService.js";
 import skillGapService from "../services/skillGapService.js";
 import skillService from "../services/skillService.js";
+import profileService from "../services/profileService.js";
 import userService from "../services/userService.js";
 import emailService from "../services/emailService.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
@@ -29,6 +30,13 @@ class JobOpportunityController {
           title: opportunity.title,
           company: opportunity.company,
           location: opportunity.location,
+          locationType: opportunity.locationType,
+          latitude: opportunity.latitude,
+          longitude: opportunity.longitude,
+          timezone: opportunity.timezone,
+          city: opportunity.city,
+          region: opportunity.region,
+          country: opportunity.country,
           salaryMin: opportunity.salaryMin,
           salaryMax: opportunity.salaryMax,
           jobPostingUrl: opportunity.jobPostingUrl,
@@ -71,7 +79,25 @@ class JobOpportunityController {
       salaryMax,
       deadlineFrom,
       deadlineTo,
+      locationType,
+      maxDistanceKm,
+      maxTravelMinutes,
+      homeLocation,
+      homeLatitude,
+      homeLongitude,
+      includeGeocoding,
     } = req.query;
+
+    let resolvedHomeLocation = homeLocation;
+    // If no explicit homeLocation provided, fall back to profile city/state
+    if (!resolvedHomeLocation) {
+      const profile = await profileService.getProfileByUserId(userId);
+      if (profile?.city) {
+        resolvedHomeLocation = profile.state
+          ? `${profile.city}, ${profile.state}`
+          : profile.city;
+      }
+    }
 
     const options = {
       sort,
@@ -81,10 +107,20 @@ class JobOpportunityController {
       search,
       industry,
       location,
+      locationType,
       salaryMin: salaryMin ? parseFloat(salaryMin) : undefined,
       salaryMax: salaryMax ? parseFloat(salaryMax) : undefined,
       deadlineFrom,
       deadlineTo,
+      maxDistanceKm: maxDistanceKm ? parseFloat(maxDistanceKm) : undefined,
+      maxTravelMinutes: maxTravelMinutes ? parseFloat(maxTravelMinutes) : undefined,
+      homeLocation: resolvedHomeLocation,
+      homeLatitude: homeLatitude ? parseFloat(homeLatitude) : undefined,
+      homeLongitude: homeLongitude ? parseFloat(homeLongitude) : undefined,
+      includeGeocoding:
+        includeGeocoding === "true" ||
+        includeGeocoding === "1" ||
+        includeGeocoding === true,
     };
 
     const opportunities = await jobOpportunityService.getJobOpportunitiesByUserId(
@@ -104,6 +140,13 @@ class JobOpportunityController {
           title: opportunity.title,
           company: opportunity.company,
           location: opportunity.location,
+          locationType: opportunity.locationType,
+          latitude: opportunity.latitude,
+          longitude: opportunity.longitude,
+          timezone: opportunity.timezone,
+          city: opportunity.city,
+          region: opportunity.region,
+          country: opportunity.country,
           salaryMin: opportunity.salaryMin,
           salaryMax: opportunity.salaryMax,
           jobPostingUrl: opportunity.jobPostingUrl,
@@ -123,6 +166,11 @@ class JobOpportunityController {
           interviewNotes: opportunity.interviewNotes,
           applicationHistory: opportunity.applicationHistory,
           statusUpdatedAt: opportunity.statusUpdatedAt,
+          commuteDistanceKm: opportunity.commuteDistanceKm ?? null,
+          estimatedTravelMinutes: opportunity.estimatedTravelMinutes ?? null,
+          homeLocationLabel: opportunity.homeLocationLabel || options.homeLocation || null,
+          homeLatitude: opportunity.homeLatitude ?? null,
+          homeLongitude: opportunity.homeLongitude ?? null,
           createdAt: opportunity.createdAt,
           updatedAt: opportunity.updatedAt,
         })),
@@ -165,6 +213,13 @@ class JobOpportunityController {
           title: opportunity.title,
           company: opportunity.company,
           location: opportunity.location,
+          locationType: opportunity.locationType,
+          latitude: opportunity.latitude,
+          longitude: opportunity.longitude,
+          timezone: opportunity.timezone,
+          city: opportunity.city,
+          region: opportunity.region,
+          country: opportunity.country,
           salaryMin: opportunity.salaryMin,
           salaryMax: opportunity.salaryMax,
           jobPostingUrl: opportunity.jobPostingUrl,
@@ -211,6 +266,13 @@ class JobOpportunityController {
           title: opportunity.title,
           company: opportunity.company,
           location: opportunity.location,
+          locationType: opportunity.locationType,
+          latitude: opportunity.latitude,
+          longitude: opportunity.longitude,
+          timezone: opportunity.timezone,
+          city: opportunity.city,
+          region: opportunity.region,
+          country: opportunity.country,
           salaryMin: opportunity.salaryMin,
           salaryMax: opportunity.salaryMax,
           jobPostingUrl: opportunity.jobPostingUrl,

@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import database from "./database.js";
+import geocodingService from "./geocodingService.js";
 
 function parseJsonArray(rawValue) {
   if (!rawValue) {
@@ -236,6 +237,12 @@ class JobOpportunityService {
       // Validate field lengths
       this.validateFieldLengths(opportunityData);
 
+      // Normalize location metadata
+      const locationType = geocodingService.normalizeLocationType(jobType, location);
+      // Format location for better geocoding results (add ", USA" if needed)
+      const formattedLocation = this.formatLocationForGeocoding(location);
+      const geocode = await geocodingService.geocode(formattedLocation);
+
       // Normalize salary range
       const {
         salaryMin: normalizedSalaryMin,
@@ -266,9 +273,11 @@ class JobOpportunityService {
           job_posting_url, application_deadline, job_description, industry, job_type, status,
           notes, recruiter_name, recruiter_email, recruiter_phone,
           hiring_manager_name, hiring_manager_email, hiring_manager_phone,
-          salary_negotiation_notes, interview_notes, application_history
+          salary_negotiation_notes, interview_notes, application_history,
+          location_type, latitude, longitude, timezone, city, region, country, geocoding_confidence, geocoding_raw
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23,
+                $24, $25, $26, $27, $28, $29, $30, $31, $32)
         RETURNING id, title, company, location, salary_min, salary_max,
           job_posting_url, application_deadline, job_description, industry, job_type, status,
           notes, recruiter_name, recruiter_email, recruiter_phone,
@@ -276,6 +285,7 @@ class JobOpportunityService {
           salary_negotiation_notes, interview_notes, application_history,
           status_updated_at, application_source, application_method, referral_contact_name, referral_contact_email,
           application_submitted_at, first_response_at, interview_scheduled_at,
+          location_type, latitude, longitude, timezone, city, region, country, geocoding_confidence, geocoding_raw,
           created_at, updated_at
       `;
 
@@ -303,6 +313,15 @@ class JobOpportunityService {
         salaryNegotiationNotes?.trim() || null,
         interviewNotes?.trim() || null,
         applicationHistory ? JSON.stringify(applicationHistory) : '[]',
+        locationType,
+        geocode?.latitude || null,
+        geocode?.longitude || null,
+        geocode?.timezone || null,
+        geocode?.city || null,
+        geocode?.region || null,
+        geocode?.country || null,
+        geocode?.raw?.importance || null,
+        geocode?.raw ? JSON.stringify(geocode.raw) : null,
       ]);
 
       const row = result.rows[0];
@@ -312,6 +331,13 @@ class JobOpportunityService {
         title: row.title,
         company: row.company,
         location: row.location,
+        locationType: row.location_type || locationType,
+        latitude: row.latitude,
+        longitude: row.longitude,
+        timezone: row.timezone,
+        city: row.city,
+        region: row.region,
+        country: row.country,
         salaryMin: row.salary_min,
         salaryMax: row.salary_max,
         jobPostingUrl: row.job_posting_url,
@@ -347,6 +373,19 @@ class JobOpportunityService {
       title: row.title,
       company: row.company,
       location: row.location,
+      locationType:
+        row.location_type ||
+        geocodingService.normalizeLocationType(row.job_type, row.location),
+      latitude: row.latitude ? parseFloat(row.latitude) : null,
+      longitude: row.longitude ? parseFloat(row.longitude) : null,
+      timezone: row.timezone || null,
+      city: row.city || null,
+      region: row.region || null,
+      country: row.country || null,
+      geocodingConfidence:
+        row.geocoding_confidence !== undefined && row.geocoding_confidence !== null
+          ? parseFloat(row.geocoding_confidence)
+          : null,
       salaryMin: row.salary_min,
       salaryMax: row.salary_max,
       jobPostingUrl: row.job_posting_url,
@@ -382,6 +421,196 @@ class JobOpportunityService {
     };
   }
 
+  // Helper method to format location string for USA geocoding
+  formatLocationForGeocoding(location) {
+    if (!location || !location.trim()) {
+      return location;
+    }
+
+    const locationLower = location.toLowerCase().trim();
+    
+    // Skip if already contains country or is clearly remote/hybrid
+    if (
+      locationLower.includes("usa") ||
+      locationLower.includes("united states") ||
+      locationLower.includes("remote") ||
+      locationLower.includes("hybrid")
+    ) {
+      return location.trim();
+    }
+
+    // If location looks like "City, State" format (has comma and 2-letter state code or state name)
+    // Add ", USA" to improve geocoding accuracy for US locations
+    const parts = location.split(",").map((p) => p.trim());
+    if (parts.length >= 2) {
+      const statePart = parts[parts.length - 1];
+      // Check if it looks like a US state (2-letter code or common state name)
+      const usStateCodes = [
+        "al", "ak", "az", "ar", "ca", "co", "ct", "de", "fl", "ga", "hi", "id",
+        "il", "in", "ia", "ks", "ky", "la", "me", "md", "ma", "mi", "mn", "ms",
+        "mo", "mt", "ne", "nv", "nh", "nj", "nm", "ny", "nc", "nd", "oh", "ok",
+        "or", "pa", "ri", "sc", "sd", "tn", "tx", "ut", "vt", "va", "wa", "wv",
+        "wi", "wy", "dc"
+      ];
+      const usStateNames = [
+        "alabama", "alaska", "arizona", "arkansas", "california", "colorado",
+        "connecticut", "delaware", "florida", "georgia", "hawaii", "idaho",
+        "illinois", "indiana", "iowa", "kansas", "kentucky", "louisiana", "maine",
+        "maryland", "massachusetts", "michigan", "minnesota", "mississippi",
+        "missouri", "montana", "nebraska", "nevada", "new hampshire", "new jersey",
+        "new mexico", "new york", "north carolina", "north dakota", "ohio",
+        "oklahoma", "oregon", "pennsylvania", "rhode island", "south carolina",
+        "south dakota", "tennessee", "texas", "utah", "vermont", "virginia",
+        "washington", "west virginia", "wisconsin", "wyoming", "district of columbia"
+      ];
+      
+      if (
+        usStateCodes.includes(statePart.toLowerCase()) ||
+        usStateNames.includes(statePart.toLowerCase())
+      ) {
+        return `${location.trim()}, USA`;
+      }
+    }
+
+    return location.trim();
+  }
+
+  async enrichWithCommute(opportunities, options = {}) {
+    // If geocoding is not explicitly requested, return jobs unchanged to avoid slowdown
+    if (!options.includeGeocoding) {
+      return { opportunities, homeCoordinates: null };
+    }
+
+    const {
+      homeLatitude,
+      homeLongitude,
+      homeLocation,
+      maxDistanceKm,
+      maxTravelMinutes,
+    } = options;
+
+    let homeCoordinates = null;
+
+    if (homeLatitude !== undefined && homeLongitude !== undefined) {
+      homeCoordinates = {
+        latitude: parseFloat(homeLatitude),
+        longitude: parseFloat(homeLongitude),
+        displayName: homeLocation || "Home",
+      };
+    } else if (homeLocation) {
+      const formattedHomeLocation = this.formatLocationForGeocoding(homeLocation);
+      const geocode = await geocodingService.geocode(formattedHomeLocation);
+      if (geocode) {
+        homeCoordinates = {
+          latitude: geocode.latitude,
+          longitude: geocode.longitude,
+          displayName: geocode.displayName || homeLocation,
+        };
+      }
+    }
+
+    const enriched = [];
+
+    for (const job of opportunities) {
+      let jobWithCoords = job;
+      let needsCoordinateUpdate = false;
+
+      // Geocode jobs that don't have coordinates
+      if ((job.latitude === null || job.longitude === null) && job.location) {
+        try {
+          // Format location for better geocoding results (add ", USA" if needed)
+          const formattedLocation = this.formatLocationForGeocoding(job.location);
+          const geocode = await geocodingService.geocode(formattedLocation);
+          if (geocode && geocode.latitude && geocode.longitude) {
+            jobWithCoords = {
+              ...jobWithCoords,
+              latitude: geocode.latitude,
+              longitude: geocode.longitude,
+              timezone: geocode.timezone || job.timezone,
+              city: geocode.city || job.city,
+              region: geocode.region || job.region,
+              country: geocode.country || job.country,
+            };
+            needsCoordinateUpdate = true;
+          }
+        } catch (err) {
+          // Log and continue without blocking the response
+          console.warn(
+            "Geocoding skipped for job due to error:",
+            job.id,
+            (err && err.message) || err
+          );
+        }
+      }
+
+      // Save geocoded coordinates back to database if we successfully geocoded
+      if (needsCoordinateUpdate && jobWithCoords.latitude && jobWithCoords.longitude && options.userId) {
+        try {
+          // Update the job opportunity with the geocoded coordinates
+          await this.updateJobOpportunity(job.id, options.userId, {
+            latitude: jobWithCoords.latitude,
+            longitude: jobWithCoords.longitude,
+            timezone: jobWithCoords.timezone,
+            city: jobWithCoords.city,
+            region: jobWithCoords.region,
+            country: jobWithCoords.country,
+          });
+        } catch (updateErr) {
+          // Log but don't block - coordinates are still available in the response
+          console.warn(
+            "Failed to save geocoded coordinates for job:",
+            job.id,
+            (updateErr && updateErr.message) || updateErr
+          );
+        }
+      }
+
+      const enrichedJob = {
+        ...jobWithCoords,
+        commuteDistanceKm: null,
+        estimatedTravelMinutes: null,
+        homeLocationLabel: homeCoordinates?.displayName || null,
+        homeLatitude: homeCoordinates?.latitude || null,
+        homeLongitude: homeCoordinates?.longitude || null,
+      };
+
+      if (homeCoordinates) {
+        const distanceKm = geocodingService.calculateDistanceKm(homeCoordinates, jobWithCoords);
+        const travelMinutes = geocodingService.estimateTravelTimeMinutes(
+          distanceKm,
+          jobWithCoords.locationType
+        );
+        enrichedJob.commuteDistanceKm = distanceKm;
+        enrichedJob.estimatedTravelMinutes = travelMinutes;
+
+        // Only apply distance/time filters if we have a home location
+        if (
+          maxDistanceKm !== undefined &&
+          maxDistanceKm !== null &&
+          enrichedJob.commuteDistanceKm !== null &&
+          enrichedJob.commuteDistanceKm > parseFloat(maxDistanceKm)
+        ) {
+          continue;
+        }
+
+        if (
+          maxTravelMinutes !== undefined &&
+          maxTravelMinutes !== null &&
+          enrichedJob.estimatedTravelMinutes !== null &&
+          enrichedJob.estimatedTravelMinutes > parseFloat(maxTravelMinutes)
+        ) {
+          continue;
+        }
+      }
+      // If no home location, we can't calculate distance/time, so we ignore those filters
+      // and include all jobs (commuteDistanceKm and estimatedTravelMinutes remain null)
+
+      enriched.push(enrichedJob);
+    }
+
+    return { opportunities: enriched, homeCoordinates };
+  }
+
   // Get job opportunity by ID (with user ownership validation)
   async getJobOpportunityById(opportunityId, userId) {
     try {
@@ -391,6 +620,7 @@ class JobOpportunityService {
           notes, recruiter_name, recruiter_email, recruiter_phone,
           hiring_manager_name, hiring_manager_email, hiring_manager_phone,
           salary_negotiation_notes, interview_notes, application_history,
+          location_type, latitude, longitude, timezone, city, region, country, geocoding_confidence, geocoding_raw,
           status_updated_at, archived, archived_at, archive_reason,
           application_source, application_method, referral_contact_name, referral_contact_email,
           application_submitted_at, first_response_at, interview_scheduled_at,
@@ -424,10 +654,16 @@ class JobOpportunityService {
         search,
         industry,
         location,
+        locationType,
         salaryMin,
         salaryMax,
         deadlineFrom,
         deadlineTo,
+        homeLatitude,
+        homeLongitude,
+        homeLocation,
+        maxDistanceKm,
+        maxTravelMinutes,
       } = options;
 
       // Validate limit
@@ -463,6 +699,12 @@ class JobOpportunityService {
       if (industry && industry.trim()) {
         whereClause += ` AND industry = $${paramIndex++}`;
         queryParams.push(industry.trim());
+      }
+
+      // Location type filter
+      if (locationType && locationType.trim()) {
+        whereClause += ` AND LOWER(location_type) = $${paramIndex++}`;
+        queryParams.push(locationType.trim().toLowerCase());
       }
 
       // Location filter (case-insensitive partial match)
@@ -526,6 +768,7 @@ class JobOpportunityService {
           notes, recruiter_name, recruiter_email, recruiter_phone,
           hiring_manager_name, hiring_manager_email, hiring_manager_phone,
           salary_negotiation_notes, interview_notes, application_history,
+          location_type, latitude, longitude, timezone, city, region, country, geocoding_confidence, geocoding_raw,
           status_updated_at, archived, archived_at, archive_reason,
           application_source, application_method, referral_contact_name, referral_contact_email,
           application_submitted_at, first_response_at, interview_scheduled_at,
@@ -540,7 +783,23 @@ class JobOpportunityService {
 
       const result = await database.query(query, queryParams);
 
-      return result.rows.map((row) => this.mapRowToJobOpportunity(row));
+      let opportunities = result.rows.map((row) => this.mapRowToJobOpportunity(row));
+
+      // Enrich with commute data and filter if requested
+      const commuteOptions = {
+        homeLatitude,
+        homeLongitude,
+        homeLocation,
+        maxDistanceKm,
+        maxTravelMinutes,
+        userId, // Pass userId for saving geocoded coordinates
+      };
+      const { opportunities: enriched } = await this.enrichWithCommute(
+        opportunities,
+        commuteOptions
+      );
+
+      return enriched;
     } catch (error) {
       console.error("❌ Error getting job opportunities:", error);
       throw error;
@@ -550,11 +809,27 @@ class JobOpportunityService {
   // Get total count of job opportunities for a user (with same filters as getJobOpportunitiesByUserId)
   async getJobOpportunitiesCount(userId, options = {}) {
     try {
+      // If commute-based filters are applied, reuse filtered results length for accurate counts
+      if (
+        options.maxDistanceKm !== undefined ||
+        options.maxTravelMinutes !== undefined ||
+        options.homeLatitude !== undefined ||
+        options.homeLongitude !== undefined ||
+        options.homeLocation
+      ) {
+        const filtered = await this.getJobOpportunitiesByUserId(userId, {
+          ...options,
+          limit: options.limit || 200, // safeguard
+        });
+        return filtered.length;
+      }
+
       const {
         status,
         search,
         industry,
         location,
+        locationType,
         salaryMin,
         salaryMax,
         deadlineFrom,
@@ -590,6 +865,11 @@ class JobOpportunityService {
       if (industry && industry.trim()) {
         whereClause += ` AND industry = $${paramIndex++}`;
         queryParams.push(industry.trim());
+      }
+
+      if (locationType && locationType.trim()) {
+        whereClause += ` AND LOWER(location_type) = $${paramIndex++}`;
+        queryParams.push(locationType.trim().toLowerCase());
       }
 
       // Location filter
@@ -681,6 +961,37 @@ class JobOpportunityService {
         updatePayload.salaryMax = normalizedSalaryMax;
       }
 
+      // Refresh geocoding if location or job type changed
+      const locationChanged =
+        updatePayload.location && updatePayload.location.trim() !== existing.location;
+      const jobTypeChanged =
+        updatePayload.jobType && updatePayload.jobType !== existing.jobType;
+
+      let geocode = null;
+      if (locationChanged) {
+        // Format location for better geocoding results (add ", USA" if needed)
+        const formattedLocation = this.formatLocationForGeocoding(updatePayload.location.trim());
+        geocode = await geocodingService.geocode(formattedLocation);
+      }
+
+      const derivedLocationType = geocodingService.normalizeLocationType(
+        updatePayload.jobType ?? existing.jobType,
+        updatePayload.location ?? existing.location
+      );
+
+      updatePayload.locationType = derivedLocationType;
+
+      if (geocode) {
+        updatePayload.latitude = geocode.latitude || null;
+        updatePayload.longitude = geocode.longitude || null;
+        updatePayload.timezone = geocode.timezone || null;
+        updatePayload.city = geocode.city || null;
+        updatePayload.region = geocode.region || null;
+        updatePayload.country = geocode.country || null;
+        updatePayload.geocodingConfidence = geocode.raw?.importance || null;
+        updatePayload.geocodingRaw = geocode.raw || null;
+      }
+
       // Validate field lengths if provided
       this.validateFieldLengths(updatePayload);
 
@@ -739,6 +1050,15 @@ class JobOpportunityService {
         interviewScheduledAt: "interview_scheduled_at",
         resumeId: "resume_id",
         coverletterId: "coverletter_id",
+        locationType: "location_type",
+        latitude: "latitude",
+        longitude: "longitude",
+        timezone: "timezone",
+        city: "city",
+        region: "region",
+        country: "country",
+        geocodingConfidence: "geocoding_confidence",
+        geocodingRaw: "geocoding_raw",
       };
 
       for (const [key, column] of Object.entries(fields)) {
@@ -784,7 +1104,9 @@ class JobOpportunityService {
             values.push(updatePayload[key] ?? null);
           } else if (key === "applicationDeadline") {
             updates.push(`${column} = $${paramIndex++}`);
-            values.push(updatePayload[key] ?? null);
+            // Convert empty strings to null for date fields
+            const deadlineValue = updatePayload[key];
+            values.push(deadlineValue && deadlineValue.trim() !== "" ? deadlineValue.trim() : null);
           } else if (key === "status") {
             // Status field - will update the value
             updates.push(`${column} = $${paramIndex++}`);
@@ -818,6 +1140,22 @@ class JobOpportunityService {
             // UUID fields - can be null to unlink
             updates.push(`${column} = $${paramIndex++}`);
             values.push(updatePayload[key] || null);
+          } else if (key === "locationType") {
+            updates.push(`${column} = $${paramIndex++}`);
+            values.push(
+              updatePayload[key] && updatePayload[key].trim() !== ""
+                ? updatePayload[key].trim().toLowerCase()
+                : null
+            );
+          } else if (key === "latitude" || key === "longitude" || key === "geocodingConfidence") {
+            updates.push(`${column} = $${paramIndex++}`);
+            values.push(updatePayload[key] !== undefined ? updatePayload[key] : null);
+          } else if (key === "timezone" || key === "city" || key === "region" || key === "country") {
+            updates.push(`${column} = $${paramIndex++}`);
+            values.push(updatePayload[key] || null);
+          } else if (key === "geocodingRaw") {
+            updates.push(`${column} = $${paramIndex++}`);
+            values.push(updatePayload[key] ? JSON.stringify(updatePayload[key]) : null);
           }
         }
       }
@@ -838,6 +1176,7 @@ class JobOpportunityService {
           notes, recruiter_name, recruiter_email, recruiter_phone,
           hiring_manager_name, hiring_manager_email, hiring_manager_phone,
           salary_negotiation_notes, interview_notes, application_history,
+          location_type, latitude, longitude, timezone, city, region, country, geocoding_confidence, geocoding_raw,
           status_updated_at, archived, archived_at, archive_reason,
           application_source, application_method, referral_contact_name, referral_contact_email,
           application_submitted_at, first_response_at, interview_scheduled_at,

@@ -36,10 +36,10 @@ class CompanyResearchAutomationService {
 
       // 2. Call Abstract API for company enrichment
       const domain = abstractApiService.extractDomain(companyName);
-      const abstractData = await abstractApiService.enrichCompany(domain);
+      const abstractData = await abstractApiService.enrichCompany(domain, userId);
 
       // 3. Call News API for recent articles
-      const newsArticles = await newsApiService.getCompanyNews(companyName, 10);
+      const newsArticles = await newsApiService.getCompanyNews(companyName, 10, userId);
 
       // 4. Skip AI generation during initial research (will be generated on-demand when viewing details)
       // This makes the research much faster!

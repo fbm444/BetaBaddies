@@ -135,8 +135,12 @@ class CoverLetterAIService {
             highlightExperiences
           );
 
-          const response = await this.openai.chat.completions.create({
-            model: process.env.OPENAI_MODEL || "gpt-4",
+          // Check if model supports JSON mode (gpt-4-turbo, gpt-4o, gpt-3.5-turbo newer versions)
+          const model = process.env.OPENAI_MODEL || "gpt-4";
+          const supportsJsonMode = model.includes("gpt-4") || model.includes("gpt-3.5-turbo");
+          
+          const requestOptions = {
+            model: model,
             messages: [
               {
                 role: "system",
@@ -149,10 +153,23 @@ class CoverLetterAIService {
             ],
             temperature: 0.7,
             max_tokens: 2000,
-          });
+          };
+          
+          // Add JSON mode for supported models
+          if (supportsJsonMode) {
+            requestOptions.response_format = { type: "json_object" };
+          }
+          
+          const response = await this.openai.chat.completions.create(requestOptions);
 
           const generatedContent = response.choices[0]?.message?.content || "";
+          console.log("[CoverLetterAIService] Raw OpenAI response:", generatedContent.substring(0, 200));
           parsedContent = this.parseGeneratedContent(generatedContent);
+          
+          if (!parsedContent || (!parsedContent.opening && !parsedContent.fullText)) {
+            console.error("[CoverLetterAIService] Failed to parse content, got:", parsedContent);
+            throw new Error("Failed to generate valid cover letter content from OpenAI");
+          }
           variations = await this.generateVariations(
             context,
             tone,
@@ -160,9 +177,13 @@ class CoverLetterAIService {
             parsedContent
           );
         } catch (openAiError) {
+          console.error(
+            "[CoverLetterAIService] OpenAI generation failed:",
+            openAiError.message,
+            openAiError.stack
+          );
           console.warn(
-            "[CoverLetterAIService] OpenAI generation failed, using fallback generator:",
-            openAiError.message
+            "[CoverLetterAIService] Using fallback generator"
           );
         }
       } else {
@@ -683,7 +704,8 @@ ${JSON.stringify(context.companyResearch, null, 2)}`;
 2. Body paragraphs: Highlight relevant experience and achievements, connect to job requirements
 3. Closing paragraph: Call-to-action expressing interest and next steps
 
-Format the response as JSON:
+**CRITICAL**: You MUST respond with ONLY valid JSON. No markdown, no code blocks, no explanatory text. Just the raw JSON object:
+
 {
   "opening": "Opening paragraph text",
   "body": ["Body paragraph 1", "Body paragraph 2"],
@@ -698,22 +720,70 @@ Format the response as JSON:
    * Parse generated content
    */
   parseGeneratedContent(content) {
-    try {
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
-      }
-    } catch (error) {
-      console.error("Error parsing generated content:", error);
+    if (!content || typeof content !== 'string') {
+      console.error("[CoverLetterAIService] Invalid content type:", typeof content);
+      return null;
     }
 
-    // Fallback: return as full text
-    return {
-      fullText: content,
-      opening: "",
-      body: [],
-      closing: "",
-    };
+    // Try to parse as JSON directly first
+    try {
+      const parsed = JSON.parse(content.trim());
+      if (parsed && typeof parsed === 'object') {
+        // Validate structure
+        if (parsed.opening || parsed.fullText || (parsed.body && Array.isArray(parsed.body))) {
+          console.log("[CoverLetterAIService] Successfully parsed JSON content");
+          return parsed;
+        }
+      }
+    } catch (directParseError) {
+      // Not valid JSON, try extracting JSON from text
+    }
+
+    // Try to extract JSON from markdown code blocks or text
+    try {
+      // Remove markdown code blocks if present
+      let cleanedContent = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+      
+      // Try to find JSON object
+      const jsonMatch = cleanedContent.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (parsed && typeof parsed === 'object') {
+          if (parsed.opening || parsed.fullText || (parsed.body && Array.isArray(parsed.body))) {
+            console.log("[CoverLetterAIService] Successfully extracted and parsed JSON from text");
+            return parsed;
+          }
+        }
+      }
+    } catch (extractError) {
+      console.error("[CoverLetterAIService] Error extracting JSON:", extractError.message);
+    }
+
+    // Last resort: if content looks like a cover letter, structure it
+    if (content.length > 100) {
+      console.warn("[CoverLetterAIService] Could not parse JSON, structuring as fullText");
+      // Try to split into paragraphs
+      const paragraphs = content.split(/\n\s*\n/).filter(p => p.trim().length > 0);
+      
+      if (paragraphs.length >= 2) {
+        return {
+          fullText: content,
+          opening: paragraphs[0] || "",
+          body: paragraphs.slice(1, -1).length > 0 ? paragraphs.slice(1, -1) : [paragraphs[1] || ""],
+          closing: paragraphs[paragraphs.length - 1] || "",
+        };
+      }
+      
+      return {
+        fullText: content,
+        opening: "",
+        body: [content],
+        closing: "",
+      };
+    }
+
+    console.error("[CoverLetterAIService] Failed to parse content, content too short or invalid");
+    return null;
   }
 
   summarizeProfile(profile) {
@@ -855,7 +925,15 @@ Guidelines:
 - Match the requested length (brief, standard, detailed)
 - Write in first person
 - Be specific and avoid generic statements
-- Show enthusiasm and genuine interest`;
+- Show enthusiasm and genuine interest
+
+**IMPORTANT**: You MUST respond with valid JSON only. Do not include any text before or after the JSON object. The response must be a valid JSON object with the following structure:
+{
+  "opening": "Opening paragraph text",
+  "body": ["Body paragraph 1", "Body paragraph 2"],
+  "closing": "Closing paragraph text",
+  "fullText": "Complete cover letter text"
+}`;
   }
 }
 

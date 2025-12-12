@@ -23,11 +23,21 @@ class SalaryNegotiationController {
       offerData
     );
 
-    res.status(201).json({
+    // If negotiation already existed, return 200 instead of 201
+    const statusCode = negotiation._alreadyExists ? 200 : 201;
+    const message = negotiation._alreadyExists
+      ? "A negotiation already exists for this job opportunity"
+      : "Salary negotiation created successfully";
+
+    // Remove the internal flag before sending response
+    const { _alreadyExists, ...negotiationData } = negotiation;
+
+    res.status(statusCode).json({
       ok: true,
       data: {
-        negotiation,
-        message: "Salary negotiation created successfully",
+        negotiation: negotiationData,
+        message,
+        alreadyExists: !!_alreadyExists,
       },
     });
   });

@@ -4,14 +4,14 @@ import { isAuthenticated } from "../middleware/auth.js";
 
 const router = express.Router();
 
-// All Gmail routes require authentication
+// OAuth callback does NOT require session auth (it uses state param with userId)
+router.get("/auth/callback", gmailController.handleCallback);
+
+// All other Gmail routes require authentication
 router.use(isAuthenticated);
 
 // Get authorization URL
 router.get("/auth/url", gmailController.getAuthorizationUrl);
-
-// Handle OAuth callback
-router.get("/auth/callback", gmailController.handleCallback);
 
 // Get sync status
 router.get("/status", gmailController.getSyncStatus);

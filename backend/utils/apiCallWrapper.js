@@ -53,16 +53,22 @@ export async function wrapApiCall({
     }
 
     // Log successful usage
-    await apiMonitoringService.logUsage({
-      serviceName,
-      endpoint,
-      userId,
-      responseStatus,
-      responseTimeMs,
-      tokensUsed,
-      costUsd,
-      success: true,
-    });
+    try {
+      await apiMonitoringService.logUsage({
+        serviceName,
+        endpoint,
+        userId,
+        responseStatus,
+        responseTimeMs,
+        tokensUsed,
+        costUsd,
+        success: true,
+      });
+      console.log(`✅ Successfully logged usage for ${serviceName}/${endpoint}`);
+    } catch (logError) {
+      // Log error but don't fail the API call
+      console.error(`❌ Failed to log usage for ${serviceName}/${endpoint}:`, logError);
+    }
 
     return result;
   } catch (error) {

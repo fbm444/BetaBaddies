@@ -69,6 +69,17 @@ class SalaryNegotiationService {
       );
 
       if (existing.rows.length > 0) {
+        // Return the existing negotiation ID instead of throwing an error
+        // This allows the frontend to handle it gracefully (e.g., navigate to existing negotiation)
+        const existingId = existing.rows[0].id;
+        const existingNegotiation = await this.getNegotiationById(existingId, userId);
+        if (existingNegotiation) {
+          return {
+            ...existingNegotiation,
+            _alreadyExists: true, // Flag to indicate this was an existing negotiation
+          };
+        }
+        // If we can't fetch it for some reason, still throw
         throw new Error("Negotiation already exists for this job opportunity");
       }
 

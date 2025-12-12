@@ -13,16 +13,14 @@ class AbstractApiService {
    * @param {number} userId - Optional user ID for tracking
    */
   async enrichCompany(domain, userId = null) {
-    if (!this.apiKey) {
-      console.warn("⚠️ Abstract API key not configured");
-      return null;
-    }
-
     return wrapApiCall({
       serviceName: "abstract_api",
       endpoint: "enrichCompany",
       userId,
       apiCall: async () => {
+        if (!this.apiKey) {
+          throw new Error("Abstract API key not configured");
+        }
         const response = await axios.get(this.baseUrl, {
           params: {
             api_key: this.apiKey,

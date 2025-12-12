@@ -480,28 +480,326 @@ class GitHubService {
    * @param {string} username - GitHub username
    * @returns {Promise<Object>} Contribution activity with statistics
    */
+  /**
+   * Fetch actual commit history for a user in a repository
+   * @param {string} accessToken - GitHub OAuth access token
+   * @param {string} owner - Repository owner
+   * @param {string} repo - Repository name
+   * @param {string} username - GitHub username
+   * @returns {Promise<Array>} Array of commits
+   */
+  async fetchCommitHistory(accessToken, owner, repo, username) {
+    try {
+      const commits = [];
+      let page = 1;
+      const perPage = 100;
+      let hasMore = true;
+
+      while (hasMore && commits.length < 500) { // Limit to 500 commits max
+        const response = await axios.get(
+          `${this.githubApiBase}/repos/${owner}/${repo}/commits`,
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              Accept: "application/vnd.github.v3+json",
+            },
+            params: {
+              author: username,
+              per_page: perPage,
+              page: page,
+            },
+          }
+        );
+
+        if (!response.data || response.data.length === 0) {
+          hasMore = false;
+          break;
+        }
+
+        // Filter commits by author (API param might not work perfectly)
+        const userCommits = response.data.filter(
+          (commit) => commit.author?.login?.toLowerCase() === username?.toLowerCase() ||
+                      commit.commit?.author?.name?.toLowerCase() === username?.toLowerCase()
+        );
+
+        // Process commits and fetch details for those without stats
+        // The commits endpoint doesn't always include stats, so we need to fetch details
+        const processedCommits = await Promise.all(
+          userCommits.map(async (commit, index) => {
+            // Check if commit has stats and files
+            const hasStats = commit.stats && 
+              (commit.stats.additions !== undefined || commit.stats.deletions !== undefined);
+            const hasFiles = commit.files && Array.isArray(commit.files) && commit.files.length > 0;
+            
+            let stats = commit.stats || null;
+            let files = commit.files?.length || 0;
+            
+            // If missing stats or files, fetch commit details (but limit to avoid rate limits)
+            // Only fetch for first 50 commits per page to balance completeness vs rate limits
+            if ((!hasStats || !hasFiles) && index < 50) {
+              try {
+                const detailResponse = await axios.get(
+                  `${this.githubApiBase}/repos/${owner}/${repo}/commits/${commit.sha}`,
+                  {
+                    headers: {
+                      Authorization: `Bearer ${accessToken}`,
+                      Accept: "application/vnd.github.v3+json",
+                    },
+                    timeout: 5000, // 5 second timeout per commit
+                  }
+                );
+                
+                const commitDetail = detailResponse.data;
+                if (commitDetail.stats) {
+                  stats = commitDetail.stats;
+                }
+                if (commitDetail.files && Array.isArray(commitDetail.files)) {
+                  files = commitDetail.files.length;
+                }
+              } catch (error) {
+                // If fetching details fails, keep what we have
+                console.warn(`Failed to fetch details for commit ${commit.sha.substring(0, 7)}:`, error.message);
+              }
+            }
+            
+            return {
+              sha: commit.sha,
+              message: commit.commit?.message || "",
+              author: {
+                name: commit.commit?.author?.name || commit.author?.login || username,
+                email: commit.commit?.author?.email || "",
+                login: commit.author?.login || username,
+              },
+              date: commit.commit?.author?.date || commit.commit?.committer?.date || new Date().toISOString(),
+              url: commit.html_url,
+              stats: stats,
+              files: files,
+            };
+          })
+        );
+
+        commits.push(...processedCommits);
+
+        if (response.data.length < perPage) {
+          hasMore = false;
+        } else {
+          page++;
+        }
+      }
+
+      return commits;
+    } catch (error) {
+      console.warn(`Failed to fetch commit history for ${owner}/${repo}:`, error.message);
+      return [];
+    }
+  }
+
+  /**
+   * Calculate statistics from actual commit history
+   * @param {Array} commits - Array of commit objects
+   * @param {string} username - GitHub username
+   * @returns {Object} Statistics and contributions
+   */
+  calculateStatsFromCommits(commits, username) {
+    if (!commits || commits.length === 0) {
+      return {
+        dailyContributions: [],
+        allContributions: [],
+        commitHistory: [],
+        statistics: {
+          totalCommits: 0,
+          totalAdditions: 0,
+          totalDeletions: 0,
+          averageCommitsPerWeek: 0,
+          averageCommitsPerDay: 0,
+          mostActiveWeek: null,
+          mostActiveDay: null,
+          daysWithCommits: 0,
+          commitFrequency: "No activity",
+          weeksActive: 0,
+          totalWeeks: 0,
+        },
+      };
+    }
+
+    // Group commits by date
+    const commitsByDate = {};
+    let totalAdditions = 0;
+    let totalDeletions = 0;
+
+    commits.forEach((commit) => {
+      const date = new Date(commit.date).toISOString().split("T")[0];
+      const additions = commit.stats?.additions ?? 0;
+      const deletions = commit.stats?.deletions ?? 0;
+      
+      if (!commitsByDate[date]) {
+        commitsByDate[date] = {
+          date,
+          commits: 0,
+          additions: 0,
+          deletions: 0,
+        };
+      }
+      commitsByDate[date].commits += 1;
+      commitsByDate[date].additions += additions;
+      commitsByDate[date].deletions += deletions;
+      totalAdditions += additions;
+      totalDeletions += deletions;
+    });
+
+    // Convert to array and sort by date
+    const dailyContributions = Object.values(commitsByDate).sort(
+      (a, b) => new Date(a.date) - new Date(b.date)
+    );
+
+    const totalCommits = commits.length;
+    const daysWithCommits = dailyContributions.length;
+
+    // Find most active day
+    let mostActiveDay = null;
+    let maxDayCommits = 0;
+    dailyContributions.forEach((contrib) => {
+      if (contrib.commits > maxDayCommits) {
+        maxDayCommits = contrib.commits;
+        mostActiveDay = contrib.date;
+      }
+    });
+
+    // Calculate averages
+    const averageCommitsPerDay = daysWithCommits > 0 ? totalCommits / daysWithCommits : 0;
+    const averageCommitsPerWeek = daysWithCommits > 0 ? (totalCommits / daysWithCommits) * 7 : 0;
+
+    // Determine commit frequency
+    let commitFrequency = "No activity";
+    if (averageCommitsPerDay >= 5) {
+      commitFrequency = "Very Active";
+    } else if (averageCommitsPerDay >= 2) {
+      commitFrequency = "Active";
+    } else if (averageCommitsPerDay >= 0.5) {
+      commitFrequency = "Moderate";
+    } else if (averageCommitsPerDay > 0) {
+      commitFrequency = "Occasional";
+    }
+
+    // Get last 30 days
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const recentContributions = dailyContributions.filter(
+      (contrib) => new Date(contrib.date) >= thirtyDaysAgo
+    );
+
+    return {
+      dailyContributions: recentContributions,
+      allContributions: dailyContributions,
+      commitHistory: commits.slice(0, 100), // Limit to 100 most recent commits
+      statistics: {
+        totalCommits,
+        totalAdditions,
+        totalDeletions,
+        averageCommitsPerWeek: Math.round(averageCommitsPerWeek * 100) / 100,
+        averageCommitsPerDay: Math.round(averageCommitsPerDay * 100) / 100,
+        mostActiveWeek: null, // Not calculated from commits
+        mostActiveDay: mostActiveDay || null,
+        daysWithCommits,
+        commitFrequency,
+        weeksActive: Math.ceil(daysWithCommits / 7),
+        totalWeeks: Math.ceil(daysWithCommits / 7),
+      },
+    };
+  }
+
   async fetchContributionActivity(accessToken, owner, repo, username) {
     try {
-      // GitHub API doesn't provide direct contribution stats per user per repo
-      // We'll use the contributions API which requires authentication
-      const response = await axios.get(
-        `${this.githubApiBase}/repos/${owner}/${repo}/stats/contributors`,
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            Accept: "application/vnd.github.v3+json",
-          },
-        }
-      );
+      // Try to fetch stats first, but also fetch actual commits as fallback
+      let statsResponse = null;
+      let statsData = null;
+      
+      try {
+        statsResponse = await axios.get(
+          `${this.githubApiBase}/repos/${owner}/${repo}/stats/contributors`,
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              Accept: "application/vnd.github.v3+json",
+            },
+            timeout: 10000, // 10 second timeout
+          }
+        );
+        statsData = statsResponse.data;
+      } catch (statsError) {
+        console.warn(
+          `Stats API failed for ${owner}/${repo}, will use commit history instead:`,
+          statsError.message
+        );
+        // Continue to fetch commit history as fallback
+      }
 
-      // Find the user's contribution data
-      const userContributions = response.data.find(
-        (contributor) => contributor.author?.login === username
+      // Fetch actual commit history (always fetch for commit history display)
+      const commitHistory = await this.fetchCommitHistory(accessToken, owner, repo, username);
+      
+      // If stats API didn't work, calculate from commit history
+      if (!Array.isArray(statsData)) {
+        // Stats API didn't return array, calculate from commit history
+        return this.calculateStatsFromCommits(commitHistory, username);
+      }
+
+      // GitHub API can return different response formats:
+      // - 202 Accepted: Stats are being calculated (returns a message object)
+      // - 200 OK: Array of contributor objects
+      // - Sometimes returns an object instead of array
+      if (!Array.isArray(statsData)) {
+        // Stats might be being calculated or response is in unexpected format
+        if (statsData?.message) {
+          console.warn(
+            `GitHub stats for ${owner}/${repo}: ${statsData.message}`
+          );
+        }
+        // Use commit history as fallback
+        return this.calculateStatsFromCommits(commitHistory, username);
+      }
+
+      // Find the user's contribution data (case-insensitive comparison)
+      const userContributions = statsData.find(
+        (contributor) => 
+          contributor.author?.login?.toLowerCase() === username?.toLowerCase()
       );
+      
+      // Log for debugging
+      if (statsData.length > 0) {
+        console.log(
+          `Looking for user: ${username} in ${owner}/${repo}. Found ${statsData.length} contributors.`
+        );
+        if (!userContributions) {
+          console.log(
+            "Available contributor logins:",
+            statsData.map((c) => c.author?.login).filter(Boolean)
+          );
+          // User not in stats, use commit history instead
+          return this.calculateStatsFromCommits(commitHistory, username);
+        } else {
+          console.log(
+            `Found contributions for ${username}: ${userContributions.total || 0} total commits`
+          );
+        }
+      }
 
       if (!userContributions) {
+        console.warn(
+          `User ${username} not found in contributors for ${owner}/${repo}. Available contributors:`,
+          statsData.map((c) => c.author?.login).filter(Boolean)
+        );
+        // Use commit history as fallback
+        return this.calculateStatsFromCommits(commitHistory, username);
+      }
+
+      // Check if weeks data exists
+      if (!userContributions.weeks || !Array.isArray(userContributions.weeks)) {
+        console.warn(
+          `No weeks data found for user ${username} in ${owner}/${repo}`
+        );
         return {
           dailyContributions: [],
+          allContributions: [],
           statistics: {
             totalCommits: 0,
             totalAdditions: 0,
@@ -509,8 +807,11 @@ class GitHubService {
             averageCommitsPerWeek: 0,
             averageCommitsPerDay: 0,
             mostActiveWeek: null,
+            mostActiveDay: null,
+            daysWithCommits: 0,
             commitFrequency: "No activity",
             weeksActive: 0,
+            totalWeeks: 0,
           },
         };
       }
@@ -592,6 +893,21 @@ class GitHubService {
         (contrib) => new Date(contrib.date) >= thirtyDaysAgo
       );
 
+      // Calculate days with commits (from all contributions, not just recent)
+      const daysWithCommits = dailyContributions.filter(
+        (contrib) => contrib.commits > 0
+      ).length;
+
+      // Find most active day
+      let mostActiveDay = null;
+      let maxDayCommits = 0;
+      dailyContributions.forEach((contrib) => {
+        if (contrib.commits > maxDayCommits) {
+          maxDayCommits = contrib.commits;
+          mostActiveDay = contrib.date;
+        }
+      });
+
       return {
         dailyContributions: recentContributions,
         allContributions: dailyContributions,
@@ -602,6 +918,8 @@ class GitHubService {
           averageCommitsPerWeek: Math.round(averageCommitsPerWeek * 100) / 100,
           averageCommitsPerDay: Math.round(averageCommitsPerDay * 100) / 100,
           mostActiveWeek,
+          mostActiveDay: mostActiveDay || null,
+          daysWithCommits,
           commitFrequency,
           weeksActive,
           totalWeeks: userContributions.weeks.length,
@@ -612,9 +930,24 @@ class GitHubService {
         `⚠️ Could not fetch contribution activity for ${owner}/${repo}:`,
         error.message
       );
+      if (error.response) {
+        console.warn("Response status:", error.response.status);
+        console.warn("Response data:", error.response.data);
+      }
+      // Try to use commit history as fallback even on error
+      try {
+        const commitHistory = await this.fetchCommitHistory(accessToken, owner, repo, username);
+        if (commitHistory.length > 0) {
+          return this.calculateStatsFromCommits(commitHistory, username);
+        }
+      } catch (commitError) {
+        console.warn("Failed to fetch commit history as fallback:", commitError.message);
+      }
+      
       return {
         dailyContributions: [],
         allContributions: [],
+        commitHistory: [],
         statistics: {
           totalCommits: 0,
           totalAdditions: 0,
@@ -622,6 +955,8 @@ class GitHubService {
           averageCommitsPerWeek: 0,
           averageCommitsPerDay: 0,
           mostActiveWeek: null,
+          mostActiveDay: null,
+          daysWithCommits: 0,
           commitFrequency: "No activity",
           weeksActive: 0,
           totalWeeks: 0,

@@ -337,6 +337,7 @@ class GitHubController {
       data: {
         contributions: contributions.dailyContributions,
         allContributions: contributions.allContributions,
+        commitHistory: contributions.commitHistory || [],
         statistics: contributions.statistics,
         count: contributions.dailyContributions.length,
       },

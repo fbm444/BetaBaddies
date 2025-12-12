@@ -14,16 +14,14 @@ class NewsApiService {
    * @param {number} userId - Optional user ID for tracking
    */
   async getCompanyNews(companyName, limit = 10, userId = null) {
-    if (!this.apiKey) {
-      console.warn("⚠️ News API key not configured");
-      return [];
-    }
-
     return wrapApiCall({
       serviceName: "newsapi",
       endpoint: "getCompanyNews",
       userId,
       apiCall: async () => {
+        if (!this.apiKey) {
+          throw new Error("News API key not configured");
+        }
         // Calculate date range (last 30 days)
         const toDate = new Date();
         const fromDate = new Date();

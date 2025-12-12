@@ -381,7 +381,7 @@ class CertificationService {
       verification_url: cert.verification_url || null,
       category: cert.category || null,
       description: cert.description || null,
-      assessment_scores: cert.assessment_scores ? (typeof cert.assessment_scores === 'string' ? JSON.parse(cert.assessment_scores) : cert.assessment_scores) : null,
+      assessment_scores: cert.assessment_scores ? (typeof cert.assessment_scores === 'string' ? cert.assessment_scores : String(cert.assessment_scores)) : null,
       achievements: cert.achievements ? (typeof cert.achievements === 'string' ? JSON.parse(cert.achievements) : cert.achievements) : null,
       created_at: cert.created_at || null,
       updated_at: cert.updated_at || null,

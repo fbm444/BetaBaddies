@@ -1,5 +1,6 @@
 import { google } from "googleapis";
 import database from "./database.js";
+import { wrapApiCall } from "../utils/apiCallWrapper.js";
 
 class GmailService {
   constructor() {
@@ -122,18 +123,22 @@ class GmailService {
   async getSyncStatus(userId) {
     try {
       const query = `
-        SELECT gmail_sync_enabled
+        SELECT gmail_sync_enabled, gmail_access_token, gmail_refresh_token
         FROM users
         WHERE u_id = $1
       `;
       const result = await database.query(query, [userId]);
 
       if (result.rows.length === 0) {
-        return { enabled: false };
+        return { connected: false };
       }
 
+      const user = result.rows[0];
+      // Connected if we have both access and refresh tokens
+      const connected = !!(user.gmail_access_token && user.gmail_refresh_token);
+
       return {
-        enabled: result.rows[0].gmail_sync_enabled || false,
+        connected,
       };
     } catch (error) {
       console.error("Error getting Gmail sync status:", error);
@@ -201,116 +206,154 @@ class GmailService {
 
   // Search emails with retry logic and rate limiting
   async searchEmails(userId, query, maxResults = 50) {
-    try {
-      const oauth2Client = await this.getOAuth2Client(userId);
-      const gmail = google.gmail({ version: "v1", auth: oauth2Client });
+    return wrapApiCall({
+      serviceName: "gmail",
+      endpoint: "searchEmails",
+      userId,
+      apiCall: async () => {
+        const oauth2Client = await this.getOAuth2Client(userId);
+        const gmail = google.gmail({ version: "v1", auth: oauth2Client });
 
-      // Add delay to respect rate limits
-      await this.delay(this.rateLimitDelay);
+        // Add delay to respect rate limits
+        await this.delay(this.rateLimitDelay);
 
-      const response = await gmail.users.messages.list({
-        userId: "me",
-        q: query,
-        maxResults: Math.min(maxResults, 50), // Gmail API limit is 50
-      });
+        console.log(`📧 Gmail API list request: query="${query || '(none)'}", maxResults=${maxResults}`);
+        
+        const response = await gmail.users.messages.list({
+          userId: "me",
+          q: query || undefined, // Don't include q parameter if empty (gets all emails)
+          maxResults: Math.min(maxResults, 500), // Gmail API supports up to 500 per request
+        });
 
-      if (!response.data.messages || response.data.messages.length === 0) {
-        return [];
-      }
+        console.log(`📧 Gmail API returned ${response.data.messages?.length || 0} message IDs`);
 
-      // Fetch full message details (with rate limiting)
-      const messages = [];
-      for (let i = 0; i < response.data.messages.length; i++) {
-        const message = response.data.messages[i];
-        try {
-          await this.delay(this.rateLimitDelay);
-          const messageDetail = await this.getMessageDetail(userId, message.id);
-          if (messageDetail) {
-            messages.push(messageDetail);
-          }
-        } catch (error) {
-          console.error(`Error fetching message ${message.id}:`, error);
-          // If it's a connection error, stop trying to fetch more messages
-          if (error.message && error.message.includes("Gmail not connected")) {
-            throw new Error("Gmail not connected. Please reconnect your Gmail account.");
-          }
-          // Continue with other messages for other errors
+        if (!response.data.messages || response.data.messages.length === 0) {
+          console.log(`📧 No messages found for query: "${query || '(all)'}"`);
+          return { messages: [] };
         }
-      }
 
-      return messages;
-    } catch (error) {
-      console.error("Error searching emails:", error);
-      if (error.code === 429) {
-        throw new Error("Rate limit exceeded. Please try again in a moment.");
-      }
-      if (error.code === 401 || error.code === 403) {
-        throw new Error("Gmail authentication failed. Please reconnect your Gmail account.");
-      }
-      throw error;
-    }
+        // Fetch full message details (with rate limiting)
+        // Limit to first 100 to avoid timeouts
+        const messageIdsToFetch = response.data.messages.slice(0, Math.min(100, response.data.messages.length));
+        console.log(`📧 Fetching details for ${messageIdsToFetch.length} messages (out of ${response.data.messages.length} total)`);
+        
+        const messages = [];
+        for (let i = 0; i < messageIdsToFetch.length; i++) {
+          const message = messageIdsToFetch[i];
+          try {
+            await this.delay(this.rateLimitDelay);
+            const messageDetail = await this.getMessageDetail(userId, message.id);
+            if (messageDetail) {
+              messages.push(messageDetail);
+            } else {
+              console.warn(`📧 getMessageDetail returned null for message ${message.id}`);
+            }
+          } catch (error) {
+            console.error(`❌ Error fetching message ${message.id}:`, error.message);
+            // If it's a connection error, stop trying to fetch more messages
+            if (error.message && error.message.includes("Gmail not connected")) {
+              throw new Error("Gmail not connected. Please reconnect your Gmail account.");
+            }
+            // Continue with other messages for other errors
+          }
+        }
+
+        console.log(`📧 Successfully fetched ${messages.length} message details out of ${messageIdsToFetch.length} requested`);
+        return { messages };
+      },
+      fallback: async (error) => {
+        // Return empty array if API fails
+        console.warn("Using fallback for Gmail searchEmails - returning empty array");
+        return { messages: [] };
+      },
+    }).then((result) => result.messages || []);
   }
 
   // Get message detail by ID
   async getMessageDetail(userId, messageId) {
-    try {
-      const oauth2Client = await this.getOAuth2Client(userId);
-      const gmail = google.gmail({ version: "v1", auth: oauth2Client });
+    return wrapApiCall({
+      serviceName: "gmail",
+      endpoint: "getMessageDetail",
+      userId,
+      apiCall: async () => {
+        const oauth2Client = await this.getOAuth2Client(userId);
+        const gmail = google.gmail({ version: "v1", auth: oauth2Client });
 
-      await this.delay(this.rateLimitDelay);
+        await this.delay(this.rateLimitDelay);
 
-      const response = await gmail.users.messages.get({
-        userId: "me",
-        id: messageId,
-        format: "metadata",
-        metadataHeaders: ["From", "Subject", "Date"],
-      });
+        const response = await gmail.users.messages.get({
+          userId: "me",
+          id: messageId,
+          format: "metadata",
+          metadataHeaders: ["From", "Subject", "Date"],
+        });
 
-      const message = response.data;
-      const headers = message.payload?.headers || [];
-      
-      const fromHeader = headers.find((h) => h.name === "From");
-      const subjectHeader = headers.find((h) => h.name === "Subject");
-      const dateHeader = headers.find((h) => h.name === "Date");
+        const message = response.data;
+        const headers = message.payload?.headers || [];
+        
+        const fromHeader = headers.find((h) => h.name === "From");
+        const subjectHeader = headers.find((h) => h.name === "Subject");
+        const dateHeader = headers.find((h) => h.name === "Date");
 
-      // Parse sender email and name
-      let senderEmail = "";
-      let senderName = "";
-      if (fromHeader) {
-        const fromMatch = fromHeader.value.match(/^(.+?)\s*<(.+?)>$|^(.+?)$/);
-        if (fromMatch) {
-          senderName = (fromMatch[1] || fromMatch[3] || "").trim().replace(/^["']|["']$/g, "");
-          senderEmail = (fromMatch[2] || fromMatch[3] || "").trim();
+        // Parse sender email and name
+        let senderEmail = "";
+        let senderName = "";
+        if (fromHeader) {
+          const fromMatch = fromHeader.value.match(/^(.+?)\s*<(.+?)>$|^(.+?)$/);
+          if (fromMatch) {
+            senderName = (fromMatch[1] || fromMatch[3] || "").trim().replace(/^["']|["']$/g, "");
+            senderEmail = (fromMatch[2] || fromMatch[3] || "").trim();
+          }
         }
-      }
 
-      return {
-        id: message.id,
-        threadId: message.threadId,
-        subject: subjectHeader?.value || "(No subject)",
-        senderEmail,
-        senderName,
-        snippet: message.snippet || "",
-        date: dateHeader?.value ? new Date(dateHeader.value).toISOString() : new Date().toISOString(),
-        internalDate: message.internalDate ? new Date(parseInt(message.internalDate)).toISOString() : new Date().toISOString(),
-      };
-    } catch (error) {
-      console.error(`Error getting message detail for ${messageId}:`, error);
-      throw error;
-    }
+        return {
+          id: message.id, // Keep for backward compatibility
+          gmailMessageId: message.id, // Add this for frontend compatibility
+          threadId: message.threadId,
+          subject: subjectHeader?.value || "(No subject)",
+          senderEmail,
+          senderName,
+          snippet: message.snippet || "",
+          date: dateHeader?.value ? new Date(dateHeader.value).toISOString() : new Date().toISOString(),
+          internalDate: message.internalDate ? new Date(parseInt(message.internalDate)).toISOString() : new Date().toISOString(),
+        };
+      },
+      fallback: async (error) => {
+        // Return null if API fails (caller should handle)
+        console.warn(`Using fallback for Gmail getMessageDetail (${messageId}) - returning null`);
+        return null;
+      },
+    });
   }
 
   // Get recent emails (last N days)
   async getRecentEmails(userId, days = 30, maxResults = 50) {
-    const date = new Date();
-    date.setDate(date.getDate() - days);
-    // Gmail search expects date in YYYY/MM/DD format
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const dateQuery = `after:${year}/${month}/${day}`;
-    
-    return this.searchEmails(userId, dateQuery, maxResults);
+    try {
+      console.log(`📧 getRecentEmails called: userId=${userId}, days=${days}, maxResults=${maxResults}`);
+      
+      let query = '';
+      // If days is >= 365 or very large, don't use date filter (get all emails)
+      if (days && days < 365) {
+        const date = new Date();
+        date.setDate(date.getDate() - days);
+        // Gmail search expects date in YYYY/MM/DD format
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        query = `after:${year}/${month}/${day}`;
+        console.log(`📧 Using date query: ${query}`);
+      } else {
+        console.log(`📧 No date filter (days >= 365), getting all emails`);
+      }
+      
+      const emails = await this.searchEmails(userId, query, maxResults);
+      console.log(`📧 getRecentEmails returning ${emails.length} emails`);
+      
+      return emails;
+    } catch (error) {
+      console.error(`❌ Error in getRecentEmails for user ${userId}:`, error);
+      throw error;
+    }
   }
 
   // Search emails by company name or job title keywords

@@ -24,6 +24,7 @@ class ApiMonitoringService {
 
     if (result.rows.length === 0) {
       // Auto-create service if it doesn't exist
+      console.log(`⚠️ Service ${serviceName} not found in database, auto-creating...`);
       const insertResult = await database.query(
         `INSERT INTO api_services (service_name, display_name, is_active)
          VALUES ($1, $2, true)
@@ -32,11 +33,13 @@ class ApiMonitoringService {
       );
       const service = insertResult.rows[0];
       this.serviceCache.set(serviceName, service);
+      console.log(`✅ Auto-created service ${serviceName} with ID ${service.id}`);
       return service;
     }
 
     const service = result.rows[0];
     this.serviceCache.set(serviceName, service);
+    console.log(`✅ Found service ${serviceName} with ID ${service.id}`);
     return service;
   }
 
@@ -55,13 +58,15 @@ class ApiMonitoringService {
     success = true,
   }) {
     try {
+      console.log(`📊 Logging API usage: ${serviceName}/${endpoint}, success: ${success}, userId: ${userId}`);
       const service = await this.getServiceByName(serviceName);
 
-      await database.query(
+      const usageResult = await database.query(
         `INSERT INTO api_usage_logs 
          (service_id, endpoint, user_id, request_method, response_status, 
           response_time_ms, tokens_used, cost_usd, success)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         RETURNING id`,
         [
           service.id,
           endpoint,
@@ -74,6 +79,7 @@ class ApiMonitoringService {
           success,
         ]
       );
+      console.log(`✅ Logged API usage with ID: ${usageResult.rows[0]?.id}`);
 
       // Log response time for performance monitoring
       if (responseTimeMs !== null) {
@@ -85,15 +91,32 @@ class ApiMonitoringService {
       }
 
       // Update quota tracking
-      await this.updateQuota(service.id, {
-        tokensUsed: tokensUsed || 0,
-        costUsd: costUsd || 0,
-      });
+      try {
+        await this.updateQuota(service.id, {
+          tokensUsed: tokensUsed || 0,
+          costUsd: costUsd || 0,
+        });
+      } catch (quotaError) {
+        console.error(`❌ Error updating quota for ${serviceName}:`, quotaError);
+        // Continue even if quota update fails
+      }
 
       // Check for rate limit warnings
-      await this.checkRateLimits(service.id);
+      try {
+        await this.checkRateLimits(service.id);
+      } catch (limitError) {
+        console.error(`❌ Error checking rate limits for ${serviceName}:`, limitError);
+        // Continue even if rate limit check fails
+      }
     } catch (error) {
-      console.error("❌ Error logging API usage:", error);
+      console.error(`❌ Error logging API usage for ${serviceName}:`, error);
+      console.error("Error details:", {
+        serviceName,
+        endpoint,
+        userId,
+        message: error.message,
+        stack: error.stack,
+      });
       // Don't throw - monitoring shouldn't break the app
     }
   }
@@ -150,45 +173,73 @@ class ApiMonitoringService {
    */
   async updateQuota(serviceId, { tokensUsed = 0, costUsd = 0 }) {
     const now = new Date();
+    
+    // Calculate hourly period (current hour start to next hour)
+    const hourlyStart = new Date(now);
+    hourlyStart.setMinutes(0, 0, 0);
+    const hourlyEnd = new Date(hourlyStart.getTime() + 60 * 60 * 1000);
+    
+    // Calculate daily period (current day start to next day)
+    const dailyStart = new Date(now);
+    dailyStart.setHours(0, 0, 0, 0);
+    const dailyEnd = new Date(dailyStart.getTime() + 24 * 60 * 60 * 1000);
+    
+    // Calculate monthly period (first day of current month to first day of next month)
+    const monthlyStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthlyEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    
     const periods = [
       {
         type: "hourly",
-        start: new Date(now.setMinutes(0, 0, 0)),
-        end: new Date(now.getTime() + 60 * 60 * 1000),
+        start: hourlyStart,
+        end: hourlyEnd,
       },
       {
         type: "daily",
-        start: new Date(now.setHours(0, 0, 0, 0)),
-        end: new Date(now.getTime() + 24 * 60 * 60 * 1000),
+        start: dailyStart,
+        end: dailyEnd,
       },
       {
         type: "monthly",
-        start: new Date(now.getFullYear(), now.getMonth(), 1),
-        end: new Date(now.getFullYear(), now.getMonth() + 1, 1),
+        start: monthlyStart,
+        end: monthlyEnd,
       },
     ];
 
     for (const period of periods) {
-      await database.query(
-        `INSERT INTO api_quotas 
-         (service_id, period_type, period_start, period_end, requests_count, 
-          tokens_used, cost_usd)
-         VALUES ($1, $2, $3, $4, 1, $5, $6)
-         ON CONFLICT (service_id, period_type, period_start)
-         DO UPDATE SET 
-           requests_count = api_quotas.requests_count + 1,
-           tokens_used = api_quotas.tokens_used + $5,
-           cost_usd = api_quotas.cost_usd + $6,
-           updated_at = NOW()`,
-        [
+      try {
+        const result = await database.query(
+          `INSERT INTO api_quotas 
+           (service_id, period_type, period_start, period_end, requests_count, 
+            tokens_used, cost_usd)
+           VALUES ($1, $2, $3, $4, 1, $5, $6)
+           ON CONFLICT (service_id, period_type, period_start)
+           DO UPDATE SET 
+             requests_count = api_quotas.requests_count + 1,
+             tokens_used = api_quotas.tokens_used + $5,
+             cost_usd = api_quotas.cost_usd + $6,
+             updated_at = NOW()
+           RETURNING requests_count`,
+          [
+            serviceId,
+            period.type,
+            period.start,
+            period.end,
+            tokensUsed,
+            costUsd,
+          ]
+        );
+        console.log(`✅ Updated ${period.type} quota for service ${serviceId}: ${result.rows[0]?.requests_count || 'N/A'} requests`);
+      } catch (periodError) {
+        console.error(`❌ Error updating ${period.type} quota for service ${serviceId}:`, periodError);
+        console.error(`Period details:`, {
+          type: period.type,
+          start: period.start,
+          end: period.end,
           serviceId,
-          period.type,
-          period.start,
-          period.end,
-          tokensUsed,
-          costUsd,
-        ]
-      );
+        });
+        // Continue with other periods even if one fails
+      }
     }
   }
 
@@ -205,6 +256,44 @@ class ApiMonitoringService {
 
       const service = serviceResult.rows[0];
       const now = new Date();
+
+      // Check hourly quota
+      if (service.rate_limit_per_hour > 0) {
+        const hourlyStart = new Date(now.setMinutes(0, 0, 0));
+        const quotaResult = await database.query(
+          `SELECT requests_count FROM api_quotas
+           WHERE service_id = $1 AND period_type = 'hourly' 
+           AND period_start = $2`,
+          [serviceId, hourlyStart]
+        );
+
+        if (quotaResult.rows.length > 0) {
+          const current = quotaResult.rows[0].requests_count;
+          const limit = service.rate_limit_per_hour;
+          const percentage = (current / limit) * 100;
+
+          // Alert at 80% and 95%
+          if (percentage >= 80 && percentage < 95) {
+            await this.createAlert({
+              serviceId,
+              alertType: "rate_limit_warning",
+              severity: "warning",
+              message: `Approaching hourly rate limit: ${current}/${limit} requests (${percentage.toFixed(1)}%)`,
+              thresholdValue: 80,
+              currentValue: percentage,
+            });
+          } else if (percentage >= 95) {
+            await this.createAlert({
+              serviceId,
+              alertType: "rate_limit_warning",
+              severity: "critical",
+              message: `Near hourly rate limit: ${current}/${limit} requests (${percentage.toFixed(1)}%)`,
+              thresholdValue: 95,
+              currentValue: percentage,
+            });
+          }
+        }
+      }
 
       // Check daily quota
       if (service.rate_limit_per_day > 0) {
@@ -259,13 +348,23 @@ class ApiMonitoringService {
           const limit = service.quota_limit_per_month;
           const percentage = (current / limit) * 100;
 
-          if (percentage >= 80) {
+          // Alert at 80% and 95% (consistent with hourly/daily)
+          if (percentage >= 80 && percentage < 95) {
             await this.createAlert({
               serviceId,
-              alertType: "quota_warning",
-              severity: percentage >= 95 ? "critical" : "warning",
-              message: `Monthly quota: ${current}/${limit} requests (${percentage.toFixed(1)}%)`,
+              alertType: "rate_limit_warning",
+              severity: "warning",
+              message: `Approaching monthly quota limit: ${current}/${limit} requests (${percentage.toFixed(1)}%)`,
               thresholdValue: 80,
+              currentValue: percentage,
+            });
+          } else if (percentage >= 95) {
+            await this.createAlert({
+              serviceId,
+              alertType: "rate_limit_warning",
+              severity: "critical",
+              message: `Near monthly quota limit: ${current}/${limit} requests (${percentage.toFixed(1)}%)`,
+              thresholdValue: 95,
               currentValue: percentage,
             });
           }
@@ -376,7 +475,11 @@ class ApiMonitoringService {
       const now = new Date();
 
       let periodStart, periodEnd, limit;
-      if (periodType === "daily") {
+      if (periodType === "hourly") {
+        periodStart = new Date(now.setMinutes(0, 0, 0));
+        periodEnd = new Date(periodStart.getTime() + 60 * 60 * 1000);
+        limit = service.rate_limit_per_hour;
+      } else if (periodType === "daily") {
         periodStart = new Date(now.setHours(0, 0, 0, 0));
         periodEnd = new Date(periodStart.getTime() + 24 * 60 * 60 * 1000);
         limit = service.rate_limit_per_day;
@@ -399,6 +502,7 @@ class ApiMonitoringService {
       const tokensUsed = quotaResult.rows.length > 0 ? quotaResult.rows[0].tokens_used : 0;
       const costUsed = quotaResult.rows.length > 0 ? parseFloat(quotaResult.rows[0].cost_usd) : 0;
 
+      // Always return quota data, even if limit is 0 (unlimited)
       return {
         serviceName: service.service_name,
         displayName: service.display_name,
@@ -406,7 +510,7 @@ class ApiMonitoringService {
         used,
         limit: limit || 0,
         remaining: limit > 0 ? Math.max(0, limit - used) : null,
-        percentage: limit > 0 ? (used / limit) * 100 : null,
+        percentage: limit > 0 ? (used / limit) * 100 : 0, // Return 0 instead of null when unlimited
         tokensUsed,
         costUsed,
       };
@@ -510,11 +614,15 @@ class ApiMonitoringService {
 
       const services = serviceName
         ? [await this.getServiceByName(serviceName)]
-        : await database.query("SELECT * FROM api_services WHERE is_active = true").then((r) => r.rows);
+        : await database.query("SELECT * FROM api_services WHERE is_active = true ORDER BY service_name").then((r) => r.rows);
+      
+      console.log(`📊 Generating weekly reports for ${services.length} services:`, services.map(s => s.service_name));
 
       const reports = [];
 
       for (const service of services) {
+        console.log(`📊 Generating report for service: ${service.service_name} (${service.display_name})`);
+        
         const stats = await this.getUsageStats(service.service_name, weekStart, weekEnd);
         const statsData = stats.find((s) => s.service_name === service.service_name) || {
           total_requests: 0,
@@ -526,6 +634,12 @@ class ApiMonitoringService {
           p95_response_time: 0,
           p99_response_time: 0,
         };
+
+        console.log(`📊 Stats for ${service.service_name}:`, {
+          total_requests: statsData.total_requests,
+          successful: statsData.successful_requests,
+          failed: statsData.failed_requests,
+        });
 
         const errors = await this.getRecentErrors(service.service_name, 100);
         const weekErrors = errors.filter(
@@ -549,6 +663,12 @@ class ApiMonitoringService {
           rateLimitHits: weekErrors.filter((e) => e.error_code === "RATE_LIMIT").length,
           errors: weekErrors.slice(0, 10), // Top 10 errors
         };
+
+        console.log(`📊 Saving weekly report for ${service.service_name}:`, {
+          totalRequests: reportData.totalRequests,
+          weekStart: reportData.weekStart,
+          weekEnd: reportData.weekEnd,
+        });
 
         // Save report to database
         await database.query(
@@ -604,6 +724,11 @@ class ApiMonitoringService {
    */
   async getWeeklyReports(serviceName = null, weeks = 4) {
     try {
+      // Calculate the date range for the requested weeks
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - (weeks * 7)); // Go back N weeks
+
       let query = `
         SELECT 
           r.*,
@@ -611,18 +736,24 @@ class ApiMonitoringService {
           s.display_name
         FROM api_usage_reports r
         JOIN api_services s ON r.service_id = s.id
+        WHERE r.report_week_start >= $1
       `;
 
-      const params = [];
+      const params = [startDate];
+      let paramCount = 2;
+
       if (serviceName) {
-        query += ` WHERE s.service_name = $1`;
+        query += ` AND s.service_name = $${paramCount}`;
         params.push(serviceName);
+        paramCount++;
       }
 
-      query += ` ORDER BY r.report_week_start DESC LIMIT $${params.length + 1}`;
-      params.push(weeks);
+      query += ` ORDER BY r.report_week_start DESC, s.service_name`;
+      
+      console.log(`📊 Getting weekly reports for ${weeks} weeks, serviceName: ${serviceName || 'all'}`);
 
       const result = await database.query(query, params);
+      console.log(`📊 Found ${result.rows.length} weekly reports`);
       return result.rows;
     } catch (error) {
       console.error("❌ Error getting weekly reports:", error);

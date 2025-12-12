@@ -48,6 +48,7 @@ import linkedinRoutes from "./routes/linkedinRoutes.js";
 import networkingRoutes from "./routes/networkingRoutes.js";
 import githubRoutes from "./routes/githubRoutes.js";
 import apiMonitoringRoutes from "./routes/apiMonitoringRoutes.js";
+import geocodingRoutes from "./routes/geocodingRoutes.js";
 
 // Import middleware
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
@@ -72,7 +73,22 @@ app.use(
 // CORS configuration
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+      
+      const allowedOrigins = [
+        process.env.FRONTEND_URL || "http://localhost:3000",
+        "http://localhost:5173", // Vite dev server
+        "http://localhost:3000", // Alternative frontend port
+      ];
+      
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(null, true); // Allow all origins in development
+      }
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -124,8 +140,24 @@ app.use(
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Serve static files from uploads directory
-app.use("/uploads", express.static("uploads"));
+// Serve static files from uploads directory with CORS headers
+app.use("/uploads", (req, res, next) => {
+  const origin = req.headers.origin;
+  const allowedOrigins = [
+    process.env.FRONTEND_URL || "http://localhost:3000",
+    "http://localhost:5173", // Vite dev server
+    "http://localhost:3000", // Alternative frontend port
+  ];
+  
+  if (origin && allowedOrigins.includes(origin)) {
+    res.header("Access-Control-Allow-Origin", origin);
+  } else {
+    res.header("Access-Control-Allow-Origin", allowedOrigins[0]);
+  }
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
+  next();
+}, express.static("uploads"));
 
 // Health check endpoint
 app.get("/health", (req, res) => {
@@ -181,6 +213,7 @@ app.use("/api/v1/networking", networkingRoutes);
 app.use("/api/v1/linkedin", linkedinRoutes);
 app.use("/api/v1/github", githubRoutes);
 app.use("/api/v1/admin/api-monitoring", apiMonitoringRoutes);
+app.use("/api/v1/geocoding", geocodingRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

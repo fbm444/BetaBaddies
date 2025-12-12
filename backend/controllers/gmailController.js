@@ -185,7 +185,9 @@ class GmailController {
     res.status(200).json({
       ok: true,
       data: {
-        status,
+        status: {
+          connected: status.connected || false,
+        },
       },
     });
   });
@@ -246,12 +248,16 @@ class GmailController {
     const userId = req.session.userId;
     const { days = 30, maxResults = 50 } = req.query;
 
+    console.log(`📧 getRecentEmails controller: userId=${userId}, days=${days}, maxResults=${maxResults}`);
+
     try {
       const emails = await gmailService.getRecentEmails(
         userId,
         parseInt(days),
         parseInt(maxResults)
       );
+
+      console.log(`📧 Controller returning ${emails.length} emails`);
 
       res.status(200).json({
         ok: true,
@@ -260,7 +266,8 @@ class GmailController {
         },
       });
     } catch (error) {
-      console.error("Error getting recent emails:", error);
+      console.error("❌ Error getting recent emails:", error);
+      console.error("❌ Error stack:", error.stack);
       res.status(500).json({
         ok: false,
         error: {
@@ -319,7 +326,11 @@ class GmailController {
     const userId = req.session.userId;
     const { jobOpportunityId, gmailMessageId } = req.body;
 
+    console.log(`🔗 Linking email request: userId=${userId}, jobOpportunityId=${jobOpportunityId}, gmailMessageId=${gmailMessageId}`);
+    console.log(`🔗 Request body:`, req.body);
+
     if (!jobOpportunityId || !gmailMessageId) {
+      console.error(`❌ Missing required fields: jobOpportunityId=${jobOpportunityId}, gmailMessageId=${gmailMessageId}`);
       return res.status(400).json({
         ok: false,
         error: {
@@ -335,6 +346,8 @@ class GmailController {
         gmailMessageId
       );
 
+      console.log(`✅ Email linked successfully:`, emailLink.id);
+
       res.status(200).json({
         ok: true,
         data: {
@@ -342,7 +355,7 @@ class GmailController {
         },
       });
     } catch (error) {
-      console.error("Error linking email to job:", error);
+      console.error("❌ Error linking email to job:", error);
       res.status(500).json({
         ok: false,
         error: {
@@ -369,10 +382,24 @@ class GmailController {
     try {
       const emails = await gmailService.getLinkedEmails(userId, jobOpportunityId);
 
+      // Transform emails to match frontend expected format
+      const transformedEmails = emails.map((email) => ({
+        id: email.id,
+        emailLinkId: email.id,
+        gmailMessageId: email.gmail_message_id,
+        subject: email.subject,
+        from: email.sender_email || email.sender_name || "Unknown",
+        date: email.email_date,
+        snippet: email.snippet || "",
+        threadId: email.thread_id,
+        linkedAt: email.created_at,
+        suggestedStatus: email.subject ? gmailService.detectStatusFromSubject(email.subject) : null,
+      }));
+
       res.status(200).json({
         ok: true,
         data: {
-          emails,
+          emails: transformedEmails,
         },
       });
     } catch (error) {

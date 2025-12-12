@@ -1069,6 +1069,38 @@ class ApiService {
     );
   }
 
+  async getCertificationsByCategory(category: string) {
+    return this.request<
+      ApiResponse<{
+        certifications: CertificationData[];
+        count: number;
+        category: string;
+      }>
+    >(`/certifications/category?category=${encodeURIComponent(category)}`);
+  }
+
+  async uploadCertificationBadgeImage(file: File) {
+    const formData = new FormData();
+    formData.append("badgeImage", file);
+
+    const response = await fetch(`${API_BASE}/certifications/badge-image`, {
+      method: "POST",
+      credentials: "include",
+      body: formData, // Don't set Content-Type header, browser will set it with boundary
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({
+        error: { message: "Upload failed" },
+      }));
+      throw new Error(error.error?.message || "Upload failed");
+    }
+
+    return response.json() as Promise<
+      ApiResponse<{ filePath: string; fileName: string; message: string }>
+    >;
+  }
+
   // Skills endpoints (Full CRUD + Category grouping)
   async getSkills(category?: string) {
     const query = category ? `?category=${encodeURIComponent(category)}` : "";
@@ -4416,6 +4448,156 @@ class ApiService {
       {
         method: "POST",
         body: JSON.stringify({ increment }),
+      }
+    );
+  }
+
+  // GitHub Integration
+  async getGitHubStatus() {
+    return this.request<ApiResponse<{ connected: boolean; username: string | null }>>(
+      "/github/status"
+    );
+  }
+
+  async connectGitHub(accessToken: string, username: string, refreshToken?: string, expiresAt?: string) {
+    return this.request<ApiResponse<{ message: string; profile: any }>>(
+      "/github/connect",
+      {
+        method: "POST",
+        body: JSON.stringify({ accessToken, username, refreshToken, expiresAt }),
+      }
+    );
+  }
+
+  async disconnectGitHub() {
+    return this.request<ApiResponse<{ message: string }>>(
+      "/github/disconnect",
+      {
+        method: "DELETE",
+      }
+    );
+  }
+
+  async getGitHubRepositories() {
+    return this.request<ApiResponse<{ repositories: any[] }>>(
+      "/github/repositories"
+    );
+  }
+
+  async importGitHubRepositories(includePrivate: boolean = false) {
+    return this.request<ApiResponse<{ message: string; imported: number; updated: number; skipped: number }>>(
+      "/github/repositories/import",
+      {
+        method: "POST",
+        body: JSON.stringify({ includePrivate }),
+      }
+    );
+  }
+
+  async syncGitHubRepositories() {
+    return this.request<ApiResponse<{ message: string; synced: number }>>(
+      "/github/repositories/sync",
+      {
+        method: "POST",
+      }
+    );
+  }
+
+  async addGitHubRepositoryToProjects(repositoryId: string) {
+    return this.request<ApiResponse<{ project: any; message: string; skillsAdded: number; skillsSkipped: number }>>(
+      `/github/repositories/${repositoryId}/add-to-projects`,
+      {
+        method: "POST",
+      }
+    );
+  }
+
+  async setGitHubRepositoryFeatured(repositoryId: string, isFeatured: boolean) {
+    return this.request<ApiResponse<{ repository: any; message: string }>>(
+      `/github/repositories/${repositoryId}/featured`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ isFeatured }),
+      }
+    );
+  }
+
+  async getGitHubRepositoryContributions(repositoryId: string) {
+    return this.request<ApiResponse<{ contributions: any[]; statistics: any; count: number }>>(
+      `/github/repositories/${repositoryId}/contributions`
+    );
+  }
+
+  async getGitHubRepositoryStatistics() {
+    return this.request<ApiResponse<{ statistics: any }>>(
+      "/github/repositories/statistics"
+    );
+  }
+
+  async linkGitHubRepositoryToSkills(repositoryId: string, skillIds: string[]) {
+    return this.request<ApiResponse<{ message: string }>>(
+      `/github/repositories/${repositoryId}/skills`,
+      {
+        method: "POST",
+        body: JSON.stringify({ skillIds }),
+      }
+    );
+  }
+
+  // Gmail Integration
+  async getGmailAuthUrl() {
+    return this.request<ApiResponse<{ authUrl: string }>>("/gmail/auth/url");
+  }
+
+  async getGmailStatus() {
+    return this.request<ApiResponse<{ status: { connected: boolean; email?: string; lastSync?: string } }>>(
+      "/gmail/status"
+    );
+  }
+
+  async disconnectGmail() {
+    return this.request<ApiResponse<{ message: string }>>("/gmail/disconnect", {
+      method: "POST",
+    });
+  }
+
+  async searchGmailEmails(query: string, maxResults: number = 50) {
+    return this.request<ApiResponse<{ emails: any[] }>>(
+      `/gmail/search?query=${encodeURIComponent(query)}&maxResults=${maxResults}`
+    );
+  }
+
+  async getRecentGmailEmails(days: number = 30, maxResults: number = 50) {
+    return this.request<ApiResponse<{ emails: any[] }>>(
+      `/gmail/recent?days=${days}&maxResults=${maxResults}`
+    );
+  }
+
+  async searchGmailEmailsByKeywords(keywords: string, maxResults: number = 50) {
+    return this.request<ApiResponse<{ emails: any[] }>>(
+      `/gmail/search/keywords?keywords=${encodeURIComponent(keywords)}&maxResults=${maxResults}`
+    );
+  }
+
+  async linkEmailToJob(jobOpportunityId: string, gmailMessageId: string) {
+    return this.request<ApiResponse<{ emailLink: any }>>("/gmail/link", {
+      method: "POST",
+      body: JSON.stringify({ jobOpportunityId, gmailMessageId }),
+    });
+  }
+
+  async getLinkedEmails(jobOpportunityId: string) {
+    return this.request<ApiResponse<{ emails: any[] }>>(
+      `/gmail/linked/${jobOpportunityId}`
+    );
+  }
+
+  async unlinkEmailFromJob(emailLinkId: string, jobOpportunityId: string) {
+    return this.request<ApiResponse<{ message: string }>>(
+      `/gmail/unlink/${emailLinkId}`,
+      {
+        method: "DELETE",
+        body: JSON.stringify({ jobOpportunityId }),
       }
     );
   }

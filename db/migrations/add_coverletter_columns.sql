@@ -7,10 +7,14 @@ ALTER TABLE coverletter ADD CONSTRAINT fk_coverletter_template
   FOREIGN KEY (template_id) REFERENCES coverletter_template(id) 
   ON DELETE SET NULL;
 
--- Add job_id (foreign key to prospectivejobs)
+-- Add job_id (foreign key to job_opportunities)
 ALTER TABLE coverletter ADD COLUMN IF NOT EXISTS job_id UUID;
+-- Drop old constraint if it exists (pointing to prospectivejobs)
+ALTER TABLE coverletter DROP CONSTRAINT IF EXISTS fk_coverletter_job;
+ALTER TABLE coverletter DROP CONSTRAINT IF EXISTS coverletter_job_is_fkey;
+-- Add correct constraint pointing to job_opportunities
 ALTER TABLE coverletter ADD CONSTRAINT fk_coverletter_job 
-  FOREIGN KEY (job_id) REFERENCES prospectivejobs(id) 
+  FOREIGN KEY (job_id) REFERENCES job_opportunities(id) 
   ON DELETE SET NULL;
 
 -- Add content (JSONB for cover letter content)
@@ -59,7 +63,7 @@ CREATE TABLE IF NOT EXISTS cover_letter_performance (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT cover_letter_performance_pkey PRIMARY KEY (id),
     CONSTRAINT fk_performance_coverletter FOREIGN KEY (coverletter_id) REFERENCES coverletter(id) ON DELETE CASCADE,
-    CONSTRAINT fk_performance_job FOREIGN KEY (job_id) REFERENCES prospectivejobs(id) ON DELETE SET NULL
+    CONSTRAINT fk_performance_job FOREIGN KEY (job_id) REFERENCES job_opportunities(id) ON DELETE SET NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_performance_coverletter_id ON cover_letter_performance(coverletter_id);

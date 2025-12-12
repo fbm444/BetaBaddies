@@ -241,7 +241,15 @@ export function SalaryNegotiation() {
 
       const response = await api.createSalaryNegotiation(negotiationData);
       if (response.ok && response.data?.negotiation) {
-        showMessage("Salary negotiation created successfully!", "success");
+        // Check if negotiation already existed
+        if (response.data.alreadyExists) {
+          showMessage(
+            response.data.message || "A negotiation already exists for this job opportunity. Showing existing negotiation.",
+            "info"
+          );
+        } else {
+          showMessage("Salary negotiation created successfully!", "success");
+        }
         setShowCreateModal(false);
         // Reset form
         setFormData({
@@ -263,6 +271,12 @@ export function SalaryNegotiation() {
         });
         // Refresh negotiations list
         await fetchNegotiations();
+        
+        // If negotiation already existed, select it and show detail view
+        if (response.data.alreadyExists && response.data.negotiation) {
+          setSelectedNegotiation(response.data.negotiation);
+          setShowDetailModal(true);
+        }
       } else {
         const errorMessage = typeof response.error === 'string' 
           ? response.error 

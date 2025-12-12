@@ -22,6 +22,7 @@ import { CompanyInfoModal } from "./CompanyInfoModal";
 import { JobSkillGapPanel } from "./skill-gaps/SkillGapPanel";
 import { JobMaterialsSection } from "./JobMaterialsSection";
 import { JobMatchScore } from "./JobMatchScore";
+import { EmailSidebar } from "./EmailSidebar";
 import { api } from "../services/api";
 import { ROUTES } from "../config/routes";
 
@@ -492,15 +493,193 @@ export function JobOpportunityDetailModal({
     }
   };
 
+  // Linked Emails Section Component
+  const LinkedEmailsSection = ({ jobOpportunityId }: { jobOpportunityId: string }) => {
+    const [linkedEmails, setLinkedEmails] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [unlinkingId, setUnlinkingId] = useState<string | null>(null);
+
+    const loadLinkedEmails = async () => {
+      try {
+        setIsLoading(true);
+        const response = await api.getLinkedEmails(jobOpportunityId);
+        setLinkedEmails(response.data?.emails || []);
+      } catch (err: any) {
+        console.error("Failed to load linked emails:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    const handleUnlinkEmail = async (emailLinkId: string) => {
+      try {
+        setUnlinkingId(emailLinkId);
+        await api.unlinkEmailFromJob(emailLinkId, jobOpportunityId);
+        // Refresh the list after unlinking
+        await loadLinkedEmails();
+        // Trigger event to refresh EmailSidebar if needed
+        window.dispatchEvent(new CustomEvent('linkedEmailUpdated'));
+      } catch (err: any) {
+        console.error("Failed to unlink email:", err);
+        alert(err.response?.data?.error?.message || err.message || "Failed to unlink email");
+      } finally {
+        setUnlinkingId(null);
+      }
+    };
+
+    const handleOpenInGmail = (gmailMessageId: string) => {
+      // Gmail URL format: https://mail.google.com/mail/u/0/#inbox/{messageId}
+      const gmailUrl = `https://mail.google.com/mail/u/0/#inbox/${gmailMessageId}`;
+      window.open(gmailUrl, '_blank');
+    };
+
+    // Refresh linked emails when jobOpportunityId changes or when email is linked
+    useEffect(() => {
+      loadLinkedEmails();
+      
+      // Listen for email linked events
+      const handleEmailLinked = () => {
+        loadLinkedEmails();
+      };
+      
+      window.addEventListener('linkedEmailUpdated', handleEmailLinked);
+      
+      return () => {
+        window.removeEventListener('linkedEmailUpdated', handleEmailLinked);
+      };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [jobOpportunityId]);
+
+    const formatDate = (dateString: string) => {
+      const date = new Date(dateString);
+      return date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    };
+
+    const getStatusColor = (status?: string) => {
+      if (!status) return "bg-slate-100 text-slate-600";
+      const lower = status.toLowerCase();
+      if (lower.includes("interview")) return "bg-blue-100 text-blue-700";
+      if (lower.includes("offer")) return "bg-green-100 text-green-700";
+      if (lower.includes("rejection") || lower.includes("reject")) return "bg-red-100 text-red-700";
+      return "bg-slate-100 text-slate-600";
+    };
+
+    if (isLoading) {
+      return (
+        <section className="border-t border-slate-200 pt-6">
+          <h3 className="text-lg font-semibold text-slate-900 mb-4">Linked Emails</h3>
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          </div>
+        </section>
+      );
+    }
+
+    return (
+      <section className="border-t border-slate-200 pt-6">
+        <h3 className="text-lg font-semibold text-slate-900 mb-4">Linked Emails</h3>
+        {linkedEmails.length === 0 ? (
+          <div className="text-center py-8 text-slate-500">
+            <Icon icon="mingcute:mail-line" width={32} className="mx-auto mb-2 text-slate-300" />
+            <p className="text-sm">No emails linked to this job opportunity yet</p>
+            <p className="text-xs text-slate-400 mt-1">
+              Link emails using the email sidebar on the right
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {linkedEmails
+              .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+              .map((email) => (
+                <div
+                  key={email.emailLinkId}
+                  className="p-4 bg-slate-50 border border-slate-200 rounded-lg hover:border-slate-300 transition-colors"
+                >
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-900 mb-1">{email.subject}</p>
+                      <p className="text-xs text-slate-600">{email.from}</p>
+                    </div>
+                    <span className="text-xs text-slate-500 whitespace-nowrap">
+                      {formatDate(email.date)}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600 line-clamp-2 mb-3">{email.snippet}</p>
+                  
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      {email.suggestedStatus && (
+                        <span
+                          className={`px-2 py-0.5 text-xs rounded ${getStatusColor(
+                            email.suggestedStatus
+                          )}`}
+                        >
+                          {email.suggestedStatus}
+                        </span>
+                      )}
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      {email.gmailMessageId && (
+                        <button
+                          onClick={() => handleOpenInGmail(email.gmailMessageId)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"
+                          title="Open in Gmail"
+                        >
+                          <Icon icon="mingcute:mail-open-line" width={14} />
+                          Open in Gmail
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleUnlinkEmail(email.emailLinkId)}
+                        disabled={unlinkingId === email.emailLinkId}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-red-600 bg-red-50 rounded-md hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Unlink email"
+                      >
+                        {unlinkingId === email.emailLinkId ? (
+                          <>
+                            <Icon
+                              icon="mingcute:loading-line"
+                              className="animate-spin"
+                              width={14}
+                            />
+                            Unlinking...
+                          </>
+                        ) : (
+                          <>
+                            <Icon icon="mingcute:link-unlink-line" width={14} />
+                            Unlink
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+        </div>
+        )}
+      </section>
+    );
+  };
+
   return (
+    <>
     <div 
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[110] p-4 font-poppins"
       onClick={handleBackdropClick}
     >
       <div 
-        className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto font-poppins"
+        className="bg-white rounded-2xl max-w-7xl w-full max-h-[90vh] flex overflow-hidden font-poppins"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Main Content */}
+        <div className="flex-1 overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-slate-200 px-8 py-6">
           <div className="flex items-start justify-between gap-4">
@@ -1255,6 +1434,9 @@ export function JobOpportunityDetailModal({
               onHistorySync={handleHistorySync}
             />
 
+            {/* Linked Emails */}
+            <LinkedEmailsSection jobOpportunityId={opportunity.id} />
+
             {/* Application History */}
             <section className="border-t border-slate-200 pt-6">
               <h3 className="text-lg font-semibold text-slate-900 mb-4">
@@ -1358,23 +1540,37 @@ export function JobOpportunityDetailModal({
             </div>
           )}
         </form>
-      </div>
-
-      {/* Company Info Modal */}
-      {showCompanyInfo && (
-        <CompanyInfoModal
-          opportunityId={opportunity.id}
+        </div>
+        {/* Email Sidebar */}
+        <EmailSidebar
+          jobOpportunityId={opportunity.id}
           companyName={opportunity.company}
           jobTitle={opportunity.title}
-          location={opportunity.location}
-          industry={opportunity.industry}
-          onClose={() => setShowCompanyInfo(false)}
+          onEmailLinked={() => {
+            // Trigger refresh of linked emails section
+            // The LinkedEmailsSection will auto-refresh when jobOpportunityId changes
+            // Force a re-render by updating a key or state
+            window.dispatchEvent(new CustomEvent('linkedEmailUpdated'));
+          }}
         />
-      )}
+      </div>
+    </div>
 
-      {/* Share Job Modal */}
-      {showShareModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[120] p-4">
+    {/* Company Info Modal */}
+    {showCompanyInfo && (
+      <CompanyInfoModal
+        opportunityId={opportunity.id}
+        companyName={opportunity.company}
+        jobTitle={opportunity.title}
+        location={opportunity.location}
+        industry={opportunity.industry}
+        onClose={() => setShowCompanyInfo(false)}
+      />
+    )}
+      
+    {/* Share Job Modal */}
+    {showShareModal && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[120] p-4">
           <div className="bg-white rounded-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-bold text-slate-900">Share Job with Team</h3>
@@ -1478,7 +1674,7 @@ export function JobOpportunityDetailModal({
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 

@@ -57,13 +57,17 @@ function runTest(testFile) {
     child.stdout.on("data", (data) => {
       const output = data.toString();
       stdout += output;
-      // Suppress output - only capture for summary extraction
+      // Show output in CI or when tests fail
+      if (process.env.CI || process.env.SHOW_TEST_OUTPUT) {
+        process.stdout.write(output);
+      }
     });
 
     child.stderr.on("data", (data) => {
       const output = data.toString();
       stderr += output;
-      // Suppress error output - only capture for summary extraction
+      // Always show stderr (errors)
+      process.stderr.write(output);
     });
 
     child.on("close", (code) => {

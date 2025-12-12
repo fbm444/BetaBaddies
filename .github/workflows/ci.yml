@@ -78,12 +78,17 @@ jobs:
           CORS_ORIGIN: http://localhost:3000
           CLOUD_PROVIDER: local
           UPLOAD_MAX_SIZE: 10mb
+          CI: true
+          SHOW_TEST_OUTPUT: true
         run: |
           set -o pipefail
+          echo "🚀 Starting tests..."
           npm run test:all 2>&1 | tee test-output.log
           TEST_EXIT_CODE=${PIPESTATUS[0]}
           if [ $TEST_EXIT_CODE -ne 0 ]; then
             echo "❌ Tests failed with exit code $TEST_EXIT_CODE"
+            echo "📋 Showing last 100 lines of test output:"
+            tail -100 test-output.log
             exit $TEST_EXIT_CODE
           fi
 

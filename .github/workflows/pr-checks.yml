@@ -76,6 +76,8 @@ jobs:
           CORS_ORIGIN: http://localhost:3000
           CLOUD_PROVIDER: local
           UPLOAD_MAX_SIZE: 10mb
+          CI: true
+          SHOW_TEST_OUTPUT: true
         run: |
           set -o pipefail
           npm run test:all 2>&1 | tee test-output.log

@@ -61,6 +61,19 @@ jobs:
           PGPASSWORD=postgres psql -h localhost -U postgres -d ats_tracker_test -f ../db/sprint_4/database_schema_dump.sql
           echo "✅ Database schema created successfully"
 
+      - name: Verify database connection
+        working-directory: ./backend
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: ats_tracker_test
+          DB_USER: postgres
+          DB_PASS: postgres
+        run: |
+          echo "🔍 Verifying database connection..."
+          PGPASSWORD=postgres psql -h localhost -U postgres -d ats_tracker_test -c "SELECT COUNT(*) FROM users;" || echo "⚠️ Database query failed"
+          echo "✅ Database connection verified"
+
       - name: Run tests
         working-directory: ./backend
         env:
@@ -77,12 +90,17 @@ jobs:
           CORS_ORIGIN: http://localhost:3000
           CLOUD_PROVIDER: local
           UPLOAD_MAX_SIZE: 10mb
+          CI: true
+          SHOW_TEST_OUTPUT: true
         run: |
           set -o pipefail
+          echo "🚀 Starting tests..."
           npm run test:all 2>&1 | tee test-output.log
           TEST_EXIT_CODE=${PIPESTATUS[0]}
           if [ $TEST_EXIT_CODE -ne 0 ]; then
             echo "❌ Tests failed with exit code $TEST_EXIT_CODE"
+            echo "📋 Showing last 100 lines of test output:"
+            tail -100 test-output.log
             exit $TEST_EXIT_CODE
           fi
 

@@ -1,0 +1,33 @@
+name: Auto Merge PR
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main, development]
+
+jobs:
+  auto-merge:
+    name: Auto Merge After Tests Pass
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+
+    steps:
+      - name: Wait for CI checks
+        uses: lewagon/wait-on-check-action@v1.3.4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          check-regexp: '.*'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 10
+          allowed-conclusions: success
+
+      - name: Enable auto-merge
+        uses: pascalgn/automerge-action@v0.16.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          merge-method: squash
+          merge-filter-author: 'dependabot[bot],renovate[bot]'
+          # Only auto-merge if all checks pass
+          required-approvals: 0
+

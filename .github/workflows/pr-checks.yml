@@ -1,13 +1,12 @@
-name: Backend Tests
+name: PR Checks
 
 on:
-  push:
-    branches: [main, development, google-auth]
   pull_request:
-    branches: [main, development, google-auth]
+    branches: [main, development]
 
 jobs:
   test:
+    name: Run Tests
     runs-on: ubuntu-latest
 
     services:
@@ -35,7 +34,7 @@ jobs:
           cache: "npm"
           cache-dependency-path: backend/package-lock.json
 
-      - name: Install dependencies
+      - name: Install backend dependencies
         working-directory: ./backend
         run: npm ci
 
@@ -61,7 +60,7 @@ jobs:
           PGPASSWORD=postgres psql -h localhost -U postgres -d ats_tracker_test -f ../db/sprint_4/database_schema_dump.sql
           echo "✅ Database schema created successfully"
 
-      - name: Run tests
+      - name: Run backend tests
         working-directory: ./backend
         env:
           DB_HOST: localhost
@@ -75,10 +74,38 @@ jobs:
           FRONTEND_URL: http://localhost:3000
         run: npm run test:all
 
-      - name: Upload test results
+      - name: Comment PR with test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/github-script@v7
         with:
-          name: test-results
-          path: backend/test-results/
-          retention-days: 7
+          script: |
+            const testStatus = '${{ job.status }}' === 'success' ? '✅' : '❌';
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              body: `## Test Results ${testStatus}\n\nTests ${{ job.status === 'success' && 'passed' || 'failed' }} for commit ${{ github.sha }}`
+            })
+
+  build-frontend:
+    name: Build Frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/ats-tracker/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend/ats-tracker
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: ./frontend/ats-tracker
+        env:
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL || '/api/v1' }}
+        run: npm run build

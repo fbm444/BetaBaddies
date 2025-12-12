@@ -1,0 +1,188 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  RAILWAY_ENVIRONMENT: production
+  NODE_ENV: production
+
+jobs:
+  test:
+    name: Run Tests Before Deployment
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ats_tracker_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Wait for PostgreSQL
+        run: |
+          until pg_isready -h localhost -p 5432 -U postgres; do
+            echo "Waiting for PostgreSQL..."
+            sleep 2
+          done
+
+      - name: Setup test database from schema dump
+        working-directory: ./backend
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: ats_tracker_test
+          DB_USER: postgres
+          DB_PASS: postgres
+        run: |
+          echo "📊 Creating test database from schema dump..."
+          PGPASSWORD=postgres psql -h localhost -U postgres -c "DROP DATABASE IF EXISTS ats_tracker_test;"
+          PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE ats_tracker_test;"
+          PGPASSWORD=postgres psql -h localhost -U postgres -d ats_tracker_test -f ../db/sprint_4/database_schema_dump.sql
+          echo "✅ Database schema created successfully"
+
+      - name: Run backend tests
+        working-directory: ./backend
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: ats_tracker_test
+          DB_USER: postgres
+          DB_PASS: postgres
+          SERVER_PORT: 3001
+          NODE_ENV: test
+          SESSION_SECRET: test-secret-key
+          FRONTEND_URL: http://localhost:3000
+        run: npm run test:all
+
+  deploy-backend:
+    name: Deploy Backend to Railway (Production)
+    needs: test
+    runs-on: ubuntu-latest
+    if: success()
+    environment:
+      name: production
+      url: ${{ secrets.RAILWAY_PRODUCTION_BACKEND_URL }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Railway
+        uses: bervProject/railway-deploy@v0.2.11
+        with:
+          railway_token: ${{ secrets.RAILWAY_PRODUCTION_TOKEN }}
+          service: ${{ secrets.RAILWAY_PRODUCTION_SERVICE_ID }}
+          detach: false
+
+      - name: Wait for deployment
+        run: |
+          echo "⏳ Waiting for Railway deployment to complete..."
+          sleep 15
+
+      - name: Health check
+        run: |
+          echo "🏥 Checking backend health..."
+          BACKEND_URL="${{ secrets.RAILWAY_PRODUCTION_BACKEND_URL }}"
+          if [ -n "$BACKEND_URL" ]; then
+            for i in {1..5}; do
+              if curl -f "$BACKEND_URL/health"; then
+                echo "✅ Backend health check passed"
+                exit 0
+              fi
+              echo "⏳ Health check attempt $i failed, retrying..."
+              sleep 5
+            done
+            echo "❌ Health check failed after 5 attempts"
+            exit 1
+          else
+            echo "⚠️ Backend URL not configured, skipping health check"
+          fi
+
+      - name: Create deployment record
+        if: success()
+        run: |
+          echo "📝 Recording deployment..."
+          echo "Deployment successful at $(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> deployment-history.txt
+          echo "Commit: ${{ github.sha }}" >> deployment-history.txt
+          echo "Branch: ${{ github.ref_name }}" >> deployment-history.txt
+
+  deploy-frontend:
+    name: Deploy Frontend to Vercel (Production)
+    needs: test
+    runs-on: ubuntu-latest
+    if: success()
+    environment:
+      name: production
+      url: ${{ secrets.VERCEL_PRODUCTION_URL }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Vercel (Production)
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PRODUCTION_PROJECT_ID }}
+          vercel-args: "--prod"
+          working-directory: ./frontend/ats-tracker
+
+  notify:
+    name: Send Deployment Notification
+    needs: [deploy-backend, deploy-frontend]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Send Slack notification
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: |
+            🚀 Production Deployment ${{ job.status }}
+            Branch: main
+            Commit: ${{ github.sha }}
+            Author: ${{ github.actor }}
+            Environment: Production
+          webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+        if: always()
+        continue-on-error: true
+
+      - name: Create GitHub deployment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.repos.createDeployment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.sha,
+              environment: 'production',
+              auto_merge: false,
+              required_contexts: []
+            })

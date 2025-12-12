@@ -1,0 +1,86 @@
+name: Rollback Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to rollback'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      previous_commit:
+        description: 'Previous commit SHA to rollback to (leave empty for last successful deployment)'
+        required: false
+        type: string
+
+jobs:
+  rollback:
+    name: Rollback ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.previous_commit || 'HEAD~1' }}
+
+      - name: Determine target
+        id: target
+        run: |
+          if [ "${{ inputs.environment }}" == "production" ]; then
+            echo "railway_token=${{ secrets.RAILWAY_PRODUCTION_TOKEN }}" >> $GITHUB_OUTPUT
+            echo "railway_service=${{ secrets.RAILWAY_PRODUCTION_SERVICE_ID }}" >> $GITHUB_OUTPUT
+            echo "vercel_project=${{ secrets.VERCEL_PRODUCTION_PROJECT_ID }}" >> $GITHUB_OUTPUT
+          else
+            echo "railway_token=${{ secrets.RAILWAY_STAGING_TOKEN }}" >> $GITHUB_OUTPUT
+            echo "railway_service=${{ secrets.RAILWAY_STAGING_SERVICE_ID }}" >> $GITHUB_OUTPUT
+            echo "vercel_project=${{ secrets.VERCEL_STAGING_PROJECT_ID }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Rollback Backend
+        uses: bervProject/railway-deploy@v0.2.11
+        with:
+          railway_token: ${{ steps.target.outputs.railway_token }}
+          service: ${{ steps.target.outputs.railway_service }}
+          detach: false
+
+      - name: Rollback Frontend
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ steps.target.outputs.vercel_project }}
+          vercel-args: '--prod'
+          working-directory: ./frontend/ats-tracker
+
+      - name: Send rollback notification
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          custom_payload: |
+            {
+              text: "🔄 Rollback initiated for ${{ inputs.environment }}",
+              attachments: [{
+                color: 'warning',
+                fields: [{
+                  title: 'Environment',
+                  value: '${{ inputs.environment }}',
+                  short: true
+                }, {
+                  title: 'Rolled back to',
+                  value: '${{ inputs.previous_commit || "Previous successful deployment" }}',
+                  short: true
+                }, {
+                  title: 'Initiated by',
+                  value: '${{ github.actor }}',
+                  short: true
+                }]
+              }]
+            }
+          webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+        if: always()
+        continue-on-error: true
+

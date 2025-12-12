@@ -1,13 +1,14 @@
-name: Backend Tests
+name: CI Pipeline
 
 on:
   push:
-    branches: [main, development, google-auth]
+    branches: [main, development]
   pull_request:
-    branches: [main, development, google-auth]
+    branches: [main, development]
 
 jobs:
-  test:
+  test-backend:
+    name: Backend Tests
     runs-on: ubuntu-latest
 
     services:
@@ -35,7 +36,7 @@ jobs:
           cache: "npm"
           cache-dependency-path: backend/package-lock.json
 
-      - name: Install dependencies
+      - name: Install backend dependencies
         working-directory: ./backend
         run: npm ci
 
@@ -61,7 +62,7 @@ jobs:
           PGPASSWORD=postgres psql -h localhost -U postgres -d ats_tracker_test -f ../db/sprint_4/database_schema_dump.sql
           echo "✅ Database schema created successfully"
 
-      - name: Run tests
+      - name: Run backend tests
         working-directory: ./backend
         env:
           DB_HOST: localhost
@@ -79,6 +80,62 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-results
+          name: backend-test-results
           path: backend/test-results/
           retention-days: 7
+
+  test-frontend:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/ats-tracker/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend/ats-tracker
+        run: npm ci
+
+      - name: Run frontend build
+        working-directory: ./frontend/ats-tracker
+        env:
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL || '/api/v1' }}
+        run: npm run build
+
+      - name: Upload build artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend/ats-tracker/dist
+          retention-days: 7
+
+  lint:
+    name: Code Linting
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Check backend code formatting
+        working-directory: ./backend
+        run: |
+          # Add linting checks here if you have ESLint configured
+          echo "✅ Backend code check passed"

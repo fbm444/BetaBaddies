@@ -159,10 +159,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Deploy to Vercel (Production)
-        uses: amondnet/vercel-action@v25
+        uses: vercel/action@v1
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PRODUCTION_PROJECT_ID }}
           vercel-args: "--prod"
           working-directory: ./frontend/ats-tracker

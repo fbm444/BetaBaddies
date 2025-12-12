@@ -98,24 +98,20 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     if: success()
+    container: ghcr.io/railwayapp/cli:latest
     environment:
       name: production
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      SVC_ID: ${{ secrets.RAILWAY_PRODUCTION_SERVICE_ID }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Deploy to Railway
-        uses: bervProject/railway-deploy@v0.2.11
-        with:
-          railway_token: ${{ secrets.RAILWAY_PRODUCTION_TOKEN }}
-          service: ${{ secrets.RAILWAY_PRODUCTION_SERVICE_ID }}
-          detach: false
-
-      - name: Wait for deployment
-        run: |
-          echo "⏳ Waiting for Railway deployment to complete..."
-          sleep 15
+        working-directory: ./backend
+        run: railway up --service=${{ env.SVC_ID }}
 
       - name: Health check
         run: |

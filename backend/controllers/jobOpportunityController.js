@@ -10,6 +10,7 @@ import profileService from "../services/profileService.js";
 import userService from "../services/userService.js";
 import emailService from "../services/emailService.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
+import salaryBenchmarkService from "../services/salaryBenchmarkService.js";
 
 class JobOpportunityController {
   // Create a new job opportunity
@@ -205,7 +206,23 @@ class JobOpportunityController {
       });
     }
 
-    res.status(200).json({
+    // Optionally include salary benchmarks
+    const includeSalaryBenchmarks = req.query.includeSalaryBenchmarks === "true";
+    let salaryBenchmark = null;
+
+    if (includeSalaryBenchmarks && opportunity.title && opportunity.location) {
+      try {
+        salaryBenchmark = await salaryBenchmarkService.getSalaryBenchmark(
+          opportunity.title,
+          opportunity.location
+        );
+      } catch (error) {
+        console.error("Error fetching salary benchmark:", error);
+        // Don't fail the request if benchmark fetch fails
+      }
+    }
+
+    const responseData = {
       ok: true,
       data: {
         jobOpportunity: {
@@ -243,7 +260,23 @@ class JobOpportunityController {
           updatedAt: opportunity.updatedAt,
         },
       },
-    });
+    };
+
+    if (includeSalaryBenchmarks) {
+      responseData.data.salaryBenchmark = salaryBenchmark
+        ? {
+            percentile25: salaryBenchmark.percentile25,
+            percentile50: salaryBenchmark.percentile50,
+            percentile75: salaryBenchmark.percentile75,
+            source: salaryBenchmark.source,
+            dataYear: salaryBenchmark.dataYear,
+            lastUpdated: salaryBenchmark.lastUpdated,
+            cached: salaryBenchmark.cached || false,
+          }
+        : null;
+    }
+
+    res.status(200).json(responseData);
   });
 
   // Update job opportunity

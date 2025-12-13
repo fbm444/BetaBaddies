@@ -23,6 +23,7 @@ import { JobSkillGapPanel } from "./skill-gaps/SkillGapPanel";
 import { JobMaterialsSection } from "./JobMaterialsSection";
 import { JobMatchScore } from "./JobMatchScore";
 import { EmailSidebar } from "./EmailSidebar";
+import { SalaryBenchmark } from "./SalaryBenchmark";
 import { api } from "../services/api";
 import { ROUTES } from "../config/routes";
 
@@ -978,6 +979,19 @@ export function JobOpportunityDetailModal({
                     </p>
                   )}
                 </div>
+
+                {/* Salary Benchmark */}
+                {!isEditMode && opportunity.title && opportunity.location && (
+                  <div className="mt-4">
+                    <SalaryBenchmark
+                      jobTitle={opportunity.title}
+                      location={opportunity.location}
+                      jobSalaryMin={opportunity.salaryMin}
+                      jobSalaryMax={opportunity.salaryMax}
+                    />
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     Application Deadline

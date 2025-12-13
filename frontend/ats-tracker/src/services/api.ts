@@ -63,6 +63,8 @@ import {
   TimingStrategy,
   MarketSalaryData,
   SalaryProgressionEntry,
+  SalaryBenchmarkData,
+  SalaryBenchmarkResponse,
   WritingPracticeSession,
   WritingPracticeSessionInput,
   WritingPracticeSessionUpdate,
@@ -536,9 +538,17 @@ class ApiService {
     >(`/job-opportunities${query}`);
   }
 
-  async getJobOpportunity(id: string) {
-    return this.request<ApiResponse<{ jobOpportunity: JobOpportunityData }>>(
-      `/job-opportunities/${id}`
+  async getJobOpportunity(id: string, includeSalaryBenchmarks = false) {
+    const params = new URLSearchParams();
+    if (includeSalaryBenchmarks) {
+      params.append("includeSalaryBenchmarks", "true");
+    }
+    const queryString = params.toString();
+    return this.request<ApiResponse<{ 
+      jobOpportunity: JobOpportunityData;
+      salaryBenchmark?: SalaryBenchmarkData | null;
+    }>>(
+      `/job-opportunities/${id}${queryString ? `?${queryString}` : ""}`
     );
   }
 
@@ -693,6 +703,15 @@ class ApiService {
     return this.request<
       ApiResponse<{ jobOpportunities: JobOpportunityData[] }>
     >(`/job-opportunities/archived${queryString ? `?${queryString}` : ""}`);
+  }
+
+  async getSalaryBenchmark(jobTitle: string, location: string) {
+    const params = new URLSearchParams();
+    params.append("jobTitle", jobTitle);
+    params.append("location", location);
+    return this.request<ApiResponse<SalaryBenchmarkResponse>>(
+      `/salary-benchmarks?${params.toString()}`
+    );
   }
 
   async getCompanyInformation(opportunityId: string) {

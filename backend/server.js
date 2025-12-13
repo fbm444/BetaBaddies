@@ -49,6 +49,7 @@ import networkingRoutes from "./routes/networkingRoutes.js";
 import githubRoutes from "./routes/githubRoutes.js";
 import apiMonitoringRoutes from "./routes/apiMonitoringRoutes.js";
 import geocodingRoutes from "./routes/geocodingRoutes.js";
+import salaryBenchmarkRoutes from "./routes/salaryBenchmarkRoutes.js";
 
 // Import middleware
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
@@ -214,6 +215,7 @@ app.use("/api/v1/linkedin", linkedinRoutes);
 app.use("/api/v1/github", githubRoutes);
 app.use("/api/v1/admin/api-monitoring", apiMonitoringRoutes);
 app.use("/api/v1/geocoding", geocodingRoutes);
+app.use("/api/v1/salary-benchmarks", salaryBenchmarkRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

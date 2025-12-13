@@ -114,27 +114,9 @@ jobs:
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
-      - name: Setup Vercel Project Configuration
+      - name: Pull Vercel Environment Information
         working-directory: ./frontend/ats-tracker
-        run: |
-          echo "📥 Setting up Vercel project configuration..."
-          # Create .vercel directory if it doesn't exist
-          mkdir -p .vercel
-
-          # Create project.json with project settings
-          cat > .vercel/project.json << EOF
-          {
-            "projectId": "${{ secrets.VERCEL_PRODUCTION_PROJECT_ID }}",
-            "orgId": "${{ secrets.VERCEL_ORG_ID }}"
-          }
-          EOF
-
-          # Try to pull environment variables (non-fatal)
-          vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }} \
-            --scope=${{ secrets.VERCEL_ORG_ID }} \
-            --project=${{ secrets.VERCEL_PRODUCTION_PROJECT_ID }} 2>&1 || echo "⚠️ vercel pull failed, but project.json is configured"
-
-          echo "✅ Vercel project configuration ready"
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PRODUCTION_PROJECT_ID }}
@@ -150,58 +132,9 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PRODUCTION_PROJECT_ID }}
 
-      - name: Deploy Project Artifacts to Vercel Production
+      - name: Deploy Project Artifacts to Vercel
         working-directory: ./frontend/ats-tracker
-        id: deploy
-        run: |
-          echo "🚀 Deploying to Vercel production..."
-          # Deploy and capture the full output
-          DEPLOY_OUTPUT=$(vercel deploy --prebuilt --prod --yes --token=${{ secrets.VERCEL_TOKEN }} 2>&1)
-          echo "$DEPLOY_OUTPUT"
-
-          # Extract deployment ID from the Inspect URL
-          # Format: Inspect: https://vercel.com/ats-trackers-projects/ats-tracker/FcwLUnHx1moViFGhGP9SsX3xtC7o
-          DEPLOYMENT_ID=$(echo "$DEPLOY_OUTPUT" | grep -oE 'Inspect: https://vercel\.com/[^/]+/[^/]+/([A-Za-z0-9_-]+)' | sed 's/.*\///' | head -1 || echo "")
-
-          echo "deployment_id=$DEPLOYMENT_ID" >> $GITHUB_OUTPUT
-          echo "📦 Deployment ID: $DEPLOYMENT_ID"
-
-          if [ -z "$DEPLOYMENT_ID" ]; then
-            echo "⚠️ Could not extract deployment ID. Deployment may need manual promotion."
-          fi
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PRODUCTION_PROJECT_ID }}
-
-      - name: Promote Deployment to Production Domain
-        if: steps.deploy.outputs.deployment_id != ''
-        working-directory: ./frontend/ats-tracker
-        run: |
-          echo "🔗 Promoting deployment to production domain..."
-          echo "📦 Deployment ID: ${{ steps.deploy.outputs.deployment_id }}"
-
-          # Use Vercel API to promote the deployment
-          # This assigns it to your production domain
-          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
-            "https://api.vercel.com/v13/deployments/${{ steps.deploy.outputs.deployment_id }}/promote" \
-            -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
-            -H "Content-Type: application/json")
-
-          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-          BODY=$(echo "$RESPONSE" | head -n -1)
-
-          if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "201" ]; then
-            echo "✅ Deployment successfully promoted to production domain!"
-            echo "🌐 Your custom production domain should now be updated."
-          else
-            echo "⚠️ Promotion API returned HTTP $HTTP_CODE"
-            echo "Response: $BODY"
-            echo ""
-            echo "💡 The deployment was created but may need manual promotion:"
-            echo "   1. Go to: https://vercel.com/ats-trackers-projects/ats-tracker/deployments"
-            echo "   2. Find deployment: ${{ steps.deploy.outputs.deployment_id }}"
-            echo "   3. Click '...' → 'Promote to Production'"
-          fi
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PRODUCTION_PROJECT_ID }}

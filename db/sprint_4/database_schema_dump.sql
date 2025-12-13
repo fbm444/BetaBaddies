@@ -5031,6 +5031,8 @@ CREATE TABLE public.users (
     google_contacts_token_expiry timestamp with time zone,
     google_contacts_sync_enabled boolean DEFAULT false,
     google_contacts_last_sync_at timestamp with time zone,
+    google_contacts_total_imported integer DEFAULT 0,
+    google_contacts_last_import_count integer DEFAULT 0,
     linkedin_access_token text,
     linkedin_refresh_token text,
     linkedin_token_expires_at timestamp with time zone,

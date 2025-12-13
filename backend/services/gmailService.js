@@ -31,9 +31,14 @@ class GmailService {
         throw new Error("Gmail not connected");
       }
 
-      const redirectUri = process.env.GOOGLE_GMAIL_CALLBACK_URL || 
-        `${process.env.BACKEND_URL || process.env.SERVER_URL || "http://localhost:3001"}/api/v1/gmail/auth/callback`;
-      
+      const redirectUri =
+        process.env.GOOGLE_GMAIL_CALLBACK_URL ||
+        `${
+          process.env.BACKEND_URL ||
+          process.env.SERVER_URL ||
+          "http://localhost:3001"
+        }/api/v1/gmail/auth/callback`;
+
       const oauth2Client = new google.auth.OAuth2(
         process.env.GOOGLE_CONTACTS_CLIENT_ID,
         process.env.GOOGLE_CONTACTS_CLIENT_SECRET,
@@ -49,7 +54,10 @@ class GmailService {
       });
 
       // Refresh token if expired
-      if (user.gmail_token_expiry && new Date(user.gmail_token_expiry) < new Date()) {
+      if (
+        user.gmail_token_expiry &&
+        new Date(user.gmail_token_expiry) < new Date()
+      ) {
         try {
           const { credentials } = await oauth2Client.refreshAccessToken();
           await this.updateTokens(userId, credentials);
@@ -167,9 +175,29 @@ class GmailService {
 
   // Get authorization URL for Gmail OAuth
   getAuthorizationUrl(userId) {
-    const redirectUri = process.env.GOOGLE_GMAIL_CALLBACK_URL || 
-      `${process.env.BACKEND_URL || process.env.SERVER_URL || "http://localhost:3001"}/api/v1/gmail/auth/callback`;
-    
+    const redirectUri =
+      process.env.GOOGLE_GMAIL_CALLBACK_URL ||
+      `${
+        process.env.BACKEND_URL ||
+        process.env.SERVER_URL ||
+        "http://localhost:3001"
+      }/api/v1/gmail/auth/callback`;
+
+    // Warn if using localhost in production
+    if (
+      !process.env.GOOGLE_GMAIL_CALLBACK_URL &&
+      !process.env.BACKEND_URL &&
+      !process.env.SERVER_URL
+    ) {
+      console.warn(
+        "⚠️ WARNING: BACKEND_URL not set! Gmail OAuth will redirect to localhost."
+      );
+      console.warn(
+        "   Set BACKEND_URL or GOOGLE_GMAIL_CALLBACK_URL in your environment variables."
+      );
+      console.warn("   Current redirect URI:", redirectUri);
+    }
+
     const oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CONTACTS_CLIENT_ID,
       process.env.GOOGLE_CONTACTS_CLIENT_SECRET,
@@ -187,9 +215,14 @@ class GmailService {
   // Exchange authorization code for tokens
   async getTokensFromCode(code) {
     try {
-      const redirectUri = process.env.GOOGLE_GMAIL_CALLBACK_URL || 
-        `${process.env.BACKEND_URL || process.env.SERVER_URL || "http://localhost:3001"}/api/v1/gmail/auth/callback`;
-      
+      const redirectUri =
+        process.env.GOOGLE_GMAIL_CALLBACK_URL ||
+        `${
+          process.env.BACKEND_URL ||
+          process.env.SERVER_URL ||
+          "http://localhost:3001"
+        }/api/v1/gmail/auth/callback`;
+
       const oauth2Client = new google.auth.OAuth2(
         process.env.GOOGLE_CONTACTS_CLIENT_ID,
         process.env.GOOGLE_CONTACTS_CLIENT_SECRET,
@@ -217,53 +250,83 @@ class GmailService {
         // Add delay to respect rate limits
         await this.delay(this.rateLimitDelay);
 
-        console.log(`📧 Gmail API list request: query="${query || '(none)'}", maxResults=${maxResults}`);
-        
+        console.log(
+          `📧 Gmail API list request: query="${
+            query || "(none)"
+          }", maxResults=${maxResults}`
+        );
+
         const response = await gmail.users.messages.list({
           userId: "me",
           q: query || undefined, // Don't include q parameter if empty (gets all emails)
           maxResults: Math.min(maxResults, 500), // Gmail API supports up to 500 per request
         });
 
-        console.log(`📧 Gmail API returned ${response.data.messages?.length || 0} message IDs`);
+        console.log(
+          `📧 Gmail API returned ${
+            response.data.messages?.length || 0
+          } message IDs`
+        );
 
         if (!response.data.messages || response.data.messages.length === 0) {
-          console.log(`📧 No messages found for query: "${query || '(all)'}"`);
+          console.log(`📧 No messages found for query: "${query || "(all)"}"`);
           return { messages: [] };
         }
 
         // Fetch full message details (with rate limiting)
         // Limit to first 100 to avoid timeouts
-        const messageIdsToFetch = response.data.messages.slice(0, Math.min(100, response.data.messages.length));
-        console.log(`📧 Fetching details for ${messageIdsToFetch.length} messages (out of ${response.data.messages.length} total)`);
-        
+        const messageIdsToFetch = response.data.messages.slice(
+          0,
+          Math.min(100, response.data.messages.length)
+        );
+        console.log(
+          `📧 Fetching details for ${messageIdsToFetch.length} messages (out of ${response.data.messages.length} total)`
+        );
+
         const messages = [];
         for (let i = 0; i < messageIdsToFetch.length; i++) {
           const message = messageIdsToFetch[i];
           try {
             await this.delay(this.rateLimitDelay);
-            const messageDetail = await this.getMessageDetail(userId, message.id);
+            const messageDetail = await this.getMessageDetail(
+              userId,
+              message.id
+            );
             if (messageDetail) {
               messages.push(messageDetail);
             } else {
-              console.warn(`📧 getMessageDetail returned null for message ${message.id}`);
+              console.warn(
+                `📧 getMessageDetail returned null for message ${message.id}`
+              );
             }
           } catch (error) {
-            console.error(`❌ Error fetching message ${message.id}:`, error.message);
+            console.error(
+              `❌ Error fetching message ${message.id}:`,
+              error.message
+            );
             // If it's a connection error, stop trying to fetch more messages
-            if (error.message && error.message.includes("Gmail not connected")) {
-              throw new Error("Gmail not connected. Please reconnect your Gmail account.");
+            if (
+              error.message &&
+              error.message.includes("Gmail not connected")
+            ) {
+              throw new Error(
+                "Gmail not connected. Please reconnect your Gmail account."
+              );
             }
             // Continue with other messages for other errors
           }
         }
 
-        console.log(`📧 Successfully fetched ${messages.length} message details out of ${messageIdsToFetch.length} requested`);
+        console.log(
+          `📧 Successfully fetched ${messages.length} message details out of ${messageIdsToFetch.length} requested`
+        );
         return { messages };
       },
       fallback: async (error) => {
         // Return empty array if API fails
-        console.warn("Using fallback for Gmail searchEmails - returning empty array");
+        console.warn(
+          "Using fallback for Gmail searchEmails - returning empty array"
+        );
         return { messages: [] };
       },
     }).then((result) => result.messages || []);
@@ -290,7 +353,7 @@ class GmailService {
 
         const message = response.data;
         const headers = message.payload?.headers || [];
-        
+
         const fromHeader = headers.find((h) => h.name === "From");
         const subjectHeader = headers.find((h) => h.name === "Subject");
         const dateHeader = headers.find((h) => h.name === "Date");
@@ -301,7 +364,9 @@ class GmailService {
         if (fromHeader) {
           const fromMatch = fromHeader.value.match(/^(.+?)\s*<(.+?)>$|^(.+?)$/);
           if (fromMatch) {
-            senderName = (fromMatch[1] || fromMatch[3] || "").trim().replace(/^["']|["']$/g, "");
+            senderName = (fromMatch[1] || fromMatch[3] || "")
+              .trim()
+              .replace(/^["']|["']$/g, "");
             senderEmail = (fromMatch[2] || fromMatch[3] || "").trim();
           }
         }
@@ -314,13 +379,19 @@ class GmailService {
           senderEmail,
           senderName,
           snippet: message.snippet || "",
-          date: dateHeader?.value ? new Date(dateHeader.value).toISOString() : new Date().toISOString(),
-          internalDate: message.internalDate ? new Date(parseInt(message.internalDate)).toISOString() : new Date().toISOString(),
+          date: dateHeader?.value
+            ? new Date(dateHeader.value).toISOString()
+            : new Date().toISOString(),
+          internalDate: message.internalDate
+            ? new Date(parseInt(message.internalDate)).toISOString()
+            : new Date().toISOString(),
         };
       },
       fallback: async (error) => {
         // Return null if API fails (caller should handle)
-        console.warn(`Using fallback for Gmail getMessageDetail (${messageId}) - returning null`);
+        console.warn(
+          `Using fallback for Gmail getMessageDetail (${messageId}) - returning null`
+        );
         return null;
       },
     });
@@ -329,26 +400,28 @@ class GmailService {
   // Get recent emails (last N days)
   async getRecentEmails(userId, days = 30, maxResults = 50) {
     try {
-      console.log(`📧 getRecentEmails called: userId=${userId}, days=${days}, maxResults=${maxResults}`);
-      
-      let query = '';
+      console.log(
+        `📧 getRecentEmails called: userId=${userId}, days=${days}, maxResults=${maxResults}`
+      );
+
+      let query = "";
       // If days is >= 365 or very large, don't use date filter (get all emails)
       if (days && days < 365) {
         const date = new Date();
         date.setDate(date.getDate() - days);
         // Gmail search expects date in YYYY/MM/DD format
         const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
         query = `after:${year}/${month}/${day}`;
         console.log(`📧 Using date query: ${query}`);
       } else {
         console.log(`📧 No date filter (days >= 365), getting all emails`);
       }
-      
+
       const emails = await this.searchEmails(userId, query, maxResults);
       console.log(`📧 getRecentEmails returning ${emails.length} emails`);
-      
+
       return emails;
     } catch (error) {
       console.error(`❌ Error in getRecentEmails for user ${userId}:`, error);
@@ -364,7 +437,7 @@ class GmailService {
       .filter((term) => term.length > 0)
       .map((term) => `"${term}"`)
       .join(" OR ");
-    
+
     const query = `(${searchTerms})`;
     return this.searchEmails(userId, query, maxResults);
   }
@@ -461,20 +534,30 @@ class GmailService {
     if (!subject) return null;
 
     const lowerSubject = subject.toLowerCase();
-    
-    if (lowerSubject.includes("interview") || lowerSubject.includes("meeting")) {
+
+    if (
+      lowerSubject.includes("interview") ||
+      lowerSubject.includes("meeting")
+    ) {
       return "Interview";
     }
-    if (lowerSubject.includes("offer") || lowerSubject.includes("congratulations")) {
+    if (
+      lowerSubject.includes("offer") ||
+      lowerSubject.includes("congratulations")
+    ) {
       return "Offer";
     }
-    if (lowerSubject.includes("reject") || lowerSubject.includes("unfortunately") || lowerSubject.includes("not moving forward")) {
+    if (
+      lowerSubject.includes("reject") ||
+      lowerSubject.includes("unfortunately") ||
+      lowerSubject.includes("not moving forward")
+    ) {
       return "Rejected";
     }
     if (lowerSubject.includes("phone") || lowerSubject.includes("screening")) {
       return "Phone Screen";
     }
-    
+
     return null;
   }
 
@@ -485,4 +568,3 @@ class GmailService {
 }
 
 export default new GmailService();
-

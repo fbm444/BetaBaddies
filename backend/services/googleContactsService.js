@@ -14,17 +14,38 @@ class GoogleContactsService {
   }
 
   get redirectUri() {
-    return (
+    const uri =
       process.env.GOOGLE_CONTACTS_CALLBACK_URL ||
-      `${process.env.BACKEND_URL || process.env.SERVER_URL || "http://localhost:3001"}/api/v1/network/google-contacts/auth/callback`
-    );
+      `${
+        process.env.BACKEND_URL ||
+        process.env.SERVER_URL ||
+        "http://localhost:3001"
+      }/api/v1/network/google-contacts/auth/callback`;
+
+    // Warn if using localhost in production
+    if (
+      !process.env.GOOGLE_CONTACTS_CALLBACK_URL &&
+      !process.env.BACKEND_URL &&
+      !process.env.SERVER_URL
+    ) {
+      console.warn(
+        "⚠️ WARNING: BACKEND_URL not set! Google Contacts OAuth will redirect to localhost."
+      );
+      console.warn(
+        "   Set BACKEND_URL or GOOGLE_CONTACTS_CALLBACK_URL in your environment variables."
+      );
+      console.warn("   Current redirect URI:", uri);
+    }
+
+    return uri;
   }
 
   getOAuthClient() {
     const clientId =
       process.env.GOOGLE_CONTACTS_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
     const clientSecret =
-      process.env.GOOGLE_CONTACTS_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET;
+      process.env.GOOGLE_CONTACTS_CLIENT_SECRET ||
+      process.env.GOOGLE_CLIENT_SECRET;
 
     if (!clientId || !clientSecret) {
       throw new Error(
@@ -32,21 +53,30 @@ class GoogleContactsService {
       );
     }
 
-    return new google.auth.OAuth2(
-      clientId,
-      clientSecret,
-      this.redirectUri
-    );
+    return new google.auth.OAuth2(clientId, clientSecret, this.redirectUri);
   }
 
   getAuthorizationUrl(userId) {
     const oauth2Client = this.getOAuthClient();
-    return oauth2Client.generateAuthUrl({
+
+    // Log the redirect URI being used for debugging
+    console.log("🔗 Google Contacts OAuth - Redirect URI:", this.redirectUri);
+    console.log(
+      "🔗 Google Contacts OAuth - Client ID:",
+      process.env.GOOGLE_CONTACTS_CLIENT_ID ||
+        process.env.GOOGLE_CLIENT_ID ||
+        "NOT SET"
+    );
+
+    const authUrl = oauth2Client.generateAuthUrl({
       access_type: "offline",
       scope: this.scopes,
       prompt: "consent",
       state: userId,
     });
+
+    console.log("🔗 Google Contacts OAuth - Authorization URL generated");
+    return authUrl;
   }
 
   async getTokensFromCode(code) {
@@ -65,7 +95,9 @@ class GoogleContactsService {
       WHERE u_id = $4
     `;
 
-    const expiry = tokens.expiry_date ? new Date(tokens.expiry_date).toISOString() : null;
+    const expiry = tokens.expiry_date
+      ? new Date(tokens.expiry_date).toISOString()
+      : null;
 
     await database.query(query, [
       tokens.access_token,
@@ -85,7 +117,9 @@ class GoogleContactsService {
       WHERE u_id = $4
     `;
 
-    const expiry = tokens.expiry_date ? new Date(tokens.expiry_date).toISOString() : null;
+    const expiry = tokens.expiry_date
+      ? new Date(tokens.expiry_date).toISOString()
+      : null;
 
     await database.query(query, [
       tokens.access_token,
@@ -113,7 +147,10 @@ class GoogleContactsService {
 
     const user = result.rows[0];
 
-    if (!user.google_contacts_access_token || !user.google_contacts_refresh_token) {
+    if (
+      !user.google_contacts_access_token ||
+      !user.google_contacts_refresh_token
+    ) {
       const error = new Error("Google Contacts is not connected");
       error.code = "GOOGLE_CONTACTS_NOT_CONNECTED";
       throw error;
@@ -167,7 +204,8 @@ class GoogleContactsService {
 
     const user = result.rows[0];
     const connected =
-      !!user.google_contacts_access_token && !!user.google_contacts_refresh_token;
+      !!user.google_contacts_access_token &&
+      !!user.google_contacts_refresh_token;
 
     return {
       connected,
@@ -214,10 +252,14 @@ class GoogleContactsService {
 
     try {
       const oauth2Client = await this.getOAuth2Client(userId);
-      const connections = await this.fetchGoogleContacts(oauth2Client, maxResults);
+      const connections = await this.fetchGoogleContacts(
+        oauth2Client,
+        maxResults
+      );
       summary.fetched = connections.length;
 
-      const existingEmails = await professionalContactService.getExistingContactEmails(userId);
+      const existingEmails =
+        await professionalContactService.getExistingContactEmails(userId);
 
       for (const person of connections) {
         const contactData = this.mapPersonToContactData(person);
@@ -266,7 +308,9 @@ class GoogleContactsService {
         error.code === "invalid_grant" ||
         error.message?.includes("invalid_grant")
       ) {
-        const authError = new Error("Google Contacts authorization expired. Please reconnect.");
+        const authError = new Error(
+          "Google Contacts authorization expired. Please reconnect."
+        );
         authError.code = "GOOGLE_CONTACTS_AUTH_EXPIRED";
         throw authError;
       }
@@ -288,7 +332,8 @@ class GoogleContactsService {
 
       const response = await peopleService.people.connections.list({
         resourceName: "people/me",
-        personFields: "names,emailAddresses,phoneNumbers,organizations,addresses",
+        personFields:
+          "names,emailAddresses,phoneNumbers,organizations,addresses",
         pageSize: Math.min(500, remaining),
         pageToken: nextPageToken,
         sortOrder: "FIRST_NAME_ASCENDING",
@@ -307,11 +352,13 @@ class GoogleContactsService {
       (person.names || []).find((name) => name.metadata?.primary) ||
       (person.names || [])[0];
     const primaryEmail =
-      (person.emailAddresses || []).find((email) => email.metadata?.primary)?.value ||
+      (person.emailAddresses || []).find((email) => email.metadata?.primary)
+        ?.value ||
       (person.emailAddresses || [])[0]?.value ||
       null;
     const primaryPhone =
-      (person.phoneNumbers || []).find((phone) => phone.metadata?.primary)?.value ||
+      (person.phoneNumbers || []).find((phone) => phone.metadata?.primary)
+        ?.value ||
       (person.phoneNumbers || [])[0]?.value ||
       null;
     const primaryOrg =
@@ -370,8 +417,8 @@ class GoogleContactsService {
     }
 
     const orgLocation =
-      (person.organizations || []).find((org) => org.metadata?.primary)?.location ||
-      (person.organizations || [])[0]?.location;
+      (person.organizations || []).find((org) => org.metadata?.primary)
+        ?.location || (person.organizations || [])[0]?.location;
 
     return orgLocation || undefined;
   }
@@ -390,5 +437,3 @@ class GoogleContactsService {
 }
 
 export default new GoogleContactsService();
-
-

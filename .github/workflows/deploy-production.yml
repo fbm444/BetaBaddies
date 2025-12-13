@@ -114,28 +114,38 @@ jobs:
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
+      - name: Install frontend dependencies
+        working-directory: ./frontend/ats-tracker
+        run: npm ci
+
+      - name: Link Vercel Project
+        working-directory: ./frontend/ats-tracker
+        run: |
+          echo "🔗 Linking Vercel project..."
+          vercel link --yes --token=${{ secrets.VERCEL_TOKEN }} \
+            --scope=${{ secrets.VERCEL_ORG_ID }} \
+            --project=${{ secrets.VERCEL_PROJECT_ID }}
+          echo "✅ Project linked"
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
       - name: Pull Vercel Environment Information
         working-directory: ./frontend/ats-tracker
         run: |
           echo "📥 Pulling Vercel environment configuration..."
-          vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }} \
-            --scope=${{ secrets.VERCEL_ORG_ID }} \
-            --project=${{ secrets.VERCEL_PRODUCTION_PROJECT_ID }}
+          vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
           echo "✅ Vercel configuration pulled"
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PRODUCTION_PROJECT_ID }}
-
-      - name: Install frontend dependencies
-        working-directory: ./frontend/ats-tracker
-        run: npm ci
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
       - name: Build Project Artifacts
         working-directory: ./frontend/ats-tracker
         run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PRODUCTION_PROJECT_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
       - name: Deploy Project Artifacts to Vercel
         working-directory: ./frontend/ats-tracker
@@ -145,16 +155,91 @@ jobs:
           echo "👤 Author: ${{ github.actor }}"
           echo "🌿 Branch: ${{ github.ref_name }}"
 
-          # Deploy with explicit Git information
-          vercel deploy --prebuilt --prod --yes --token=${{ secrets.VERCEL_TOKEN }} \
-            --scope=${{ secrets.VERCEL_ORG_ID }} \
-            --project=${{ secrets.VERCEL_PRODUCTION_PROJECT_ID }}
+          # Deploy prebuilt project to production
+          # According to Vercel docs: vercel deploy --prebuilt --prod
+          # The project is already linked via vercel link, so no need for --scope/--project
+          vercel deploy --prebuilt --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PRODUCTION_PROJECT_ID }}
-          VERCEL_GIT_COMMIT_SHA: ${{ github.sha }}
-          VERCEL_GIT_COMMIT_REF: ${{ github.ref }}
-          VERCEL_GIT_COMMIT_AUTHOR: ${{ github.actor }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+  notify:
+    name: Send Deployment Notification
+    needs: [deploy-frontend]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Publish to SNS Topic for Email Notification
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION || 'us-east-2' }}
+          SNS_TOPIC_ARN: ${{ secrets.AWS_SNS_TOPIC_ARN }}
+        run: |
+          # Check if credentials are configured
+          if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ] || [ -z "$SNS_TOPIC_ARN" ]; then
+            echo "⚠️ SNS notification skipped - AWS credentials or topic ARN not configured"
+            echo "To enable email notifications via SNS, set these secrets:"
+            echo "  - AWS_ACCESS_KEY_ID"
+            echo "  - AWS_SECRET_ACCESS_KEY"
+            echo "  - AWS_SNS_TOPIC_ARN (ARN of your SNS topic with email subscriptions)"
+            exit 0
+          fi
+
+          # Verify AWS CLI is available
+          if ! command -v aws &> /dev/null; then
+            echo "⚠️ AWS CLI is not installed - skipping SNS notification"
+            exit 0
+          fi
+
+          echo "✅ AWS credentials configured"
+          echo "📍 Region: $AWS_DEFAULT_REGION"
+          echo "📧 SNS Topic ARN: $SNS_TOPIC_ARN"
+
+          STATUS="${{ job.status }}"
+          EMOJI=""
+          case "$STATUS" in
+            success)
+              EMOJI="✅"
+              ;;
+            failure)
+              EMOJI="❌"
+              ;;
+            cancelled)
+              EMOJI="⚠️"
+              ;;
+            *)
+              EMOJI="ℹ️"
+              ;;
+          esac
+
+          # Create email message
+          SUBJECT="${EMOJI} Production Deployment ${STATUS}: ${{ github.repository }}"
+
+          # Build message body line by line to avoid YAML parsing issues
+          BODY="Deployment Status: ${STATUS}"
+          BODY="${BODY}\n\nRepository: ${{ github.repository }}"
+          BODY="${BODY}\nBranch: ${{ github.ref_name }}"
+          BODY="${BODY}\nCommit: ${GITHUB_SHA:0:7}"
+          BODY="${BODY}\nAuthor: ${{ github.actor }}"
+          BODY="${BODY}\nWorkflow: ${{ github.workflow }}"
+          BODY="${BODY}\nRun ID: ${{ github.run_id }}"
+          BODY="${BODY}\nTimestamp: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+          BODY="${BODY}\n\nView deployment: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          echo "📧 Publishing to SNS topic..."
+          echo "📝 Subject: $SUBJECT"
+
+          # Publish to SNS topic
+          aws sns publish \
+            --region "$AWS_DEFAULT_REGION" \
+            --topic-arn "$SNS_TOPIC_ARN" \
+            --subject "$SUBJECT" \
+            --message "$BODY" \
+            && echo "✅ Message published to SNS topic successfully" \
+            || echo "⚠️ Failed to publish to SNS topic - continuing anyway"
+        continue-on-error: true
 
   # notify:
   #   name: Send Deployment Notification

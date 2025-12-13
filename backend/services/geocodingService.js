@@ -1,4 +1,5 @@
 import axios from "axios";
+import https from "https";
 import database from "./database.js";
 
 class GeocodingService {
@@ -6,7 +7,9 @@ class GeocodingService {
     this.cacheTtlMs = 1000 * 60 * 60 * 24 * 30; // 30 days
     this.userAgent =
       process.env.GEOCODING_USER_AGENT ||
-      `ATS-Tracker/1.0 (+${process.env.GEOCODING_CONTACT_EMAIL || "support@example.com"})`;
+      `ATS-Tracker/1.0 (+${
+        process.env.GEOCODING_CONTACT_EMAIL || "support@example.com"
+      })`;
     this.baseUrl =
       process.env.GEOCODING_BASE_URL || "https://nominatim.openstreetmap.org";
     this.referer = process.env.GEOCODING_REFERER || "http://localhost";
@@ -38,7 +41,8 @@ class GeocodingService {
     const row = result.rows[0];
     if (!row) return null;
 
-    const isExpired = Date.now() - new Date(row.created_at).getTime() > this.cacheTtlMs;
+    const isExpired =
+      Date.now() - new Date(row.created_at).getTime() > this.cacheTtlMs;
     return isExpired
       ? null
       : {
@@ -108,6 +112,16 @@ class GeocodingService {
 
     const doRequest = async (attempt = 1) => {
       try {
+        // Log request details for debugging
+        if (attempt === 1) {
+          console.log("🌍 Geocoding request:", {
+            query,
+            baseUrl: this.baseUrl,
+            userAgent: this.userAgent.substring(0, 50) + "...",
+            referer: this.referer,
+          });
+        }
+
         return await axios.get(`${this.baseUrl}/search`, {
           params,
           headers: {
@@ -115,13 +129,41 @@ class GeocodingService {
             Referer: this.referer,
             "Accept-Language": "en",
           },
-          timeout: 8000,
+          timeout: 10000, // Increased timeout
+          // Add axios config to handle SSL/TLS issues
+          httpsAgent: new https.Agent({
+            rejectUnauthorized: true,
+            keepAlive: true,
+          }),
         });
       } catch (error) {
-        // Retry once on timeout or 5xx; surface 403/400 immediately
         const status = error?.response?.status;
-        if (attempt === 1 && (!status || status >= 500 || error.code === "ECONNABORTED")) {
-          await new Promise((res) => setTimeout(res, 400));
+        const errorCode = error?.code;
+        const isConnectionError =
+          errorCode === "ECONNREFUSED" ||
+          errorCode === "ETIMEDOUT" ||
+          errorCode === "ENOTFOUND" ||
+          errorCode === "ECONNRESET";
+
+        // Log detailed error information
+        console.error("❌ Geocoding request error:", {
+          code: errorCode,
+          status: status,
+          message: error.message,
+          url: `${this.baseUrl}/search`,
+          attempt,
+        });
+
+        // Retry once on connection errors, timeouts, or 5xx errors
+        if (
+          attempt === 1 &&
+          (isConnectionError ||
+            !status ||
+            status >= 500 ||
+            error.code === "ECONNABORTED")
+        ) {
+          console.log("🔄 Retrying geocoding request after 1 second...");
+          await new Promise((res) => setTimeout(res, 1000));
           return doRequest(attempt + 1);
         }
         throw error;
@@ -133,6 +175,7 @@ class GeocodingService {
 
       const result = Array.isArray(response.data) ? response.data[0] : null;
       if (!result) {
+        console.warn("⚠️ No geocoding results found for:", query);
         return null;
       }
 
@@ -157,9 +200,35 @@ class GeocodingService {
       };
 
       await this.saveCache(query, payload);
+      console.log("✅ Geocoding successful:", query, "→", payload.displayName);
       return payload;
     } catch (error) {
-      console.error("❌ Geocoding request failed:", error.message);
+      const errorCode = error?.code;
+      const errorMessage = error?.message || "Unknown error";
+
+      // Provide more specific error messages
+      if (errorCode === "ECONNREFUSED") {
+        console.error("❌ Geocoding connection refused. Possible causes:");
+        console.error("   1. Nominatim API server is down or unreachable");
+        console.error("   2. Firewall blocking outbound HTTPS connections");
+        console.error("   3. IP address blocked by Nominatim");
+        console.error("   4. Missing or invalid User-Agent/Referer headers");
+        console.error("   URL:", this.baseUrl);
+        console.error("   User-Agent:", this.userAgent);
+        console.error("   Referer:", this.referer);
+      } else if (errorCode === "ETIMEDOUT" || errorCode === "ECONNABORTED") {
+        console.error("❌ Geocoding request timed out");
+      } else if (error?.response?.status === 403) {
+        console.error(
+          "❌ Geocoding request forbidden (403). Check User-Agent and Referer headers."
+        );
+      } else if (error?.response?.status === 429) {
+        console.error(
+          "❌ Geocoding rate limit exceeded. Please wait before retrying."
+        );
+      }
+
+      console.error("❌ Geocoding request failed:", errorMessage);
       return null;
     }
   }
@@ -202,4 +271,3 @@ class GeocodingService {
 }
 
 export default new GeocodingService();
-

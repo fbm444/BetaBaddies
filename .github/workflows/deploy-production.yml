@@ -116,7 +116,12 @@ jobs:
 
       - name: Pull Vercel Environment Information
         working-directory: ./frontend/ats-tracker
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        run: |
+          echo "📥 Pulling Vercel environment configuration..."
+          vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }} \
+            --scope=${{ secrets.VERCEL_ORG_ID }} \
+            --project=${{ secrets.VERCEL_PRODUCTION_PROJECT_ID }}
+          echo "✅ Vercel configuration pulled"
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PRODUCTION_PROJECT_ID }}
@@ -134,10 +139,22 @@ jobs:
 
       - name: Deploy Project Artifacts to Vercel
         working-directory: ./frontend/ats-tracker
-        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: |
+          echo "🚀 Deploying to Vercel production..."
+          echo "📝 Commit: ${{ github.sha }}"
+          echo "👤 Author: ${{ github.actor }}"
+          echo "🌿 Branch: ${{ github.ref_name }}"
+
+          # Deploy with explicit Git information
+          vercel deploy --prebuilt --prod --yes --token=${{ secrets.VERCEL_TOKEN }} \
+            --scope=${{ secrets.VERCEL_ORG_ID }} \
+            --project=${{ secrets.VERCEL_PRODUCTION_PROJECT_ID }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PRODUCTION_PROJECT_ID }}
+          VERCEL_GIT_COMMIT_SHA: ${{ github.sha }}
+          VERCEL_GIT_COMMIT_REF: ${{ github.ref }}
+          VERCEL_GIT_COMMIT_AUTHOR: ${{ github.actor }}
 
   # notify:
   #   name: Send Deployment Notification

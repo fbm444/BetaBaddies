@@ -12,7 +12,7 @@
  * 
  * Usage:
  *   node backend/scripts/createInterviewAnalyticsTestUser.js
- * 
+ *  
  * Login credentials:
  *   Email: analytics.test@betabaddies.com
  *   Password: Test123!

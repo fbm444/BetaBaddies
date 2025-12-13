@@ -114,13 +114,27 @@ jobs:
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
-      - name: Pull Vercel Environment Information
+      - name: Setup Vercel Project Configuration
         working-directory: ./frontend/ats-tracker
         run: |
-          echo "📥 Pulling Vercel environment configuration..."
+          echo "📥 Setting up Vercel project configuration..."
+          # Create .vercel directory if it doesn't exist
+          mkdir -p .vercel
+
+          # Create project.json with project settings
+          cat > .vercel/project.json << EOF
+          {
+            "projectId": "${{ secrets.VERCEL_PRODUCTION_PROJECT_ID }}",
+            "orgId": "${{ secrets.VERCEL_ORG_ID }}"
+          }
+          EOF
+
+          # Try to pull environment variables (non-fatal)
           vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }} \
             --scope=${{ secrets.VERCEL_ORG_ID }} \
-            --project=${{ secrets.VERCEL_PRODUCTION_PROJECT_ID }} || echo "⚠️ vercel pull failed, continuing with deployment..."
+            --project=${{ secrets.VERCEL_PRODUCTION_PROJECT_ID }} 2>&1 || echo "⚠️ vercel pull failed, but project.json is configured"
+
+          echo "✅ Vercel project configuration ready"
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PRODUCTION_PROJECT_ID }}

@@ -118,23 +118,14 @@ jobs:
         working-directory: ./frontend/ats-tracker
         run: npm ci
 
-      - name: Link Vercel Project
-        working-directory: ./frontend/ats-tracker
-        run: |
-          echo "🔗 Linking Vercel project..."
-          vercel link --yes --token=${{ secrets.VERCEL_TOKEN }} \
-            --scope=${{ secrets.VERCEL_ORG_ID }} \
-            --project=${{ secrets.VERCEL_PROJECT_ID }}
-          echo "✅ Project linked"
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
       - name: Pull Vercel Environment Information
         working-directory: ./frontend/ats-tracker
         run: |
           echo "📥 Pulling Vercel environment configuration..."
-          vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+          # vercel pull will create .vercel directory and link the project automatically
+          # Use --project flag to specify project ID directly (works for both personal and team accounts)
+          vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }} \
+            --project=${{ secrets.VERCEL_PROJECT_ID }}
           echo "✅ Vercel configuration pulled"
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}

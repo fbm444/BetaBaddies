@@ -116,7 +116,12 @@ export function ApiMonitoring() {
       setDashboard(data);
     } catch (err: any) {
       console.error("Failed to load dashboard:", err);
-      setError(err.message || "Failed to load dashboard");
+      // Check for 403 Forbidden (admin access required)
+      if (err?.status === 403 || err?.message?.includes("Administrator access required") || err?.message?.includes("FORBIDDEN")) {
+        setError("Administrator access required. This page is only available to administrators.");
+      } else {
+        setError(err.message || "Failed to load dashboard");
+      }
     } finally {
       setLoading(false);
     }
@@ -131,7 +136,11 @@ export function ApiMonitoring() {
       setRecentErrors(errors);
     } catch (err: any) {
       console.error("Failed to load errors:", err);
-      setError(err.message || "Failed to load error logs");
+      if (err?.status === 403 || err?.message?.includes("Administrator access required") || err?.message?.includes("FORBIDDEN")) {
+        setError("Administrator access required. This page is only available to administrators.");
+      } else {
+        setError(err.message || "Failed to load error logs");
+      }
     }
   };
 
@@ -143,7 +152,11 @@ export function ApiMonitoring() {
       setAlerts(alertData);
     } catch (err: any) {
       console.error("Failed to load alerts:", err);
-      setError(err.message || "Failed to load alerts");
+      if (err?.status === 403 || err?.message?.includes("Administrator access required") || err?.message?.includes("FORBIDDEN")) {
+        setError("Administrator access required. This page is only available to administrators.");
+      } else {
+        setError(err.message || "Failed to load alerts");
+      }
     }
   };
 
@@ -156,7 +169,11 @@ export function ApiMonitoring() {
       setWeeklyReports(reports);
     } catch (err: any) {
       console.error("Failed to load weekly reports:", err);
-      setError(err.message || "Failed to load weekly reports");
+      if (err?.status === 403 || err?.message?.includes("Administrator access required") || err?.message?.includes("FORBIDDEN")) {
+        setError("Administrator access required. This page is only available to administrators.");
+      } else {
+        setError(err.message || "Failed to load weekly reports");
+      }
     }
   };
 
@@ -217,7 +234,24 @@ export function ApiMonitoring() {
     );
   }
 
-  if (!dashboard && !loading) {
+  // Show error message if there's an error (especially for 403/admin access)
+  if (error && (error.includes("Administrator access required") || error.includes("FORBIDDEN"))) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center max-w-md">
+          <Icon icon="mingcute:shield-error-line" className="text-6xl text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-semibold text-slate-900 mb-2">Administrator Access Required</h2>
+          <p className="text-slate-600 mb-4">{error}</p>
+          <p className="text-sm text-slate-500">
+            The API Monitoring page is only available to users with administrator privileges.
+            Please contact your system administrator to request access.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!dashboard && !loading && !error) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">

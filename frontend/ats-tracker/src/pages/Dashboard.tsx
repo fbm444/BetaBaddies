@@ -53,6 +53,8 @@ export function Dashboard() {
 
         if (err?.status === 401 || err?.message?.includes("Unauthorized")) {
           console.log("Authentication failed, staying in loading state");
+          // Still set default data so the page doesn't break
+          setProfileData(dashboardService.getDefaultDashboardData());
           if (!silent) {
             setIsLoading(true);
           }

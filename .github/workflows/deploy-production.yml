@@ -118,19 +118,6 @@ jobs:
         working-directory: ./frontend/ats-tracker
         run: npm ci
 
-      - name: Pull Vercel Environment Information
-        working-directory: ./frontend/ats-tracker
-        run: |
-          echo "📥 Pulling Vercel environment configuration..."
-          # vercel pull will create .vercel directory and link the project automatically
-          # Use --project flag to specify project ID directly (works for both personal and team accounts)
-          vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }} \
-            --project=${{ secrets.VERCEL_PROJECT_ID }}
-          echo "✅ Vercel configuration pulled"
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
       - name: Build Project Artifacts
         working-directory: ./frontend/ats-tracker
         run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
@@ -142,13 +129,6 @@ jobs:
         working-directory: ./frontend/ats-tracker
         run: |
           echo "🚀 Deploying to Vercel production..."
-          echo "📝 Commit: ${{ github.sha }}"
-          echo "👤 Author: ${{ github.actor }}"
-          echo "🌿 Branch: ${{ github.ref_name }}"
-
-          # Deploy prebuilt project to production
-          # According to Vercel docs: vercel deploy --prebuilt --prod
-          # The project is already linked via vercel link, so no need for --scope/--project
           vercel deploy --prebuilt --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
@@ -164,7 +144,7 @@ jobs:
       - name: Publish to SNS Topic for Email Notification
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_ID }}
           AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION || 'us-east-2' }}
           SNS_TOPIC_ARN: ${{ secrets.AWS_SNS_TOPIC_ARN }}
         run: |

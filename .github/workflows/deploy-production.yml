@@ -118,6 +118,15 @@ jobs:
         working-directory: ./frontend/ats-tracker
         run: npm ci
 
+      - name: Setup Vercel Project Configuration
+        working-directory: ./frontend/ats-tracker
+        run: |
+          mkdir -p .vercel
+          echo '{"projectId":"${{ secrets.VERCEL_PROJECT_ID }}","orgId":"${{ secrets.VERCEL_ORG_ID }}"}' > .vercel/project.json
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
       - name: Build Project Artifacts
         working-directory: ./frontend/ats-tracker
         run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}

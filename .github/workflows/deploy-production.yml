@@ -111,7 +111,7 @@ jobs:
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
           vercel-args: "--prod"
-          working-directory: ./frontend/ats-tracker
+          # Don't use working-directory - let Vercel use its Root Directory setting (frontend/ats-tracker)
 
   notify:
     name: Send Deployment Notification

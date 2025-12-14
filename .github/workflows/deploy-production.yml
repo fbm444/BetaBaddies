@@ -132,6 +132,9 @@ jobs:
           else
             echo "✅ AWS CLI already installed"
           fi
+          # Verify AWS CLI is accessible
+          aws --version || echo "⚠️ AWS CLI not found in PATH"
+          which aws || echo "⚠️ AWS CLI path not found"
 
       - name: Publish to SNS Topic for Email Notification
         env:
@@ -140,6 +143,12 @@ jobs:
           AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION || 'us-east-2' }}
           SNS_TOPIC_ARN: ${{ secrets.AWS_SNS_TOPIC_ARN }}
         run: |
+          echo "🔍 Debugging SNS configuration..."
+          echo "AWS_ACCESS_KEY_ID is set: $([ -n "$AWS_ACCESS_KEY_ID" ] && echo 'YES' || echo 'NO')"
+          echo "AWS_SECRET_ACCESS_KEY is set: $([ -n "$AWS_SECRET_ACCESS_KEY" ] && echo 'YES' || echo 'NO')"
+          echo "SNS_TOPIC_ARN is set: $([ -n "$SNS_TOPIC_ARN" ] && echo 'YES' || echo 'NO')"
+          echo "SNS_TOPIC_ARN value: ${SNS_TOPIC_ARN:0:50}..." # Show first 50 chars
+
           # Check if credentials are configured
           if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ] || [ -z "$SNS_TOPIC_ARN" ]; then
             echo "⚠️ SNS notification skipped - AWS credentials or topic ARN not configured"
@@ -153,6 +162,29 @@ jobs:
           echo "✅ AWS credentials configured"
           echo "📍 Region: $AWS_DEFAULT_REGION"
           echo "📧 SNS Topic ARN: $SNS_TOPIC_ARN"
+
+          # Verify AWS CLI is available and working
+          echo "🔍 Checking AWS CLI..."
+          if aws --version; then
+            echo "✅ AWS CLI is available"
+          else
+            echo "❌ AWS CLI version check failed"
+            exit 0  # Skip notification if AWS CLI is broken
+          fi
+
+          # Test AWS credentials
+          echo "🔍 Testing AWS credentials..."
+          IDENTITY_OUTPUT=$(aws sts get-caller-identity --region "$AWS_DEFAULT_REGION" 2>&1)
+          IDENTITY_EXIT=$?
+          if [ $IDENTITY_EXIT -eq 0 ]; then
+            echo "✅ AWS credentials are valid"
+            echo "Identity: $IDENTITY_OUTPUT"
+          else
+            echo "❌ AWS credentials test failed (exit code: $IDENTITY_EXIT)"
+            echo "Error: $IDENTITY_OUTPUT"
+            echo "⚠️ Skipping SNS notification due to credential failure"
+            exit 0
+          fi
 
           STATUS="${{ job.status }}"
           EMOJI=""
@@ -175,11 +207,13 @@ jobs:
           SUBJECT="${EMOJI} Production Deployment ${STATUS}: ${{ github.repository }}"
 
           # Build message body using printf for proper newline handling
+          COMMIT_SHA="${{ github.sha }}"
+          COMMIT_SHORT="${COMMIT_SHA:0:7}"
           BODY=$(printf "Deployment Status: %s\n\nRepository: %s\nBranch: %s\nCommit: %s\nAuthor: %s\nWorkflow: %s\nRun ID: %s\nTimestamp: %s\n\nView deployment: %s/%s/actions/runs/%s" \
             "${STATUS}" \
             "${{ github.repository }}" \
             "${{ github.ref_name }}" \
-            "${GITHUB_SHA:0:7}" \
+            "${COMMIT_SHORT}" \
             "${{ github.actor }}" \
             "${{ github.workflow }}" \
             "${{ github.run_id }}" \
@@ -193,6 +227,10 @@ jobs:
           echo "📄 Message preview (first 200 chars): ${BODY:0:200}..."
 
           # Publish to SNS topic with error handling
+          echo "🔍 Running AWS SNS publish command..."
+          echo "Region: $AWS_DEFAULT_REGION"
+          echo "Topic ARN: $SNS_TOPIC_ARN"
+
           OUTPUT=$(aws sns publish \
             --region "$AWS_DEFAULT_REGION" \
             --topic-arn "$SNS_TOPIC_ARN" \
@@ -208,6 +246,13 @@ jobs:
             echo "❌ Failed to publish to SNS topic"
             echo "Exit code: $EXIT_CODE"
             echo "Error output: $OUTPUT"
+            echo ""
+            echo "🔍 Troubleshooting exit code $EXIT_CODE:"
+            echo "  - Exit code 254 usually means authentication/permission issue"
+            echo "  - Verify IAM user has 'sns:Publish' permission"
+            echo "  - Check if topic ARN is correct: $SNS_TOPIC_ARN"
+            echo "  - Verify region matches topic region: $AWS_DEFAULT_REGION"
+            echo "  - Ensure credentials are valid and not expired"
             echo "⚠️ Continuing anyway (notification is non-blocking)"
           fi
         continue-on-error: true

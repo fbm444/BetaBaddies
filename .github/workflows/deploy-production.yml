@@ -104,45 +104,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Deploy to Vercel (Production)
+        uses: amondnet/vercel-action@v25
         with:
-          node-version: "20"
-          cache: "npm"
-          cache-dependency-path: frontend/ats-tracker/package-lock.json
-
-      - name: Install Vercel CLI
-        run: npm install --global vercel@latest
-
-      - name: Install frontend dependencies
-        working-directory: ./frontend/ats-tracker
-        run: npm ci
-
-      - name: Link Vercel Project and Pull Environment Variables
-        working-directory: ./frontend/ats-tracker
-        run: |
-          echo "🔗 Linking Vercel project and pulling environment variables..."
-          vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
-          echo "✅ Project linked and environment variables pulled"
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
-      - name: Build Project Artifacts
-        working-directory: ./frontend/ats-tracker
-        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
-      - name: Deploy Project Artifacts to Vercel
-        working-directory: ./frontend/ats-tracker
-        run: |
-          echo "🚀 Deploying to Vercel production..."
-          vercel deploy --prebuilt --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: "--prod"
+          working-directory: ./frontend/ats-tracker
 
   notify:
     name: Send Deployment Notification
@@ -151,6 +120,19 @@ jobs:
     if: always()
 
     steps:
+      - name: Install AWS CLI
+        run: |
+          if ! command -v aws &> /dev/null; then
+            echo "📦 Installing AWS CLI..."
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip -q awscliv2.zip
+            sudo ./aws/install
+            rm -rf aws awscliv2.zip
+            echo "✅ AWS CLI installed"
+          else
+            echo "✅ AWS CLI already installed"
+          fi
+
       - name: Publish to SNS Topic for Email Notification
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -163,14 +145,8 @@ jobs:
             echo "⚠️ SNS notification skipped - AWS credentials or topic ARN not configured"
             echo "To enable email notifications via SNS, set these secrets:"
             echo "  - AWS_ACCESS_KEY_ID"
-            echo "  - AWS_SECRET_ACCESS_KEY"
+            echo "  - AWS_SECRET_ACCESS_KEY_ID"
             echo "  - AWS_SNS_TOPIC_ARN (ARN of your SNS topic with email subscriptions)"
-            exit 0
-          fi
-
-          # Verify AWS CLI is available
-          if ! command -v aws &> /dev/null; then
-            echo "⚠️ AWS CLI is not installed - skipping SNS notification"
             exit 0
           fi
 
@@ -198,28 +174,42 @@ jobs:
           # Create email message
           SUBJECT="${EMOJI} Production Deployment ${STATUS}: ${{ github.repository }}"
 
-          # Build message body line by line to avoid YAML parsing issues
-          BODY="Deployment Status: ${STATUS}"
-          BODY="${BODY}\n\nRepository: ${{ github.repository }}"
-          BODY="${BODY}\nBranch: ${{ github.ref_name }}"
-          BODY="${BODY}\nCommit: ${GITHUB_SHA:0:7}"
-          BODY="${BODY}\nAuthor: ${{ github.actor }}"
-          BODY="${BODY}\nWorkflow: ${{ github.workflow }}"
-          BODY="${BODY}\nRun ID: ${{ github.run_id }}"
-          BODY="${BODY}\nTimestamp: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
-          BODY="${BODY}\n\nView deployment: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          # Build message body using printf for proper newline handling
+          BODY=$(printf "Deployment Status: %s\n\nRepository: %s\nBranch: %s\nCommit: %s\nAuthor: %s\nWorkflow: %s\nRun ID: %s\nTimestamp: %s\n\nView deployment: %s/%s/actions/runs/%s" \
+            "${STATUS}" \
+            "${{ github.repository }}" \
+            "${{ github.ref_name }}" \
+            "${GITHUB_SHA:0:7}" \
+            "${{ github.actor }}" \
+            "${{ github.workflow }}" \
+            "${{ github.run_id }}" \
+            "$(date -u +'%Y-%m-%d %H:%M:%S UTC')" \
+            "${{ github.server_url }}" \
+            "${{ github.repository }}" \
+            "${{ github.run_id }}")
 
           echo "📧 Publishing to SNS topic..."
           echo "📝 Subject: $SUBJECT"
+          echo "📄 Message preview (first 200 chars): ${BODY:0:200}..."
 
-          # Publish to SNS topic
-          aws sns publish \
+          # Publish to SNS topic with error handling
+          OUTPUT=$(aws sns publish \
             --region "$AWS_DEFAULT_REGION" \
             --topic-arn "$SNS_TOPIC_ARN" \
             --subject "$SUBJECT" \
-            --message "$BODY" \
-            && echo "✅ Message published to SNS topic successfully" \
-            || echo "⚠️ Failed to publish to SNS topic - continuing anyway"
+            --message "$BODY" 2>&1)
+
+          EXIT_CODE=$?
+
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "✅ Message published to SNS topic successfully"
+            echo "Response: $OUTPUT"
+          else
+            echo "❌ Failed to publish to SNS topic"
+            echo "Exit code: $EXIT_CODE"
+            echo "Error output: $OUTPUT"
+            echo "⚠️ Continuing anyway (notification is non-blocking)"
+          fi
         continue-on-error: true
 
   # notify:

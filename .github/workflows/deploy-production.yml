@@ -172,7 +172,7 @@ jobs:
             exit 0  # Skip notification if AWS CLI is broken
           fi
 
-          # Test AWS credentials
+          # Test AWS credentials (non-blocking - some IAM users may not have sts:GetCallerIdentity)
           echo "🔍 Testing AWS credentials..."
           IDENTITY_OUTPUT=$(aws sts get-caller-identity --region "$AWS_DEFAULT_REGION" 2>&1)
           IDENTITY_EXIT=$?
@@ -180,10 +180,10 @@ jobs:
             echo "✅ AWS credentials are valid"
             echo "Identity: $IDENTITY_OUTPUT"
           else
-            echo "❌ AWS credentials test failed (exit code: $IDENTITY_EXIT)"
+            echo "⚠️ AWS credentials test failed (exit code: $IDENTITY_EXIT)"
             echo "Error: $IDENTITY_OUTPUT"
-            echo "⚠️ Skipping SNS notification due to credential failure"
-            exit 0
+            echo "ℹ️ This might be a permission issue (sts:GetCallerIdentity), but we'll still try to publish to SNS"
+            echo "ℹ️ If SNS publish also fails, check IAM permissions for sns:Publish"
           fi
 
           STATUS="${{ job.status }}"

@@ -6,6 +6,7 @@ import morgan from "morgan";
 import rateLimit from "express-rate-limit";
 import passport from "./config/passport.js";
 import logger from "./utils/logger.js";
+import * as Sentry from "@sentry/node";
 
 // Import routes
 import userRoutes from "./routes/userRoutes.js";
@@ -494,10 +495,27 @@ app.use("/api/v1/github", githubRoutes);
 app.use("/api/v1/admin/api-monitoring", apiMonitoringRoutes);
 app.use("/api/v1/geocoding", geocodingRoutes);
 
+// Sentry debug endpoint (for testing)
+app.get("/debug-sentry", function mainHandler(req, res) {
+  // Send a log before throwing the error
+  Sentry.logger.info("User triggered test error", {
+    action: "test_error_endpoint",
+  });
+  // Send a test metric before throwing the error
+  Sentry.metrics.count("test_counter", 1);
+  throw new Error("My first Sentry error!");
+});
+
 // 404 handler
 app.use(notFoundHandler);
 
-// Error handler
+// The Sentry error handler must be registered before any other error middleware and after all controllers
+// Only set up if Sentry is initialized (DSN is provided)
+if (process.env.SENTRY_DSN || process.env.NODE_ENV === "production") {
+  Sentry.setupExpressErrorHandler(app);
+}
+
+// Error handler (fallthrough)
 app.use(errorHandler);
 
 export default app;

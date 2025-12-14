@@ -37,6 +37,8 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@iconify/react": "^6.0.2",
+    "@sentry/node": "^10.30.0",
+    "@sentry/profiling-node": "^10.30.0",
     "axios": "^1.13.2",
     "bcrypt": "^6.0.0",
     "cheerio": "^1.1.2",
@@ -62,9 +64,7 @@
     "pdfkit": "^0.17.2",
     "pg": "^8.16.3",
     "sharp": "^0.34.4",
-    "uuid": "^13.0.0",
-    "@aws-sdk/client-s3": "^3.946.0",
-    "@aws-sdk/s3-request-presigner": "^3.946.0",
-    "supertest": "^7.1.4"
+    "supertest": "^7.1.4",
+    "uuid": "^13.0.0"
   }
 }

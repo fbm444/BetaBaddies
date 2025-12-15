@@ -69,3 +69,4 @@ export * from './interviewPrediction.types';
 export * from './salaryNegotiation.types';
 export * from './writingPractice.types';
 export * from './salaryBenchmark.types';
+export * from './jobOffer.types';

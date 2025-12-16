@@ -725,11 +725,8 @@ export function Interviews() {
     { id: "follow-ups", label: "Follow-ups", icon: "mingcute:task-line" },
     { id: "analytics", label: "Analytics", icon: "mingcute:trending-up-line" },
     { id: "predictions", label: "Predictions", icon: "mingcute:target-line" },
-<<<<<<< HEAD
     { id: "offers", label: "Offer Comparison", icon: "mingcute:file-certificate-line" },
-=======
     { id: "responses", label: "Response Library", icon: "mingcute:file-text-line" },
->>>>>>> jaiman-sprint4
   ];
 
   return (

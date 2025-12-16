@@ -61,9 +61,14 @@ export function FollowUpReminders() {
     fetchReminders();
   };
 
-  const pendingCount = reminders.filter(r => r.status === 'pending').length;
-  const overdueCount = reminders.filter(r => {
-    if (!r.dueDate || r.status !== 'pending') return false;
+  // Normalize reminders to avoid undefined/null entries from backend
+  const safeReminders = Array.isArray(reminders)
+    ? reminders.filter((r): r is FollowUpReminder => !!r && typeof r.id === "string")
+    : [];
+
+  const pendingCount = safeReminders.filter((r) => r.status === "pending").length;
+  const overdueCount = safeReminders.filter((r) => {
+    if (!r.dueDate || r.status !== "pending") return false;
     return new Date(r.dueDate) < new Date();
   }).length;
 
@@ -97,7 +102,7 @@ export function FollowUpReminders() {
           <div className="bg-green-50 rounded-xl p-6 border border-green-200">
             <p className="text-sm text-green-700 mb-2">Completed</p>
             <p className="text-3xl font-bold text-green-900">
-              {reminders.filter(r => r.status === 'completed').length}
+              {safeReminders.filter((r) => r.status === "completed").length}
             </p>
           </div>
         </div>
@@ -142,7 +147,7 @@ export function FollowUpReminders() {
               <p className="mt-4 text-slate-600">Loading reminders...</p>
             </div>
           </div>
-        ) : reminders.length === 0 ? (
+        ) : safeReminders.length === 0 ? (
           <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
             <Icon icon="mingcute:notification-line" width={48} className="text-slate-400 mx-auto mb-4" />
             <p className="text-slate-600 mb-2">No reminders found</p>
@@ -154,7 +159,7 @@ export function FollowUpReminders() {
           </div>
         ) : (
           <div className="space-y-4">
-            {reminders.map((reminder) => (
+            {safeReminders.map((reminder) => (
               <FollowUpReminderCard
                 key={reminder.id}
                 reminder={reminder}
@@ -165,11 +170,11 @@ export function FollowUpReminders() {
         )}
 
         {/* Etiquette Tips Panel */}
-        {reminders.length > 0 && (
+        {safeReminders.length > 0 && (
           <div className="mt-8">
             <EtiquetteTipsPanel
-              applicationStage={reminders[0]?.applicationStage || "Applied"}
-              daysSinceLastContact={reminders[0]?.daysAfterEvent || 7}
+              applicationStage={safeReminders[0]?.applicationStage || "Applied"}
+              daysSinceLastContact={safeReminders[0]?.daysAfterEvent || 7}
             />
           </div>
         )}

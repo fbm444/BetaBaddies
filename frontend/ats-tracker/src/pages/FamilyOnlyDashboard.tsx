@@ -702,7 +702,7 @@ function AISuggestionsTab({
         </div>
         <button
           onClick={handleGenerate}
-          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition flex items-center gap-2"
+          className="px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition flex items-center gap-2"
         >
           <Icon icon="mingcute:refresh-line" width={18} />
           Refresh
@@ -910,7 +910,7 @@ function EducationalResourcesTab({ resources, selectedMember, onLoad }: any) {
           onClick={() => setSelectedCategory(null)}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
             selectedCategory === null
-              ? "bg-blue-500 text-white"
+              ? "bg-blue-700 text-white"
               : "bg-gray-100 text-gray-700 hover:bg-gray-200"
           }`}
         >
@@ -922,7 +922,7 @@ function EducationalResourcesTab({ resources, selectedMember, onLoad }: any) {
             onClick={() => setSelectedCategory(cat.id)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 ${
               selectedCategory === cat.id
-                ? "bg-blue-500 text-white"
+                ? "bg-blue-700 text-white"
                 : "bg-gray-100 text-gray-700 hover:bg-gray-200"
             }`}
           >
@@ -1029,7 +1029,7 @@ function CelebrationsTab({
         </div>
         <button
           onClick={() => setShowCreateForm(!showCreateForm)}
-          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition flex items-center gap-2"
+          className="px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition flex items-center gap-2"
         >
           <Icon icon="mingcute:add-line" width={18} />
           Add Celebration
@@ -1095,7 +1095,7 @@ function CelebrationsTab({
             <div className="flex gap-2">
               <button
                 type="submit"
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
+                className="px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition"
               >
                 Create Celebration
               </button>
@@ -1230,7 +1230,7 @@ function CommunicationTab({
           </div>
           <button
             type="submit"
-            className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
+            className="px-6 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition"
           >
             Send Message
           </button>
@@ -1547,7 +1547,7 @@ function BoundariesTab({
         <button
           onClick={handleSave}
           disabled={isSaving}
-          className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50"
+          className="px-6 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition disabled:opacity-50"
         >
           {isSaving ? "Saving..." : "Save Settings"}
         </button>

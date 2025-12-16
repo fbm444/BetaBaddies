@@ -399,7 +399,7 @@ export function Dashboard() {
                       Profile Strength
                     </h3>
                     <div className="w-24 h-24 rounded-full border-4 border-blue-500 flex flex-col items-center justify-center bg-white">
-                      <span className="text-2xl font-medium text-blue-500">
+                      <span className="text-2xl font-medium text-blue-700">
                         {profileData.profileStrength.overall}
                       </span>
                       <span className="text-xs text-slate-500">Overall</span>
@@ -445,7 +445,7 @@ export function Dashboard() {
                     {profileData.employment}
                   </div>
                   <button
-                    className="w-full bg-blue-500 text-white rounded-md py-2 text-sm font-medium cursor-pointer transition-all hover:bg-blue-600"
+                    className="w-full bg-blue-700 text-white rounded-md py-2 text-sm font-medium cursor-pointer transition-all hover:bg-blue-800"
                     onClick={() => handleQuickAdd("Employment")}
                   >
                     Quick Add
@@ -467,7 +467,7 @@ export function Dashboard() {
                     {profileData.skills}
                   </div>
                   <button
-                    className="w-full bg-blue-500 text-white rounded-md py-2 text-sm font-medium cursor-pointer transition-all hover:bg-blue-600"
+                    className="w-full bg-blue-700 text-white rounded-md py-2 text-sm font-medium cursor-pointer transition-all hover:bg-blue-800"
                     onClick={() => handleQuickAdd("Skills")}
                   >
                     Quick Add
@@ -489,7 +489,7 @@ export function Dashboard() {
                     {profileData.education}
                   </div>
                   <button
-                    className="w-full bg-blue-500 text-white rounded-md py-2 text-sm font-medium cursor-pointer transition-all hover:bg-blue-600"
+                    className="w-full bg-blue-700 text-white rounded-md py-2 text-sm font-medium cursor-pointer transition-all hover:bg-blue-800"
                     onClick={() => handleQuickAdd("Education")}
                   >
                     Quick Add
@@ -511,7 +511,7 @@ export function Dashboard() {
                     {profileData.projects}
                   </div>
                   <button
-                    className="w-full bg-blue-500 text-white rounded-md py-2 text-sm font-medium cursor-pointer transition-all hover:bg-blue-600"
+                    className="w-full bg-blue-700 text-white rounded-md py-2 text-sm font-medium cursor-pointer transition-all hover:bg-blue-800"
                     onClick={() => handleQuickAdd("Projects")}
                   >
                     Quick Add
@@ -530,7 +530,7 @@ export function Dashboard() {
                           <span className="text-sm font-normal text-slate-700">
                             {skill.category}
                           </span>
-                          <span className="text-sm font-medium text-blue-500">
+                          <span className="text-sm font-medium text-blue-700">
                             {skill.count}
                           </span>
                         </div>

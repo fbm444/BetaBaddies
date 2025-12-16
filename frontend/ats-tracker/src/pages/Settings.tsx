@@ -82,7 +82,7 @@ export function Settings() {
           <p className="text-sm text-slate-600 mb-4">
             Update your password to keep your account secure
           </p>
-          <button className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium">
+          <button className="px-6 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors font-medium">
             Change Password
           </button>
         </div>
@@ -98,7 +98,7 @@ export function Settings() {
               <input
                 type="checkbox"
                 defaultChecked
-                className="w-4 h-4 text-blue-500 border-slate-300 rounded focus:ring-blue-500"
+                className="w-4 h-4 text-blue-700 border-slate-300 rounded focus:ring-blue-500"
               />
               <span className="text-sm text-slate-700">Send me account security alerts</span>
             </label>
@@ -106,7 +106,7 @@ export function Settings() {
               <input
                 type="checkbox"
                 defaultChecked
-                className="w-4 h-4 text-blue-500 border-slate-300 rounded focus:ring-blue-500"
+                className="w-4 h-4 text-blue-700 border-slate-300 rounded focus:ring-blue-500"
               />
               <span className="text-sm text-slate-700">Notify me about profile updates</span>
             </label>
@@ -119,7 +119,14 @@ export function Settings() {
           <p className="text-sm text-slate-600 mb-4">
             Control who can see your profile information
           </p>
-          <select className="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+          <label htmlFor="privacy-select" className="sr-only">
+            Privacy setting
+          </label>
+          <select 
+            id="privacy-select"
+            className="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-700 focus:border-transparent"
+            aria-label="Privacy setting"
+          >
             <option>Public - Anyone can view</option>
             <option>Private - Only you can view</option>
             <option>Recruiters only</option>

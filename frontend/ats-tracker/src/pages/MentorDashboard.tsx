@@ -745,7 +745,7 @@ export function MentorDashboard() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Icon icon="mingcute:loading-line" width={48} className="animate-spin text-blue-500" />
+        <Icon icon="mingcute:loading-line" width={48} className="animate-spin text-blue-700" />
       </div>
     );
   }
@@ -758,7 +758,7 @@ export function MentorDashboard() {
         <p className="text-slate-600 mb-4">You don't have any mentees assigned. Mentees will appear here once they accept your mentorship invitation or join your team.</p>
         <button
           onClick={fetchMentees}
-          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+          className="px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors"
         >
           Refresh
         </button>
@@ -908,7 +908,7 @@ export function MentorDashboard() {
             {isLoadingMenteeData ? (
                 <div className="p-12">
                 <div className="flex items-center justify-center">
-                  <Icon icon="mingcute:loading-line" width={32} className="animate-spin text-blue-500" />
+                  <Icon icon="mingcute:loading-line" width={32} className="animate-spin text-blue-700" />
                   <span className="ml-3 text-slate-600">Loading mentee data...</span>
                 </div>
               </div>
@@ -1279,7 +1279,7 @@ export function MentorDashboard() {
                     </div>
                     {isLoadingMenteeData ? (
                       <div className="flex items-center justify-center py-12">
-                        <Icon icon="mingcute:loading-line" width={32} className="animate-spin text-blue-500" />
+                        <Icon icon="mingcute:loading-line" width={32} className="animate-spin text-blue-700" />
                         <span className="ml-3 text-slate-600">Loading documents...</span>
                       </div>
                     ) : !materials ? (
@@ -1330,7 +1330,7 @@ export function MentorDashboard() {
                                         <Icon
                                           icon="mingcute:file-text-line"
                                           width={24}
-                                          className="text-blue-500"
+                                          className="text-blue-700"
                                         />
                                         <h3 className="text-lg font-bold text-slate-900">{doc.documentName}</h3>
                                         <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-700">
@@ -1471,7 +1471,7 @@ export function MentorDashboard() {
                     </div>
                     {isLoadingTasks ? (
                       <div className="flex items-center justify-center py-12">
-                        <Icon icon="mingcute:loading-line" width={32} className="animate-spin text-blue-500" />
+                        <Icon icon="mingcute:loading-line" width={32} className="animate-spin text-blue-700" />
                         <span className="ml-3 text-slate-600">Loading tasks...</span>
                       </div>
                     ) : menteeTasks.length === 0 ? (
@@ -1833,7 +1833,7 @@ export function MentorDashboard() {
                       <h3 className="text-xl font-bold text-slate-900">Messages</h3>
                       <button
                         onClick={handleCreateConversation}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-sm font-medium"
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition text-sm font-medium"
                       >
                         <Icon icon="mingcute:add-line" width={16} />
                         New Message
@@ -1864,7 +1864,7 @@ export function MentorDashboard() {
                                 </div>
                               </div>
                               {conv.unreadCount > 0 && (
-                                <span className="px-2 py-1 bg-blue-500 text-white rounded-full text-xs font-medium">
+                                <span className="px-2 py-1 bg-blue-700 text-white rounded-full text-xs font-medium">
                                   {conv.unreadCount}
                                 </span>
                               )}
@@ -1876,7 +1876,7 @@ export function MentorDashboard() {
                             <p className="text-slate-600 mb-4">No messages yet</p>
                             <button
                               onClick={handleCreateConversation}
-                              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
+                              className="px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition"
                             >
                               Start Conversation
                             </button>
@@ -1904,7 +1904,7 @@ export function MentorDashboard() {
 
                     {isLoadingReports ? (
                       <div className="flex items-center justify-center py-12">
-                        <Icon icon="mingcute:loading-line" width={32} className="animate-spin text-blue-500" />
+                        <Icon icon="mingcute:loading-line" width={32} className="animate-spin text-blue-700" />
                         <span className="ml-3 text-slate-600">Loading progress reports...</span>
                       </div>
                     ) : selectedReport ? (
@@ -2169,7 +2169,7 @@ export function MentorDashboard() {
 
                     {isLoadingMockInterviews ? (
                       <div className="flex items-center justify-center py-12">
-                        <Icon icon="mingcute:loading-line" width={32} className="animate-spin text-blue-500" />
+                        <Icon icon="mingcute:loading-line" width={32} className="animate-spin text-blue-700" />
                         <span className="ml-3 text-slate-600">Loading mock interviews...</span>
                       </div>
                     ) : selectedMockInterview ? (
@@ -2217,7 +2217,7 @@ export function MentorDashboard() {
                                   <div
                                     className={`max-w-[80%] rounded-lg p-3 ${
                                       msg.role === 'user'
-                                        ? 'bg-blue-500 text-white'
+                                        ? 'bg-blue-700 text-white'
                                         : 'bg-slate-100 text-slate-900'
                                     }`}
                                   >
@@ -2509,7 +2509,7 @@ export function MentorDashboard() {
                 <button
                   onClick={handleSubmitFeedback}
                   disabled={isSubmittingFeedback || !feedbackForm.feedbackContent.trim()}
-                  className="flex-1 bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="flex-1 bg-blue-700 text-white py-2 px-4 rounded-lg hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {isSubmittingFeedback ? (
                     <>
@@ -2573,7 +2573,7 @@ export function MentorDashboard() {
             <div className="flex-1 overflow-y-auto p-6">
               {isLoadingMaterial ? (
                 <div className="flex items-center justify-center py-12">
-                  <Icon icon="mingcute:loading-line" width={32} className="animate-spin text-blue-500" />
+                  <Icon icon="mingcute:loading-line" width={32} className="animate-spin text-blue-700" />
                   <span className="ml-3 text-slate-600">Loading...</span>
                 </div>
               ) : viewingMaterial.data ? (

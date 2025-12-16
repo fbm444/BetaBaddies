@@ -117,7 +117,7 @@ export function NegotiationDetailModal({
                 onClick={() => setActiveTab(tab.id)}
                 className={`px-6 py-3 font-medium text-sm whitespace-nowrap flex items-center gap-2 flex-shrink-0 min-w-fit bg-transparent hover:bg-transparent focus:bg-transparent ${
                   activeTab === tab.id
-                    ? "text-blue-500 border-b-2 border-blue-500"
+                    ? "text-blue-700 border-b-2 border-blue-500"
                     : "text-slate-600"
                 }`}
                 style={{
@@ -151,7 +151,7 @@ export function NegotiationDetailModal({
             <div className="flex items-center justify-center h-64">
               <Icon
                 icon="mingcute:loading-line"
-                className="w-8 h-8 animate-spin text-blue-500"
+                className="w-8 h-8 animate-spin text-blue-700"
               />
             </div>
           ) : (

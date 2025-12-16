@@ -180,7 +180,7 @@ export function DocumentViewer({ document, teamId, onClose }: DocumentViewerProp
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <Icon icon="mingcute:loading-line" width={24} className="animate-spin text-blue-500" />
+        <Icon icon="mingcute:loading-line" width={24} className="animate-spin text-blue-700" />
         <span className="ml-2 text-slate-600">Loading document...</span>
       </div>
     );
@@ -206,7 +206,7 @@ export function DocumentViewer({ document, teamId, onClose }: DocumentViewerProp
           <button
             onClick={handleAddComment}
             disabled={!newComment.trim() || isSubmitting}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2"
+            className="px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2"
           >
             {isSubmitting ? (
               <>
@@ -270,7 +270,7 @@ export function DocumentViewer({ document, teamId, onClose }: DocumentViewerProp
                         <button
                           onClick={() => handleReply(comment.id)}
                           disabled={!replyText.trim() || isSubmitting}
-                          className="px-3 py-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 text-sm"
+                          className="px-3 py-1.5 bg-blue-700 text-white rounded-lg hover:bg-blue-800 disabled:opacity-50 text-sm"
                         >
                           Reply
                         </button>
@@ -337,7 +337,7 @@ export function DocumentViewer({ document, teamId, onClose }: DocumentViewerProp
   if (document.documentType === "cover_letter" || document.documentType === "resume") {
     return (
       <div className="flex items-center justify-center py-8">
-        <Icon icon="mingcute:loading-line" width={24} className="animate-spin text-blue-500" />
+        <Icon icon="mingcute:loading-line" width={24} className="animate-spin text-blue-700" />
         <span className="ml-2 text-slate-600">
           Opening {document.documentType === "cover_letter" ? "cover letter" : "resume"} editor...
         </span>

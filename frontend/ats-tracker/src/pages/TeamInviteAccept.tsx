@@ -170,7 +170,7 @@ export function TeamInviteAccept() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50">
         <div className="text-center">
-          <Icon icon="mingcute:loading-line" width={48} className="animate-spin text-blue-500 mx-auto mb-4" />
+          <Icon icon="mingcute:loading-line" width={48} className="animate-spin text-blue-700 mx-auto mb-4" />
           <p className="text-slate-600">Loading invitation...</p>
         </div>
       </div>
@@ -186,7 +186,7 @@ export function TeamInviteAccept() {
           <p className="text-slate-600 mb-6">{error || "This invitation link is not valid."}</p>
           <button
             onClick={() => navigate(ROUTES.LANDING)}
-            className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600"
+            className="bg-blue-700 text-white px-6 py-2 rounded-lg hover:bg-blue-800"
           >
             Go to Home
           </button>
@@ -379,7 +379,7 @@ export function TeamInviteAccept() {
                 <button
                   onClick={handleLogoutAndContinue}
                   disabled={isLoading}
-                  className="w-full bg-blue-500 text-white py-3 px-4 rounded-lg font-semibold hover:bg-blue-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-blue-700 text-white py-3 px-4 rounded-lg font-semibold hover:bg-blue-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isLoading ? "Logging out..." : "Log Out & Continue"}
                 </button>

@@ -47,7 +47,7 @@ export function SessionComparisonModal({
         <div className="bg-white rounded-2xl p-8 text-center">
           <Icon
             icon="mingcute:loading-line"
-            className="w-12 h-12 animate-spin mx-auto text-blue-500 mb-4"
+            className="w-12 h-12 animate-spin mx-auto text-blue-700 mb-4"
           />
           <p className="text-slate-600">Generating comparison...</p>
         </div>
@@ -64,7 +64,7 @@ export function SessionComparisonModal({
           <p className="text-slate-600 mb-4">{error || "Failed to load comparison"}</p>
           <button
             onClick={onClose}
-            className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium"
+            className="px-6 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 font-medium"
           >
             Close
           </button>
@@ -256,7 +256,7 @@ export function SessionComparisonModal({
         <div className="p-6 border-t border-slate-200 flex justify-end">
           <button
             onClick={onClose}
-            className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium"
+            className="px-6 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 font-medium"
           >
             Close
           </button>

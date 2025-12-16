@@ -157,7 +157,7 @@ export function ShareDocumentModal({
 
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
-            <Icon icon="mingcute:loading-line" width={24} className="animate-spin text-blue-500" />
+            <Icon icon="mingcute:loading-line" width={24} className="animate-spin text-blue-700" />
             <span className="ml-2 text-slate-600">Loading teams...</span>
           </div>
         ) : teams.length === 0 ? (
@@ -205,7 +205,7 @@ export function ShareDocumentModal({
                         setShareType("team");
                         setSelectedMemberId("");
                       }}
-                      className="text-blue-500"
+                      className="text-blue-700"
                     />
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
@@ -223,7 +223,7 @@ export function ShareDocumentModal({
                       value="member"
                       checked={shareType === "member"}
                       onChange={() => setShareType("member")}
-                      className="text-blue-500"
+                      className="text-blue-700"
                     />
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
@@ -244,7 +244,7 @@ export function ShareDocumentModal({
                 </label>
                 {isLoadingMembers ? (
                   <div className="flex items-center justify-center py-4">
-                    <Icon icon="mingcute:loading-line" width={20} className="animate-spin text-blue-500" />
+                    <Icon icon="mingcute:loading-line" width={20} className="animate-spin text-blue-700" />
                     <span className="ml-2 text-sm text-slate-600">Loading members...</span>
                   </div>
                 ) : teamMembers.length === 0 ? (
@@ -281,7 +281,7 @@ export function ShareDocumentModal({
                         <div key={idx} className="flex items-center gap-2 text-sm text-blue-700">
                           <Icon icon="mingcute:check-line" width={16} />
                           <span>{teamName}</span>
-                          <span className="text-blue-500">•</span>
+                          <span className="text-blue-700">•</span>
                           <span className="text-blue-600">{memberName}</span>
                         </div>
                       );
@@ -290,7 +290,7 @@ export function ShareDocumentModal({
                         <div key={idx} className="flex items-center gap-2 text-sm text-blue-700">
                           <Icon icon="mingcute:check-line" width={16} />
                           <span>{teamName}</span>
-                          <span className="text-blue-500">(entire team)</span>
+                          <span className="text-blue-700">(entire team)</span>
                         </div>
                       );
                     }
@@ -314,7 +314,7 @@ export function ShareDocumentModal({
                   isAlreadyShared() ||
                   (shareType === "member" && !selectedMemberId)
                 }
-                className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-2"
               >
                 {isSharing ? (
                   <>

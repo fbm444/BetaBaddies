@@ -148,7 +148,7 @@ export function MarketIntelligence() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <Icon icon="mingcute:loading-line" className="w-12 h-12 animate-spin mx-auto mb-4 text-blue-500" />
+          <Icon icon="mingcute:loading-line" className="w-12 h-12 animate-spin mx-auto mb-4 text-blue-700" />
           <p className="text-gray-600">Loading market intelligence...</p>
         </div>
       </div>
@@ -164,7 +164,7 @@ export function MarketIntelligence() {
           <p className="text-gray-600 mb-4">{error}</p>
           <button
             onClick={fetchMarketOverview}
-            className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+            className="px-6 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800"
           >
             Try Again
           </button>
@@ -194,7 +194,7 @@ export function MarketIntelligence() {
             <button
               onClick={handleRefreshCache}
               disabled={refreshingCache}
-              className="flex items-center gap-2 text-blue-500 hover:text-blue-600 disabled:text-blue-300 disabled:cursor-not-allowed transition-colors bg-transparent"
+              className="flex items-center gap-2 text-blue-700 hover:text-blue-600 disabled:text-blue-300 disabled:cursor-not-allowed transition-colors bg-transparent"
               title="Refresh market data from Adzuna"
             >
               <Icon 
@@ -239,7 +239,7 @@ export function MarketIntelligence() {
           <div className="bg-white rounded-lg border border-slate-300 p-6">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-gray-600">Industry Growth</span>
-              <Icon icon="mingcute:chart-up-line" className="w-6 h-6 text-blue-500" />
+              <Icon icon="mingcute:chart-up-line" className="w-6 h-6 text-blue-700" />
             </div>
             <div className="text-2xl font-bold text-gray-900">
               {trends.growthMetrics.growthRate > 0 ? '+' : ''}
@@ -383,7 +383,7 @@ export function MarketIntelligence() {
           {/* Top Hiring Companies */}
           <div className="bg-white rounded-lg border border-slate-300 p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <Icon icon="mingcute:building-line" className="w-5 h-5 text-blue-500" />
+              <Icon icon="mingcute:building-line" className="w-5 h-5 text-blue-700" />
               Top Hiring Companies
             </h3>
             <div className="space-y-3">
@@ -646,7 +646,7 @@ export function MarketIntelligence() {
                   ))}
                   {competitiveAnalysis.marketPositioning.insights.map((insight, idx) => (
                     <div key={idx} className="flex items-start gap-2">
-                      <Icon icon="mingcute:information-fill" className="w-4 h-4 text-blue-500 mt-0.5" />
+                      <Icon icon="mingcute:information-fill" className="w-4 h-4 text-blue-700 mt-0.5" />
                       <span className="text-gray-700">{insight}</span>
                     </div>
                   ))}

@@ -40,7 +40,7 @@ export function TeamPerformance({ teamId }: TeamPerformanceProps) {
           <Icon
             icon="mingcute:chart-line"
             width={64}
-            className="animate-pulse text-blue-500"
+            className="animate-pulse text-blue-700"
           />
           <Icon
             icon="mingcute:loading-line"

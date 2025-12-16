@@ -310,7 +310,7 @@ Thanks so much!`;
                   onClick={() => setActiveTab("referrals")}
                   className={`px-6 py-3 font-medium text-sm whitespace-nowrap flex-shrink-0 min-w-fit bg-transparent hover:bg-transparent focus:bg-transparent ${
                     activeTab === "referrals"
-                      ? "text-blue-500 border-b-2 border-blue-500"
+                      ? "text-blue-700 border-b-2 border-blue-500"
                       : "text-slate-600"
                   }`}
                   style={{ 
@@ -335,7 +335,7 @@ Thanks so much!`;
                   onClick={() => setActiveTab("stats")}
                   className={`px-6 py-3 font-medium text-sm whitespace-nowrap flex-shrink-0 min-w-fit bg-transparent hover:bg-transparent focus:bg-transparent ${
                     activeTab === "stats"
-                      ? "text-blue-500 border-b-2 border-blue-500"
+                      ? "text-blue-700 border-b-2 border-blue-500"
                       : "text-slate-600"
                   }`}
                   style={{ 

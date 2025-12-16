@@ -123,7 +123,7 @@ export function InterviewAnalytics() {
                   onClick={() => handleTabClick(tab.id)}
                   className={`relative pb-3 font-medium text-sm whitespace-nowrap transition-colors flex items-center gap-2 bg-transparent ${
                     tab.id === "analytics"
-                      ? "text-blue-500"
+                      ? "text-blue-700"
                       : "text-slate-600"
                   }`}
                   style={{ 
@@ -154,7 +154,7 @@ export function InterviewAnalytics() {
 
           {/* Loading State */}
           <div className="text-center py-12">
-            <Icon icon="mingcute:loading-line" className="animate-spin text-blue-500 mx-auto mb-4" width={32} />
+            <Icon icon="mingcute:loading-line" className="animate-spin text-blue-700 mx-auto mb-4" width={32} />
             <p className="text-slate-600" style={{ fontFamily: 'Poppins' }}>Loading analytics...</p>
         </div>
         </main>
@@ -185,7 +185,7 @@ export function InterviewAnalytics() {
                   onClick={() => handleTabClick(tab.id)}
                   className={`relative pb-3 font-medium text-sm whitespace-nowrap transition-colors flex items-center gap-2 bg-transparent ${
                     tab.id === "analytics"
-                      ? "text-blue-500"
+                      ? "text-blue-700"
                       : "text-slate-600"
                   }`}
                   style={{ 
@@ -313,7 +313,7 @@ export function InterviewAnalytics() {
                 onClick={() => handleTabClick(tab.id)}
                 className={`px-6 py-3 font-medium text-sm whitespace-nowrap border-b-2 transition-colors flex items-center gap-2 flex-shrink-0 min-w-fit ${
                   tab.id === "analytics"
-                    ? "text-blue-500"
+                    ? "text-blue-700"
                     : "text-slate-600"
                 }`}
                 style={{ 
@@ -755,7 +755,7 @@ export function InterviewAnalytics() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
             <div className="flex items-center gap-3 mb-4">
-              <Icon icon="mingcute:calendar-line" width={32} className="text-blue-500" />
+              <Icon icon="mingcute:calendar-line" width={32} className="text-blue-700" />
               <h3 className="text-xl font-semibold text-slate-900">Connect Google Calendar</h3>
             </div>
             <p className="text-slate-600 mb-6">

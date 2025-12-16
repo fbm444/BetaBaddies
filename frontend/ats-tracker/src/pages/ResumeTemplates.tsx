@@ -508,7 +508,7 @@ export function ResumeTemplates() {
                     </div>
                   </div>
                   {template.templateName === "Modern Chronological" && (
-                    <div className="absolute top-4 right-4 bg-blue-500 text-white px-2 py-1 rounded text-xs font-medium">
+                    <div className="absolute top-4 right-4 bg-blue-700 text-white px-2 py-1 rounded text-xs font-medium">
                       Default
                     </div>
                   )}

@@ -362,7 +362,7 @@ export function Teams() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Icon icon="mingcute:loading-line" width={48} className="animate-spin text-blue-500" />
+        <Icon icon="mingcute:loading-line" width={48} className="animate-spin text-blue-700" />
       </div>
     );
   }
@@ -404,7 +404,7 @@ export function Teams() {
           <button
             type="submit"
             disabled={isCreating}
-            className="w-full bg-blue-500 text-white py-2 px-4 rounded-full hover:bg-blue-600 disabled:opacity-50"
+            className="w-full bg-blue-700 text-white py-2 px-4 rounded-full hover:bg-blue-800 disabled:opacity-50"
           >
             {isCreating ? "Creating..." : "Create Team"}
           </button>
@@ -868,7 +868,7 @@ export function Teams() {
                                           {conv.title || "Untitled Chat"}
                                         </div>
                                         {conv.unreadCount > 0 && (
-                                          <span className="flex-shrink-0 bg-blue-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center shadow-sm">
+                                          <span className="flex-shrink-0 bg-blue-700 text-white text-xs font-bold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center shadow-sm">
                                             {conv.unreadCount > 9 ? "9+" : conv.unreadCount}
                                           </span>
                                         )}
@@ -1043,7 +1043,7 @@ export function Teams() {
                     </div>
                     {isLoadingDocuments ? (
                       <div className="flex items-center justify-center py-12">
-                        <Icon icon="mingcute:loading-line" width={32} className="animate-spin text-blue-500" />
+                        <Icon icon="mingcute:loading-line" width={32} className="animate-spin text-blue-700" />
                         <span className="ml-3 text-slate-600">Loading documents...</span>
                       </div>
                     ) : sharedDocuments.length === 0 ? (
@@ -1075,7 +1075,7 @@ export function Teams() {
                                     <Icon
                                       icon={doc.documentType === "resume" ? "mingcute:file-text-line" : "mingcute:mail-line"}
                                       width={24}
-                                      className={doc.documentType === "resume" ? "text-blue-500" : "text-purple-500"}
+                                      className={doc.documentType === "resume" ? "text-blue-700" : "text-purple-500"}
                                     />
                                     <h3 className="text-lg font-bold text-slate-900">{doc.documentName}</h3>
                                     <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-700 capitalize">
@@ -1226,7 +1226,7 @@ export function Teams() {
                 <button
                   onClick={handleInviteMember}
                   disabled={isInviting || !inviteEmail}
-                  className="flex-1 bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="flex-1 bg-blue-700 text-white py-2 px-4 rounded-lg hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {isInviting ? (
                     <>
@@ -1342,7 +1342,7 @@ export function Teams() {
                 <button
                   type="submit"
                   disabled={isCreating}
-                  className="flex-1 bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 disabled:opacity-50"
+                  className="flex-1 bg-blue-700 text-white py-2 px-4 rounded-lg hover:bg-blue-800 disabled:opacity-50"
                 >
                   {isCreating ? "Creating..." : "Create Team"}
                 </button>
@@ -1407,7 +1407,7 @@ export function Teams() {
                 <button
                   onClick={handleCreateConversation}
                   disabled={!newConversationTitle.trim()}
-                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Create
                 </button>

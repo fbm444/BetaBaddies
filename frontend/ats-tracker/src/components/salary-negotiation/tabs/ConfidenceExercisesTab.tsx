@@ -241,7 +241,7 @@ export function ConfidenceExercisesTab({
                     <h5 className="font-semibold text-slate-900 mb-1">{scenario.title}</h5>
                     <p className="text-sm text-slate-600">{scenario.scenario}</p>
                   </div>
-                  <Icon icon="mingcute:arrow-right-line" width={20} className="text-blue-500 ml-2 flex-shrink-0" />
+                  <Icon icon="mingcute:arrow-right-line" width={20} className="text-blue-700 ml-2 flex-shrink-0" />
                 </div>
               </button>
             ))}
@@ -766,7 +766,7 @@ export function ConfidenceExercisesTab({
                     onClick={() => setSelfRating(rating)}
                     className={`w-12 h-12 rounded-lg font-semibold transition-colors ${
                       selfRating >= rating
-                        ? "bg-blue-500 text-white"
+                        ? "bg-blue-700 text-white"
                         : "bg-slate-200 text-slate-600"
                     }`}
                   >
@@ -792,7 +792,7 @@ export function ConfidenceExercisesTab({
 
             <button
               onClick={handleCompleteExercise}
-              className="w-full px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium"
+              className="w-full px-4 py-3 bg-blue-700 text-white rounded-lg hover:bg-blue-800 font-medium"
             >
               Complete Exercise
             </button>

@@ -994,6 +994,13 @@ class FileUploadService {
           }
         }
 
+        // Strip /uploads/ prefix if present (for paths that were stored locally then migrated to S3)
+        if (key.startsWith("/uploads/")) {
+          key = key.substring("/uploads/".length);
+        } else if (key.startsWith("uploads/")) {
+          key = key.substring("uploads/".length);
+        }
+
         // For profile pictures and certification badges, use longer expiration (7 days = 604800 seconds)
         // Other files use 1 hour (3600 seconds) by default
         const isProfilePic = key.startsWith("profile-pics/");

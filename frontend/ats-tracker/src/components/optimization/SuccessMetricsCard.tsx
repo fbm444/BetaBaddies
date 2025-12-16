@@ -21,10 +21,9 @@ export function SuccessMetricsCard({ dateRange }: SuccessMetricsCardProps) {
     try {
       setIsLoading(true);
       setError(null);
-      const period = dateRange?.startDate || dateRange?.endDate 
-        ? `${dateRange.startDate || ''}_${dateRange.endDate || ''}` 
-        : undefined;
-      const response = await api.getOptimizationMetrics(period);
+      // Note: period should be "monthly", "weekly", etc., not a date range
+      // Date range filtering is handled by the backend based on the filters
+      const response = await api.getOptimizationMetrics();
       if (response.ok && response.data) {
         setMetrics(response.data.metrics);
       } else {

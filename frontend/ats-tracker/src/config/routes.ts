@@ -121,6 +121,12 @@ export const navigationGroups: NavigationGroup[] = [
         icon: "mdi:office-building",
         path: ROUTES.COMPANY_RESEARCH,
       },
+      {
+        id: "application-optimization",
+        label: "Application Optimization",
+        icon: "mingcute:line-chart-line",
+        path: ROUTES.APPLICATION_OPTIMIZATION,
+      },
     ],
   },
   {

@@ -1,0 +1,39 @@
+name: Publish to AWS SNS Topic
+
+on:
+  push:
+    branches: [main, production]
+
+env:
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  AWS_SNS_TOPIC_ARN: ${{ secrets.AWS_SNS_TOPIC_ARN }}
+  MESSAGE: ${{ toJSON(github) }}
+
+jobs:
+  publish-to-sns:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - name: Check if SNS is configured
+        id: check-sns
+        run: |
+          if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ] || [ -z "$AWS_SNS_TOPIC_ARN" ]; then
+            echo "configured=false" >> $GITHUB_OUTPUT
+            echo "⚠️ SNS notification skipped - AWS credentials or topic ARN not configured"
+            echo "To enable SNS notifications, set these secrets:"
+            echo "  - AWS_ACCESS_KEY_ID"
+            echo "  - AWS_SECRET_ACCESS_KEY"
+            echo "  - AWS_REGION"
+            echo "  - AWS_SNS_TOPIC_ARN"
+          else
+            echo "configured=true" >> $GITHUB_OUTPUT
+            echo "✅ SNS configuration found"
+          fi
+
+      - name: Publish to AWS SNS Topic
+        if: steps.check-sns.outputs.configured == 'true'
+        uses: d-dot-one/publish-to-sns@v1
+

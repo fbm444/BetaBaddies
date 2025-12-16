@@ -47,19 +47,37 @@ export function MarketIntelligence() {
   const [analysisProgress, setAnalysisProgress] = useState('Initializing...');
 
   useEffect(() => {
-    fetchMarketOverview();
-    handleGenerateCompetitiveAnalysis();
+    const loadData = async () => {
+      try {
+        // First load market overview to ensure user is authenticated
+        const success = await fetchMarketOverview();
+        // Only generate competitive analysis if overview loaded successfully
+        // This ensures the user is authenticated and session is ready
+        if (success) {
+          // Small delay to ensure session is fully established
+          setTimeout(() => {
+            handleGenerateCompetitiveAnalysis();
+          }, 300);
+        }
+      } catch (error) {
+        // If overview fails, don't try competitive analysis
+        console.error('Failed to load market overview:', error);
+      }
+    };
+    loadData();
   }, []);
 
-  const fetchMarketOverview = async () => {
+  const fetchMarketOverview = async (): Promise<boolean> => {
     try {
       setLoading(true);
       setError(null);
       const data = await marketIntelligenceService.getMarketOverview();
       setOverview(data);
+      return true;
     } catch (err: any) {
       console.error('Error fetching market overview:', err);
       setError(err.response?.data?.error || 'Failed to load market intelligence data');
+      return false;
     } finally {
       setLoading(false);
     }
@@ -127,9 +145,34 @@ export function MarketIntelligence() {
       const response = await fetch('/api/v1/competitive-analysis', {
         method: 'GET',
         credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
       
       clearInterval(progressTimer);
+      
+      // Check if response is ok before parsing JSON
+      if (!response.ok) {
+        // Try to parse error message, but handle non-JSON responses
+        let errorMessage = 'Failed to generate competitive analysis';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          // If response is not JSON (e.g., HTML error page), use status text
+          errorMessage = `Error ${response.status}: ${response.statusText}`;
+        }
+        setError(errorMessage);
+        return;
+      }
+      
+      // Check content type to ensure it's JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        setError('Server returned non-JSON response. Please try again.');
+        return;
+      }
       
       const data = await response.json();
       if (data.ok && data.data?.analysis) {
@@ -140,7 +183,12 @@ export function MarketIntelligence() {
       }
     } catch (err: any) {
       console.error('Error generating competitive analysis:', err);
-      setError('Failed to generate competitive analysis. Please try refreshing the page.');
+      // Handle JSON parse errors specifically
+      if (err instanceof SyntaxError && err.message.includes('JSON')) {
+        setError('Server returned invalid response. Please try refreshing the page.');
+      } else {
+        setError('Failed to generate competitive analysis. Please try refreshing the page.');
+      }
     }
   };
 

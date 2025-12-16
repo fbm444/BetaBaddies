@@ -83,11 +83,9 @@ import {
   InterviewPrediction,
   PredictionComparison,
   PredictionAccuracyMetrics,
-<<<<<<< HEAD
   FollowUpReminder,
   FollowUpReminderInput,
   ResponseType,
-=======
   InterviewResponse,
   InterviewResponseInput,
   InterviewResponseUpdate,
@@ -96,7 +94,6 @@ import {
   InterviewResponseOutcomeInput,
   GapAnalysis,
   ResponseSuggestion,
->>>>>>> jaiman-sprint4
 } from "../types";
 import {
   ProfessionalContact,

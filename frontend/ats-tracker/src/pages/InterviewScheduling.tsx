@@ -1008,7 +1008,7 @@ function InterviewScheduleModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 font-poppins">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[110] p-4 font-poppins">
       <div className="bg-white rounded-2xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-slate-900">Schedule Interview</h2>
@@ -1411,7 +1411,7 @@ function InterviewDetailModal({
 
   return (
     <>
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 font-poppins">
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[110] p-4 font-poppins">
         <div className="bg-white rounded-2xl p-8 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-slate-900">
@@ -1814,7 +1814,7 @@ function CancelInterviewModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4 font-poppins">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[120] p-4 font-poppins">
       <div className="bg-white rounded-2xl p-8 max-w-md w-full">
         <h2 className="text-2xl font-bold text-slate-900 mb-4">Cancel Interview</h2>
         <p className="text-slate-600 mb-4">
@@ -1944,7 +1944,7 @@ function RescheduleInterviewModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4 font-poppins">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[120] p-4 font-poppins">
       <div className="bg-white rounded-2xl p-8 max-w-md w-full">
         <h2 className="text-2xl font-bold text-slate-900 mb-4">Reschedule Interview</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -2076,7 +2076,7 @@ function DeleteInterviewModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4 font-poppins">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[120] p-4 font-poppins">
       <div className="bg-white rounded-2xl p-8 max-w-md w-full">
         <div className="flex items-center gap-3 mb-4">
           <Icon icon="mingcute:alert-fill" className="text-red-500" width={32} />

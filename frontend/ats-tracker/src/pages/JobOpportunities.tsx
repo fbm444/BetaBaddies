@@ -134,6 +134,7 @@ export function JobOpportunities() {
     };
   }, []);
 
+
   const showMessage = (text: string, type: "success" | "error") => {
     if (messageTimeoutRef.current) {
       clearTimeout(messageTimeoutRef.current);
@@ -698,47 +699,59 @@ export function JobOpportunities() {
 
         {/* Filters Modal */}
         {isFiltersOpen && (
-          <div className="fixed inset-0 z-40 flex justify-end">
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 z-[110] flex items-center justify-center p-4"
+            onClick={() => setIsFiltersOpen(false)}
+          >
             <div
-              className="absolute inset-0 bg-slate-900/30"
-              onClick={() => setIsFiltersOpen(false)}
-            />
-            <div className="relative h-full w-full max-w-md bg-white shadow-2xl border-l border-slate-200 pt-12 pb-6 px-6 overflow-y-auto">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-slate-900">Filters</h2>
-                <button
-                  onClick={() => setIsFiltersOpen(false)}
-                  className="text-slate-400 hover:text-slate-600"
-                >
-                  <Icon icon="mingcute:close-line" width={22} />
-                </button>
-              </div>
-              <FiltersComponent
-                filters={pendingFilters}
-                onFiltersChange={setPendingFilters}
-                onClearFilters={() => {
-                  const cleared = { sort: "-created_at" };
-                  setPendingFilters(cleared);
-                  setFilters(cleared);
-                  setSearchValue("");
-                }}
-                hideSearchBar
-                variant="plain"
-                viewMode={viewMode}
-                onViewModeChange={handleViewModeChange}
-                showArchivedValue={showArchived}
-                onArchivedToggle={handleToggleArchived}
-              />
-              <div className="mt-6">
-                <button
-                  onClick={() => {
-                    setFilters(pendingFilters);
-                    setIsFiltersOpen(false);
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-semibold text-slate-900">Filters</h2>
+                  <button
+                    onClick={() => setIsFiltersOpen(false)}
+                    className="text-slate-400 hover:text-slate-600"
+                  >
+                    <Icon icon="mingcute:close-line" width={24} />
+                  </button>
+                </div>
+                <FiltersComponent
+                  filters={pendingFilters}
+                  onFiltersChange={setPendingFilters}
+                  onClearFilters={() => {
+                    const cleared = { sort: "-created_at" };
+                    setPendingFilters(cleared);
+                    setFilters(cleared);
+                    setSearchValue("");
                   }}
-                  className="w-full px-4 py-3 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors font-medium"
-                >
-                  Apply Filters
-                </button>
+                  hideSearchBar
+                  variant="plain"
+                  viewMode={viewMode}
+                  onViewModeChange={handleViewModeChange}
+                  showArchivedValue={showArchived}
+                  onArchivedToggle={handleToggleArchived}
+                />
+                <div className="mt-6 flex gap-3 pt-4 border-t border-slate-200">
+                  <button
+                    onClick={() => {
+                      setIsFiltersOpen(false);
+                    }}
+                    className="flex-1 px-6 py-3 bg-slate-200 text-slate-800 rounded-lg hover:bg-slate-300 transition-colors font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      setFilters(pendingFilters);
+                      setIsFiltersOpen(false);
+                    }}
+                    className="flex-1 px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
+                  >
+                    Apply Filters
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1544,7 +1557,7 @@ function JobOpportunityFormModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 font-poppins">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[110] p-4 font-poppins">
       <div className="bg-white rounded-2xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto font-poppins">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-slate-900">{title}</h2>
@@ -1874,7 +1887,7 @@ function DeleteConfirmationModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 font-poppins">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[110] p-4 font-poppins">
       <div className="bg-white rounded-2xl p-8 max-w-md w-full font-poppins">
         <div className="flex items-center gap-3 mb-4">
           <Icon

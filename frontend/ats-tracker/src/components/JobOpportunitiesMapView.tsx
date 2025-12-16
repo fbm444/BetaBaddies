@@ -251,7 +251,7 @@ export function JobOpportunitiesMapView({
 
   if (loading) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+      <div className="fixed inset-0 bg-black bg-opacity-50 z-[110] flex items-center justify-center">
         <div className="bg-white rounded-lg p-6 max-w-md">
           <div className="flex items-center gap-3">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
@@ -264,7 +264,7 @@ export function JobOpportunitiesMapView({
 
   if (error) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+      <div className="fixed inset-0 bg-black bg-opacity-50 z-[110] flex items-center justify-center">
         <div className="bg-white rounded-lg p-6 max-w-md">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-slate-900">Map View</h3>
@@ -359,7 +359,7 @@ export function JobOpportunitiesMapView({
   const visibleJobs = filteredJobs.map((opp) => opp.id);
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-[110] flex items-center justify-center">
       <div className="bg-white rounded-lg w-full h-full md:w-11/12 md:h-5/6 flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">

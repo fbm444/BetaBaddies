@@ -63,71 +63,87 @@ class CompetitiveAnalysisService {
    * Main entry point: Analyze competitiveness for a job opportunity
    */
   async analyzeCompetitiveness(userId, jobOpportunityId) {
-    // Fetch job opportunity
-    const jobRes = await database.query(
-      `
-      SELECT 
-        jo.*,
-        ci.size as company_size,
-        ci.industry
-      FROM job_opportunities jo
-      LEFT JOIN company_info ci ON ci.job_id = jo.id
-      WHERE jo.id = $1 AND jo.user_id = $2
-      LIMIT 1
-    `,
-      [jobOpportunityId, userId]
-    );
+    try {
+      // Fetch job opportunity
+      const jobRes = await database.query(
+        `
+        SELECT 
+          jo.*,
+          ci.size as company_size,
+          ci.industry
+        FROM job_opportunities jo
+        LEFT JOIN company_info ci ON ci.job_id = jo.id
+        WHERE jo.id = $1 AND jo.user_id = $2
+        LIMIT 1
+      `,
+        [jobOpportunityId, userId]
+      );
 
-    if (jobRes.rows.length === 0) {
-      throw new Error("Job opportunity not found");
+      if (jobRes.rows.length === 0) {
+        throw new Error("Job opportunity not found");
+      }
+
+      const job = jobRes.rows[0];
+
+      // Fetch user profile data
+      const userProfile = await this.getUserProfile(userId);
+
+      // Calculate components
+      const applicantCount = this.estimateApplicantCount(job);
+      const competitiveScore = await this.calculateCompetitiveScore(
+        userProfile,
+        job
+      );
+      const advantages = this.identifyAdvantages(userProfile, job);
+      const disadvantages = await this.identifyDisadvantages(userProfile, job);
+      const interviewLikelihood = this.estimateInterviewLikelihood(
+        competitiveScore,
+        applicantCount,
+        advantages,
+        disadvantages,
+        job
+      );
+      const strategies = await this.generateDifferentiatingStrategies(
+        job,
+        advantages,
+        disadvantages,
+        userProfile
+      );
+      const profileComparison = await this.compareToTypicalHiredProfile(
+        userProfile,
+        job
+      );
+
+      const confidence = this.calculateConfidence(job, userProfile);
+      
+      // Update interview likelihood with confidence
+      interviewLikelihood.confidence = confidence;
+
+      return {
+        competitiveScore: Math.round(competitiveScore),
+        applicantCount,
+        interviewLikelihood,
+        advantages,
+        disadvantages,
+        strategies,
+        profileComparison,
+        confidence,
+      };
+    } catch (error) {
+      console.error("Competitive analysis failed:", error.message);
+      // Return a safe fallback so UI still renders something
+      return {
+        competitiveScore: 50,
+        applicantCount: { total: 100, breakdown: {} },
+        interviewLikelihood: { percentage: 10, level: "low", confidence: 40 },
+        advantages: [],
+        disadvantages: [],
+        strategies: [],
+        profileComparison: null,
+        confidence: 40,
+        error: error.message,
+      };
     }
-
-    const job = jobRes.rows[0];
-
-    // Fetch user profile data
-    const userProfile = await this.getUserProfile(userId);
-
-    // Calculate components
-    const applicantCount = this.estimateApplicantCount(job);
-    const competitiveScore = await this.calculateCompetitiveScore(
-      userProfile,
-      job
-    );
-    const advantages = this.identifyAdvantages(userProfile, job);
-    const disadvantages = await this.identifyDisadvantages(userProfile, job);
-    const interviewLikelihood = this.estimateInterviewLikelihood(
-      competitiveScore,
-      applicantCount,
-      advantages,
-      disadvantages,
-      job
-    );
-    const strategies = await this.generateDifferentiatingStrategies(
-      job,
-      advantages,
-      disadvantages,
-      userProfile
-    );
-    const profileComparison = await this.compareToTypicalHiredProfile(
-      userProfile,
-      job
-    );
-
-    const confidence = this.calculateConfidence(job, userProfile);
-    
-    // Update interview likelihood with confidence
-    interviewLikelihood.confidence = confidence;
-
-    return {
-      competitiveScore: Math.round(competitiveScore),
-      applicantCount,
-      interviewLikelihood,
-      advantages,
-      disadvantages,
-      strategies,
-      profileComparison,
-      confidence,
-    };
   }
 
   /**
@@ -489,17 +505,25 @@ class CompetitiveAnalysisService {
   /**
    * Identify competitive disadvantages
    */
-  identifyDisadvantages(userProfile, job) {
+  async identifyDisadvantages(userProfile, job) {
     const disadvantages = [];
 
-    // Missing skills
-    const skillsMatch = this.extractSkillsFromDescription(
-      (job.job_description || "").toLowerCase()
+    // Missing skills - use AI extraction
+    const requiredSkills = await this.extractSkillsFromDescription(
+      job.job_description || "",
+      job.title
     );
+    const requiredSkillsLower = requiredSkills.map((s) => s.toLowerCase());
     const userSkills = userProfile.skills.map((s) => s.skill_name.toLowerCase());
-    const missingSkills = skillsMatch.filter(
+    const missingSkills = requiredSkillsLower.filter(
       (reqSkill) =>
-        !userSkills.some((userSkill) => userSkill.includes(reqSkill) || reqSkill.includes(userSkill))
+        !userSkills.some((userSkill) => {
+          if (userSkill === reqSkill) return true;
+          if (userSkill.includes(reqSkill) || reqSkill.includes(userSkill)) return true;
+          const normalizedReq = reqSkill.replace(/[.\s-]/g, "");
+          const normalizedUser = userSkill.replace(/[.\s-]/g, "");
+          return normalizedUser.includes(normalizedReq) || normalizedReq.includes(normalizedUser);
+        })
     );
 
     if (missingSkills.length > 0) {
@@ -602,13 +626,71 @@ class CompetitiveAnalysisService {
   }
 
   /**
-   * Generate differentiating strategies
+   * Generate differentiating strategies using AI or fallback
    */
-  generateDifferentiatingStrategies(job, advantages, disadvantages, userProfile) {
+  async generateDifferentiatingStrategies(job, advantages, disadvantages, userProfile) {
     const strategies = [];
 
+    // Try AI-generated strategies first
+    if (this.openai && job.job_description && job.job_description.length > 100) {
+      try {
+        const systemPrompt = `You are a career coach. Generate specific, actionable strategies to help a job applicant stand out. Return ONLY JSON with an array of strategy objects.`;
+        
+        const userPrompt = `Job Title: ${job.title}
+Company: ${job.company}
+Job Description: ${job.job_description.substring(0, 2000)}
+
+User Advantages: ${advantages.map((a) => a.title).join(", ") || "None"}
+User Disadvantages: ${disadvantages.map((d) => d.title).join(", ") || "None"}
+
+Generate 3-5 specific, actionable strategies to help this applicant stand out. Each strategy should have:
+- title: Short, actionable title
+- description: Specific description of what to do
+- priority: "high", "medium", or "low"
+- estimatedImpact: Number (5-25) representing potential score improvement
+- category: One of "application_materials", "networking", "skill_development", "portfolio", "timing"
+
+Return JSON: { "strategies": [...] }`;
+
+        const response = await this.openai.chat.completions.create({
+          model: this.model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          response_format: { type: "json_object" },
+          temperature: 0.6,
+        });
+
+        const content = response.choices[0].message.content;
+        try {
+          const parsed = JSON.parse(content || "{}");
+          if (parsed.strategies && Array.isArray(parsed.strategies)) {
+            // Add IDs and validate
+            const aiStrategies = parsed.strategies.map((s, idx) => ({
+              id: `ai-${idx}`,
+              title: s.title || `Strategy ${idx + 1}`,
+              description: s.description || "",
+              priority: s.priority || "medium",
+              estimatedImpact: s.estimatedImpact || 10,
+              category: s.category || "application_materials",
+            }));
+            strategies.push(...aiStrategies);
+          }
+        } catch (e) {
+          console.warn("Failed to parse AI strategies:", e);
+        }
+      } catch (error) {
+        console.warn("AI strategy generation failed, using fallback:", error.message);
+      }
+    }
+
+    // Fallback strategies (always include these as base)
+    const fallbackStrategies = [];
+
     // Customize application materials
-    strategies.push({
+    fallbackStrategies.push({
+      id: "fallback-1",
       priority: "high",
       title: "Customize Resume & Cover Letter",
       description: `Tailor your resume and cover letter to match keywords from the job description. Highlight ${advantages.length > 0 ? advantages[0].title.toLowerCase() : "relevant experience"} prominently.`,
@@ -618,7 +700,8 @@ class CompetitiveAnalysisService {
 
     // Get referral
     if (!job.application_method || !job.application_method.toLowerCase().includes("referral")) {
-      strategies.push({
+      fallbackStrategies.push({
+        id: "fallback-2",
         priority: "high",
         title: "Seek Employee Referral",
         description: `Getting a referral from a ${job.company} employee can increase your interview chances by 3-5x. Use LinkedIn to find connections.`,
@@ -630,7 +713,8 @@ class CompetitiveAnalysisService {
     // Address missing skills
     const missingSkillsDis = disadvantages.find((d) => d.type === "missing_skills");
     if (missingSkillsDis && missingSkillsDis.missingSkills.length > 0) {
-      strategies.push({
+      fallbackStrategies.push({
+        id: "fallback-3",
         priority: "high",
         title: "Address Missing Skills",
         description: `Quickly learn or demonstrate proficiency in: ${missingSkillsDis.missingSkills.slice(0, 3).join(", ")}. Build a small project or complete a course.`,
@@ -644,7 +728,8 @@ class CompetitiveAnalysisService {
       ? Math.floor((Date.now() - new Date(job.created_at).getTime()) / (1000 * 60 * 60 * 24))
       : 30;
     if (daysSincePosting < 7) {
-      strategies.push({
+      fallbackStrategies.push({
+        id: "fallback-4",
         priority: "medium",
         title: "Apply Quickly",
         description: "This posting is less than a week old. Early applicants often have higher response rates.",
@@ -655,7 +740,8 @@ class CompetitiveAnalysisService {
 
     // Build portfolio project
     if (missingSkillsDis) {
-      strategies.push({
+      fallbackStrategies.push({
+        id: "fallback-5",
         priority: "medium",
         title: "Create Relevant Portfolio Project",
         description: `Build a project showcasing ${missingSkillsDis.missingSkills[0] || "relevant skills"} and add it to your portfolio/GitHub.`,
@@ -665,7 +751,8 @@ class CompetitiveAnalysisService {
     }
 
     // Network with employees
-    strategies.push({
+    fallbackStrategies.push({
+      id: "fallback-6",
       priority: "medium",
       title: "Network with Company Employees",
       description: `Connect with ${job.company} employees on LinkedIn. Ask for informational interviews to learn about the role and company culture.`,
@@ -673,10 +760,16 @@ class CompetitiveAnalysisService {
       category: "networking",
     });
 
+    // Combine AI and fallback strategies, remove duplicates
+    const allStrategies = [...strategies, ...fallbackStrategies];
+    const uniqueStrategies = allStrategies.filter((strategy, index, self) =>
+      index === self.findIndex((s) => s.title === strategy.title)
+    );
+
     // Sort by priority
-    return strategies.sort((a, b) => {
+    return uniqueStrategies.sort((a, b) => {
       const priorityOrder = { high: 3, medium: 2, low: 1 };
-      return priorityOrder[b.priority] - priorityOrder[a.priority];
+      return (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0);
     });
   }
 
@@ -754,7 +847,7 @@ class CompetitiveAnalysisService {
     for (const job of jobsRes.rows) {
       const competitiveScore = await this.calculateCompetitiveScore(userProfile, job);
       const advantages = this.identifyAdvantages(userProfile, job);
-      const disadvantages = this.identifyDisadvantages(userProfile, job);
+      const disadvantages = await this.identifyDisadvantages(userProfile, job);
       const interviewLikelihood = this.estimateInterviewLikelihood(
         competitiveScore,
         { total: 100 }, // Simplified for prioritization

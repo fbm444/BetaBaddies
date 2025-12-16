@@ -210,6 +210,35 @@ export function JobOpportunityDetailModal({
     loadQuality();
   }, [opportunity.id]);
 
+  // Load competitive analysis
+  useEffect(() => {
+    const loadCompetitive = async () => {
+      if (!opportunity.id) return;
+      try {
+        setIsLoadingCompetitive(true);
+        setCompetitiveError(null);
+        const res = await api.analyzeCompetitiveness(opportunity.id);
+        if (res.ok && res.data && res.data.analysis) {
+          setCompetitiveAnalysis(res.data.analysis);
+        } else if (res.ok && res.data) {
+          // handle fallback payload shape
+          setCompetitiveAnalysis(res.data);
+        } else {
+          setCompetitiveAnalysis(null);
+          setCompetitiveError(res.error || "Competitive analysis not available yet.");
+        }
+      } catch (err: any) {
+        console.error("Error loading competitive analysis:", err);
+        setCompetitiveError("Competitive analysis not available yet.");
+        setCompetitiveAnalysis(null);
+      } finally {
+        setIsLoadingCompetitive(false);
+      }
+    };
+
+    loadCompetitive();
+  }, [opportunity.id]);
+
   const fetchTeams = async () => {
     try {
       const response = await api.getUserTeams();

@@ -75,7 +75,7 @@ export function JobStatistics() {
           </div>
           <button
             onClick={handleExportCSV}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2"
+            className="px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors flex items-center gap-2"
           >
             <Icon icon="mingcute:download-line" width={20} />
             Export to CSV
@@ -181,7 +181,7 @@ export function JobStatistics() {
                     <div key={index} className="flex-1 flex flex-col items-center gap-2">
                       <div className="relative w-full flex items-end justify-center" style={{ height: '200px' }}>
                         <div
-                          className="w-full bg-blue-500 rounded-t transition-all hover:bg-blue-600"
+                          className="w-full bg-blue-500 rounded-t transition-all hover:bg-blue-800"
                           style={{ height: `${height}%`, minHeight: item.count > 0 ? '4px' : '0' }}
                           title={`${item.count} applications in ${new Date(item.month).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`}
                         />

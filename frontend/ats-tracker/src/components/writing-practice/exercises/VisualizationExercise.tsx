@@ -96,8 +96,12 @@ export function VisualizationExercise({ onComplete, onClose }: VisualizationExer
             <h2 className="text-2xl font-bold text-slate-900">Visualization Exercise</h2>
             <p className="text-sm text-slate-600 mt-1">Step {step + 1} of {steps.length}</p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
-            <Icon icon="mingcute:close-line" width={24} />
+          <button 
+            onClick={onClose} 
+            className="text-slate-400 hover:text-slate-600"
+            aria-label="Close exercise"
+          >
+            <Icon icon="mingcute:close-line" width={24} aria-hidden="true" />
           </button>
         </div>
 

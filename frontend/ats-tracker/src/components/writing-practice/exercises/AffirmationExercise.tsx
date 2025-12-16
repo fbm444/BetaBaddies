@@ -81,8 +81,12 @@ export function AffirmationExercise({ onComplete, onClose }: AffirmationExercise
               {readAffirmations.size} of {affirmations.length} affirmations read
             </p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
-            <Icon icon="mingcute:close-line" width={24} />
+          <button 
+            onClick={onClose} 
+            className="text-slate-400 hover:text-slate-600"
+            aria-label="Close exercise"
+          >
+            <Icon icon="mingcute:close-line" width={24} aria-hidden="true" />
           </button>
         </div>
 

@@ -116,7 +116,12 @@ export function ApiMonitoring() {
       setDashboard(data);
     } catch (err: any) {
       console.error("Failed to load dashboard:", err);
-      setError(err.message || "Failed to load dashboard");
+      // Check for 403 Forbidden (admin access required)
+      if (err?.status === 403 || err?.message?.includes("Administrator access required") || err?.message?.includes("FORBIDDEN")) {
+        setError("Administrator access required. This page is only available to administrators.");
+      } else {
+        setError(err.message || "Failed to load dashboard");
+      }
     } finally {
       setLoading(false);
     }
@@ -131,7 +136,11 @@ export function ApiMonitoring() {
       setRecentErrors(errors);
     } catch (err: any) {
       console.error("Failed to load errors:", err);
-      setError(err.message || "Failed to load error logs");
+      if (err?.status === 403 || err?.message?.includes("Administrator access required") || err?.message?.includes("FORBIDDEN")) {
+        setError("Administrator access required. This page is only available to administrators.");
+      } else {
+        setError(err.message || "Failed to load error logs");
+      }
     }
   };
 
@@ -143,7 +152,11 @@ export function ApiMonitoring() {
       setAlerts(alertData);
     } catch (err: any) {
       console.error("Failed to load alerts:", err);
-      setError(err.message || "Failed to load alerts");
+      if (err?.status === 403 || err?.message?.includes("Administrator access required") || err?.message?.includes("FORBIDDEN")) {
+        setError("Administrator access required. This page is only available to administrators.");
+      } else {
+        setError(err.message || "Failed to load alerts");
+      }
     }
   };
 
@@ -156,7 +169,11 @@ export function ApiMonitoring() {
       setWeeklyReports(reports);
     } catch (err: any) {
       console.error("Failed to load weekly reports:", err);
-      setError(err.message || "Failed to load weekly reports");
+      if (err?.status === 403 || err?.message?.includes("Administrator access required") || err?.message?.includes("FORBIDDEN")) {
+        setError("Administrator access required. This page is only available to administrators.");
+      } else {
+        setError(err.message || "Failed to load weekly reports");
+      }
     }
   };
 
@@ -210,21 +227,38 @@ export function ApiMonitoring() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <Icon icon="mingcute:loading-line" className="animate-spin text-4xl text-blue-500" />
+          <Icon icon="mingcute:loading-line" className="animate-spin text-4xl text-blue-700" />
           <p className="mt-4 text-slate-600">Loading API monitoring data...</p>
         </div>
       </div>
     );
   }
 
-  if (!dashboard && !loading) {
+  // Show error message if there's an error (especially for 403/admin access)
+  if (error && (error.includes("Administrator access required") || error.includes("FORBIDDEN"))) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center max-w-md">
+          <Icon icon="mingcute:shield-error-line" className="text-6xl text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-semibold text-slate-900 mb-2">Administrator Access Required</h2>
+          <p className="text-slate-600 mb-4">{error}</p>
+          <p className="text-sm text-slate-500">
+            The API Monitoring page is only available to users with administrator privileges.
+            Please contact your system administrator to request access.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!dashboard && !loading && !error) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <p className="text-slate-600">No dashboard data available. Please try refreshing.</p>
           <button
             onClick={loadDashboard}
-            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            className="mt-4 px-4 py-2 bg-blue-700 text-white rounded hover:bg-blue-800"
           >
             Retry
           </button>
@@ -253,23 +287,30 @@ export function ApiMonitoring() {
               Auto-refresh
             </label>
             {autoRefresh && (
-              <select
-                value={refreshInterval}
-                onChange={(e) => setRefreshInterval(Number(e.target.value))}
-                className="ml-2 px-2 py-1 border rounded text-sm"
-              >
-                <option value={3}>3s</option>
-                <option value={5}>5s</option>
-                <option value={10}>10s</option>
-                <option value={30}>30s</option>
-                <option value={60}>1m</option>
-              </select>
+              <>
+                <label htmlFor="refresh-interval-select" className="sr-only">
+                  Refresh interval
+                </label>
+                <select
+                  id="refresh-interval-select"
+                  value={refreshInterval}
+                  onChange={(e) => setRefreshInterval(Number(e.target.value))}
+                  className="ml-2 px-2 py-1 border rounded text-sm"
+                  aria-label="Refresh interval"
+                >
+                  <option value={3}>3s</option>
+                  <option value={5}>5s</option>
+                  <option value={10}>10s</option>
+                  <option value={30}>30s</option>
+                  <option value={60}>1m</option>
+                </select>
+              </>
             )}
           </div>
           <button
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 flex items-center gap-2"
+            className="px-4 py-2 bg-blue-700 text-white rounded hover:bg-blue-800 disabled:opacity-50 flex items-center gap-2"
           >
             <Icon
               icon="mingcute:refresh-line"
@@ -319,13 +360,15 @@ export function ApiMonitoring() {
       {/* Filters */}
       <div className="mb-6 flex gap-4 items-end">
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
+          <label htmlFor="service-select" className="block text-sm font-medium text-slate-700 mb-1">
             Service
           </label>
           <select
+            id="service-select"
             value={selectedService}
             onChange={(e) => setSelectedService(e.target.value)}
             className="px-3 py-2 border rounded"
+            aria-label="Filter by service"
           >
             <option value="">All Services</option>
             <option value="openai">OpenAI</option>
@@ -337,13 +380,15 @@ export function ApiMonitoring() {
         </div>
         {activeTab === "dashboard" && (
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
+            <label htmlFor="stats-period-select" className="block text-sm font-medium text-slate-700 mb-1">
               Stats Period
             </label>
             <select
+              id="stats-period-select"
               value={statsPeriod}
               onChange={(e) => setStatsPeriod(e.target.value)}
               className="px-3 py-2 border rounded"
+              aria-label="Statistics period"
             >
               <option value="all_time">All Time</option>
               <option value="last_7_days">Last 7 Days</option>
@@ -931,7 +976,7 @@ export function ApiMonitoring() {
               <button
                 onClick={handleGenerateReport}
                 disabled={generatingReport}
-                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+                className="px-4 py-2 bg-blue-700 text-white rounded hover:bg-blue-800 disabled:opacity-50"
               >
                 {generatingReport ? "Generating..." : "Generate Report"}
               </button>

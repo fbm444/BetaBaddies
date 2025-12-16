@@ -150,7 +150,7 @@ export function Employment() {
     return (
       <div className="p-10 max-w-[1400px] mx-auto font-poppins min-h-full flex items-center justify-center">
         <div className="text-center">
-          <Icon icon="mingcute:loading-line" className="animate-spin text-blue-500 mx-auto mb-4" width={48} />
+          <Icon icon="mingcute:loading-line" className="animate-spin text-blue-700 mx-auto mb-4" width={48} />
           <div className="text-2xl font-semibold text-slate-900 mb-2">Loading employment history...</div>
           <div className="text-base text-slate-500">Please wait</div>
         </div>
@@ -174,7 +174,7 @@ export function Employment() {
         </div>
         <button
           onClick={() => setShowAddModal(true)}
-          className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium flex items-center gap-2"
+          className="px-6 py-3 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors font-medium flex items-center gap-2"
         >
           <Icon icon="mingcute:add-line" width={20} />
           Add Position
@@ -204,7 +204,7 @@ export function Employment() {
               onClick={() => setViewMode('list')}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                 viewMode === 'list'
-                  ? 'bg-blue-500 text-white'
+                  ? 'bg-blue-700 text-white'
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
@@ -215,7 +215,7 @@ export function Employment() {
               onClick={() => setViewMode('timeline')}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                 viewMode === 'timeline'
-                  ? 'bg-blue-500 text-white'
+                  ? 'bg-blue-700 text-white'
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
@@ -230,7 +230,7 @@ export function Employment() {
               onClick={() => setFilterMode('all')}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                 filterMode === 'all'
-                  ? 'bg-blue-500 text-white'
+                  ? 'bg-blue-700 text-white'
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
@@ -259,10 +259,15 @@ export function Employment() {
           </div>
 
           {/* Sort */}
+          <label htmlFor="sort-select" className="sr-only">
+            Sort by
+          </label>
           <select
+            id="sort-select"
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as any)}
-            className="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-700 focus:border-transparent"
+            aria-label="Sort jobs by"
           >
             <option value="newest">Newest First</option>
             <option value="oldest">Oldest First</option>
@@ -275,21 +280,21 @@ export function Employment() {
       {statistics && (
         <div className="grid grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-            <div className="text-3xl font-bold text-blue-500 mb-2">{statistics.totalJobs}</div>
+            <div className="text-3xl font-bold text-blue-700 mb-2">{statistics.totalJobs}</div>
             <div className="text-sm text-slate-600">Total Positions</div>
           </div>
           <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-            <div className="text-3xl font-bold text-blue-500 mb-2">{statistics.totalExperienceYears}</div>
+            <div className="text-3xl font-bold text-blue-700 mb-2">{statistics.totalExperienceYears}</div>
             <div className="text-sm text-slate-600">Total Experience</div>
           </div>
           <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-            <div className="text-3xl font-bold text-blue-500 mb-2">
+            <div className="text-3xl font-bold text-blue-700 mb-2">
               {statistics.averageTenureMonths ? `${Math.round(statistics.averageTenureMonths / 12 * 10) / 10}y` : 'N/A'}
             </div>
             <div className="text-sm text-slate-600">Avg Tenure</div>
           </div>
           <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-            <div className="text-3xl font-bold text-blue-500 mb-2">{statistics.companiesWorked}</div>
+            <div className="text-3xl font-bold text-blue-700 mb-2">{statistics.companiesWorked}</div>
             <div className="text-sm text-slate-600">Companies</div>
           </div>
         </div>
@@ -308,7 +313,7 @@ export function Employment() {
           {filterMode === 'all' && (
             <button
               onClick={() => setShowAddModal(true)}
-              className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium inline-flex items-center gap-2"
+              className="px-6 py-3 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors font-medium inline-flex items-center gap-2"
             >
               <Icon icon="mingcute:add-line" width={20} />
               Add Your First Position
@@ -678,7 +683,7 @@ function JobFormModal({
               id="isCurrent"
               checked={formData.isCurrent}
               onChange={(e) => setFormData({ ...formData, isCurrent: e.target.checked, endDate: e.target.checked ? '' : formData.endDate })}
-              className="w-4 h-4 text-blue-500 border-slate-300 rounded focus:ring-blue-500"
+              className="w-4 h-4 text-blue-700 border-slate-300 rounded focus:ring-blue-500"
               disabled={isSubmitting}
             />
             <label htmlFor="isCurrent" className="text-sm font-medium text-slate-700">
@@ -736,7 +741,7 @@ function JobFormModal({
             <button
               type="submit"
               disabled={isSubmitting || !isFormValid}
-              className="flex-1 px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+              className="flex-1 px-6 py-3 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors font-medium disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {isSubmitting ? (
                 <>

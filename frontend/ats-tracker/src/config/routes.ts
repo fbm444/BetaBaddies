@@ -50,6 +50,7 @@ export const ROUTES = {
   NETWORK_CONTACTS: "/network/contacts",
   NETWORK_EVENTS: "/network/events",
   NETWORK_REFERRALS: "/network/referrals",
+  FOLLOW_UP_REMINDERS: "/follow-up-reminders",
   API_MONITORING: "/admin/api-monitoring",
 } as const;
 
@@ -291,3 +292,5 @@ export const navigationItems: NavigationItem[] = navigationGroups.flatMap(
 // Type exports for TypeScript
 export type RouteKey = keyof typeof ROUTES;
 export type RoutePath = (typeof ROUTES)[RouteKey];
+
+

@@ -85,8 +85,12 @@ export function AddProgressionEntryModal({
       <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b border-slate-200 flex items-center justify-between">
           <h2 className="text-2xl font-bold text-slate-900">Add Salary Progression Entry</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
-            <Icon icon="mingcute:close-line" width={24} />
+          <button 
+            onClick={onClose} 
+            className="text-slate-400 hover:text-slate-600"
+            aria-label="Close modal"
+          >
+            <Icon icon="mingcute:close-line" width={24} aria-hidden="true" />
           </button>
         </div>
 
@@ -254,7 +258,7 @@ export function AddProgressionEntryModal({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-6 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {isSubmitting ? (
                 <>

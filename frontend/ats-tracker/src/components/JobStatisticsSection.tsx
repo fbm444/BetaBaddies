@@ -67,7 +67,7 @@ export function JobStatisticsSection({ scrollRef }: JobStatisticsSectionProps) {
           <div className="flex min-h-[260px] items-center justify-center rounded-[30px] bg-[#F8F8F8]">
             <div className="text-center">
               <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-blue-500" />
-              <p className="text-sm text-[#6D7A99]">Loading job analytics...</p>
+              <p className="text-sm text-slate-700">Loading job analytics...</p>
             </div>
           </div>
         </div>
@@ -127,7 +127,7 @@ export function JobStatisticsSection({ scrollRef }: JobStatisticsSectionProps) {
         <div className="mb-8 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h2 className="text-4xl font-bold text-[#0F1D3A]">Job Search Statistics</h2>
-            <p className="mt-2 text-sm text-[#6D7A99]">
+            <p className="mt-2 text-sm text-slate-700">
               Track your progress and identify patterns
             </p>
           </div>
@@ -247,7 +247,7 @@ export function JobStatisticsSection({ scrollRef }: JobStatisticsSectionProps) {
                               </div>
                               <div className="flex items-center gap-3">
                                 <span className="text-sm font-semibold text-[#0F1D3A]">{count}</span>
-                                <span className="text-sm font-medium text-[#94A3C0]">{percentage}%</span>
+                                <span className="text-sm font-medium text-slate-600">{percentage}%</span>
                               </div>
                             </div>
                             <div className="h-2.5 w-full overflow-hidden rounded-full bg-[#EEF0FB]">
@@ -274,10 +274,15 @@ export function JobStatisticsSection({ scrollRef }: JobStatisticsSectionProps) {
                         >
                           Monthly Application Volume
                         </h3>
+                        <label htmlFor="monthly-volume-period-select" className="sr-only">
+                          Select time period for monthly application volume
+                        </label>
                         <select
+                          id="monthly-volume-period-select"
                           value={monthlyVolumePeriod}
                           onChange={(e) => setMonthlyVolumePeriod(Number(e.target.value))}
                           className="rounded-lg border border-[#E4E8F5] bg-white px-3 py-1.5 text-sm font-medium text-[#0F1D3A] focus:border-[#3351FD] focus:outline-none focus:ring-2 focus:ring-[#3351FD]/20"
+                          aria-label="Select time period for monthly application volume"
                         >
                           <option value={6}>Last 6 Months</option>
                           <option value={7}>Last 7 Months</option>
@@ -287,7 +292,7 @@ export function JobStatisticsSection({ scrollRef }: JobStatisticsSectionProps) {
                       {monthlyVolume.length > 0 ? (
                         <div className="grid grid-cols-[40px_minmax(0,1fr)] gap-4">
                           {/* Y-axis labels */}
-                          <div className="flex flex-col justify-between pb-8 text-xs font-medium text-[#737DA3]">
+                          <div className="flex flex-col justify-between pb-8 text-xs font-medium text-slate-700">
                             {yAxisLabels.slice().reverse().map((label) => (
                               <span key={label}>{label}</span>
                             ))}
@@ -320,7 +325,7 @@ export function JobStatisticsSection({ scrollRef }: JobStatisticsSectionProps) {
                                       />
                                     </div>
                                     {/* Month label */}
-                                    <div className="text-xs font-medium text-[#727EA2] whitespace-nowrap">
+                                    <div className="text-xs font-medium text-slate-700 whitespace-nowrap">
                                       {monthLabel}
                                     </div>
                                   </div>
@@ -369,7 +374,7 @@ export function JobStatisticsSection({ scrollRef }: JobStatisticsSectionProps) {
                           <span className="text-lg font-semibold">
                             {avgDays > 0 ? avgDays : "--"}
                           </span>
-                          <span className="text-[10px] font-medium text-[#6D7A99]">Days</span>
+                          <span className="text-[10px] font-medium text-slate-700">Days</span>
                         </div>
                       </div>
                     );
@@ -389,14 +394,14 @@ export function JobStatisticsSection({ scrollRef }: JobStatisticsSectionProps) {
                   Skill Gap Trends
                 </h3>
                 {skillGapTrends.totalJobsWithSnapshots > 0 && (
-                  <span className="text-xs font-medium text-[#6D7A99]">
+                  <span className="text-xs font-medium text-slate-700">
                     Across {skillGapTrends.totalJobsWithSnapshots} job
                     {skillGapTrends.totalJobsWithSnapshots === 1 ? "" : "s"}
                   </span>
                 )}
               </div>
               {skillGapTrends.totalJobsWithSnapshots === 0 ? (
-                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-[#6D7A99]">
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-700">
                   Run a skill gap analysis on a job to start tracking recurring gaps and recommended learning paths.
                 </div>
               ) : (
@@ -464,7 +469,7 @@ export function JobStatisticsSection({ scrollRef }: JobStatisticsSectionProps) {
                               <Icon icon="mingcute:warning-line" width={12} />
                               {job.totalGaps} gap{job.totalGaps === 1 ? "" : "s"}
                             </span>
-                            <p className="mt-1 text-[10px] text-slate-400">
+                            <p className="mt-1 text-[10px] text-slate-600">
                               {new Date(job.generatedAt).toLocaleDateString()}
                             </p>
                           </div>

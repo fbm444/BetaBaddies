@@ -1,5 +1,3 @@
-import { asyncHandler } from "./errorHandler.js";
-
 // Middleware to check if user is authenticated
 export const isAuthenticated = (req, res, next) => {
   console.log(`[isAuthenticated] Checking authentication for ${req.method} ${req.path}`);
@@ -24,6 +22,9 @@ export const isAuthenticated = (req, res, next) => {
     },
   });
 };
+
+// Backwards-compatible alias used by some routes
+export const requireAuth = isAuthenticated;
 
 // Rate limiting middleware for authentication attempts
 export const authRateLimit = (windowMs, maxAttempts) => (req, res, next) => {

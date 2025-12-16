@@ -128,8 +128,12 @@ export function BreathingExercise({ onComplete, onClose }: BreathingExerciseProp
             <h2 className="text-2xl font-bold text-slate-900">Breathing Exercise</h2>
             <p className="text-sm text-slate-600 mt-1">Cycle {cycle + 1} of {totalCycles}</p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
-            <Icon icon="mingcute:close-line" width={24} />
+          <button 
+            onClick={onClose} 
+            className="text-slate-400 hover:text-slate-600"
+            aria-label="Close exercise"
+          >
+            <Icon icon="mingcute:close-line" width={24} aria-hidden="true" />
           </button>
         </div>
 
@@ -138,7 +142,7 @@ export function BreathingExercise({ onComplete, onClose }: BreathingExerciseProp
           {!isRunning && cycle === 0 && phase === "inhale" && (
             <div className="text-center space-y-6">
               <div className="bg-blue-50 rounded-xl p-8 border border-blue-200">
-                <Icon icon="mingcute:wind-line" width={64} className="text-blue-500 mx-auto mb-4" />
+                <Icon icon="mingcute:wind-line" width={64} className="text-blue-700 mx-auto mb-4" />
                 <h3 className="text-xl font-semibold text-blue-900 mb-2">4-4-4-2 Breathing</h3>
                 <p className="text-blue-800">
                   This exercise will guide you through 5 cycles of breathing:
@@ -164,7 +168,7 @@ export function BreathingExercise({ onComplete, onClose }: BreathingExerciseProp
               </div>
               <button
                 onClick={startExercise}
-                className="px-8 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-lg"
+                className="px-8 py-3 bg-blue-700 text-white rounded-lg hover:bg-blue-800 font-medium text-lg"
               >
                 Start Exercise
               </button>
@@ -237,7 +241,7 @@ export function BreathingExercise({ onComplete, onClose }: BreathingExerciseProp
                       onClick={() => setEffectivenessRating(rating)}
                       className={`w-12 h-12 rounded-lg font-semibold transition-colors ${
                         effectivenessRating === rating
-                          ? "bg-blue-500 text-white"
+                          ? "bg-blue-700 text-white"
                           : "bg-white border-2 border-slate-300 text-slate-700 hover:border-blue-300"
                       }`}
                     >
@@ -264,7 +268,7 @@ export function BreathingExercise({ onComplete, onClose }: BreathingExerciseProp
               <button
                 onClick={handleComplete}
                 disabled={isSubmitting}
-                className="w-full px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-6 py-3 bg-blue-700 text-white rounded-lg hover:bg-blue-800 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? "Saving..." : "Complete Exercise"}
               </button>

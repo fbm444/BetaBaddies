@@ -47,7 +47,7 @@ export function ProtectedRoute({ children, requireAuth = true }: ProtectedRouteP
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="flex flex-col items-center gap-4">
-          <Icon icon="mingcute:loading-line" width={48} height={48} className="animate-spin text-blue-500" />
+          <Icon icon="mingcute:loading-line" width={48} height={48} className="animate-spin text-blue-700" />
           <p className="text-slate-600">Checking authentication...</p>
         </div>
       </div>

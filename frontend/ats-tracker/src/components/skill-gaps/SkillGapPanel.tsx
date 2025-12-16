@@ -323,7 +323,7 @@ export function JobSkillGapPanel({ opportunity, onHistorySync }: JobSkillGapPane
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">
-            <Icon icon="mingcute:briefcase-line" className="text-blue-500" width={20} />
+            <Icon icon="mingcute:briefcase-line" className="text-blue-700" width={20} />
             <h3 className="text-lg font-semibold text-slate-900">
               Skill Gaps & Learning Plan
             </h3>
@@ -353,7 +353,7 @@ export function JobSkillGapPanel({ opportunity, onHistorySync }: JobSkillGapPane
               type="button"
               onClick={handleGenerateClick}
               disabled={loading || refreshing}
-              className="inline-flex items-center gap-2 rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white shadow hover:bg-blue-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow hover:bg-blue-800 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <Icon 
                 icon="mingcute:radar-line" 
@@ -398,7 +398,7 @@ export function JobSkillGapPanel({ opportunity, onHistorySync }: JobSkillGapPane
       {!loading && !snapshot && !previousSnapshot ? (
         <div className="mt-6 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-600 transition-opacity duration-300">
           <div className="flex items-center gap-3">
-            <Icon icon="mingcute:lightbulb-line" width={22} className="text-blue-500" />
+            <Icon icon="mingcute:lightbulb-line" width={22} className="text-blue-700" />
             <div>
               <p className="font-medium text-slate-800">
                 Generate a skill gap analysis to see personalized recommendations.
@@ -504,7 +504,7 @@ export function JobSkillGapPanel({ opportunity, onHistorySync }: JobSkillGapPane
                     <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                       <div>
                         <div className="flex items-center gap-2">
-                          <Icon icon="mingcute:compass-3-line" className="text-blue-500" width={18} />
+                          <Icon icon="mingcute:compass-3-line" className="text-blue-700" width={18} />
                           <h4 className="text-base font-semibold text-slate-900">
                             {gap.skillName}
                           </h4>
@@ -542,7 +542,7 @@ export function JobSkillGapPanel({ opportunity, onHistorySync }: JobSkillGapPane
                               <Icon
                                 icon="mingcute:open-book-line"
                                 width={18}
-                                className="mt-1 text-blue-500 transition group-hover:text-blue-600"
+                                className="mt-1 text-blue-700 transition group-hover:text-blue-600"
                               />
                               <div>
                                 <p className="font-medium text-slate-800 group-hover:text-blue-600">
@@ -643,7 +643,7 @@ export function JobSkillGapPanel({ opportunity, onHistorySync }: JobSkillGapPane
           {sortedSnapshots.length > 0 && (
             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="flex items-center gap-2 mb-5">
-                <Icon icon="mingcute:history-line" className="text-blue-500" width={20} />
+                <Icon icon="mingcute:history-line" className="text-blue-700" width={20} />
                 <h4 className="text-base font-semibold text-slate-900">
                   Analysis History & Trends
                 </h4>
@@ -671,7 +671,7 @@ export function JobSkillGapPanel({ opportunity, onHistorySync }: JobSkillGapPane
                     >
                       {isLatest && (
                         <div className="absolute -top-2.5 -right-2.5">
-                          <span className="inline-flex items-center gap-1 rounded-full bg-blue-500 px-2.5 py-1 text-xs font-semibold text-white shadow-sm">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-blue-700 px-2.5 py-1 text-xs font-semibold text-white shadow-sm">
                             <Icon icon="mingcute:star-fill" width={12} />
                             Latest
                           </span>
@@ -682,7 +682,7 @@ export function JobSkillGapPanel({ opportunity, onHistorySync }: JobSkillGapPane
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-3">
                             <div className={`flex items-center justify-center w-10 h-10 rounded-full ${
-                              isLatest ? "bg-blue-500" : "bg-slate-200"
+                              isLatest ? "bg-blue-700" : "bg-slate-200"
                             }`}>
                               <Icon 
                                 icon="mingcute:radar-line" 
@@ -1076,7 +1076,7 @@ function ProgressModal({ open, gap, loading, onClose, onSubmit }: ProgressModalP
             <button
               type="submit"
               disabled={loading}
-              className="inline-flex items-center gap-2 rounded-lg bg-blue-500 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-600 transition-colors disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-800 transition-colors disabled:opacity-60"
             >
               {loading ? (
                 <>

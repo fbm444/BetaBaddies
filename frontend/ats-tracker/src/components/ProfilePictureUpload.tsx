@@ -214,8 +214,9 @@ export default function ProfilePictureUpload() {
           <button 
             onClick={() => setSuccess(null)}
             className="text-green-600 hover:text-green-800"
+            aria-label="Close success message"
           >
-            <Icon icon="mingcute:close-line" width={16} height={16} />
+            <Icon icon="mingcute:close-line" width={16} height={16} aria-hidden="true" />
           </button>
         </div>
       )}
@@ -230,8 +231,9 @@ export default function ProfilePictureUpload() {
           <button 
             onClick={() => setError(null)}
             className="text-red-600 hover:text-red-800"
+            aria-label="Close error message"
           >
-            <Icon icon="mingcute:close-line" width={16} height={16} />
+            <Icon icon="mingcute:close-line" width={16} height={16} aria-hidden="true" />
           </button>
         </div>
       )}
@@ -254,6 +256,7 @@ export default function ProfilePictureUpload() {
         {!previewUrl && !uploading && (
           <button
             onClick={triggerFileInput}
+            aria-label="Upload or change profile picture"
             className="absolute inset-0 rounded-full bg-black bg-opacity-0 hover:bg-opacity-50 transition-all duration-200 flex items-center justify-center group"
           >
             <Icon 
@@ -261,6 +264,7 @@ export default function ProfilePictureUpload() {
               className="text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" 
               width={32} 
               height={32}
+              aria-hidden="true"
             />
           </button>
         )}

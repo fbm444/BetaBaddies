@@ -307,7 +307,7 @@ export function ChatWindow({ conversationId, title, onClose, className = "", cur
     return (
       <div className={`bg-white rounded-lg shadow-lg flex flex-col h-full ${className}`}>
         <div className="flex items-center justify-center h-full">
-          <Icon icon="mingcute:loading-line" width={32} className="animate-spin text-blue-500" />
+          <Icon icon="mingcute:loading-line" width={32} className="animate-spin text-blue-700" />
         </div>
       </div>
     );

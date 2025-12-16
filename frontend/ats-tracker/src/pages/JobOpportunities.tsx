@@ -83,6 +83,10 @@ export function JobOpportunities() {
     useState<JobOpportunityFiltersState>(filters);
   const [searchValue, setSearchValue] = useState(filters.search || "");
   const messageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const filterModalRef = useRef<HTMLDivElement>(null);
+  const addModalRef = useRef<HTMLDivElement>(null);
+  const editModalRef = useRef<HTMLDivElement>(null);
+  const deleteModalRef = useRef<HTMLDivElement>(null);
   const [matchScores, setMatchScores] = useState<Map<string, number>>(new Map());
   const [loadingMatchScores, setLoadingMatchScores] = useState<Set<string>>(new Set());
   
@@ -133,6 +137,86 @@ export function JobOpportunities() {
       }
     };
   }, []);
+
+  // Handle Escape key to close modals
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (isFiltersOpen) {
+          setIsFiltersOpen(false);
+        }
+        if (showAddModal) {
+          handleCloseAddModal();
+        }
+        if (showEditModal && selectedOpportunity) {
+          setShowEditModal(false);
+          setSelectedOpportunity(null);
+        }
+        if (showDeleteModal && selectedOpportunity) {
+          setShowDeleteModal(false);
+          setSelectedOpportunity(null);
+        }
+        if (showDetailModal && selectedOpportunity) {
+          setShowDetailModal(false);
+          setSelectedOpportunity(null);
+        }
+        if (showArchiveModal) {
+          setShowArchiveModal(false);
+          setArchiveTarget(null);
+        }
+        if (showImportModal) {
+          setShowImportModal(false);
+        }
+        if (showMapView) {
+          setShowMapView(false);
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [
+    isFiltersOpen,
+    showAddModal,
+    showEditModal,
+    showDeleteModal,
+    showDetailModal,
+    showArchiveModal,
+    showImportModal,
+    showMapView,
+    selectedOpportunity,
+  ]);
+
+  // Focus management for modals
+  useEffect(() => {
+    if (isFiltersOpen && filterModalRef.current) {
+      const firstInput = filterModalRef.current.querySelector<HTMLElement>(
+        'input, select, button:not([disabled])'
+      );
+      firstInput?.focus();
+    }
+  }, [isFiltersOpen]);
+
+  useEffect(() => {
+    if (showAddModal && addModalRef.current) {
+      const firstInput = addModalRef.current.querySelector<HTMLElement>(
+        'input:not([disabled]), select:not([disabled])'
+      );
+      firstInput?.focus();
+    }
+  }, [showAddModal]);
+
+  useEffect(() => {
+    if (showEditModal && editModalRef.current) {
+      const firstInput = editModalRef.current.querySelector<HTMLElement>(
+        'input:not([disabled]), select:not([disabled])'
+      );
+      firstInput?.focus();
+    }
+  }, [showEditModal]);
+
 
   const showMessage = (text: string, type: "success" | "error") => {
     if (messageTimeoutRef.current) {
@@ -589,7 +673,7 @@ export function JobOpportunities() {
         <div className="text-center">
           <Icon
             icon="mingcute:loading-line"
-            className="animate-spin text-blue-500 mx-auto mb-4"
+            className="animate-spin text-blue-700 mx-auto mb-4"
             width={48}
           />
           <div className="text-2xl font-semibold text-slate-900 mb-2">
@@ -614,8 +698,9 @@ export function JobOpportunities() {
               <div className="relative flex-1">
                 <Icon
                   icon="mingcute:search-line"
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
                   width={20}
+                  aria-hidden="true"
                 />
                 <input
                   type="text"
@@ -640,9 +725,10 @@ export function JobOpportunities() {
                         return { ...prev, search: undefined };
                       });
                     }}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700"
+                    aria-label="Clear search"
                   >
-                    <Icon icon="mingcute:close-line" width={18} />
+                    <Icon icon="mingcute:close-line" width={18} aria-hidden="true" />
                   </button>
                 )}
               </div>
@@ -664,7 +750,7 @@ export function JobOpportunities() {
               <>
                 <button
                   onClick={() => handleOpenAddModal(undefined, null)}
-                  className="px-4 py-2 rounded-full bg-[#5490FF] text-white text-sm font-semibold inline-flex items-center gap-2 shadow hover:bg-[#4478D9]"
+                  className="px-4 py-2 rounded-full bg-blue-700 text-white text-sm font-semibold inline-flex items-center gap-2 shadow hover:bg-blue-800"
                 >
                   <Icon icon="mingcute:add-line" width={16} />
                   Add New Application
@@ -698,47 +784,69 @@ export function JobOpportunities() {
 
         {/* Filters Modal */}
         {isFiltersOpen && (
-          <div className="fixed inset-0 z-40 flex justify-end">
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 z-[110] flex items-center justify-center p-4"
+            onClick={() => setIsFiltersOpen(false)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                setIsFiltersOpen(false);
+              }
+            }}
+          >
             <div
-              className="absolute inset-0 bg-slate-900/30"
-              onClick={() => setIsFiltersOpen(false)}
-            />
-            <div className="relative h-full w-full max-w-md bg-white shadow-2xl border-l border-slate-200 pt-12 pb-6 px-6 overflow-y-auto">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-slate-900">Filters</h2>
-                <button
-                  onClick={() => setIsFiltersOpen(false)}
-                  className="text-slate-400 hover:text-slate-600"
-                >
-                  <Icon icon="mingcute:close-line" width={22} />
-                </button>
-              </div>
-              <FiltersComponent
-                filters={pendingFilters}
-                onFiltersChange={setPendingFilters}
-                onClearFilters={() => {
-                  const cleared = { sort: "-created_at" };
-                  setPendingFilters(cleared);
-                  setFilters(cleared);
-                  setSearchValue("");
-                }}
-                hideSearchBar
-                variant="plain"
-                viewMode={viewMode}
-                onViewModeChange={handleViewModeChange}
-                showArchivedValue={showArchived}
-                onArchivedToggle={handleToggleArchived}
-              />
-              <div className="mt-6">
-                <button
-                  onClick={() => {
-                    setFilters(pendingFilters);
-                    setIsFiltersOpen(false);
+              ref={filterModalRef}
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="filter-modal-title"
+            >
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 id="filter-modal-title" className="text-2xl font-semibold text-slate-900">Filters</h2>
+                  <button
+                    onClick={() => setIsFiltersOpen(false)}
+                    className="text-slate-500 hover:text-slate-700"
+                    aria-label="Close filters"
+                  >
+                    <Icon icon="mingcute:close-line" width={24} aria-hidden="true" />
+                  </button>
+                </div>
+                <FiltersComponent
+                  filters={pendingFilters}
+                  onFiltersChange={setPendingFilters}
+                  onClearFilters={() => {
+                    const cleared = { sort: "-created_at" };
+                    setPendingFilters(cleared);
+                    setFilters(cleared);
+                    setSearchValue("");
                   }}
-                  className="w-full px-4 py-3 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors font-medium"
-                >
-                  Apply Filters
-                </button>
+                  hideSearchBar
+                  variant="plain"
+                  viewMode={viewMode}
+                  onViewModeChange={handleViewModeChange}
+                  showArchivedValue={showArchived}
+                  onArchivedToggle={handleToggleArchived}
+                />
+                <div className="mt-6 flex gap-3 pt-4 border-t border-slate-200">
+                  <button
+                    onClick={() => {
+                      setIsFiltersOpen(false);
+                    }}
+                    className="flex-1 px-6 py-3 bg-slate-200 text-slate-800 rounded-lg hover:bg-slate-300 transition-colors font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      setFilters(pendingFilters);
+                      setIsFiltersOpen(false);
+                    }}
+                    className="flex-1 px-6 py-3 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors font-medium"
+                  >
+                    Apply Filters
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -809,9 +917,10 @@ export function JobOpportunities() {
           <Icon
             icon={showArchived ? "mingcute:archive-line" : "mingcute:briefcase-line"}
             width={64}
-            className="mx-auto text-slate-300 mb-4"
+            className="mx-auto text-slate-400 mb-4"
+            aria-hidden="true"
           />
-          <h3 className="text-xl font-semibold text-slate-900 mb-2">
+          <h2 className="text-xl font-semibold text-slate-900 mb-2">
             {showArchived
               ? "No Archived Jobs"
               : filters.search ||
@@ -824,7 +933,7 @@ export function JobOpportunities() {
                 filters.deadlineTo
               ? "No jobs match your filters"
               : "No Job Opportunities Yet"}
-          </h3>
+          </h2>
           <p className="text-slate-600 mb-6">
             {showArchived
               ? "You haven't archived any job opportunities yet. Archive completed or irrelevant jobs to keep your active list organized."
@@ -850,7 +959,7 @@ export function JobOpportunities() {
               filters.deadlineTo) && (
               <button
                 onClick={() => setShowAddModal(true)}
-                className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium inline-flex items-center gap-2"
+                className="px-6 py-3 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors font-medium inline-flex items-center gap-2"
               >
                 <Icon icon="mingcute:add-line" width={20} />
                 Add Your First Opportunity
@@ -958,7 +1067,7 @@ export function JobOpportunities() {
                 type="checkbox"
                 checked={selectedIds.size === opportunities.length && opportunities.length > 0}
                 onChange={toggleSelectAll}
-                className="w-4 h-4 text-blue-500 border-slate-300 rounded focus:ring-blue-500"
+                className="w-4 h-4 text-blue-700 border-slate-300 rounded focus:ring-blue-500"
               />
               <label className="text-sm font-medium text-slate-700">
                 Select all ({opportunities.length})
@@ -1074,9 +1183,9 @@ export function JobOpportunities() {
         <div className="mt-8 p-6 bg-white rounded-lg shadow-sm border border-slate-200">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-semibold text-slate-900 mb-2">
+              <h2 className="text-lg font-semibold text-slate-900 mb-2">
                 View Job Opportunities on Map
-              </h3>
+              </h2>
               <p className="text-sm text-slate-600">
                 See all your job opportunities plotted on a map relative to your home location.
                 This helps you visualize commute distances and geographic distribution.
@@ -1084,7 +1193,7 @@ export function JobOpportunities() {
             </div>
             <button
               onClick={() => setShowMapView(true)}
-              className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2 font-medium"
+              className="px-6 py-3 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors flex items-center gap-2 font-medium"
             >
               <Icon icon="mingcute:map-line" className="w-5 h-5" />
               Open Map View
@@ -1197,13 +1306,13 @@ function OpportunityCard({
               checked={isSelected}
               onChange={onToggleSelect}
               onClick={(e) => e.stopPropagation()}
-              className="w-4 h-4 mt-1 text-blue-500 border-slate-300 rounded focus:ring-blue-500"
+              className="w-4 h-4 mt-1 text-blue-700 border-slate-300 rounded focus:ring-blue-500"
             />
           )}
           <div className="flex-1">
-            <h3 className="text-lg font-semibold text-slate-900 mb-1">
+            <h2 className="text-lg font-semibold text-slate-900 mb-1">
               {highlightSearchTerm(opportunity.title, searchTerm)}
-            </h3>
+            </h2>
             <p className="text-base font-medium text-slate-700">
               {highlightSearchTerm(opportunity.company, searchTerm)}
             </p>
@@ -1241,17 +1350,19 @@ function OpportunityCard({
             <button
               onClick={() => onEdit(opportunity)}
               className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+              aria-label={`Edit ${opportunity.title || 'job opportunity'}`}
               title="Edit"
             >
-              <Icon icon="mingcute:edit-line" width={18} />
+              <Icon icon="mingcute:edit-line" width={18} aria-hidden="true" />
             </button>
           )}
           <button
             onClick={() => onDelete(opportunity)}
             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            aria-label={`Delete ${opportunity.title || 'job opportunity'}`}
             title="Delete"
           >
-            <Icon icon="mingcute:delete-line" width={18} />
+            <Icon icon="mingcute:delete-line" width={18} aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -1424,9 +1535,19 @@ function JobOpportunityFormModal({
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
 
   const charCount = formData.description?.length || 0;
   const maxDescriptionLength = 2000;
+
+  useEffect(() => {
+    if (modalRef.current) {
+      const firstInput = modalRef.current.querySelector<HTMLElement>(
+        'input:not([disabled]), select:not([disabled])'
+      );
+      firstInput?.focus();
+    }
+  }, []);
 
   useEffect(() => {
     if (initialData) {
@@ -1544,16 +1665,32 @@ function JobOpportunityFormModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 font-poppins">
-      <div className="bg-white rounded-2xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto font-poppins">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[110] p-4 font-poppins"
+      onClick={onClose}
+      onKeyDown={(e) => {
+        if (e.key === "Escape" && !isSubmitting) {
+          onClose();
+        }
+      }}
+    >
+      <div 
+        ref={modalRef}
+        className="bg-white rounded-2xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto font-poppins"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="job-opportunity-modal-title"
+      >
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-slate-900">{title}</h2>
+          <h2 id="job-opportunity-modal-title" className="text-2xl font-bold text-slate-900">{title}</h2>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600"
+            className="text-slate-500 hover:text-slate-700"
             disabled={isSubmitting}
+            aria-label="Close modal"
           >
-            <Icon icon="mingcute:close-line" width={24} />
+            <Icon icon="mingcute:close-line" width={24} aria-hidden="true" />
           </button>
         </div>
 
@@ -1566,10 +1703,11 @@ function JobOpportunityFormModal({
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Job Title */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <label htmlFor="job-title-input" className="block text-sm font-medium text-slate-700 mb-2">
               Job Title <span className="text-red-500">*</span>
             </label>
             <input
+              id="job-title-input"
               type="text"
               value={formData.title}
               onChange={(e) =>
@@ -1580,18 +1718,22 @@ function JobOpportunityFormModal({
               }`}
               placeholder="e.g., Senior Software Engineer"
               disabled={isSubmitting}
+              aria-required="true"
+              aria-invalid={!!errors.title}
+              aria-describedby={errors.title ? "error-title" : undefined}
             />
             {errors.title && (
-              <p className="text-red-500 text-sm mt-1">{errors.title}</p>
+              <p id="error-title" className="text-red-500 text-sm mt-1" role="alert">{errors.title}</p>
             )}
           </div>
 
           {/* Company */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <label htmlFor="company-input" className="block text-sm font-medium text-slate-700 mb-2">
               Company Name <span className="text-red-500">*</span>
             </label>
             <input
+              id="company-input"
               type="text"
               value={formData.company}
               onChange={(e) =>
@@ -1602,18 +1744,22 @@ function JobOpportunityFormModal({
               }`}
               placeholder="e.g., TechCorp Inc."
               disabled={isSubmitting}
+              aria-required="true"
+              aria-invalid={!!errors.company}
+              aria-describedby={errors.company ? "error-company" : undefined}
             />
             {errors.company && (
-              <p className="text-red-500 text-sm mt-1">{errors.company}</p>
+              <p id="error-company" className="text-red-500 text-sm mt-1" role="alert">{errors.company}</p>
             )}
           </div>
 
           {/* Location */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <label htmlFor="location-input" className="block text-sm font-medium text-slate-700 mb-2">
               Location <span className="text-red-500">*</span>
             </label>
             <input
+              id="location-input"
               type="text"
               value={formData.location}
               onChange={(e) =>
@@ -1624,18 +1770,22 @@ function JobOpportunityFormModal({
               }`}
               placeholder="e.g., San Francisco, CA or Remote"
               disabled={isSubmitting}
+              aria-required="true"
+              aria-invalid={!!errors.location}
+              aria-describedby={errors.location ? "error-location" : undefined}
             />
             {errors.location && (
-              <p className="text-red-500 text-sm mt-1">{errors.location}</p>
+              <p id="error-location" className="text-red-500 text-sm mt-1" role="alert">{errors.location}</p>
             )}
           </div>
 
           {/* Status */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <label htmlFor="status-select" className="block text-sm font-medium text-slate-700 mb-2">
               Status
             </label>
             <select
+              id="status-select"
               value={formData.status}
               onChange={(e) =>
                 setFormData({ ...formData, status: e.target.value as JobStatus })
@@ -1654,14 +1804,15 @@ function JobOpportunityFormModal({
           {/* Salary Range */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+              <label htmlFor="salary-min-input" className="block text-sm font-medium text-slate-700 mb-2">
                 Minimum Salary
               </label>
               <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" aria-hidden="true">
                   $
                 </span>
                 <input
+                  id="salary-min-input"
                   type="number"
                   value={formData.salaryMin || ""}
                   onChange={(e) =>
@@ -1676,21 +1827,24 @@ function JobOpportunityFormModal({
                   placeholder="50000"
                   min="0"
                   disabled={isSubmitting}
+                  aria-invalid={!!errors.salaryMin}
+                  aria-describedby={errors.salaryMin ? "error-salary-min" : undefined}
                 />
               </div>
               {errors.salaryMin && (
-                <p className="text-red-500 text-sm mt-1">{errors.salaryMin}</p>
+                <p id="error-salary-min" className="text-red-500 text-sm mt-1" role="alert">{errors.salaryMin}</p>
               )}
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+              <label htmlFor="salary-max-input" className="block text-sm font-medium text-slate-700 mb-2">
                 Maximum Salary
               </label>
               <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" aria-hidden="true">
                   $
                 </span>
                 <input
+                  id="salary-max-input"
                   type="number"
                   value={formData.salaryMax || ""}
                   onChange={(e) =>
@@ -1705,20 +1859,23 @@ function JobOpportunityFormModal({
                   placeholder="100000"
                   min="0"
                   disabled={isSubmitting}
+                  aria-invalid={!!errors.salaryMax}
+                  aria-describedby={errors.salaryMax ? "error-salary-max" : undefined}
                 />
               </div>
               {errors.salaryMax && (
-                <p className="text-red-500 text-sm mt-1">{errors.salaryMax}</p>
+                <p id="error-salary-max" className="text-red-500 text-sm mt-1" role="alert">{errors.salaryMax}</p>
               )}
             </div>
           </div>
 
           {/* Job Posting URL */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <label htmlFor="job-posting-url-input" className="block text-sm font-medium text-slate-700 mb-2">
               Job Posting URL
             </label>
             <input
+              id="job-posting-url-input"
               type="text"
               value={formData.jobPostingUrl}
               onChange={(e) =>
@@ -1729,9 +1886,11 @@ function JobOpportunityFormModal({
               }`}
               placeholder="https://example.com/job-posting"
               disabled={isSubmitting}
+              aria-invalid={!!errors.jobPostingUrl}
+              aria-describedby={errors.jobPostingUrl ? "error-job-posting-url" : undefined}
             />
             {errors.jobPostingUrl && (
-              <p className="text-red-500 text-sm mt-1">
+              <p id="error-job-posting-url" className="text-red-500 text-sm mt-1" role="alert">
                 {errors.jobPostingUrl}
               </p>
             )}
@@ -1739,10 +1898,11 @@ function JobOpportunityFormModal({
 
           {/* Application Deadline */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <label htmlFor="application-deadline-input" className="block text-sm font-medium text-slate-700 mb-2">
               Application Deadline
             </label>
             <input
+              id="application-deadline-input"
               type="date"
               value={formData.applicationDeadline}
               onChange={(e) =>
@@ -1756,10 +1916,11 @@ function JobOpportunityFormModal({
           {/* Industry & Job Type */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+              <label htmlFor="industry-select" className="block text-sm font-medium text-slate-700 mb-2">
                 Industry
               </label>
               <select
+                id="industry-select"
                 value={formData.industry}
                 onChange={(e) =>
                   setFormData({ ...formData, industry: e.target.value })
@@ -1776,15 +1937,16 @@ function JobOpportunityFormModal({
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+              <label htmlFor="job-type-select" className="block text-sm font-medium text-slate-700 mb-2">
                 Job Type
               </label>
               <select
+                id="job-type-select"
                 value={formData.jobType}
                 onChange={(e) =>
                   setFormData({ ...formData, jobType: e.target.value })
                 }
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-700 focus:border-transparent"
                 disabled={isSubmitting}
               >
                 <option value="">Select Job Type</option>
@@ -1799,10 +1961,11 @@ function JobOpportunityFormModal({
 
           {/* Job Description */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <label htmlFor="description-textarea" className="block text-sm font-medium text-slate-700 mb-2">
               Job Description ({charCount}/{maxDescriptionLength} characters)
             </label>
             <textarea
+              id="description-textarea"
               value={formData.description}
               onChange={(e) =>
                 setFormData({ ...formData, description: e.target.value })
@@ -1814,9 +1977,11 @@ function JobOpportunityFormModal({
               placeholder="Enter job description..."
               disabled={isSubmitting}
               maxLength={maxDescriptionLength}
+              aria-invalid={!!errors.description}
+              aria-describedby={errors.description ? "error-description" : undefined}
             />
             {errors.description && (
-              <p className="text-red-500 text-sm mt-1">{errors.description}</p>
+              <p id="error-description" className="text-red-500 text-sm mt-1" role="alert">{errors.description}</p>
             )}
           </div>
 
@@ -1833,7 +1998,7 @@ function JobOpportunityFormModal({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex-1 px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+              className="flex-1 px-6 py-3 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors font-medium disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {isSubmitting ? (
                 <>
@@ -1866,6 +2031,14 @@ function DeleteConfirmationModal({
   onCancel: () => void;
 }) {
   const [isDeleting, setIsDeleting] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const cancelButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (modalRef.current && cancelButtonRef.current) {
+      cancelButtonRef.current.focus();
+    }
+  }, []);
 
   const handleDelete = async () => {
     setIsDeleting(true);
@@ -1874,20 +2047,38 @@ function DeleteConfirmationModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 font-poppins">
-      <div className="bg-white rounded-2xl p-8 max-w-md w-full font-poppins">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[110] p-4 font-poppins"
+      onClick={onCancel}
+      onKeyDown={(e) => {
+        if (e.key === "Escape" && !isDeleting) {
+          onCancel();
+        }
+      }}
+    >
+      <div 
+        ref={modalRef}
+        className="bg-white rounded-2xl p-8 max-w-md w-full font-poppins"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="delete-modal-title"
+        aria-describedby="delete-modal-description"
+        tabIndex={-1}
+      >
         <div className="flex items-center gap-3 mb-4">
           <Icon
             icon="mingcute:alert-fill"
             className="text-red-500"
             width={32}
+            aria-hidden="true"
           />
-          <h2 className="text-2xl font-bold text-slate-900">
+          <h2 id="delete-modal-title" className="text-2xl font-bold text-slate-900">
             Delete Job Opportunity?
           </h2>
         </div>
 
-        <p className="text-slate-600 mb-4">
+        <p id="delete-modal-description" className="text-slate-600 mb-4">
           Are you sure you want to delete this job opportunity?
         </p>
 
@@ -1905,6 +2096,7 @@ function DeleteConfirmationModal({
 
         <div className="flex gap-3">
           <button
+            ref={cancelButtonRef}
             onClick={onCancel}
             disabled={isDeleting}
             className="flex-1 px-6 py-3 bg-slate-200 text-slate-800 rounded-lg hover:bg-slate-300 transition-colors font-medium disabled:opacity-50"

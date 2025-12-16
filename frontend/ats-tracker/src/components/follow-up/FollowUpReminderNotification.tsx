@@ -9,14 +9,7 @@ export function FollowUpReminderNotification() {
   const navigate = useNavigate();
   const [reminders, setReminders] = useState<FollowUpReminder[]>([]);
 
-  useEffect(() => {
-    fetchPendingReminders();
-    // Poll every 5 minutes for new reminders
-    const interval = setInterval(fetchPendingReminders, 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const fetchPendingReminders = async () => {
+  const fetchPendingReminders = async (): Promise<void> => {
     try {
       const response = await api.getPendingFollowUpReminders(5);
       if (response.ok && response.data?.reminders) {
@@ -26,6 +19,13 @@ export function FollowUpReminderNotification() {
       console.error("Failed to fetch pending reminders:", error);
     }
   };
+
+  useEffect(() => {
+    fetchPendingReminders();
+    // Poll every 5 minutes for new reminders
+    const interval = setInterval(fetchPendingReminders, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const pendingCount = reminders.filter((r) => r.status === "pending").length;
 

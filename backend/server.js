@@ -56,6 +56,7 @@ import coverLetterRoutes from "./routes/coverletters/index.js";
 import companyResearchRoutes from "./routes/companyResearchRoutes.js";
 import interviewRoutes from "./routes/interviewRoutes.js";
 import interviewPrepRoutes from "./routes/interviewPrepRoutes.js";
+import interviewResponseRoutes from "./routes/interviewResponseRoutes.js";
 import googleCalendarRoutes from "./routes/googleCalendarRoutes.js";
 import gmailRoutes from "./routes/gmailRoutes.js";
 import analyticsRoutes from "./routes/analyticsRoutes.js";
@@ -70,6 +71,7 @@ import familyRoutes from "./routes/familyRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
 import followUpRoutes from "./routes/followUpRoutes.js";
 import followUpReminderRoutes from "./routes/followUpReminderRoutes.js";
+import optimizationRoutes from "./routes/optimizationRoutes.js";
 import salaryNegotiationRoutes from "./routes/salaryNegotiationRoutes.js";
 import writingPracticeRoutes from "./routes/writingPracticeRoutes.js";
 import interviewPredictionRoutes from "./routes/interviewPredictionRoutes.js";
@@ -571,6 +573,7 @@ app.use("/api/v1/coverletter", coverLetterRoutes);
 app.use("/api/v1/company-research", companyResearchRoutes);
 app.use("/api/v1/interviews", interviewRoutes);
 app.use("/api/v1/interview-prep", interviewPrepRoutes);
+app.use("/api/v1/interview-responses", interviewResponseRoutes);
 app.use("/api/v1/calendar", googleCalendarRoutes);
 app.use("/api/v1/gmail", gmailRoutes);
 app.use("/api/v1/analytics", analyticsRoutes);
@@ -601,6 +604,7 @@ app.use("/api/v1/admin/api-monitoring", apiMonitoringRoutes);
 app.use("/api/v1/geocoding", geocodingRoutes);
 app.use("/api/v1/salary-benchmarks", salaryBenchmarkRoutes);
 app.use("/api/v1/job-offers", jobOfferRoutes);
+app.use("/api/v1/optimization", optimizationRoutes);
 
 // Sentry debug endpoint (for testing)
 app.get("/debug-sentry", function mainHandler(req, res) {

@@ -5,6 +5,7 @@ import { api } from "../services/api";
 import { FollowUpReminderCard } from "../components/follow-up/FollowUpReminderCard";
 import { FollowUpEmailTemplate } from "../components/follow-up/FollowUpEmailTemplate";
 import { EtiquetteTipsPanel } from "../components/follow-up/EtiquetteTipsPanel";
+import { transformReminders } from "../utils/followUpReminderTransform";
 import type { FollowUpReminder } from "../types";
 
 type FilterStatus = "all" | "pending" | "snoozed" | "completed" | "dismissed";
@@ -24,16 +25,61 @@ export function FollowUpReminders() {
     fetchReminders();
   }, [statusFilter]);
 
-  useEffect(() => {
-    if (reminderId) {
-      // Find and select the reminder
-      const reminder = reminders.find(r => r.id === reminderId);
-      if (reminder) {
-        setSelectedReminder(reminder);
-        setShowEmailTemplate(true);
-      }
+  // Normalize reminders to avoid undefined/null entries from backend
+  // Triple-check everything to prevent any undefined access
+  const safeReminders = (() => {
+    try {
+      if (!Array.isArray(reminders)) return [];
+      return reminders
+        .filter((r) => {
+          try {
+            return (
+              r != null &&
+              r !== undefined &&
+              typeof r === 'object' &&
+              r.hasOwnProperty('id') &&
+              r.id != null &&
+              r.id !== undefined &&
+              (typeof r.id === "string" || typeof r.id === "number") &&
+              String(r.id).length > 0
+            );
+          } catch {
+            return false;
+          }
+        })
+        .map((r) => {
+          // Ensure id is always a string
+          if (r && typeof r.id === 'number') {
+            r.id = String(r.id);
+          }
+          return r;
+        })
+        .filter((r): r is FollowUpReminder => r != null && r !== undefined);
+    } catch {
+      return [];
     }
-  }, [reminderId, reminders]);
+  })();
+
+  useEffect(() => {
+    try {
+      if (reminderId && safeReminders.length > 0) {
+        // Find and select the reminder - use safeReminders to avoid undefined
+        const reminder = safeReminders.find((r) => {
+          try {
+            return r != null && r !== undefined && r.id != null && String(r.id) === String(reminderId);
+          } catch {
+            return false;
+          }
+        });
+        if (reminder && reminder.id) {
+          setSelectedReminder(reminder);
+          setShowEmailTemplate(true);
+        }
+      }
+    } catch (error) {
+      console.error("Error in reminder selection effect:", error);
+    }
+  }, [reminderId, safeReminders]);
 
   const fetchReminders = async () => {
     try {
@@ -46,12 +92,24 @@ export function FollowUpReminders() {
       filters.isActive = true;
 
       const response = await api.getFollowUpReminders(filters);
-      if (response.ok && response.data?.reminders) {
-        setReminders(response.data.reminders);
+      if (response && response.ok && response.data) {
+        // Safely extract reminders array, defaulting to empty array
+        const remindersArray = Array.isArray(response.data.reminders) 
+          ? response.data.reminders 
+          : [];
+        
+        // Transform backend data (snake_case) to frontend format (camelCase)
+        const transformedReminders = transformReminders(remindersArray);
+        setReminders(transformedReminders);
+      } else {
+        // If response is not ok or data is missing, set empty array
+        setReminders([]);
       }
     } catch (err: any) {
       console.error("Failed to fetch reminders:", err);
       setError(err.message || "Failed to load follow-up reminders");
+      // Set empty array on error to prevent undefined access
+      setReminders([]);
     } finally {
       setIsLoading(false);
     }
@@ -60,11 +118,6 @@ export function FollowUpReminders() {
   const handleUpdate = () => {
     fetchReminders();
   };
-
-  // Normalize reminders to avoid undefined/null entries from backend
-  const safeReminders = Array.isArray(reminders)
-    ? reminders.filter((r): r is FollowUpReminder => !!r && typeof r.id === "string")
-    : [];
 
   const pendingCount = safeReminders.filter((r) => r.status === "pending").length;
   const overdueCount = safeReminders.filter((r) => {
@@ -89,7 +142,7 @@ export function FollowUpReminders() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-white rounded-xl p-6 border border-slate-200">
             <p className="text-sm text-slate-600 mb-2">Total Reminders</p>
-            <p className="text-3xl font-bold text-slate-900">{reminders.length}</p>
+            <p className="text-3xl font-bold text-slate-900">{safeReminders.length}</p>
           </div>
           <div className="bg-blue-50 rounded-xl p-6 border border-blue-200">
             <p className="text-sm text-blue-700 mb-2">Pending</p>
@@ -159,13 +212,38 @@ export function FollowUpReminders() {
           </div>
         ) : (
           <div className="space-y-4">
-            {safeReminders.map((reminder) => (
-              <FollowUpReminderCard
-                key={reminder.id}
-                reminder={reminder}
-                onUpdate={handleUpdate}
-              />
-            ))}
+            {safeReminders
+              .filter((r) => {
+                try {
+                  return (
+                    r != null &&
+                    r !== undefined &&
+                    r.id != null &&
+                    r.id !== undefined &&
+                    (typeof r.id === 'string' || typeof r.id === 'number') &&
+                    String(r.id).length > 0
+                  );
+                } catch {
+                  return false;
+                }
+              })
+              .map((reminder) => {
+                try {
+                  if (!reminder || !reminder.id) return null;
+                  const reminderId = String(reminder.id);
+                  return (
+                    <FollowUpReminderCard
+                      key={reminderId}
+                      reminder={reminder}
+                      onUpdate={handleUpdate}
+                    />
+                  );
+                } catch (error) {
+                  console.error("Error rendering reminder card:", error);
+                  return null;
+                }
+              })
+              .filter((el) => el !== null)}
           </div>
         )}
 

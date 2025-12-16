@@ -10,6 +10,11 @@ interface FollowUpEmailTemplateProps {
 }
 
 export function FollowUpEmailTemplate({ reminder, onClose, onEmailSent }: FollowUpEmailTemplateProps) {
+  // Early return if reminder is invalid
+  if (!reminder || !reminder.id || typeof reminder.id !== 'string') {
+    return null;
+  }
+
   const [emailTemplate, setEmailTemplate] = useState<{ subject: string; body: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [editedSubject, setEditedSubject] = useState("");
@@ -17,10 +22,13 @@ export function FollowUpEmailTemplate({ reminder, onClose, onEmailSent }: Follow
   const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
-    fetchEmailTemplate();
-  }, [reminder.id]);
+    if (reminder?.id) {
+      fetchEmailTemplate();
+    }
+  }, [reminder?.id]);
 
   const fetchEmailTemplate = async () => {
+    if (!reminder?.id) return;
     try {
       setIsLoading(true);
       const response = await api.getFollowUpReminderEmailTemplate(reminder.id);
@@ -55,6 +63,7 @@ export function FollowUpEmailTemplate({ reminder, onClose, onEmailSent }: Follow
   };
 
   const handleSendEmail = async () => {
+    if (!reminder?.id) return;
     // This would integrate with your email service
     // For now, just mark as completed
     try {

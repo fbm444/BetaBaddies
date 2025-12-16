@@ -16,6 +16,7 @@ import type {
 } from "../types";
 import { InterviewPredictionTab } from "../components/interviews/InterviewPredictionTab";
 import { OfferComparisonTab } from "../components/interviews/OfferComparisonTab";
+import { InterviewResponseLibrary } from "../components/InterviewResponseLibrary";
 import {
   INTERVIEW_STATUSES,
   INTERVIEW_STATUS_LABELS,
@@ -33,7 +34,7 @@ import {
   Area,
 } from "recharts";
 
-type TabType = "schedule" | "preparation" | "reminders" | "thank-you" | "follow-ups" | "analytics" | "predictions" | "offers";
+type TabType = "schedule" | "preparation" | "reminders" | "thank-you" | "follow-ups" | "analytics" | "predictions" | "offers" | "responses";
 
 export function Interviews() {
   const navigate = useNavigate();
@@ -725,6 +726,7 @@ export function Interviews() {
     { id: "analytics", label: "Analytics", icon: "mingcute:trending-up-line" },
     { id: "predictions", label: "Predictions", icon: "mingcute:target-line" },
     { id: "offers", label: "Offer Comparison", icon: "mingcute:file-certificate-line" },
+    { id: "responses", label: "Response Library", icon: "mingcute:file-text-line" },
   ];
 
   return (
@@ -4084,6 +4086,10 @@ export function Interviews() {
               jobOpportunities={jobOpportunities}
               interviews={interviews}
             />
+          )}
+
+          {activeTab === "responses" && (
+            <InterviewResponseLibrary />
           )}
         </div>
       </main>

@@ -22,7 +22,7 @@ const schemas = {
   forgotPassword: Joi.object({
     email: Joi.string().email().required(),
   }),
-  
+
   resetPassword: Joi.object({
     token: Joi.string().required(),
     newPassword: Joi.string()
@@ -34,7 +34,7 @@ const schemas = {
           "Password must contain at least one lowercase letter, one uppercase letter, and one number",
       }),
   }),
-  
+
   changePassword: Joi.object({
     currentPassword: Joi.string().required(),
     newPassword: Joi.string()
@@ -192,8 +192,21 @@ const schemas = {
     name: Joi.string().max(255).required(),
     orgName: Joi.string().max(255).required(),
     dateEarned: Joi.date().required(),
-    expirationDate: Joi.date().allow(null).optional(),
-    neverExpires: Joi.boolean().default(false),
+    expirationDate: Joi.date().allow(null, "").optional(),
+    neverExpires: Joi.boolean().optional().default(false),
+    platform: Joi.string().max(255).allow(null, "").optional(),
+    badgeImage: Joi.string().allow(null, "").optional(),
+    verificationUrl: Joi.string().uri().allow(null, "").optional(),
+    category: Joi.string().max(255).allow(null, "").optional(),
+    description: Joi.string().allow(null, "").optional(),
+    assessmentScores: Joi.alternatives()
+      .try(Joi.string(), Joi.object(), Joi.number())
+      .allow(null)
+      .optional(),
+    achievements: Joi.alternatives()
+      .try(Joi.array().items(Joi.string()), Joi.string())
+      .allow(null)
+      .optional(),
   })
     .custom((value, helpers) => {
       // Custom validation for certification date logic
@@ -205,16 +218,25 @@ const schemas = {
         return helpers.error("certification.futureDate");
       }
 
+      // If neverExpires is true, expirationDate should not be provided
       if (value.neverExpires && value.expirationDate) {
         return helpers.error("certification.permanentWithExpiration");
       }
-      if (!value.neverExpires && !value.expirationDate) {
+
+      // If neverExpires is false or undefined (defaults to false), expirationDate is required
+      // But only if neverExpires is explicitly set to false (not just undefined)
+      if (
+        value.neverExpires === false &&
+        (!value.expirationDate || value.expirationDate === "")
+      ) {
         return helpers.error("certification.expiringWithoutDate");
       }
+
+      // If both dates exist, expiration must be after earned date
       if (
         value.expirationDate &&
         value.dateEarned &&
-        value.expirationDate <= value.dateEarned
+        new Date(value.expirationDate) <= new Date(value.dateEarned)
       ) {
         return helpers.error("certification.expirationBeforeEarned");
       }
@@ -236,6 +258,19 @@ const schemas = {
     dateEarned: Joi.date().optional(),
     expirationDate: Joi.date().allow(null).optional(),
     neverExpires: Joi.boolean().optional(),
+    platform: Joi.string().max(255).allow(null, "").optional(),
+    badgeImage: Joi.string().allow(null, "").optional(),
+    verificationUrl: Joi.string().uri().allow(null, "").optional(),
+    category: Joi.string().max(255).allow(null, "").optional(),
+    description: Joi.string().allow(null, "").optional(),
+    assessmentScores: Joi.alternatives()
+      .try(Joi.string(), Joi.object(), Joi.number())
+      .allow(null)
+      .optional(),
+    achievements: Joi.alternatives()
+      .try(Joi.array().items(Joi.string()), Joi.string())
+      .allow(null)
+      .optional(),
   })
     .custom((value, helpers) => {
       // Custom validation for certification date logic
@@ -355,17 +390,12 @@ const schemas = {
   createContact: Joi.object({
     firstName: Joi.string().max(255).allow(null, "").optional(),
     lastName: Joi.string().max(255).allow(null, "").optional(),
-    email: Joi.string()
-      .email()
-      .max(255)
-      .required()
-      .min(1)
-      .messages({
-        "any.required": "Email is required",
-        "string.email": "Please enter a valid email address",
-        "string.empty": "Email is required",
-        "string.min": "Email is required",
-      }),
+    email: Joi.string().email().max(255).required().min(1).messages({
+      "any.required": "Email is required",
+      "string.email": "Please enter a valid email address",
+      "string.empty": "Email is required",
+      "string.min": "Email is required",
+    }),
     phone: Joi.string()
       .custom((value, helpers) => {
         if (!value || value.trim() === "") {
@@ -413,17 +443,12 @@ const schemas = {
   updateContact: Joi.object({
     firstName: Joi.string().max(255).allow(null, "").optional(),
     lastName: Joi.string().max(255).allow(null, "").optional(),
-    email: Joi.string()
-      .email()
-      .max(255)
-      .required()
-      .min(1)
-      .messages({
-        "any.required": "Email is required",
-        "string.email": "Please enter a valid email address",
-        "string.empty": "Email is required",
-        "string.min": "Email is required",
-      }),
+    email: Joi.string().email().max(255).required().min(1).messages({
+      "any.required": "Email is required",
+      "string.email": "Please enter a valid email address",
+      "string.empty": "Email is required",
+      "string.min": "Email is required",
+    }),
     phone: Joi.string()
       .custom((value, helpers) => {
         if (!value || value.trim() === "") {
@@ -504,14 +529,9 @@ const schemas = {
       .messages({
         "string.pattern.base": "Please enter a valid time (HH:MM format)",
       }),
-    eventUrl: Joi.string()
-      .uri()
-      .max(1000)
-      .allow(null, "")
-      .optional()
-      .messages({
-        "string.uri": "Please enter a valid URL",
-      }),
+    eventUrl: Joi.string().uri().max(1000).allow(null, "").optional().messages({
+      "string.uri": "Please enter a valid URL",
+    }),
     description: Joi.string().allow(null, "").optional(),
     networkingGoals: Joi.string().allow(null, "").optional(),
     preparationNotes: Joi.string().allow(null, "").optional(),
@@ -536,14 +556,9 @@ const schemas = {
       .messages({
         "string.pattern.base": "Please enter a valid time (HH:MM format)",
       }),
-    eventUrl: Joi.string()
-      .uri()
-      .max(1000)
-      .allow(null, "")
-      .optional()
-      .messages({
-        "string.uri": "Please enter a valid URL",
-      }),
+    eventUrl: Joi.string().uri().max(1000).allow(null, "").optional().messages({
+      "string.uri": "Please enter a valid URL",
+    }),
     description: Joi.string().allow(null, "").optional(),
     networkingGoals: Joi.string().allow(null, "").optional(),
     preparationNotes: Joi.string().allow(null, "").optional(),
@@ -723,16 +738,28 @@ export const validateResetPassword = validate(schemas.resetPassword);
 export const validateCreateContact = validate(schemas.createContact);
 export const validateUpdateContact = validate(schemas.updateContact);
 export const validateContactId = validateParams(schemas.contactId);
-export const validateAddContactInteraction = validate(schemas.addContactInteraction);
-export const validateGoogleContactsImport = validate(schemas.googleContactsImport);
+export const validateAddContactInteraction = validate(
+  schemas.addContactInteraction
+);
+export const validateGoogleContactsImport = validate(
+  schemas.googleContactsImport
+);
 export const validateCreateEvent = validate(schemas.createEvent);
 export const validateUpdateEvent = validate(schemas.updateEvent);
 export const validateEventId = validateParams(schemas.eventId);
 export const validateAddEventConnection = validate(schemas.addEventConnection);
-export const validateCreateReferralRequest = validate(schemas.createReferralRequest);
-export const validateUpdateReferralRequest = validate(schemas.updateReferralRequest);
-export const validateReferralRequestId = validateParams(schemas.referralRequestId);
-export const validateReferralTemplateId = validateParams(schemas.referralTemplateId);
+export const validateCreateReferralRequest = validate(
+  schemas.createReferralRequest
+);
+export const validateUpdateReferralRequest = validate(
+  schemas.updateReferralRequest
+);
+export const validateReferralRequestId = validateParams(
+  schemas.referralRequestId
+);
+export const validateReferralTemplateId = validateParams(
+  schemas.referralTemplateId
+);
 export const validatePersonalizeReferralRequest = validate(
   schemas.personalizeReferralRequest
 );

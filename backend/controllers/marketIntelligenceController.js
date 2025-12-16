@@ -165,16 +165,59 @@ class MarketIntelligenceController {
 
     const location = profile.state ? `${profile.city}, ${profile.state}` : null;
 
-    // Get all relevant market data
+    // Get all relevant market data with error handling for each
+    // Each service method now handles errors gracefully and returns default data
     const [salaryData, industryTrends, skillDemand, insights] = await Promise.all([
       marketIntelligenceService.getSalaryIntelligence(
         profile.job_title,
         location,
         profile.industry
-      ),
-      marketIntelligenceService.getIndustryTrends(profile.industry, location),
-      marketIntelligenceService.getSkillDemandTrends(profile.industry),
-      marketIntelligenceService.getUserInsights(userId, 'active')
+      ).catch(err => {
+        console.error('Error getting salary intelligence:', err);
+        return {
+          jobTitle: profile.job_title || 'Unknown',
+          location: location || 'All locations',
+          industry: profile.industry,
+          yourMarket: { sampleSize: 0, median: null, range: { min: null, max: null }, percentiles: null, note: 'Unable to fetch salary data' },
+          nationalBenchmark: { median: null, year: new Date().getFullYear().toString(), trend: 'unknown', source: 'Data unavailable' },
+          comparison: null,
+          salaryDistribution: null,
+          generatedAt: new Date().toISOString(),
+          cached: false
+        };
+      }),
+      marketIntelligenceService.getIndustryTrends(profile.industry, location).catch(err => {
+        console.error('Error getting industry trends:', err);
+        return {
+          industry: profile.industry || 'Unknown',
+          location,
+          timeframe: 365,
+          growthMetrics: { recentJobs: 0, previousPeriodJobs: 0, growthRate: 0, trend: 'unknown', note: 'Unable to fetch industry trends' },
+          hiringActivity: { totalJobs: 0, activeCompanies: 0, hiringVelocity: 'unknown', insight: 'Industry trends unavailable' },
+          topCompanies: [],
+          salaryTrends: [],
+          source: 'Data unavailable',
+          generatedAt: new Date().toISOString(),
+          cached: false
+        };
+      }),
+      marketIntelligenceService.getSkillDemandTrends(profile.industry).catch(err => {
+        console.error('Error getting skill demand:', err);
+        return {
+          industry: profile.industry || 'Unknown',
+          timeframe: 365,
+          topSkills: [],
+          emergingSkills: [],
+          decliningSkills: [],
+          source: 'Data unavailable',
+          generatedAt: new Date().toISOString(),
+          cached: false
+        };
+      }),
+      marketIntelligenceService.getUserInsights(userId, 'active').catch(err => {
+        console.error('Error getting user insights:', err);
+        return [];
+      })
     ]);
 
     res.status(200).json({

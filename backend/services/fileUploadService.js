@@ -28,9 +28,17 @@ class FileUploadService {
       profilePic: 5 * 1024 * 1024, // 5MB
       document: 10 * 1024 * 1024, // 10MB
       resume: 5 * 1024 * 1024, // 5MB
+      certBadge: 5 * 1024 * 1024, // 5MB
     };
     this.allowedTypes = {
       profilePic: ["image/jpeg", "image/jpg", "image/png", "image/gif"],
+      certBadge: [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+      ],
       document: [
         "application/pdf",
         "application/msword",
@@ -192,6 +200,84 @@ class FileUploadService {
       };
     } catch (error) {
       logger.error("Error uploading profile picture", {
+        error: error.message,
+        userId,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Upload a certification badge image
+   */
+  async uploadCertificationBadge(userId, file) {
+    try {
+      logger.info("Starting certification badge upload", {
+        userId,
+        originalName: file.originalname,
+      });
+
+      // Validate file
+      this.validateFile(file, "certBadge");
+
+      // Generate unique filename
+      const fileId = uuidv4();
+      const fileExtension = path.extname(file.originalname).toLowerCase();
+      const fileName = `cert_badge_${fileId}${fileExtension}`;
+      const folder = "certification-badges";
+
+      // Upload certification badge using cloud provider
+      // For cloud storage: upload to S3 and store S3 key
+      // For local storage: save to local filesystem
+      let filePath;
+      const badgeDir = path.join(this.uploadDir, folder);
+      await fs.mkdir(badgeDir, { recursive: true });
+      const localFilePath = path.join(badgeDir, fileName);
+
+      if (this.useCloudStorage) {
+        // Upload to S3
+        const uploadResult = await this.cloudProvider.uploadFile(
+          file.buffer,
+          fileName,
+          folder,
+          { contentType: file.mimetype, public: false }
+        );
+        filePath = uploadResult.path; // Store S3 key (e.g., "certification-badges/cert_badge_xxx.jpg")
+        logger.debug("Certification badge uploaded to S3", {
+          s3Key: filePath,
+        });
+      } else {
+        // Local storage - save directly
+        await fs.writeFile(localFilePath, file.buffer);
+        filePath = `/uploads/${folder}/${fileName}`;
+        logger.debug("Certification badge saved locally", {
+          localPath: filePath,
+        });
+      }
+
+      // Save file record to database
+      const fileRecord = await this.saveFileRecord({
+        fileId,
+        userId,
+        fileName,
+        originalName: file.originalname,
+        filePath: filePath,
+        fileType: "cert_badge",
+        fileSize: file.size,
+        mimeType: file.mimetype,
+      });
+
+      logger.info("File record saved", { fileId });
+
+      return {
+        fileId: fileRecord.fileId,
+        fileName: fileRecord.fileName,
+        filePath: fileRecord.filePath,
+        fileSize: fileRecord.fileSize,
+        message: "Certification badge uploaded successfully",
+      };
+    } catch (error) {
+      logger.error("Error uploading certification badge", {
         error: error.message,
         userId,
       });
@@ -368,8 +454,11 @@ class FileUploadService {
       // For cloud storage, convert S3 keys to presigned URLs
       if (this.useCloudStorage) {
         for (const file of files) {
-          // For profile pictures, use longer expiration (7 days = 604800 seconds)
-          if (file.fileType === "profile_pic") {
+          // For profile pictures and certification badges, use longer expiration (7 days = 604800 seconds)
+          if (
+            file.fileType === "profile_pic" ||
+            file.fileType === "cert_badge"
+          ) {
             if (file.filePath && !file.filePath.startsWith("http")) {
               try {
                 // Generate presigned URL with 7 day expiration
@@ -378,7 +467,7 @@ class FileUploadService {
                 });
               } catch (error) {
                 logger.warn(
-                  "Could not generate presigned URL for profile picture",
+                  `Could not generate presigned URL for ${file.fileType}`,
                   {
                     filePath: file.filePath,
                     error: error.message,
@@ -386,8 +475,12 @@ class FileUploadService {
                 );
               }
             }
-            // Handle thumbnail similarly
-            if (file.thumbnailPath && !file.thumbnailPath.startsWith("http")) {
+            // Handle thumbnail similarly (only for profile pics)
+            if (
+              file.fileType === "profile_pic" &&
+              file.thumbnailPath &&
+              !file.thumbnailPath.startsWith("http")
+            ) {
               try {
                 file.thumbnailPath = await this.getFileUrl(file.thumbnailPath, {
                   expiresIn: 7 * 24 * 60 * 60, // 7 days
@@ -901,11 +994,13 @@ class FileUploadService {
           }
         }
 
-        // For profile pictures, use longer expiration (7 days = 604800 seconds)
+        // For profile pictures and certification badges, use longer expiration (7 days = 604800 seconds)
         // Other files use 1 hour (3600 seconds) by default
         const isProfilePic = key.startsWith("profile-pics/");
+        const isCertBadge = key.startsWith("certification-badges/");
         const expiresIn =
-          options.expiresIn || (isProfilePic ? 7 * 24 * 60 * 60 : 3600);
+          options.expiresIn ||
+          (isProfilePic || isCertBadge ? 7 * 24 * 60 * 60 : 3600);
 
         return await this.cloudProvider.getFileUrl(key, { expiresIn });
       } else {

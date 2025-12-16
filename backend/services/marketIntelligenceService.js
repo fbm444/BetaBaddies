@@ -363,6 +363,34 @@ class MarketIntelligenceService {
    * Get industry trend analysis
    */
   async getIndustryTrends(industry, location = null, timeframe = 365) {
+    // Handle null or empty industry
+    if (!industry || typeof industry !== 'string' || industry.trim().length === 0) {
+      return {
+        industry: industry || 'Unknown',
+        location,
+        timeframe,
+        growthMetrics: {
+          recentJobs: 0,
+          previousPeriodJobs: 0,
+          growthRate: 0,
+          trend: 'unknown',
+          note: 'Industry not specified in profile'
+        },
+        hiringActivity: {
+          totalJobs: 0,
+          activeCompanies: 0,
+          avgJobAge: null,
+          hiringVelocity: 'unknown',
+          insight: 'Industry information is required to fetch market trends'
+        },
+        topCompanies: [],
+        salaryTrends: [],
+        source: 'Local data',
+        generatedAt: new Date().toISOString(),
+        cached: false
+      };
+    }
+
     const cacheKey = `industry:${industry}:${location || "any"}:${timeframe}d`;
 
     // Check cache
@@ -373,15 +401,23 @@ class MarketIntelligenceService {
 
     try {
       // Get Adzuna real market data
-      const adzunaTrends = await adzunaService.getIndustryTrends(
-        industry,
-        location
-      );
-      const adzunaCompanies = await adzunaService.getTopCompanies(
-        industry,
-        location,
-        10
-      );
+      let adzunaTrends = null;
+      let adzunaCompanies = [];
+      
+      try {
+        adzunaTrends = await adzunaService.getIndustryTrends(
+          industry,
+          location
+        );
+        adzunaCompanies = await adzunaService.getTopCompanies(
+          industry,
+          location,
+          10
+        );
+      } catch (adzunaError) {
+        console.log("ℹ️ Adzuna data not available for industry trends:", adzunaError.message);
+        // Continue with fallback data
+      }
 
       const result = {
         industry,
@@ -615,7 +651,12 @@ class MarketIntelligenceService {
    * Get skill demand trends
    */
   async getSkillDemandTrends(industry = null, timeframe = 365) {
-    const cacheKey = `skills:${industry || "all"}:${timeframe}d`;
+    // Handle null or empty industry gracefully
+    const industryKey = industry && typeof industry === 'string' && industry.trim().length > 0 
+      ? industry 
+      : 'all';
+    
+    const cacheKey = `skills:${industryKey}:${timeframe}d`;
 
     // Check cache
     const cached = await this.getFromCache(cacheKey, "skill_demand");
@@ -650,20 +691,28 @@ class MarketIntelligenceService {
 
       // Get total tech jobs count for percentage calculation
       // Use "software" as a broad category to get total tech job market
-      const totalTechJobs = await adzunaService.getIndustryTrends(
-        "software",
-        null
-      );
+      let totalTechJobs = null;
+      let skillsData = [];
+      
+      try {
+        totalTechJobs = await adzunaService.getIndustryTrends(
+          "software",
+          null
+        );
+        skillsData = await adzunaService.getSkillDemand(
+          topTechSkills,
+          null,
+          30
+        );
+      } catch (adzunaError) {
+        console.log("ℹ️ Adzuna data not available for skill demand:", adzunaError.message);
+        // Continue with empty data
+      }
+      
       const totalJobCount = totalTechJobs?.recentJobs || 100000; // Fallback to 100k if unavailable
 
-      const skillsData = await adzunaService.getSkillDemand(
-        topTechSkills,
-        null,
-        30
-      );
-
       // Convert to expected format with ACTUAL percentages
-      const skills = skillsData.map((skill) => ({
+      const skills = (skillsData || []).map((skill) => ({
         skillName: skill.skillName,
         demandCount: skill.demandCount,
         percentageOfJobs: ((skill.demandCount / totalJobCount) * 100).toFixed(
@@ -674,13 +723,13 @@ class MarketIntelligenceService {
       }));
 
       const result = {
-        industry,
+        industry: industryKey,
         timeframe: 30, // Adzuna uses 30 days
         topSkills: skills.slice(0, 20),
         emergingSkills: [], // Would need historical data
         decliningSkills: [],
         source:
-          skillsData.length > 0
+          skillsData && skillsData.length > 0
             ? "Adzuna (Real-time job market)"
             : "No data available",
         totalMarketJobs: totalJobCount,

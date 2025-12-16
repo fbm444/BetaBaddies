@@ -120,12 +120,6 @@ export const navigationGroups: NavigationGroup[] = [
         icon: "mdi:office-building",
         path: ROUTES.COMPANY_RESEARCH,
       },
-      {
-        id: "follow-up-reminders",
-        label: "Follow-Up Reminders",
-        icon: "mingcute:notification-line",
-        path: ROUTES.FOLLOW_UP_REMINDERS,
-      },
     ],
   },
   {
@@ -298,3 +292,5 @@ export const navigationItems: NavigationItem[] = navigationGroups.flatMap(
 // Type exports for TypeScript
 export type RouteKey = keyof typeof ROUTES;
 export type RoutePath = (typeof ROUTES)[RouteKey];
+
+

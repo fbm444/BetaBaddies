@@ -15,6 +15,7 @@ import type {
   InterviewAnalytics,
 } from "../types";
 import { InterviewPredictionTab } from "../components/interviews/InterviewPredictionTab";
+import { OfferComparisonTab } from "../components/interviews/OfferComparisonTab";
 import {
   INTERVIEW_STATUSES,
   INTERVIEW_STATUS_LABELS,
@@ -32,7 +33,7 @@ import {
   Area,
 } from "recharts";
 
-type TabType = "schedule" | "preparation" | "reminders" | "thank-you" | "follow-ups" | "analytics" | "predictions";
+type TabType = "schedule" | "preparation" | "reminders" | "thank-you" | "follow-ups" | "analytics" | "predictions" | "offers";
 
 export function Interviews() {
   const navigate = useNavigate();
@@ -723,6 +724,7 @@ export function Interviews() {
     { id: "follow-ups", label: "Follow-ups", icon: "mingcute:task-line" },
     { id: "analytics", label: "Analytics", icon: "mingcute:trending-up-line" },
     { id: "predictions", label: "Predictions", icon: "mingcute:target-line" },
+    { id: "offers", label: "Offer Comparison", icon: "mingcute:file-certificate-line" },
   ];
 
   return (
@@ -4076,6 +4078,13 @@ export function Interviews() {
               />
             </div>
           )}
+
+          {activeTab === "offers" && (
+            <OfferComparisonTab
+              jobOpportunities={jobOpportunities}
+              interviews={interviews}
+            />
+          )}
         </div>
       </main>
 
@@ -4088,8 +4097,8 @@ export function Interviews() {
               <h3 className="text-xl font-semibold text-slate-900">Connect Google Calendar</h3>
             </div>
             <p className="text-slate-600 mb-6">
-                          Sync your interviews with Google Calendar to get automatic reminders and updates
-                        </p>
+              Sync your interviews with Google Calendar to get automatic reminders and updates
+            </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowCalendarModal(false)}
@@ -4103,7 +4112,7 @@ export function Interviews() {
               >
                 Connect
               </button>
-                      </div>
+            </div>
           </div>
         </div>
       )}

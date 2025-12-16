@@ -1,8 +1,11 @@
 -- Seed script for analytics.test@betabaddies.com
--- Creates the user (if needed) and populates data to exercise:
--- - Job opportunities & pipeline
--- - Response time predictions
--- - A/B tests for resume and cover letter (with real data)
+-- Recreates the test user with meaningful, real-world style data:
+-- - Cleans previous data for this user
+-- - Job opportunities with realistic companies (Google, Stripe, Microsoft)
+-- - Response times for prediction logic
+-- - Resumes and cover letters (primary versions) with sample file paths
+-- - A/B tests linked to documents
+-- - One pre-seeded quality score for UI testing
 
 -- Ensure pgcrypto is available for password hashing
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
@@ -10,122 +13,97 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 DO $$
 DECLARE
   v_user_id uuid;
-  v_existing_id uuid;
-  v_resume_a_id uuid;
-  v_resume_b_id uuid;
-  v_cover_a_id uuid;
-  v_cover_b_id uuid;
+  v_resume_primary uuid;
+  v_resume_alt uuid;
+  v_cover_primary uuid;
+  v_cover_alt uuid;
   v_ab_test_resume_id uuid;
   v_ab_test_cover_id uuid;
-  v_job_id uuid;
-  i int;
-  v_status text;
-  v_days_until_response int;
-  v_applied_at timestamp with time zone;
-  v_first_response_at timestamp with time zone;
+
+  v_job_google uuid;
+  v_job_stripe uuid;
+  v_job_microsoft uuid;
 BEGIN
-  -- Look up existing user
-  SELECT u_id INTO v_existing_id
-  FROM users
-  WHERE email = 'analytics.test@betabaddies.com'
-  LIMIT 1;
-
-  IF v_existing_id IS NULL THEN
-    -- Create the test user with password Test123!
-    INSERT INTO users (
-      u_id,
-      email,
-      password,
-      auth_provider,
-      role
-    ) VALUES (
-      gen_random_uuid(),
-      'analytics.test@betabaddies.com',
-      crypt('Test123!', gen_salt('bf')),
-      'local',
-      'candidate'
-    )
-    RETURNING u_id INTO v_user_id;
-
-    RAISE NOTICE 'Created analytics test user with id %', v_user_id;
-  ELSE
-    v_user_id := v_existing_id;
-    RAISE NOTICE 'Using existing analytics test user with id %', v_user_id;
+  -- If user exists, wipe their related data then recreate
+  PERFORM u_id FROM users WHERE email = 'analytics.test@betabaddies.com';
+  IF FOUND THEN
+    -- Delete dependent rows first
+    DELETE FROM application_quality_scores WHERE user_id IN (SELECT u_id FROM users WHERE email = 'analytics.test@betabaddies.com');
+    DELETE FROM application_strategies WHERE user_id IN (SELECT u_id FROM users WHERE email = 'analytics.test@betabaddies.com');
+    DELETE FROM ab_tests WHERE user_id IN (SELECT u_id FROM users WHERE email = 'analytics.test@betabaddies.com');
+    DELETE FROM application_documents WHERE user_id IN (SELECT u_id FROM users WHERE email = 'analytics.test@betabaddies.com');
+    DELETE FROM job_opportunities WHERE user_id IN (SELECT u_id FROM users WHERE email = 'analytics.test@betabaddies.com');
+    DELETE FROM users WHERE email = 'analytics.test@betabaddies.com';
   END IF;
 
+  -- Create the user fresh
+  INSERT INTO users (u_id, email, password, auth_provider, role)
+  VALUES (
+    gen_random_uuid(),
+    'analytics.test@betabaddies.com',
+    crypt('Test123!', gen_salt('bf')),
+    'local',
+    'candidate'
+  )
+  RETURNING u_id INTO v_user_id;
+
+  RAISE NOTICE 'Created fresh analytics test user %', v_user_id;
+
   ---------------------------------------------------------------------------
-  -- Application documents (resumes & cover letters)
+  -- Documents (with sample file paths)
   ---------------------------------------------------------------------------
+  INSERT INTO application_documents (
+    id, user_id, document_type, document_name, version_number,
+    template_name, template_category, is_active, is_primary, file_path
+  ) VALUES (
+    gen_random_uuid(), v_user_id, 'resume', 'Resume - SWE (Google focus)', 1,
+    'Clean', 'professional', true, true, '/demo/resumes/google_swe_resume.pdf'
+  ) RETURNING id INTO v_resume_primary;
 
   INSERT INTO application_documents (
     id, user_id, document_type, document_name, version_number,
-    template_name, template_category, is_active, is_primary
+    template_name, template_category, is_active, is_primary, file_path
   ) VALUES (
-    gen_random_uuid(), v_user_id, 'resume', 'Resume Version A', 1,
-    'Clean', 'professional', true, true
-  )
-  RETURNING id INTO v_resume_a_id;
+    gen_random_uuid(), v_user_id, 'resume', 'Resume - PM (Stripe focus)', 2,
+    'Modern', 'modern', true, false, '/demo/resumes/stripe_pm_resume.pdf'
+  ) RETURNING id INTO v_resume_alt;
 
   INSERT INTO application_documents (
     id, user_id, document_type, document_name, version_number,
-    template_name, template_category, is_active, is_primary
+    template_name, template_category, is_active, is_primary, file_path
   ) VALUES (
-    gen_random_uuid(), v_user_id, 'resume', 'Resume Version B', 2,
-    'Modern', 'modern', true, false
-  )
-  RETURNING id INTO v_resume_b_id;
+    gen_random_uuid(), v_user_id, 'cover_letter', 'Cover Letter - SWE', 1,
+    'Concise', 'professional', true, true, '/demo/covers/google_swe_cover.pdf'
+  ) RETURNING id INTO v_cover_primary;
 
   INSERT INTO application_documents (
     id, user_id, document_type, document_name, version_number,
-    template_name, template_category, is_active, is_primary
+    template_name, template_category, is_active, is_primary, file_path
   ) VALUES (
-    gen_random_uuid(), v_user_id, 'cover_letter', 'Cover Letter A', 1,
-    'Concise', 'professional', true, true
-  )
-  RETURNING id INTO v_cover_a_id;
-
-  INSERT INTO application_documents (
-    id, user_id, document_type, document_name, version_number,
-    template_name, template_category, is_active, is_primary
-  ) VALUES (
-    gen_random_uuid(), v_user_id, 'cover_letter', 'Cover Letter B', 2,
-    'Storytelling', 'creative', true, false
-  )
-  RETURNING id INTO v_cover_b_id;
+    gen_random_uuid(), v_user_id, 'cover_letter', 'Cover Letter - PM', 2,
+    'Storytelling', 'creative', true, false, '/demo/covers/stripe_pm_cover.pdf'
+  ) RETURNING id INTO v_cover_alt;
 
   ---------------------------------------------------------------------------
-  -- A/B tests for resumes and cover letters
+  -- A/B tests (resume + cover)
   ---------------------------------------------------------------------------
-
   INSERT INTO ab_tests (
     id, user_id, test_name, test_type, description,
     control_group_config, variant_groups, traffic_split,
     status, created_at, start_date, end_date
   ) VALUES (
     gen_random_uuid(), v_user_id,
-    'Demo Resume A/B Test',
+    'Resume A/B: SWE vs PM flavor',
     'resume',
-    'Compare Resume Version A vs B on response and offer rates.',
-    jsonb_build_object(
-      'name', 'Resume A (Control)',
-      'resumeVersionId', v_resume_a_id
-    ),
-    jsonb_build_array(
-      jsonb_build_object(
-        'name', 'Resume B',
-        'resumeVersionId', v_resume_b_id
-      )
-    ),
-    jsonb_build_object(
-      'control', 50,
-      'variant_a', 50
-    ),
+    'Compare SWE-focused resume vs PM-focused resume.',
+    jsonb_build_object('name', 'SWE Resume', 'resumeVersionId', v_resume_primary),
+    jsonb_build_array(jsonb_build_object('name', 'PM Resume', 'resumeVersionId', v_resume_alt)),
+    jsonb_build_object('control', 50, 'variant_a', 50),
     'completed',
-    NOW() - INTERVAL '45 days',
-    NOW() - INTERVAL '40 days',
+    NOW() - INTERVAL '35 days',
+    NOW() - INTERVAL '32 days',
     NOW() - INTERVAL '10 days'
-  )
-  RETURNING id INTO v_ab_test_resume_id;
+  ) RETURNING id INTO v_ab_test_resume_id;
 
   INSERT INTO ab_tests (
     id, user_id, test_name, test_type, description,
@@ -133,154 +111,144 @@ BEGIN
     status, created_at, start_date, end_date
   ) VALUES (
     gen_random_uuid(), v_user_id,
-    'Demo Cover Letter A/B Test',
+    'Cover Letter A/B: concise vs storytelling',
     'cover_letter',
-    'Compare Cover Letter A vs B on response and interview rates.',
-    jsonb_build_object(
-      'name', 'Cover A (Control)',
-      'coverLetterVersionId', v_cover_a_id
-    ),
-    jsonb_build_array(
-      jsonb_build_object(
-        'name', 'Cover B',
-        'coverLetterVersionId', v_cover_b_id
-      )
-    ),
-    jsonb_build_object(
-      'control', 50,
-      'variant_a', 50
-    ),
+    'Compare concise professional cover vs storytelling cover.',
+    jsonb_build_object('name', 'Concise CL', 'coverLetterVersionId', v_cover_primary),
+    jsonb_build_array(jsonb_build_object('name', 'Storytelling CL', 'coverLetterVersionId', v_cover_alt)),
+    jsonb_build_object('control', 50, 'variant_a', 50),
     'completed',
-    NOW() - INTERVAL '30 days',
     NOW() - INTERVAL '25 days',
+    NOW() - INTERVAL '22 days',
     NOW() - INTERVAL '5 days'
-  )
-  RETURNING id INTO v_ab_test_cover_id;
+  ) RETURNING id INTO v_ab_test_cover_id;
 
   ---------------------------------------------------------------------------
-  -- Job opportunities + application_strategies with varied response times
+  -- Job opportunities (realistic companies)
   ---------------------------------------------------------------------------
+  -- Google SWE (responded in 6 days)
+  v_job_google := gen_random_uuid();
+  INSERT INTO job_opportunities (
+    id, user_id, title, company, location,
+    salary_min, salary_max, job_posting_url, job_description,
+    industry, job_type, status,
+    application_history, location_type, timezone,
+    application_submitted_at, first_response_at, status_updated_at, created_at, updated_at
+  ) VALUES (
+    v_job_google, v_user_id,
+    'Software Engineer, Cloud',
+    'Google',
+    'Mountain View, CA',
+    160000, 240000,
+    'https://careers.google.com/jobs/cloud-swe',
+    'Build distributed systems and developer platforms for Google Cloud customers.',
+    'Technology', 'Full-time', 'Interview',
+    '[]'::jsonb, 'hybrid', 'America/Los_Angeles',
+    NOW() - INTERVAL '30 days',
+    NOW() - INTERVAL '24 days', -- responded in ~6 days
+    NOW() - INTERVAL '24 days',
+    NOW() - INTERVAL '30 days',
+    NOW() - INTERVAL '24 days'
+  );
 
-  -- 30 jobs: first 15 for resume test, next 15 for cover letter test
-  FOR i IN 1..30 LOOP
-    v_job_id := gen_random_uuid();
+  -- Stripe PM (responded in 9 days)
+  v_job_stripe := gen_random_uuid();
+  INSERT INTO job_opportunities (
+    id, user_id, title, company, location,
+    salary_min, salary_max, job_posting_url, job_description,
+    industry, job_type, status,
+    application_history, location_type, timezone,
+    application_submitted_at, first_response_at, status_updated_at, created_at, updated_at
+  ) VALUES (
+    v_job_stripe, v_user_id,
+    'Product Manager, Issuing',
+    'Stripe',
+    'Remote',
+    180000, 260000,
+    'https://stripe.com/jobs/pm-issuing',
+    'Drive roadmap for Issuing; collaborate with eng/design; ship merchant-facing experiences.',
+    'Fintech', 'Full-time', 'Phone Screen',
+    '[]'::jsonb, 'remote', 'America/Los_Angeles',
+    NOW() - INTERVAL '22 days',
+    NOW() - INTERVAL '13 days', -- responded in ~9 days
+    NOW() - INTERVAL '13 days',
+    NOW() - INTERVAL '22 days',
+    NOW() - INTERVAL '13 days'
+  );
 
-    -- Application submitted between 5 and 40 days ago
-    v_applied_at := NOW() - ( (5 + (i % 35)) || ' days')::interval;
+  -- Microsoft TPM (no response yet)
+  v_job_microsoft := gen_random_uuid();
+  INSERT INTO job_opportunities (
+    id, user_id, title, company, location,
+    salary_min, salary_max, job_posting_url, job_description,
+    industry, job_type, status,
+    application_history, location_type, timezone,
+    application_submitted_at, first_response_at, status_updated_at, created_at, updated_at
+  ) VALUES (
+    v_job_microsoft, v_user_id,
+    'Technical Program Manager, AI',
+    'Microsoft',
+    'Redmond, WA',
+    170000, 240000,
+    'https://careers.microsoft.com/tpm-ai',
+    'Lead AI/ML programs, cross-team delivery, and reliability for Azure AI.',
+    'Technology', 'Full-time', 'Applied',
+    '[]'::jsonb, 'on-site', 'America/Los_Angeles',
+    NOW() - INTERVAL '10 days',
+    NULL, -- no response yet
+    NOW() - INTERVAL '10 days',
+    NOW() - INTERVAL '10 days',
+    NOW() - INTERVAL '10 days'
+  );
 
-    -- Status & response timing pattern:
-    --  - Every 5th: Offer (fast)
-    --  - Every 3rd: Interview (medium)
-    --  - Every 2nd: Phone Screen (slower)
-    --  - Others: Applied (no response yet)
-    IF (i % 5 = 0) THEN
-      v_status := 'Offer';
-      v_days_until_response := 3 + (i % 3); -- between 3–5 days
-    ELSIF (i % 3 = 0) THEN
-      v_status := 'Interview';
-      v_days_until_response := 6 + (i % 4); -- between 6–9 days
-    ELSIF (i % 2 = 0) THEN
-      v_status := 'Phone Screen';
-      v_days_until_response := 8 + (i % 5); -- between 8–12 days
-    ELSE
-      v_status := 'Applied';
-      v_days_until_response := NULL; -- no response yet
-    END IF;
+  ---------------------------------------------------------------------------
+  -- Company info (for company size / cohorting)
+  ---------------------------------------------------------------------------
+  INSERT INTO company_info (id, job_id, size, industry, location, website)
+  VALUES
+    (gen_random_uuid(), v_job_google, '10000+', 'Technology', 'Mountain View, CA', 'https://google.com'),
+    (gen_random_uuid(), v_job_stripe, '5001-10000', 'Fintech', 'San Francisco, CA', 'https://stripe.com'),
+    (gen_random_uuid(), v_job_microsoft, '10000+', 'Technology', 'Redmond, WA', 'https://microsoft.com');
 
-    IF v_days_until_response IS NOT NULL THEN
-      v_first_response_at := v_applied_at + (v_days_until_response || ' days')::interval;
-    ELSE
-      v_first_response_at := NULL;
-    END IF;
+  ---------------------------------------------------------------------------
+  -- Application strategies linking documents
+  ---------------------------------------------------------------------------
+  INSERT INTO application_strategies (
+    user_id, job_opportunity_id, application_method, application_channel,
+    application_timestamp, resume_version_id, cover_letter_version_id,
+    customization_level, ab_test_id, ab_test_group
+  ) VALUES (
+    v_user_id, v_job_google, 'job_board', 'Google Careers', NOW() - INTERVAL '30 days',
+    v_resume_primary, v_cover_primary, 'high', v_ab_test_resume_id, 'control'
+  ), (
+    v_user_id, v_job_stripe, 'referral', 'Employee Referral', NOW() - INTERVAL '22 days',
+    v_resume_alt, v_cover_alt, 'standard', v_ab_test_cover_id, 'variant_a'
+  ), (
+    v_user_id, v_job_microsoft, 'company_website', 'Microsoft Careers', NOW() - INTERVAL '10 days',
+    v_resume_primary, v_cover_primary, 'standard', NULL, NULL
+  );
 
-    INSERT INTO job_opportunities (
-      id, user_id, title, company, location,
-      salary_min, salary_max,
-      job_posting_url, application_deadline, job_description,
-      industry, job_type, status,
-      notes,
-      application_history,
-      location_type, latitude, longitude, timezone,
-      city, region, country, geocoding_confidence, geocoding_raw,
-      application_submitted_at, first_response_at, status_updated_at, created_at, updated_at
-    ) VALUES (
-      v_job_id, v_user_id,
-      CASE WHEN i <= 15 THEN 'Software Engineer' ELSE 'Product Manager' END,
-      CASE WHEN i % 2 = 0 THEN 'DemoCorp' ELSE 'Techify' END,
-      'Remote',
-      90000, 140000,
-      'https://example.com/job/demo-' || i,
-      NULL,
-      'Seeded job for A/B testing and response-time prediction demo',
-      CASE WHEN i <= 15 THEN 'Technology' ELSE 'SaaS' END,
-      CASE WHEN i <= 15 THEN 'Full-time' ELSE 'Full-time' END,
-      v_status,
-      'Seeded for analytics testing',
-      '[]'::jsonb,
-      'remote', NULL, NULL, 'UTC',
-      NULL, NULL, NULL, NULL, NULL,
-      v_applied_at,
-      v_first_response_at,
-      COALESCE(v_first_response_at, v_applied_at),
-      v_applied_at,
-      COALESCE(v_first_response_at, NOW())
-    );
+  ---------------------------------------------------------------------------
+  -- Pre-seeded quality score for UI testing (Google SWE)
+  ---------------------------------------------------------------------------
+  INSERT INTO application_quality_scores (
+    user_id, job_opportunity_id,
+    resume_document_id, cover_letter_document_id,
+    overall_score, alignment_score, format_score, consistency_score,
+    missing_keywords, missing_skills, issues, suggestions, summary, model_version
+  ) VALUES (
+    v_user_id, v_job_google,
+    v_resume_primary, v_cover_primary,
+    78.5, 82, 75, 72,
+    '[{"keyword":"Kubernetes","importance":"high"},{"keyword":"GCP","importance":"high"}]'::jsonb,
+    '[{"skill":"Distributed systems","importance":"high"}]'::jsonb,
+    '[{"type":"formatting","description":"Inconsistent bullet punctuation","severity":"low","location":"resume"}]'::jsonb,
+    '[{"id":"s1","title":"Highlight GCP experience","description":"Add a concise bullet on GCP services used","priority":"high","category":"alignment","estimatedImpact":18}]'::jsonb,
+    'Good alignment; add GCP/Kubernetes emphasis and tighten formatting.',
+    'v1-seeded'
+  );
 
-    -- Application strategy / A/B linkage
-    IF i <= 15 THEN
-      -- Resume test
-      INSERT INTO application_strategies (
-        user_id,
-        job_opportunity_id,
-        application_method,
-        application_channel,
-        application_timestamp,
-        resume_version_id,
-        cover_letter_version_id,
-        customization_level,
-        ab_test_id,
-        ab_test_group
-      ) VALUES (
-        v_user_id,
-        v_job_id,
-        'job_board',
-        'DemoBoard',
-        v_applied_at,
-        CASE WHEN i <= 8 THEN v_resume_a_id ELSE v_resume_b_id END,
-        NULL,
-        'standard',
-        v_ab_test_resume_id,
-        CASE WHEN i <= 8 THEN 'control' ELSE 'variant_a' END
-      );
-    ELSE
-      -- Cover letter test
-      INSERT INTO application_strategies (
-        user_id,
-        job_opportunity_id,
-        application_method,
-        application_channel,
-        application_timestamp,
-        resume_version_id,
-        cover_letter_version_id,
-        customization_level,
-        ab_test_id,
-        ab_test_group
-      ) VALUES (
-        v_user_id,
-        v_job_id,
-        'company_website',
-        'Careers',
-        v_applied_at,
-        v_resume_a_id,
-        CASE WHEN i <= 23 THEN v_cover_a_id ELSE v_cover_b_id END,
-        'standard',
-        v_ab_test_cover_id,
-        CASE WHEN i <= 23 THEN 'control' ELSE 'variant_a' END
-      );
-    END IF;
-  END LOOP;
-
-  RAISE NOTICE 'Seeded analytics test data for user %', v_user_id;
+  RAISE NOTICE 'Seeded analytics test data with real companies for user %', v_user_id;
 END $$;
 
 

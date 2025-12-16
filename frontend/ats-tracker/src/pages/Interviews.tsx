@@ -4074,17 +4074,12 @@ export function Interviews() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
             <div className="flex items-center gap-3 mb-4">
-<<<<<<< HEAD
-              <Icon icon="mingcute:calendar-line" width={32} className="text-blue-500" />
-                        <h3 className="text-xl font-semibold text-slate-900">Connect Google Calendar</h3>
-=======
               <Icon icon="mingcute:calendar-line" width={32} className="text-blue-700" />
               <h3 className="text-xl font-semibold text-slate-900">Connect Google Calendar</h3>
->>>>>>> bca00d00dae808a348c50dcb860ab72fcd74447d
             </div>
             <p className="text-slate-600 mb-6">
-                          Sync your interviews with Google Calendar to get automatic reminders and updates
-                        </p>
+              Sync your interviews with Google Calendar to get automatic reminders and updates
+            </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowCalendarModal(false)}
@@ -4098,7 +4093,7 @@ export function Interviews() {
               >
                 Connect
               </button>
-                      </div>
+            </div>
           </div>
         </div>
       )}

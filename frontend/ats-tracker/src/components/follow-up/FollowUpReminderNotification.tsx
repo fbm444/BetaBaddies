@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Icon } from "@iconify/react";
 import { api } from "../../services/api";
+import { transformReminders } from "../../utils/followUpReminderTransform";
 import type { FollowUpReminder } from "../../types";
 import { ROUTES } from "../../config/routes";
 
@@ -12,11 +13,23 @@ export function FollowUpReminderNotification() {
   const fetchPendingReminders = async (): Promise<void> => {
     try {
       const response = await api.getPendingFollowUpReminders(5);
-      if (response.ok && response.data?.reminders) {
-        setReminders(response.data.reminders);
+      if (response && response.ok && response.data) {
+        // Safely extract reminders array, defaulting to empty array
+        const remindersArray = Array.isArray(response.data.reminders) 
+          ? response.data.reminders 
+          : [];
+        
+        // Transform backend data (snake_case) to frontend format (camelCase)
+        const transformedReminders = transformReminders(remindersArray);
+        setReminders(transformedReminders);
+      } else {
+        // If response is not ok or data is missing, set empty array
+        setReminders([]);
       }
     } catch (error) {
       console.error("Failed to fetch pending reminders:", error);
+      // Set empty array on error to prevent undefined access
+      setReminders([]);
     }
   };
 
@@ -27,11 +40,43 @@ export function FollowUpReminderNotification() {
     return () => clearInterval(interval);
   }, []);
 
-  const pendingCount = reminders.filter((r) => r.status === "pending").length;
-
-  if (pendingCount === 0) {
-    return null;
-  }
+  // Safely filter reminders, ensuring they exist and have required properties
+  // Triple-check everything to prevent any undefined access
+  const safeReminders = (() => {
+    try {
+      if (!Array.isArray(reminders)) return [];
+      return reminders
+        .filter((r) => {
+          try {
+            return (
+              r != null &&
+              r !== undefined &&
+              typeof r === 'object' &&
+              r.hasOwnProperty('id') &&
+              r.id != null &&
+              r.id !== undefined &&
+              (typeof r.id === "string" || typeof r.id === "number") &&
+              String(r.id).length > 0 &&
+              r.hasOwnProperty('status') &&
+              typeof r.status === "string"
+            );
+          } catch {
+            return false;
+          }
+        })
+        .map((r) => {
+          // Ensure id is always a string
+          if (r && typeof r.id === 'number') {
+            r.id = String(r.id);
+          }
+          return r;
+        })
+        .filter((r): r is FollowUpReminder => r != null && r !== undefined);
+    } catch {
+      return [];
+    }
+  })();
+  const pendingCount = safeReminders.filter((r) => r.status === "pending").length;
 
   return (
     <div className="relative">

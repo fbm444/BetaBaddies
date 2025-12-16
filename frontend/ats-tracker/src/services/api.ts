@@ -86,6 +86,14 @@ import {
   FollowUpReminder,
   FollowUpReminderInput,
   ResponseType,
+  InterviewResponse,
+  InterviewResponseInput,
+  InterviewResponseUpdate,
+  InterviewResponseVersionInput,
+  InterviewResponseTagInput,
+  InterviewResponseOutcomeInput,
+  GapAnalysis,
+  ResponseSuggestion,
 } from "../types";
 import {
   ProfessionalContact,
@@ -1319,6 +1327,140 @@ class ApiService {
         hasConflicts: boolean;
       }>
     >(`/interviews/check-conflicts?${queryParams.toString()}`);
+  }
+
+  // Interview Response Library endpoints
+  async createInterviewResponse(data: InterviewResponseInput) {
+    return this.request<
+      ApiResponse<{ response: InterviewResponse; message: string }>
+    >("/interview-responses", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getInterviewResponses(filters?: {
+    questionType?: string;
+    tagValue?: string;
+    searchTerm?: string;
+  }) {
+    const queryParams = new URLSearchParams();
+    if (filters?.questionType) queryParams.append("questionType", filters.questionType);
+    if (filters?.tagValue) queryParams.append("tagValue", filters.tagValue);
+    if (filters?.searchTerm) queryParams.append("searchTerm", filters.searchTerm);
+
+    const query = queryParams.toString();
+    return this.request<ApiResponse<{ responses: InterviewResponse[] }>>(
+      `/interview-responses${query ? `?${query}` : ""}`
+    );
+  }
+
+  async getInterviewResponse(id: string) {
+    return this.request<ApiResponse<{ response: InterviewResponse }>>(
+      `/interview-responses/${id}`
+    );
+  }
+
+  async updateInterviewResponse(id: string, data: InterviewResponseUpdate) {
+    return this.request<
+      ApiResponse<{ response: any; message: string }>
+    >(`/interview-responses/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteInterviewResponse(id: string) {
+    return this.request<ApiResponse<{ message: string }>>(
+      `/interview-responses/${id}`,
+      {
+        method: "DELETE",
+      }
+    );
+  }
+
+  async createResponseVersion(id: string, data: InterviewResponseVersionInput) {
+    return this.request<
+      ApiResponse<{ version: any; message: string }>
+    >(`/interview-responses/${id}/versions`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async addResponseTag(id: string, data: InterviewResponseTagInput) {
+    return this.request<
+      ApiResponse<{ tag: any; message: string }>
+    >(`/interview-responses/${id}/tags`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async removeResponseTag(id: string, tagId: string) {
+    return this.request<ApiResponse<{ message: string }>>(
+      `/interview-responses/${id}/tags/${tagId}`,
+      {
+        method: "DELETE",
+      }
+    );
+  }
+
+  async addResponseOutcome(id: string, data: InterviewResponseOutcomeInput) {
+    return this.request<
+      ApiResponse<{ outcome: any; message: string }>
+    >(`/interview-responses/${id}/outcomes`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getGapAnalysis() {
+    return this.request<ApiResponse<{ gapAnalysis: GapAnalysis }>>(
+      "/interview-responses/gap-analysis"
+    );
+  }
+
+  async suggestBestResponse(id: string, jobRequirements: any) {
+    return this.request<ApiResponse<{ suggestion: ResponseSuggestion }>>(
+      `/interview-responses/${id}/suggest`,
+      {
+        method: "POST",
+        body: JSON.stringify({ jobRequirements }),
+      }
+    );
+  }
+
+  async exportPrepGuide(format: "json" | "markdown" = "json") {
+    const url = `/interview-responses/export?format=${format}`;
+    
+    if (format === "json" || format === "markdown") {
+      const response = await fetch(`${API_BASE}${url}`, {
+        method: "GET",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to export prep guide: ${response.statusText}`);
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = `interview-prep-guide-${Date.now()}.${format === "json" ? "json" : "md"}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+
+      return { ok: true, data: { message: "Export successful" } };
+    }
+
+    return this.request<ApiResponse<{ exportData: string }>>(url);
   }
 
   // Google Calendar endpoints

@@ -10,15 +10,23 @@ interface FollowUpReminderCardProps {
 }
 
 export function FollowUpReminderCard({ reminder, onUpdate }: FollowUpReminderCardProps) {
+  // Early return if reminder is invalid
+  if (!reminder || !reminder.id || typeof reminder.id !== 'string') {
+    return null;
+  }
+
   const [showEmailTemplate, setShowEmailTemplate] = useState(false);
   const [isSnoozing, setIsSnoozing] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
   const [isDismissing, setIsDismissing] = useState(false);
 
-  const isOverdue = new Date(reminder.dueDate) < new Date() && reminder.status === 'pending';
-  const daysUntilDue = Math.floor((new Date(reminder.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+  const isOverdue = reminder.dueDate && new Date(reminder.dueDate) < new Date() && reminder.status === 'pending';
+  const daysUntilDue = reminder.dueDate 
+    ? Math.floor((new Date(reminder.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+    : 0;
 
   const handleSnooze = async (days: number) => {
+    if (!reminder?.id) return;
     try {
       setIsSnoozing(true);
       const response = await api.snoozeFollowUpReminder(reminder.id, days);
@@ -33,6 +41,7 @@ export function FollowUpReminderCard({ reminder, onUpdate }: FollowUpReminderCar
   };
 
   const handleComplete = async () => {
+    if (!reminder?.id) return;
     try {
       setIsCompleting(true);
       const response = await api.completeFollowUpReminder(reminder.id);
@@ -47,6 +56,7 @@ export function FollowUpReminderCard({ reminder, onUpdate }: FollowUpReminderCar
   };
 
   const handleDismiss = async () => {
+    if (!reminder?.id) return;
     try {
       setIsDismissing(true);
       const response = await api.dismissFollowUpReminder(reminder.id);
@@ -92,7 +102,7 @@ export function FollowUpReminderCard({ reminder, onUpdate }: FollowUpReminderCar
               </span>
               <span className="flex items-center gap-1">
                 <Icon icon="mingcute:calendar-line" width={16} />
-                {new Date(reminder.dueDate).toLocaleDateString()}
+                {reminder.dueDate ? new Date(reminder.dueDate).toLocaleDateString() : 'No date'}
               </span>
               {reminder.location && (
                 <span className="flex items-center gap-1">

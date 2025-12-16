@@ -42,6 +42,18 @@ async function setupTestUsers() {
           ? cookies.find((cookie) => cookie.startsWith("connect.sid"))
           : null;
       }
+
+      // Create a profile for the test user (required for XSS and other profile tests)
+      try {
+        await database.query(
+          `INSERT INTO profiles (user_id, first_name, last_name, state)
+           VALUES ($1, $2, $3, $4)
+           ON CONFLICT (user_id) DO NOTHING`,
+          [testUserId, "Test", "User", "NY"]
+        );
+      } catch (error) {
+        console.warn("Profile creation warning:", error.message);
+      }
     }
 
     // Register another user for authorization tests
@@ -66,9 +78,13 @@ async function setupTestUsers() {
 async function cleanupTestUsers() {
   try {
     if (testUserId) {
+      // Delete profile first (foreign key constraint)
+      await database.query("DELETE FROM profiles WHERE user_id = $1", [testUserId]);
       await database.query("DELETE FROM users WHERE u_id = $1", [testUserId]);
     }
     if (otherUserId) {
+      // Delete profile first (foreign key constraint)
+      await database.query("DELETE FROM profiles WHERE user_id = $1", [otherUserId]);
       await database.query("DELETE FROM users WHERE u_id = $1", [otherUserId]);
     }
   } catch (error) {

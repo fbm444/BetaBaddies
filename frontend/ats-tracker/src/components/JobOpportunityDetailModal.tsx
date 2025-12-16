@@ -57,6 +57,9 @@ export function JobOpportunityDetailModal({
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [isSharing, setIsSharing] = useState(false);
   const [sharedTeams, setSharedTeams] = useState<string[]>([]);
+  const [responsePrediction, setResponsePrediction] = useState<any | null>(null);
+  const [isLoadingPrediction, setIsLoadingPrediction] = useState(false);
+  const [predictionError, setPredictionError] = useState<string | null>(null);
 
   const handleScheduleInterview = () => {
     navigate(`${ROUTES.INTERVIEW_SCHEDULING}?jobOpportunityId=${opportunity.id}`);
@@ -127,6 +130,31 @@ export function JobOpportunityDetailModal({
     fetchTeams();
     checkSharedTeams();
   }, [opportunity]);
+
+  // Load response time prediction
+  useEffect(() => {
+    const loadPrediction = async () => {
+      if (!opportunity.id) return;
+      try {
+        setIsLoadingPrediction(true);
+        setPredictionError(null);
+        const res = await api.getResponseTimePrediction(opportunity.id);
+        if (res.ok && res.data && res.data.prediction) {
+          setResponsePrediction(res.data.prediction);
+        } else {
+          setResponsePrediction(null);
+        }
+      } catch (err: any) {
+        console.error("Error loading response time prediction:", err);
+        setPredictionError("Response time prediction not available yet.");
+        setResponsePrediction(null);
+      } finally {
+        setIsLoadingPrediction(false);
+      }
+    };
+
+    loadPrediction();
+  }, [opportunity.id]);
 
   const fetchTeams = async () => {
     try {
@@ -1519,6 +1547,64 @@ export function JobOpportunityDetailModal({
               </div>
             </section>
           </div>
+
+          {/* Response Time Prediction */}
+          {!isEditMode && (
+            <div className="mt-8 pt-6 border-t border-slate-200">
+              <h3 className="text-sm font-semibold text-slate-900 mb-2 flex items-center gap-2">
+                <Icon icon="mingcute:time-line" width={18} className="text-slate-600" />
+                Expected Employer Response
+              </h3>
+              {isLoadingPrediction ? (
+                <p className="text-xs text-slate-500">Loading response time prediction...</p>
+              ) : responsePrediction ? (
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div>
+                    <p className="text-sm text-slate-700">
+                      Typically responds in{" "}
+                      <span className="font-semibold">
+                        {Math.round(responsePrediction.lowerDays)}–
+                        {Math.round(responsePrediction.upperDays)} days
+                      </span>{" "}
+                      for similar {responsePrediction.cohort?.jobType || "roles"} in{" "}
+                      {responsePrediction.cohort?.industry || "your history"}.
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Based on {responsePrediction.sampleSize} past applications. ~
+                      {Math.round((responsePrediction.confidence || 0.8) * 100)}% responded
+                      within this window.
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Suggested follow-up date:{" "}
+                      <span className="font-semibold">
+                        {new Date(
+                          responsePrediction.recommendedFollowUpDate
+                        ).toLocaleDateString()}
+                      </span>
+                      .
+                    </p>
+                  </div>
+                  <div className="px-3 py-2 rounded-lg bg-blue-50 text-blue-700 text-xs font-medium inline-flex flex-col items-start">
+                    <span className="uppercase tracking-wide text-[10px] text-blue-500 mb-1">
+                      Follow-up Hint
+                    </span>
+                    <span>
+                      If you haven&apos;t heard back by{" "}
+                      {new Date(
+                        responsePrediction.recommendedFollowUpDate
+                      ).toLocaleDateString()}
+                      , send a polite check-in.
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500">
+                  {predictionError ||
+                    "Not enough past data yet to generate a response time prediction for this role."}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Salary Benchmark - At the bottom */}
           {!isEditMode && opportunity.title && opportunity.location && (

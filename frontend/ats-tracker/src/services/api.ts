@@ -5136,6 +5136,19 @@ class ApiService {
     const query = limit ? `?limit=${limit}` : "";
     return this.request<ApiResponse<any>>(`/optimization/role-types/best${query}`);
   }
+
+  // Response Time Prediction
+  async getResponseTimePrediction(jobId: string) {
+    return this.request<ApiResponse<{ prediction: any }>>(
+      `/optimization/response-time/prediction/${jobId}`
+    );
+  }
+
+  async getResponseTimeBenchmarks() {
+    return this.request<ApiResponse<{ benchmarks: any[] }>>(
+      `/optimization/response-time/benchmarks`
+    );
+  }
 }
 
 export const api = new ApiService();

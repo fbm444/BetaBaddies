@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { Icon } from "@iconify/react";
-import { api } from "../services/api";
 import { SuccessMetricsCard } from "../components/optimization/SuccessMetricsCard";
 import { DocumentPerformanceCard } from "../components/optimization/DocumentPerformanceCard";
 import { StrategyTrackingCard } from "../components/optimization/StrategyTrackingCard";
@@ -9,10 +8,12 @@ import { RoleTypeAnalysisCard } from "../components/optimization/RoleTypeAnalysi
 import { OptimizationRecommendationsCard } from "../components/optimization/OptimizationRecommendationsCard";
 import { ABTestingCard } from "../components/optimization/ABTestingCard";
 import { TrendVisualizationCard } from "../components/optimization/TrendVisualizationCard";
+import { api } from "../services/api";
 
 export function ApplicationSuccessOptimization() {
   const [activeTab, setActiveTab] = useState<string>("metrics");
   const [dateRange, setDateRange] = useState<{ startDate?: string; endDate?: string }>({});
+  const [responseBenchmarks, setResponseBenchmarks] = useState<any[] | null>(null);
 
   const tabs = [
     { id: "metrics", label: "Success Metrics", icon: "mingcute:chart-line" },
@@ -24,6 +25,23 @@ export function ApplicationSuccessOptimization() {
     { id: "ab-tests", label: "A/B Tests", icon: "mingcute:experiment-line" },
     { id: "trends", label: "Trends", icon: "mingcute:trending-up-line" },
   ];
+
+  useEffect(() => {
+    const loadBenchmarks = async () => {
+      try {
+        const res = await api.getResponseTimeBenchmarks();
+        if (res.ok && res.data && res.data.benchmarks) {
+          setResponseBenchmarks(res.data.benchmarks);
+        } else {
+          setResponseBenchmarks(null);
+        }
+      } catch {
+        setResponseBenchmarks(null);
+      }
+    };
+
+    loadBenchmarks();
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 font-poppins">
@@ -93,7 +111,41 @@ export function ApplicationSuccessOptimization() {
 
         {/* Tab Content */}
         <div className="bg-white rounded-lg shadow-sm p-6">
-          {activeTab === "metrics" && <SuccessMetricsCard dateRange={dateRange} />}
+          {activeTab === "metrics" && (
+            <div className="space-y-6">
+              <SuccessMetricsCard dateRange={dateRange} />
+              {responseBenchmarks && responseBenchmarks.length > 0 && (
+                <div className="mt-4 border-t border-slate-200 pt-4">
+                  <h3 className="text-sm font-semibold text-slate-900 mb-2 flex items-center gap-2">
+                    <Icon icon="mingcute:time-line" width={18} className="text-slate-600" />
+                    Response Time Benchmarks
+                  </h3>
+                  <p className="text-xs text-slate-500 mb-3">
+                    Average time it has taken employers to respond to your applications by
+                    industry and role type.
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
+                    {responseBenchmarks.slice(0, 6).map((b, idx) => (
+                      <div
+                        key={`${b.industry || 'Unknown'}-${b.job_type || 'role'}-${idx}`}
+                        className="border border-slate-200 rounded-lg p-3 bg-slate-50"
+                      >
+                        <p className="text-[11px] font-semibold text-slate-700 mb-1">
+                          {b.industry || "Unknown Industry"}
+                        </p>
+                        <p className="text-[11px] text-slate-500 mb-1">
+                          {b.job_type || "Role"} • {b.count} apps
+                        </p>
+                        <p className="text-sm font-bold text-slate-900">
+                          {b.avg_days ? `${b.avg_days.toFixed(1)} days` : "—"}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           {activeTab === "documents" && <DocumentPerformanceCard dateRange={dateRange} />}
           {activeTab === "strategies" && <StrategyTrackingCard dateRange={dateRange} />}
           {activeTab === "timing" && <TimingAnalysisCard dateRange={dateRange} />}

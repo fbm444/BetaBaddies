@@ -41,6 +41,18 @@ router.get("/timing/hour-of-day", optimizationController.getHourOfDayPerformance
 router.get("/timing/time-of-day", optimizationController.getTimeOfDayPerformance);
 
 // ============================================================================
+// Response Time Prediction Routes
+// ============================================================================
+router.get(
+  "/response-time/prediction/:jobId",
+  optimizationController.getResponseTimePrediction
+);
+router.get(
+  "/response-time/benchmarks",
+  optimizationController.getResponseTimeBenchmarks
+);
+
+// ============================================================================
 // A/B Testing Routes
 // ============================================================================
 router.post("/ab-tests", optimizationController.createABTest);

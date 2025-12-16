@@ -6,6 +6,7 @@ import abTestingService from "../services/abTestingService.js";
 import successMetricsService from "../services/successMetricsService.js";
 import optimizationRecommendationsService from "../services/optimizationRecommendationsService.js";
 import roleTypeAnalysisService from "../services/roleTypeAnalysisService.js";
+import responseTimePredictionService from "../services/responseTimePredictionService.js";
 
 class OptimizationController {
   // ============================================================================
@@ -282,6 +283,38 @@ class OptimizationController {
     res.status(200).json({
       ok: true,
       data: { performance }
+    });
+  });
+
+  // ============================================================================
+  // Response Time Prediction
+  // ============================================================================
+
+  getResponseTimePrediction = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { jobId } = req.params;
+
+    const prediction = await responseTimePredictionService.predictForJob(
+      userId,
+      jobId
+    );
+
+    res.status(200).json({
+      ok: true,
+      data: { prediction },
+    });
+  });
+
+  getResponseTimeBenchmarks = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+
+    const benchmarks = await responseTimePredictionService.getBenchmarks(
+      userId
+    );
+
+    res.status(200).json({
+      ok: true,
+      data: { benchmarks },
     });
   });
 

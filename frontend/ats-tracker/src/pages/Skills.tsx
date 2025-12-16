@@ -501,10 +501,11 @@ function SkillModal({
 
           {/* Category */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <label htmlFor="skill-category-select" className="block text-sm font-medium text-slate-700 mb-2">
               Category
             </label>
             <select
+              id="skill-category-select"
               value={formData.category}
               onChange={(e) =>
                 setFormData({
@@ -513,7 +514,7 @@ function SkillModal({
                 })
               }
               disabled={isSubmitting}
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-700 focus:border-transparent transition-shadow"
             >
               <option value="Technical">Technical</option>
               <option value="Soft Skills">Soft Skills</option>
@@ -576,7 +577,7 @@ function SkillModal({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              className="flex-1 px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {isSubmitting ? (
                 <>
@@ -913,7 +914,7 @@ export function Skills() {
             icon="mingcute:loading-line"
             width={48}
             height={48}
-            className="animate-spin text-blue-500 mx-auto mb-4"
+            className="animate-spin text-blue-700 mx-auto mb-4"
           />
           <div className="text-2xl font-semibold text-slate-900 mb-2">
             Loading your skills...
@@ -939,7 +940,7 @@ export function Skills() {
         </div>
         <button
           onClick={() => setIsAddModalOpen(true)}
-          className="flex items-center gap-2 px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors shadow-sm"
+          className="flex items-center gap-2 px-6 py-3 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors shadow-sm"
         >
           <Icon icon="mingcute:add-line" width={20} height={20} />
           Add Skill
@@ -981,7 +982,7 @@ export function Skills() {
               onClick={() => setViewMode("category")}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 viewMode === "category"
-                  ? "bg-blue-500 text-white"
+                  ? "bg-blue-700 text-white"
                   : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
               }`}
             >
@@ -997,7 +998,7 @@ export function Skills() {
               onClick={() => setViewMode("list")}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 viewMode === "list"
-                  ? "bg-blue-500 text-white"
+                  ? "bg-blue-700 text-white"
                   : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
               }`}
             >
@@ -1123,7 +1124,7 @@ export function Skills() {
           {!searchTerm && activeFilter === "all" && (
             <button
               onClick={() => setIsAddModalOpen(true)}
-              className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+              className="px-6 py-3 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors"
             >
               Add Your First Skill
             </button>

@@ -133,7 +133,7 @@ export function ProgressSharing() {
   if (isLoading && !report) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Icon icon="mingcute:loading-line" width={48} className="animate-spin text-blue-500" />
+        <Icon icon="mingcute:loading-line" width={48} className="animate-spin text-blue-700" />
       </div>
     );
   }
@@ -221,7 +221,7 @@ export function ProgressSharing() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
               <div className="flex items-center justify-between mb-2">
-                <Icon icon="mingcute:file-edit-line" width={24} className="text-blue-500" />
+                <Icon icon="mingcute:file-edit-line" width={24} className="text-blue-700" />
                 <span className="text-2xl font-bold text-blue-600">
                   {report.jobSearch?.applications_submitted || 0}
                 </span>

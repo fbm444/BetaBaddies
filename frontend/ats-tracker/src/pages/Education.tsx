@@ -271,15 +271,17 @@ export function Education() {
 
             {/* Education Level */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="education-level-select" className="block text-sm font-medium text-gray-700 mb-1">
                 Education Level *
               </label>
               <select
+                id="education-level-select"
                 name="educationLevel"
                 value={formData.educationLevel}
                 onChange={handleChange}
-                className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
+                className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-700 focus:border-transparent text-gray-900 bg-white"
                 required
+                aria-required="true"
               >
                 <option value="">Select Education Level</option>
                 {EDUCATION_LEVELS.map((level) => (

@@ -674,10 +674,19 @@ export function JobOpportunityDetailModal({
     <div 
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[110] p-4 font-poppins"
       onClick={handleBackdropClick}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          onClose();
+        }
+      }}
     >
       <div 
         className="bg-white rounded-2xl max-w-7xl w-full max-h-[90vh] flex overflow-hidden font-poppins"
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="detail-modal-title"
+        tabIndex={-1}
       >
         {/* Main Content */}
         <div className="flex-1 overflow-y-auto">
@@ -688,6 +697,7 @@ export function JobOpportunityDetailModal({
               <div className="flex items-center gap-3 mb-2">
               {isEditMode ? (
                 <input
+                  id="detail-title-input"
                   type="text"
                   value={formData.title}
                   onChange={(e) =>
@@ -695,9 +705,10 @@ export function JobOpportunityDetailModal({
                   }
                   className="text-2xl font-bold text-slate-900 border-b-2 border-blue-500 focus:outline-none flex-1"
                   placeholder="Job Title"
+                  aria-label="Job title"
                 />
               ) : (
-                <h2 className="text-2xl font-bold text-slate-900">
+                <h2 id="detail-modal-title" className="text-2xl font-bold text-slate-900">
                   {opportunity.title}
                 </h2>
               )}
@@ -763,7 +774,7 @@ export function JobOpportunityDetailModal({
                 {!opportunity.archived && (
                   <button
                     onClick={() => setIsEditMode(true)}
-                    className="px-2.5 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors flex items-center gap-1 text-xs font-medium"
+                    className="px-2.5 py-1 bg-blue-700 text-white rounded-md hover:bg-blue-800 transition-colors flex items-center gap-1 text-xs font-medium"
                   >
                     <Icon icon="mingcute:edit-line" width={14} />
                     Edit
@@ -799,8 +810,9 @@ export function JobOpportunityDetailModal({
             <button
               onClick={onClose}
               className="p-2 text-slate-400 hover:text-slate-600"
+              aria-label="Close modal"
             >
-              <Icon icon="mingcute:close-line" width={24} />
+              <Icon icon="mingcute:close-line" width={24} aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -1490,7 +1502,7 @@ export function JobOpportunityDetailModal({
                   <button
                     type="button"
                     onClick={handleAddHistoryEntry}
-                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
+                    className="px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors text-sm"
                   >
                     Add History Entry
                   </button>
@@ -1533,7 +1545,7 @@ export function JobOpportunityDetailModal({
               </button>
               <button
                 type="submit"
-                className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2"
+                className="px-6 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors flex items-center gap-2"
                 disabled={isSaving}
               >
                 {isSaving ? (

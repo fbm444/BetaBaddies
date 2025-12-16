@@ -584,7 +584,7 @@ export function MenteeDashboard() {
         <Icon
           icon="mingcute:loading-line"
           width={48}
-          className="animate-spin text-blue-500"
+          className="animate-spin text-blue-700"
         />
       </div>
     );
@@ -746,7 +746,7 @@ export function MenteeDashboard() {
               onClick={() => setActiveTab(tab.id as any)}
               className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm bg-transparent hover:bg-transparent focus:bg-transparent ${
                 activeTab === tab.id
-                  ? "border-blue-500 text-blue-500"
+                  ? "border-blue-500 text-blue-700"
                   : "border-transparent text-slate-600"
               }`}
               style={{ 
@@ -780,7 +780,7 @@ export function MenteeDashboard() {
                   <Icon
                     icon="mingcute:briefcase-line"
                     width={24}
-                    className="text-blue-500"
+                    className="text-blue-700"
                   />
                 </div>
                 <div className="text-3xl font-bold text-slate-900 mb-1">
@@ -876,7 +876,7 @@ export function MenteeDashboard() {
                   <Icon
                     icon="mingcute:loading-line"
                     width={32}
-                    className="animate-spin text-blue-500"
+                    className="animate-spin text-blue-700"
                   />
                   <span className="ml-3 text-slate-600">
                     Loading activity feed...
@@ -1733,7 +1733,7 @@ export function MenteeDashboard() {
               <Icon
                 icon="mingcute:loading-line"
                 width={32}
-                className="animate-spin text-blue-500"
+                className="animate-spin text-blue-700"
               />
               <span className="ml-3 text-slate-600">
                 Loading progress report...
@@ -2536,7 +2536,7 @@ export function MenteeDashboard() {
                         <Icon
                           icon="mingcute:loading-line"
                           width={24}
-                          className="animate-spin text-blue-500"
+                          className="animate-spin text-blue-700"
                         />
                         <span className="ml-3 text-slate-600">
                           Loading comments...
@@ -2629,7 +2629,7 @@ export function MenteeDashboard() {
               <Icon
                 icon="mingcute:loading-line"
                 width={32}
-                className="animate-spin text-blue-500"
+                className="animate-spin text-blue-700"
               />
               <span className="ml-3 text-slate-600">
                 Loading mock interviews...

@@ -152,7 +152,7 @@ export function WritingPractice() {
         <div className="text-center">
           <Icon
             icon="mingcute:loading-line"
-            className="w-12 h-12 animate-spin mx-auto text-blue-500"
+            className="w-12 h-12 animate-spin mx-auto text-blue-700"
           />
           <p className="mt-4 text-slate-600">Loading writing practice...</p>
         </div>
@@ -190,7 +190,31 @@ export function WritingPractice() {
 
         {/* Tabs */}
         <div className="border-b border-slate-200 mb-8">
-          <div className="flex gap-1 overflow-x-auto scrollbar-hide">
+          <div 
+            role="tablist" 
+            aria-label="Writing practice tabs"
+            className="flex gap-1 overflow-x-auto scrollbar-hide"
+            onKeyDown={(e) => {
+              const tabs = Array.from(e.currentTarget.querySelectorAll('button[role="tab"]')) as HTMLButtonElement[]
+              const currentIndex = tabs.findIndex(tab => tab === document.activeElement)
+              
+              if (e.key === 'ArrowRight') {
+                e.preventDefault()
+                const nextIndex = currentIndex < tabs.length - 1 ? currentIndex + 1 : 0
+                tabs[nextIndex]?.focus()
+              } else if (e.key === 'ArrowLeft') {
+                e.preventDefault()
+                const prevIndex = currentIndex > 0 ? currentIndex - 1 : tabs.length - 1
+                tabs[prevIndex]?.focus()
+              } else if (e.key === 'Home') {
+                e.preventDefault()
+                tabs[0]?.focus()
+              } else if (e.key === 'End') {
+                e.preventDefault()
+                tabs[tabs.length - 1]?.focus()
+              }
+            }}
+          >
             {[
               { id: "practice", label: "Practice", icon: "mingcute:edit-line" },
               { id: "history", label: "History", icon: "mingcute:file-list-line" },
@@ -199,26 +223,28 @@ export function WritingPractice() {
             ].map((tab) => (
               <button
                 key={tab.id}
+                role="tab"
+                aria-selected={activeTab === tab.id}
+                id={`tab-${tab.id}`}
+                aria-controls={`tabpanel-${tab.id}`}
+                tabIndex={activeTab === tab.id ? 0 : -1}
                 onClick={() => setActiveTab(tab.id as TabType)}
-                className={`px-6 py-3 font-medium text-sm whitespace-nowrap flex items-center gap-2 flex-shrink-0 min-w-fit bg-transparent hover:bg-transparent focus:bg-transparent ${
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    setActiveTab(tab.id as TabType)
+                  }
+                }}
+                className={`px-6 py-3 font-medium text-sm whitespace-nowrap flex items-center gap-2 flex-shrink-0 min-w-fit bg-transparent hover:bg-transparent focus:bg-transparent focus:outline-none focus:ring-2 focus:ring-blue-700 focus:ring-offset-2 ${
                   activeTab === tab.id
-                    ? "text-blue-500 border-b-2 border-blue-500"
+                    ? "text-blue-700 border-b-2 border-blue-500"
                     : "text-slate-600"
                 }`}
                 style={{
-                  outline: 'none',
-                  boxShadow: 'none',
                   borderTop: 'none',
                   borderLeft: 'none',
                   borderRight: 'none',
                   borderRadius: '0'
-                }}
-                onFocus={(e) => e.target.blur()}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
                 }}
               >
                 <Icon icon={tab.icon} width={18} height={18} className="flex-shrink-0" style={{ minWidth: '18px', minHeight: '18px' }} />
@@ -231,7 +257,7 @@ export function WritingPractice() {
         {/* Tab Content */}
         <div className="mt-8 bg-slate-50 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-10 rounded-t-2xl">
           {activeTab === "practice" && (
-            <div className="space-y-6">
+            <div role="tabpanel" id="tabpanel-practice" aria-labelledby="tab-practice" className="space-y-6">
             {/* Quick Start */}
             <div className="bg-white rounded-xl p-6 border border-slate-200">
               <div className="flex items-center justify-between mb-4">
@@ -250,7 +276,7 @@ export function WritingPractice() {
                       showMessage("Failed to get random prompt", "error");
                     }
                   }}
-                  className="px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 text-sm font-medium"
+                  className="px-4 py-2 bg-blue-700 text-white rounded-full hover:bg-blue-800 text-sm font-medium"
                 >
                   Start Random Practice
                 </button>
@@ -329,7 +355,7 @@ export function WritingPractice() {
                       className="p-4 border border-slate-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors cursor-pointer"
                     >
                       <div className="flex items-center gap-3 mb-2">
-                        <Icon icon={cat.icon} width={24} height={24} className="text-blue-500 flex-shrink-0" style={{ display: 'inline-block' }} />
+                        <Icon icon={cat.icon} width={24} height={24} className="text-blue-700 flex-shrink-0" style={{ display: 'inline-block' }} />
                         <h3 className="font-semibold text-slate-900">{cat.label}</h3>
                       </div>
                       <p className="text-sm text-slate-600">
@@ -344,7 +370,7 @@ export function WritingPractice() {
           )}
 
           {activeTab === "history" && (
-            <div>
+            <div role="tabpanel" id="tabpanel-history" aria-labelledby="tab-history">
             <div className="bg-white rounded-xl border border-slate-200">
               <div className="p-6 border-b border-slate-200">
                 <h2 className="text-xl font-semibold text-slate-900">Session History</h2>
@@ -393,7 +419,7 @@ export function WritingPractice() {
           )}
 
           {activeTab === "progress" && (
-            <div>
+            <div role="tabpanel" id="tabpanel-progress" aria-labelledby="tab-progress">
               {/* Header */}
               <div className="mb-8">
                 <h2 className="text-xl font-semibold text-slate-900">Writing Progress</h2>
@@ -530,7 +556,7 @@ export function WritingPractice() {
           )}
 
           {activeTab === "exercises" && (
-            <div>
+            <div role="tabpanel" id="tabpanel-exercises" aria-labelledby="tab-exercises">
             <div className="bg-white rounded-xl border border-slate-200">
               <div className="p-6 border-b border-slate-200">
                 <h2 className="text-xl font-semibold text-slate-900">Nerves Management Exercises</h2>
@@ -558,7 +584,7 @@ export function WritingPractice() {
                       className="p-6 border border-slate-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors cursor-pointer"
                     >
                       <div className="flex items-center gap-3 mb-2">
-                        <Icon icon={exercise.icon} width={24} height={24} className="text-blue-500 flex-shrink-0" style={{ display: 'inline-block' }} />
+                        <Icon icon={exercise.icon} width={24} height={24} className="text-blue-700 flex-shrink-0" style={{ display: 'inline-block' }} />
                         <h3 className="font-semibold text-slate-900">{exercise.title}</h3>
                       </div>
                       <p className="text-sm text-slate-600">

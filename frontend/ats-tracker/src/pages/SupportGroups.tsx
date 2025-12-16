@@ -1101,7 +1101,7 @@ export function SupportGroups() {
                           <Icon
                             icon="mingcute:calendar-line"
                             width={28}
-                            className="text-blue-500"
+                            className="text-blue-700"
                           />
                           {new Date(challenges[0].start_date).toLocaleString(
                             "default",
@@ -1601,7 +1601,7 @@ export function SupportGroups() {
                     <button
                       onClick={() => handleAddComment(selectedPost.id)}
                       disabled={!newComment.trim()}
-                      className="px-6 py-3 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 disabled:opacity-50"
+                      className="px-6 py-3 bg-blue-700 text-white rounded-xl font-medium hover:bg-blue-800 disabled:opacity-50"
                     >
                       Post
                     </button>
@@ -1939,7 +1939,7 @@ export function SupportGroups() {
         </div>
         <button
           onClick={() => setShowCreateGroupModal(true)}
-          className="px-6 py-3 bg-blue-500 text-white rounded-full font-semibold hover:bg-blue-600 transition-all shadow-md hover:shadow-lg flex items-center gap-2"
+          className="px-6 py-3 bg-blue-700 text-white rounded-full font-semibold hover:bg-blue-800 transition-all shadow-md hover:shadow-lg flex items-center gap-2"
         >
           <Icon icon="mingcute:add-line" width={20} />
           Create Group
@@ -2285,7 +2285,7 @@ export function SupportGroups() {
                 <button
                   onClick={handleCreateGroup}
                   disabled={isCreatingGroup}
-                  className="flex-1 px-4 py-3 bg-blue-500 text-white rounded-full font-medium hover:bg-blue-600 disabled:opacity-50"
+                  className="flex-1 px-4 py-3 bg-blue-700 text-white rounded-full font-medium hover:bg-blue-800 disabled:opacity-50"
                 >
                   {isCreatingGroup ? "Creating..." : "Create Group"}
                 </button>

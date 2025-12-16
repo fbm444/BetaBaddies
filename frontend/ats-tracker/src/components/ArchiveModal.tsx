@@ -41,23 +41,38 @@ export function ArchiveModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 font-poppins">
-      <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl font-poppins">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[110] p-4 font-poppins"
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          onCancel();
+        }
+      }}
+    >
+      <div 
+        className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl font-poppins"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="archive-modal-title"
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 bg-amber-100 rounded-lg">
+          <div className="p-2 bg-amber-100 rounded-lg" aria-hidden="true">
             <Icon icon="mingcute:archive-line" className="text-amber-600" width={24} />
           </div>
-          <h2 className="text-xl font-bold text-slate-900">{title}</h2>
+          <h2 id="archive-modal-title" className="text-xl font-bold text-slate-900">{title}</h2>
         </div>
 
         <p className="text-slate-600 mb-6">{message}</p>
 
         <form onSubmit={handleSubmit}>
           <div className="mb-6">
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <label htmlFor="archive-reason-select" className="block text-sm font-medium text-slate-700 mb-2">
               Archive Reason (Optional)
             </label>
             <select
+              id="archive-reason-select"
               value={archiveReason}
               onChange={(e) => {
                 setArchiveReason(e.target.value);
@@ -78,12 +93,14 @@ export function ArchiveModal({
 
             {showCustomReason && (
               <textarea
+                id="custom-reason-textarea"
                 value={customReason}
                 onChange={(e) => setCustomReason(e.target.value)}
                 placeholder="Enter custom reason..."
                 rows={3}
                 className="w-full mt-3 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none"
                 maxLength={255}
+                aria-label="Custom archive reason"
               />
             )}
           </div>

@@ -142,7 +142,7 @@ export function TalkingPointsTab({
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleSaveEdit(point.id)}
-                          className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
+                          className="px-3 py-1 bg-blue-700 text-white rounded text-sm hover:bg-blue-800"
                         >
                           Save
                         </button>

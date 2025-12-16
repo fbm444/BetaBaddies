@@ -111,7 +111,7 @@ export function TeamDashboard({ teamId, refreshKey }: TeamDashboardProps) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Icon icon="mingcute:loading-line" width={32} className="animate-spin text-blue-500" />
+        <Icon icon="mingcute:loading-line" width={32} className="animate-spin text-blue-700" />
         <span className="ml-3 text-slate-600">Loading dashboard...</span>
       </div>
     );
@@ -177,7 +177,7 @@ export function TeamDashboard({ teamId, refreshKey }: TeamDashboardProps) {
 
         {isLoadingInsights && !aiInsights && (
           <div className="flex items-center justify-center py-8">
-            <Icon icon="mingcute:loading-line" width={32} className="animate-spin text-blue-500" />
+            <Icon icon="mingcute:loading-line" width={32} className="animate-spin text-blue-700" />
             <span className="ml-3 text-slate-600">Generating AI insights...</span>
           </div>
         )}

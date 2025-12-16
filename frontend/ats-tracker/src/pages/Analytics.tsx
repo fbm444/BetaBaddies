@@ -127,7 +127,7 @@ export function Analytics() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`px-5 py-2.5 font-medium text-sm whitespace-nowrap flex items-center flex-shrink-0 min-w-fit bg-transparent hover:bg-transparent focus:bg-transparent relative ${
                   activeTab === tab.id
-                    ? "text-blue-500"
+                    ? "text-blue-700"
                     : "text-slate-600"
                 }`}
                 style={{ 

@@ -1112,7 +1112,7 @@ export function CoverLetterBuilder() {
                     >
                       <Icon icon="mingcute:comment-line" width={16} />
                       {getSectionComments("greeting").length > 0 && (
-                        <span className="bg-blue-500 text-white rounded-full px-1.5 text-xs">
+                        <span className="bg-blue-700 text-white rounded-full px-1.5 text-xs">
                           {getSectionComments("greeting").length}
                         </span>
                       )}
@@ -1159,7 +1159,7 @@ export function CoverLetterBuilder() {
                       <button
                         onClick={() => handleAddComment("greeting")}
                         disabled={!newComment.trim() || isSubmittingComment}
-                        className="px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 text-sm"
+                        className="px-3 py-1 bg-blue-700 text-white rounded-lg hover:bg-blue-800 disabled:opacity-50 text-sm"
                       >
                         Add Comment
                       </button>
@@ -1190,7 +1190,7 @@ export function CoverLetterBuilder() {
                     >
                       <Icon icon="mingcute:comment-line" width={16} />
                       {getSectionComments("opening").length > 0 && (
-                        <span className="bg-blue-500 text-white rounded-full px-1.5 text-xs">
+                        <span className="bg-blue-700 text-white rounded-full px-1.5 text-xs">
                           {getSectionComments("opening").length}
                         </span>
                       )}
@@ -1268,7 +1268,7 @@ export function CoverLetterBuilder() {
                       <button
                         onClick={() => handleAddComment("opening")}
                         disabled={!newComment.trim() || isSubmittingComment}
-                        className="px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 text-sm"
+                        className="px-3 py-1 bg-blue-700 text-white rounded-lg hover:bg-blue-800 disabled:opacity-50 text-sm"
                       >
                         Add Comment
                       </button>
@@ -1313,7 +1313,7 @@ export function CoverLetterBuilder() {
                         >
                           <Icon icon="mingcute:comment-line" width={16} />
                           {getSectionComments("body", index).length > 0 && (
-                            <span className="bg-blue-500 text-white rounded-full px-1.5 text-xs">
+                            <span className="bg-blue-700 text-white rounded-full px-1.5 text-xs">
                               {getSectionComments("body", index).length}
                             </span>
                           )}
@@ -1403,7 +1403,7 @@ export function CoverLetterBuilder() {
                           <button
                             onClick={() => handleAddComment("body", index)}
                             disabled={!newComment.trim() || isSubmittingComment}
-                            className="px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 text-sm"
+                            className="px-3 py-1 bg-blue-700 text-white rounded-lg hover:bg-blue-800 disabled:opacity-50 text-sm"
                           >
                             Add Comment
                           </button>
@@ -1447,7 +1447,7 @@ export function CoverLetterBuilder() {
                     >
                       <Icon icon="mingcute:comment-line" width={16} />
                       {getSectionComments("closing").length > 0 && (
-                        <span className="bg-blue-500 text-white rounded-full px-1.5 text-xs">
+                        <span className="bg-blue-700 text-white rounded-full px-1.5 text-xs">
                           {getSectionComments("closing").length}
                         </span>
                       )}
@@ -1525,7 +1525,7 @@ export function CoverLetterBuilder() {
                       <button
                         onClick={() => handleAddComment("closing")}
                         disabled={!newComment.trim() || isSubmittingComment}
-                        className="px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 text-sm"
+                        className="px-3 py-1 bg-blue-700 text-white rounded-lg hover:bg-blue-800 disabled:opacity-50 text-sm"
                       >
                         Add Comment
                       </button>

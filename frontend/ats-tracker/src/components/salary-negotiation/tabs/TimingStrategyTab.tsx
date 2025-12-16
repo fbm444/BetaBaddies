@@ -106,7 +106,7 @@ export function TimingStrategyTab({
         <div className="flex items-center justify-center h-64">
           <Icon
             icon="mingcute:loading-line"
-            className="w-8 h-8 animate-spin text-blue-500"
+            className="w-8 h-8 animate-spin text-blue-700"
           />
         </div>
       ) : timingStrategy ? (
@@ -119,7 +119,7 @@ export function TimingStrategyTab({
           {/* When to Negotiate */}
           <div className="bg-white rounded-xl p-6 border border-slate-200">
             <div className="flex items-center gap-2 mb-4">
-              <Icon icon="mingcute:calendar-line" width={20} className="text-blue-500" />
+              <Icon icon="mingcute:calendar-line" width={20} className="text-blue-700" />
               <h4 className="text-lg font-semibold text-slate-900">When to Negotiate</h4>
             </div>
             <p className="text-slate-700 whitespace-pre-wrap">{timingStrategy.whenToNegotiate}</p>
@@ -144,7 +144,7 @@ export function TimingStrategyTab({
               <div className="space-y-3">
                 {timingStrategy.timeline.map((item, idx) => (
                   <div key={idx} className="flex items-start gap-3">
-                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-medium">
+                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-700 text-white flex items-center justify-center text-xs font-medium">
                       {idx + 1}
                     </div>
                     <p className="text-slate-700 flex-1">{item}</p>

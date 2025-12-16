@@ -125,7 +125,7 @@ export function CompanyResearchPreviewModal({
                   <Icon
                     icon="mingcute:building-2-line"
                     width={24}
-                    className="text-blue-500"
+                    className="text-blue-700"
                   />
                   <h2 className="text-xl font-semibold text-slate-900">
                     Company Overview
@@ -199,7 +199,7 @@ export function CompanyResearchPreviewModal({
                     <Icon
                       icon="mingcute:user-3-line"
                       width={24}
-                      className="text-blue-500"
+                      className="text-blue-700"
                     />
                     <h2 className="text-xl font-semibold text-slate-900">
                       Leadership Team & Potential Interviewers
@@ -242,7 +242,7 @@ export function CompanyResearchPreviewModal({
                   <Icon
                     icon="mingcute:chart-line"
                     width={24}
-                    className="text-blue-500"
+                    className="text-blue-700"
                   />
                   <h2 className="text-xl font-semibold text-slate-900">
                     Competitive Landscape & Market Position
@@ -398,7 +398,7 @@ export function CompanyResearchPreviewModal({
                   <Icon
                     icon="mingcute:news-line"
                     width={24}
-                    className="text-blue-500"
+                    className="text-blue-700"
                   />
                   <h2 className="text-xl font-semibold text-slate-900">
                     Recent News & Developments
@@ -436,7 +436,7 @@ export function CompanyResearchPreviewModal({
                   <Icon
                     icon="mingcute:chat-3-line"
                     width={24}
-                    className="text-blue-500"
+                    className="text-blue-700"
                   />
                   <h2 className="text-xl font-semibold text-slate-900">
                     Key Talking Points
@@ -467,7 +467,7 @@ export function CompanyResearchPreviewModal({
                   <Icon
                     icon="mingcute:question-line"
                     width={24}
-                    className="text-blue-500"
+                    className="text-blue-700"
                   />
                   <h2 className="text-xl font-semibold text-slate-900">
                     Intelligent Questions to Ask
@@ -479,7 +479,7 @@ export function CompanyResearchPreviewModal({
                       <Icon
                         icon="mingcute:question-line"
                         width={20}
-                        className="text-blue-500 mt-0.5 flex-shrink-0"
+                        className="text-blue-700 mt-0.5 flex-shrink-0"
                       />
                       <span className="text-slate-700">{question}</span>
                     </li>
@@ -498,7 +498,7 @@ export function CompanyResearchPreviewModal({
                   <Icon
                     icon="mingcute:lightbulb-line"
                     width={24}
-                    className="text-blue-500"
+                    className="text-blue-700"
                   />
                   <h2 className="text-xl font-semibold text-slate-900">
                     Interview Preparation Recommendations

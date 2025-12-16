@@ -740,7 +740,7 @@ export function Interviews() {
             <div className="flex items-center gap-3 flex-shrink-0">
             <button
                 onClick={() => navigate(ROUTES.INTERVIEW_SCHEDULING)}
-                className="px-6 py-3 rounded-full bg-blue-500 text-white text-sm font-medium inline-flex items-center gap-2 shadow-md hover:bg-blue-600 transition-all"
+                className="px-6 py-3 rounded-full bg-blue-700 text-white text-sm font-medium inline-flex items-center gap-2 shadow-md hover:bg-blue-800 transition-all"
               >
                 <Icon icon="mingcute:calendar-line" width={20} />
                 Interview Calendar
@@ -748,7 +748,7 @@ export function Interviews() {
               {!calendarConnected ? (
                 <button
                   onClick={handleConnectCalendar}
-                  className="px-6 py-3 rounded-full border-2 border-blue-500 text-blue-500 text-sm font-medium inline-flex items-center gap-2 hover:bg-blue-50 transition-all"
+                  className="px-6 py-3 rounded-full border-2 border-blue-500 text-blue-700 text-sm font-medium inline-flex items-center gap-2 hover:bg-blue-50 transition-all"
                 >
                   Connect Google Calendar
                 </button>
@@ -825,7 +825,7 @@ export function Interviews() {
                 <div className="text-center py-8">
                   <Icon
                     icon="mingcute:loading-line"
-                    className="animate-spin text-blue-500 mx-auto mb-2"
+                    className="animate-spin text-blue-700 mx-auto mb-2"
                     width={24}
                   />
                   <p className="text-slate-600 text-sm">Loading thank-you notes...</p>
@@ -988,7 +988,7 @@ export function Interviews() {
                                 setLoadingThankYou(false);
                               }
                             }}
-                            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-xs sm:text-sm font-medium"
+                            className="px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 text-xs sm:text-sm font-medium"
                           >
                             Generate Standard
                           </button>
@@ -1247,7 +1247,7 @@ export function Interviews() {
                               showMessage("Thank you note updated successfully!", "success");
                             }
                           }}
-                          className="px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded-lg hover:bg-blue-600 transition"
+                          className="px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded-lg hover:bg-blue-800 transition"
                         >
                           Save Changes
                         </button>
@@ -1274,10 +1274,39 @@ export function Interviews() {
 
         {/* Tabs */}
         <div className="border-b border-slate-200 mb-8">
-          <div className="flex gap-1 overflow-x-auto scrollbar-hide">
+          <div 
+            role="tablist" 
+            aria-label="Interview tabs"
+            className="flex gap-1 overflow-x-auto scrollbar-hide"
+            onKeyDown={(e) => {
+              const tabs = Array.from(e.currentTarget.querySelectorAll('button[role="tab"]')) as HTMLButtonElement[]
+              const currentIndex = tabs.findIndex(tab => tab === document.activeElement)
+              
+              if (e.key === 'ArrowRight') {
+                e.preventDefault()
+                const nextIndex = currentIndex < tabs.length - 1 ? currentIndex + 1 : 0
+                tabs[nextIndex]?.focus()
+              } else if (e.key === 'ArrowLeft') {
+                e.preventDefault()
+                const prevIndex = currentIndex > 0 ? currentIndex - 1 : tabs.length - 1
+                tabs[prevIndex]?.focus()
+              } else if (e.key === 'Home') {
+                e.preventDefault()
+                tabs[0]?.focus()
+              } else if (e.key === 'End') {
+                e.preventDefault()
+                tabs[tabs.length - 1]?.focus()
+              }
+            }}
+          >
             {tabs.map((tab) => (
               <button
                 key={tab.id}
+                role="tab"
+                id={`tab-${tab.id}`}
+                aria-selected={activeTab === tab.id}
+                aria-controls={`tabpanel-${tab.id}`}
+                tabIndex={activeTab === tab.id ? 0 : -1}
                 onClick={() => {
                   setActiveTab(tab.id);
                   // Update URL without navigating away
@@ -1285,25 +1314,25 @@ export function Interviews() {
                   newSearchParams.set("tab", tab.id);
                   navigate(`?${newSearchParams.toString()}`, { replace: true });
                 }}
-                className={`px-6 py-3 font-medium text-sm whitespace-nowrap flex items-center gap-2 flex-shrink-0 min-w-fit bg-transparent hover:bg-transparent focus:bg-transparent ${
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    setActiveTab(tab.id);
+                    const newSearchParams = new URLSearchParams(searchParams);
+                    newSearchParams.set("tab", tab.id);
+                    navigate(`?${newSearchParams.toString()}`, { replace: true });
+                  }
+                }}
+                className={`px-6 py-3 font-medium text-sm whitespace-nowrap flex items-center gap-2 flex-shrink-0 min-w-fit bg-transparent hover:bg-transparent focus:bg-transparent focus:outline-none focus:ring-2 focus:ring-blue-700 focus:ring-offset-2 ${
                   activeTab === tab.id
-                    ? "text-blue-500 border-b-2 border-blue-500"
+                    ? "text-blue-700 border-b-2 border-blue-500"
                     : "text-slate-600"
                 }`}
                 style={{ 
-                  outline: 'none', 
-                  boxShadow: 'none',
                   borderTop: 'none',
                   borderLeft: 'none',
                   borderRight: 'none',
                   borderRadius: '0'
-                }}
-                onFocus={(e) => e.target.blur()}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
                 }}
               >
                 <Icon icon={tab.icon} width={18} height={18} className="flex-shrink-0" style={{ minWidth: '18px', minHeight: '18px' }} />
@@ -1316,7 +1345,7 @@ export function Interviews() {
         {/* Tab Content */}
         <div className="mt-8 bg-slate-50 -mx-6 lg:-mx-10 px-6 lg:px-10 py-10 rounded-t-2xl">
           {activeTab === "schedule" && (
-            <div>
+            <div role="tabpanel" id="tabpanel-schedule" aria-labelledby="tab-schedule">
               {jobOpportunityId && (
                 <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                   <p className="text-blue-800 text-sm">
@@ -1328,7 +1357,7 @@ export function Interviews() {
               
               {isLoading ? (
                 <div className="text-center py-12">
-                  <Icon icon="mingcute:loading-line" className="animate-spin text-blue-500 mx-auto mb-4" width={32} />
+                  <Icon icon="mingcute:loading-line" className="animate-spin text-blue-700 mx-auto mb-4" width={32} />
                   <p className="text-slate-600">Loading interviews...</p>
                 </div>
               ) : interviews.length === 0 ? (
@@ -1337,7 +1366,7 @@ export function Interviews() {
                   <p className="text-slate-600 mb-2">No interviews scheduled yet</p>
                   <button
                     onClick={() => navigate(`${ROUTES.INTERVIEW_SCHEDULING}${jobOpportunityId ? `?jobOpportunityId=${jobOpportunityId}` : ""}`)}
-                    className="mt-4 px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium inline-flex items-center gap-2"
+                    className="mt-4 px-6 py-3 bg-blue-700 text-white rounded-lg hover:bg-blue-800 font-medium inline-flex items-center gap-2"
                   >
                     <Icon icon="mingcute:add-line" width={18} />
                     Schedule Your First Interview
@@ -1387,7 +1416,7 @@ export function Interviews() {
                             {formatDateTime(interview.scheduledAt)}
                           </p>
                         )}
-                        <button className="px-4 py-2 bg-transparent border-2 border-blue-500 text-blue-500 rounded-full hover:bg-blue-50 text-sm font-medium transition-colors">
+                        <button className="px-4 py-2 bg-transparent border-2 border-blue-500 text-blue-700 rounded-full hover:bg-blue-50 text-sm font-medium transition-colors">
                           View Details →
                         </button>
                       </div>
@@ -1397,7 +1426,7 @@ export function Interviews() {
                     <div className="text-center">
                       <button
                         onClick={() => navigate(ROUTES.INTERVIEW_SCHEDULING)}
-                        className="px-6 py-3 bg-blue-500 text-white rounded-full hover:bg-blue-600 font-medium transition-colors"
+                        className="px-6 py-3 bg-blue-700 text-white rounded-full hover:bg-blue-800 font-medium transition-colors"
                       >
                         View All Interviews
                       </button>
@@ -1409,14 +1438,14 @@ export function Interviews() {
           )}
 
           {activeTab === "preparation" && (
-            <div>
+            <div role="tabpanel" id="tabpanel-preparation" aria-labelledby="tab-preparation">
               <h2 className="text-2xl font-bold text-slate-900 mb-4">Interview Preparation</h2>
               <p className="text-slate-600 mb-6">
                 Get personalized interview tips, insights, and preparation guides organized by company. This information is cached and saved for quick access.
               </p>
               {loadingPreparation ? (
                 <div className="text-center py-12">
-                  <Icon icon="mingcute:loading-line" className="animate-spin text-blue-500 mx-auto mb-4" width={32} />
+                  <Icon icon="mingcute:loading-line" className="animate-spin text-blue-700 mx-auto mb-4" width={32} />
                   <p className="text-slate-600">Loading interview insights...</p>
                 </div>
               ) : companyInsights.size === 0 ? (
@@ -1470,7 +1499,7 @@ export function Interviews() {
                         <>
                       {companyData.loading ? (
                         <div className="text-center py-8">
-                          <Icon icon="mingcute:loading-line" className="animate-spin text-blue-500 mx-auto mb-2" width={24} />
+                          <Icon icon="mingcute:loading-line" className="animate-spin text-blue-700 mx-auto mb-2" width={24} />
                           <p className="text-slate-600 text-sm">Loading insights...</p>
                         </div>
                       ) : companyData.error ? (
@@ -1491,7 +1520,7 @@ export function Interviews() {
                             )}
                             <button
                               onClick={() => refreshInsightsForCompany(companyData.jobId, companyKey)}
-                              className="flex items-center gap-1 text-blue-500 hover:text-blue-600 font-medium bg-transparent hover:bg-transparent border-none p-0 outline-none"
+                              className="flex items-center gap-1 text-blue-700 hover:text-blue-600 font-medium bg-transparent hover:bg-transparent border-none p-0 outline-none"
                             >
                               <Icon icon="mingcute:refresh-2-line" width={16} />
                               Refresh
@@ -1607,7 +1636,7 @@ export function Interviews() {
                           <p className="text-slate-600 text-sm mb-4">No insights available yet</p>
                           <button
                             onClick={() => fetchInsightsForCompany(companyData.jobId, companyData.company, companyKey)}
-                            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm font-medium"
+                            className="px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 text-sm font-medium"
                           >
                             Generate Insights
                           </button>
@@ -1624,11 +1653,11 @@ export function Interviews() {
           )}
 
           {activeTab === "reminders" && (
-            <div>
+            <div role="tabpanel" id="tabpanel-reminders" aria-labelledby="tab-reminders">
               <h2 className="text-2xl font-bold text-slate-900 mb-4">Upcoming Reminders</h2>
               {loadingReminders ? (
                 <div className="text-center py-12">
-                  <Icon icon="mingcute:loading-line" className="animate-spin text-blue-500 mx-auto mb-4" width={32} />
+                  <Icon icon="mingcute:loading-line" className="animate-spin text-blue-700 mx-auto mb-4" width={32} />
                   <p className="text-slate-600">Loading reminders...</p>
                 </div>
               ) : upcomingReminders.length === 0 ? (
@@ -1652,7 +1681,7 @@ export function Interviews() {
                             <Icon
                               icon={reminder.reminderType === "24_hours" ? "mingcute:time-line" : "mingcute:alarm-line"}
                               width={20}
-                              className="text-blue-500"
+                              className="text-blue-700"
                             />
                             <h3 className="font-semibold text-slate-900">
                               {reminder.reminderType === "24_hours" ? "24 Hours Before" : "2 Hours Before"}
@@ -1680,7 +1709,7 @@ export function Interviews() {
           )}
 
           {activeTab === "thank-you" && (
-            <div>
+            <div role="tabpanel" id="tabpanel-thank-you" aria-labelledby="tab-thank-you">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="text-2xl font-bold text-slate-900">Thank You Notes</h2>
@@ -1690,7 +1719,7 @@ export function Interviews() {
                 </div>
                 <button
                   onClick={() => setShowCreateThankYouModal(true)}
-                  className="bg-blue-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-600 transition-all flex items-center gap-2 shadow-md"
+                  className="bg-blue-700 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-800 transition-all flex items-center gap-2 shadow-md"
                 >
                   <Icon icon="mingcute:add-line" width={20} />
                   Create Thank You Note
@@ -1790,7 +1819,7 @@ export function Interviews() {
                   >
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
-                        <Icon icon="mingcute:mail-line" width={20} className="text-blue-500" />
+                        <Icon icon="mingcute:mail-line" width={20} className="text-blue-700" />
                         <div>
                           <p className="text-xs font-semibold uppercase text-blue-600 tracking-wide">
                             Thank-You Note
@@ -2140,7 +2169,7 @@ export function Interviews() {
                                       className={
                                         actionType === "status_inquiry" ? "text-orange-500" :
                                         actionType === "other" ? "text-purple-500" :
-                                        "text-blue-500"
+                                        "text-blue-700"
                                       }
                                     />
                                     <p className="text-xs font-semibold uppercase text-slate-600 tracking-wide">
@@ -2292,7 +2321,7 @@ export function Interviews() {
                                             return updated;
                                           });
                                         }}
-                                        className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-xs font-medium transition-colors"
+                                        className="px-3 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 text-xs font-medium transition-colors"
                                       >
                                         Edit
                                       </button>
@@ -2312,7 +2341,7 @@ export function Interviews() {
                                       return updated;
                                     });
                                   }}
-                                  className="flex-1 px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-xs font-medium transition-colors"
+                                  className="flex-1 px-3 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 text-xs font-medium transition-colors"
                                 >
                                   {isExpanded ? "Hide Draft" : "View Draft"}
                                 </button>
@@ -2362,7 +2391,7 @@ export function Interviews() {
                                     className={
                                       actionType === "status_inquiry" ? "text-orange-500" :
                                       actionType === "other" ? "text-purple-500" :
-                                      "text-blue-500"
+                                      "text-blue-700"
                                     }
                                   />
                                   <p className="text-xs font-semibold uppercase text-slate-600 tracking-wide">
@@ -2439,7 +2468,7 @@ export function Interviews() {
                                     return updated;
                                   });
                                 }}
-                                className="flex-1 px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-xs font-medium transition-colors"
+                                className="flex-1 px-3 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 text-xs font-medium transition-colors"
                               >
                                 {isExpanded ? "Hide Draft" : "View Draft"}
                               </button>
@@ -2661,7 +2690,7 @@ export function Interviews() {
                                           return updated;
                                         });
                                       }}
-                                      className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-xs font-medium transition-colors"
+                                      className="px-3 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 text-xs font-medium transition-colors"
                                     >
                                       Edit
                                     </button>
@@ -2681,7 +2710,7 @@ export function Interviews() {
                                       return updated;
                                     });
                                   }}
-                                  className="flex-1 px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-xs font-medium transition-colors"
+                                  className="flex-1 px-3 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 text-xs font-medium transition-colors"
                                 >
                                   {isExpanded ? "Hide Note" : "View Note"}
                                 </button>
@@ -2766,7 +2795,7 @@ export function Interviews() {
                                     <Icon 
                                       icon="mingcute:mail-line"
                                       width={18} 
-                                      className="text-blue-500"
+                                      className="text-blue-700"
                                     />
                                     <p className="text-xs font-semibold uppercase text-slate-600 tracking-wide">
                                       {note.style ? note.style.charAt(0).toUpperCase() + note.style.slice(1) : "Thank You"}
@@ -2912,7 +2941,7 @@ export function Interviews() {
                                             return updated;
                                           });
                                         }}
-                                        className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-xs font-medium transition-colors"
+                                        className="px-3 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 text-xs font-medium transition-colors"
                                       >
                                         Edit
                                       </button>
@@ -2932,7 +2961,7 @@ export function Interviews() {
                                         return updated;
                                       });
                                     }}
-                                    className="flex-1 px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-xs font-medium transition-colors"
+                                    className="flex-1 px-3 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 text-xs font-medium transition-colors"
                                   >
                                     {isExpanded ? "Hide Note" : "View Note"}
                                   </button>
@@ -2950,12 +2979,12 @@ export function Interviews() {
           )}
 
           {activeTab === "follow-ups" && (
-            <div>
+            <div role="tabpanel" id="tabpanel-follow-ups" aria-labelledby="tab-follow-ups">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-2xl font-bold text-slate-900">Follow-up Actions</h2>
                 <button
                   onClick={() => setShowCreateFollowUpModal(true)}
-                  className="bg-blue-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-600 transition-all flex items-center gap-2 shadow-md"
+                  className="bg-blue-700 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-800 transition-all flex items-center gap-2 shadow-md"
                 >
                   <Icon icon="mingcute:add-line" width={20} />
                   Create Follow-up
@@ -2963,7 +2992,7 @@ export function Interviews() {
               </div>
               {loadingFollowUps ? (
                 <div className="text-center py-12">
-                  <Icon icon="mingcute:loading-line" className="animate-spin text-blue-500 mx-auto mb-4" width={32} />
+                  <Icon icon="mingcute:loading-line" className="animate-spin text-blue-700 mx-auto mb-4" width={32} />
                   <p className="text-slate-600">Loading follow-ups...</p>
                 </div>
               ) : (
@@ -3010,7 +3039,7 @@ export function Interviews() {
                           className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-lg transition-colors"
                           aria-label="View draft"
                         >
-                          <Icon icon="mingcute:eye-line" width={18} className="text-blue-500" />
+                          <Icon icon="mingcute:eye-line" width={18} className="text-blue-700" />
                         </button>
                       )}
                         <div className="flex-1">
@@ -3036,7 +3065,7 @@ export function Interviews() {
                                     
                                     {/* Action Type */}
                           <div className="flex items-center gap-2 mb-2">
-                            <Icon icon="mingcute:task-line" width={18} className="text-blue-500" />
+                            <Icon icon="mingcute:task-line" width={18} className="text-blue-700" />
                             <h3 className="font-semibold text-slate-900 capitalize text-sm">
                                         {followUp.action_type?.replace(/_/g, " ") || followUp.actionType?.replace(/_/g, " ")}
                             </h3>
@@ -3191,7 +3220,7 @@ export function Interviews() {
                               showMessage(err.message || "Failed to complete action", "error");
                             }
                           }}
-                          className="w-full px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 text-xs font-medium"
+                          className="w-full px-4 py-2 bg-blue-700 text-white rounded-full hover:bg-blue-800 text-xs font-medium"
                         >
                           Mark Complete
                         </button>
@@ -3507,7 +3536,7 @@ export function Interviews() {
                           }
                         }
                       }}
-                      className="px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded-lg hover:bg-blue-600 transition"
+                      className="px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded-lg hover:bg-blue-800 transition"
                     >
                       Save Changes
                       </button>
@@ -3540,14 +3569,14 @@ export function Interviews() {
 
 
           {activeTab === "analytics" && (
-            <div>
+            <div role="tabpanel" id="tabpanel-analytics" aria-labelledby="tab-analytics">
               <h2 className="text-2xl font-bold text-slate-900 mb-4">Interview Performance Analytics</h2>
               <p className="text-slate-600 mb-6">
                 Track your progress and identify patterns
               </p>
               {loadingAnalytics ? (
                 <div className="text-center py-12">
-                  <Icon icon="mingcute:loading-line" className="animate-spin text-blue-500 mx-auto mb-4" width={32} />
+                  <Icon icon="mingcute:loading-line" className="animate-spin text-blue-700 mx-auto mb-4" width={32} />
                   <p className="text-slate-600">Loading analytics...</p>
                 </div>
               ) : analytics ? (
@@ -4030,10 +4059,12 @@ export function Interviews() {
           )}
 
           {activeTab === "predictions" && (
-            <InterviewPredictionTab
-              jobOpportunities={jobOpportunities}
-              interviews={interviews}
-            />
+            <div role="tabpanel" id="tabpanel-predictions" aria-labelledby="tab-predictions">
+              <InterviewPredictionTab
+                jobOpportunities={jobOpportunities}
+                interviews={interviews}
+              />
+            </div>
           )}
         </div>
       </main>
@@ -4043,8 +4074,13 @@ export function Interviews() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
             <div className="flex items-center gap-3 mb-4">
+<<<<<<< HEAD
               <Icon icon="mingcute:calendar-line" width={32} className="text-blue-500" />
                         <h3 className="text-xl font-semibold text-slate-900">Connect Google Calendar</h3>
+=======
+              <Icon icon="mingcute:calendar-line" width={32} className="text-blue-700" />
+              <h3 className="text-xl font-semibold text-slate-900">Connect Google Calendar</h3>
+>>>>>>> bca00d00dae808a348c50dcb860ab72fcd74447d
             </div>
             <p className="text-slate-600 mb-6">
                           Sync your interviews with Google Calendar to get automatic reminders and updates
@@ -4073,7 +4109,7 @@ export function Interviews() {
           <div className="bg-white rounded-xl p-6 max-w-lg w-full mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <Icon icon="mingcute:mail-line" width={32} className="text-blue-500" />
+                <Icon icon="mingcute:mail-line" width={32} className="text-blue-700" />
                 <h3 className="text-xl font-semibold text-slate-900">Create Thank You Note</h3>
                     </div>
                     <button
@@ -4116,14 +4152,16 @@ export function Interviews() {
 
               {/* Note Style */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
+                <label htmlFor="note-style-select" className="block text-sm font-medium text-slate-700 mb-2">
                   Note Style <span className="text-red-500">*</span>
                 </label>
                 <select
+                  id="note-style-select"
                   value={thankYouNoteStyle}
                   onChange={(e) => setThankYouNoteStyle(e.target.value as "standard" | "enthusiastic" | "concise")}
-                  className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-700"
                   required
+                  aria-required="true"
                 >
                   <option value="standard">Standard</option>
                   <option value="enthusiastic">Enthusiastic</option>
@@ -4166,7 +4204,7 @@ export function Interviews() {
           <div className="bg-white rounded-xl p-6 max-w-lg w-full mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <Icon icon="mingcute:task-line" width={32} className="text-blue-500" />
+                <Icon icon="mingcute:task-line" width={32} className="text-blue-700" />
                 <h3 className="text-xl font-semibold text-slate-900">Create Follow-up Action</h3>
         </div>
               <button
@@ -4188,16 +4226,18 @@ export function Interviews() {
             <div className="space-y-4">
               {/* Interview Selection */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
+                <label htmlFor="follow-up-interview-select" className="block text-sm font-medium text-slate-700 mb-2">
                   Interview <span className="text-red-500">*</span>
                 </label>
                 <select
+                  id="follow-up-interview-select"
                   value={newFollowUpData.interviewId}
                   onChange={(e) =>
                     setNewFollowUpData({ ...newFollowUpData, interviewId: e.target.value })
                   }
-                  className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-700"
                   required
+                  aria-required="true"
                 >
                   <option value="">Select an interview...</option>
                   {interviews.map((interview) => (
@@ -4210,16 +4250,18 @@ export function Interviews() {
 
               {/* Action Type */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
+                <label htmlFor="action-type-select" className="block text-sm font-medium text-slate-700 mb-2">
                   Action Type <span className="text-red-500">*</span>
                 </label>
                 <select
+                  id="action-type-select"
                   value={newFollowUpData.actionType}
                   onChange={(e) =>
                     setNewFollowUpData({ ...newFollowUpData, actionType: e.target.value })
                   }
-                  className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-700"
                   required
+                  aria-required="true"
                 >
                   <option value="thank_you_note">Thank You Note</option>
                   <option value="follow_up_email">Follow-up Email</option>

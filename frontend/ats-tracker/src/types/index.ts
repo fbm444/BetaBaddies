@@ -63,6 +63,7 @@ export type {
   ExperienceHighlighting,
 } from './coverLetter.types';
 export * from './interview.types';
+export * from './interviewResponse.types';
 export * from './analytics.types';
 export * from './interviewAnalytics.types';
 export * from './interviewPrediction.types';

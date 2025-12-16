@@ -69,6 +69,10 @@ export function JobOpportunityDetailModal({
   const [linkedinUrl, setLinkedinUrl] = useState<string>("");
   const [showQualityDetails, setShowQualityDetails] = useState(false);
   const QUALITY_THRESHOLD = 70; // Minimum score to allow "Applied" status
+  const [competitiveAnalysis, setCompetitiveAnalysis] = useState<any | null>(null);
+  const [isLoadingCompetitive, setIsLoadingCompetitive] = useState(false);
+  const [competitiveError, setCompetitiveError] = useState<string | null>(null);
+  const [showCompetitiveDetails, setShowCompetitiveDetails] = useState(false);
 
   const handleScheduleInterview = () => {
     navigate(`${ROUTES.INTERVIEW_SCHEDULING}?jobOpportunityId=${opportunity.id}`);
@@ -1999,6 +2003,300 @@ export function JobOpportunityDetailModal({
                 <p className="text-xs text-slate-500">
                   {qualityError ||
                     "No quality score yet. Click Re-score to analyze this application before submitting."}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Competitive Analysis */}
+          {!isEditMode && (
+            <div className="mt-8 pt-6 border-t border-slate-200">
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <div className="flex items-center gap-2">
+                  <Icon icon="mingcute:target-line" width={18} className="text-blue-600" />
+                  <h3 className="text-sm font-semibold text-slate-900">
+                    Competitive Analysis
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCompetitiveDetails(!showCompetitiveDetails)}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-50 text-slate-700 hover:bg-slate-100 transition-colors"
+                >
+                  <Icon icon={showCompetitiveDetails ? "mingcute:up-line" : "mingcute:down-line"} width={14} />
+                  {showCompetitiveDetails ? "Less" : "Details"}
+                </button>
+              </div>
+              {isLoadingCompetitive ? (
+                <p className="text-xs text-slate-500">Analyzing competitiveness...</p>
+              ) : competitiveAnalysis ? (
+                <div className="space-y-4">
+                  {/* Competitive Score & Interview Likelihood */}
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="flex flex-col items-start">
+                        <span className="text-[11px] uppercase tracking-wide text-slate-500">
+                          Competitive Score
+                        </span>
+                        <span
+                          className={`text-2xl font-bold ${
+                            competitiveAnalysis.competitiveScore >= 80
+                              ? "text-emerald-600"
+                              : competitiveAnalysis.competitiveScore >= 60
+                              ? "text-amber-600"
+                              : "text-red-600"
+                          }`}
+                        >
+                          {competitiveAnalysis.competitiveScore} / 100
+                        </span>
+                        <span className="mt-1 text-[11px] text-slate-500">
+                          ~{competitiveAnalysis.applicantCount?.total || 0} estimated applicants
+                        </span>
+                      </div>
+                      <div className="flex flex-col items-start">
+                        <span className="text-[11px] uppercase tracking-wide text-slate-500">
+                          Interview Likelihood
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`text-xl font-bold ${
+                              competitiveAnalysis.interviewLikelihood?.level === "high"
+                                ? "text-emerald-600"
+                                : competitiveAnalysis.interviewLikelihood?.level === "medium"
+                                ? "text-amber-600"
+                                : "text-red-600"
+                            }`}
+                          >
+                            {competitiveAnalysis.interviewLikelihood?.percentage?.toFixed(1) || 0}%
+                          </span>
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                              competitiveAnalysis.interviewLikelihood?.level === "high"
+                                ? "bg-emerald-100 text-emerald-800"
+                                : competitiveAnalysis.interviewLikelihood?.level === "medium"
+                                ? "bg-amber-100 text-amber-800"
+                                : "bg-red-100 text-red-800"
+                            }`}
+                          >
+                            {competitiveAnalysis.interviewLikelihood?.level?.toUpperCase() || "LOW"}
+                          </span>
+                        </div>
+                        <span className="mt-1 text-[11px] text-slate-500">
+                          Confidence: {competitiveAnalysis.confidence || 50}%
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Expanded Details */}
+                  {showCompetitiveDetails && (
+                    <div className="space-y-3 pt-3 border-t border-slate-200">
+                      {/* Competitive Advantages */}
+                      {Array.isArray(competitiveAnalysis.advantages) &&
+                        competitiveAnalysis.advantages.length > 0 && (
+                          <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Icon icon="mingcute:check-circle-line" width={14} className="text-emerald-700" />
+                              <p className="text-xs font-semibold text-emerald-900">
+                                Competitive Advantages ({competitiveAnalysis.advantages.length})
+                              </p>
+                            </div>
+                            <ul className="space-y-2">
+                              {competitiveAnalysis.advantages.map((adv: any, idx: number) => (
+                                <li key={idx} className="text-[11px] text-emerald-800">
+                                  <div className="flex items-start gap-2">
+                                    <span
+                                      className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                        adv.impact === "high"
+                                          ? "bg-emerald-200 text-emerald-900"
+                                          : "bg-emerald-100 text-emerald-800"
+                                      }`}
+                                    >
+                                      {adv.impact}
+                                    </span>
+                                    <div className="flex-1">
+                                      <span className="font-semibold">{adv.title}:</span> {adv.description}
+                                    </div>
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                      {/* Competitive Disadvantages */}
+                      {Array.isArray(competitiveAnalysis.disadvantages) &&
+                        competitiveAnalysis.disadvantages.length > 0 && (
+                          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Icon icon="mingcute:alert-line" width={14} className="text-amber-700" />
+                              <p className="text-xs font-semibold text-amber-900">
+                                Areas to Improve ({competitiveAnalysis.disadvantages.length})
+                              </p>
+                            </div>
+                            <ul className="space-y-2">
+                              {competitiveAnalysis.disadvantages.map((dis: any, idx: number) => (
+                                <li key={idx} className="text-[11px] text-amber-800">
+                                  <div className="flex items-start gap-2">
+                                    <span
+                                      className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                        dis.severity === "high"
+                                          ? "bg-red-200 text-red-900"
+                                          : dis.severity === "medium"
+                                          ? "bg-amber-200 text-amber-900"
+                                          : "bg-amber-100 text-amber-800"
+                                      }`}
+                                    >
+                                      {dis.severity}
+                                    </span>
+                                    <div className="flex-1">
+                                      <span className="font-semibold">{dis.title}:</span> {dis.description}
+                                      {dis.mitigation && (
+                                        <div className="mt-1 text-[10px] text-amber-700 italic">
+                                          💡 {dis.mitigation}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                      {/* Differentiating Strategies */}
+                      {Array.isArray(competitiveAnalysis.strategies) &&
+                        competitiveAnalysis.strategies.length > 0 && (
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Icon icon="mingcute:lightbulb-line" width={14} className="text-blue-700" />
+                              <p className="text-xs font-semibold text-blue-900">
+                                Strategies to Stand Out
+                              </p>
+                            </div>
+                            <ul className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                              {competitiveAnalysis.strategies
+                                .sort((a: any, b: any) => {
+                                  const priorityOrder = { high: 3, medium: 2, low: 1 };
+                                  return (
+                                    (priorityOrder[b.priority as keyof typeof priorityOrder] || 0) -
+                                    (priorityOrder[a.priority as keyof typeof priorityOrder] || 0)
+                                  );
+                                })
+                                .map((strategy: any, idx: number) => (
+                                  <li key={idx} className="text-[11px] text-blue-800">
+                                    <div className="flex items-start gap-2">
+                                      <span
+                                        className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                          strategy.priority === "high"
+                                            ? "bg-blue-200 text-blue-900"
+                                            : "bg-blue-100 text-blue-800"
+                                        }`}
+                                      >
+                                        {strategy.priority}
+                                      </span>
+                                      <div className="flex-1">
+                                        <span className="font-semibold">{strategy.title}:</span>{" "}
+                                        {strategy.description}
+                                        {strategy.estimatedImpact && (
+                                          <span className="text-blue-600 ml-1">
+                                            (+{strategy.estimatedImpact} pts)
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </li>
+                                ))}
+                            </ul>
+                          </div>
+                        )}
+
+                      {/* Profile Comparison */}
+                      {competitiveAnalysis.profileComparison && (
+                        <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Icon icon="mingcute:user-compare-line" width={14} className="text-purple-700" />
+                            <p className="text-xs font-semibold text-purple-900">
+                              Profile Comparison
+                            </p>
+                          </div>
+                          <div className="space-y-2 text-[11px]">
+                            <div className="flex items-center justify-between">
+                              <span className="text-purple-700">Experience:</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold">
+                                  {competitiveAnalysis.profileComparison.experience?.user || 0} years
+                                </span>
+                                <span className="text-purple-500">vs</span>
+                                <span>
+                                  {competitiveAnalysis.profileComparison.experience?.typical || "N/A"}
+                                </span>
+                                {competitiveAnalysis.profileComparison.experience?.match ? (
+                                  <Icon icon="mingcute:check-line" width={14} className="text-emerald-600" />
+                                ) : (
+                                  <Icon icon="mingcute:close-line" width={14} className="text-red-600" />
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-purple-700">Education:</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold">
+                                  {competitiveAnalysis.profileComparison.education?.user || "None"}
+                                </span>
+                                <span className="text-purple-500">vs</span>
+                                <span>
+                                  {competitiveAnalysis.profileComparison.education?.typical || "N/A"}
+                                </span>
+                                {competitiveAnalysis.profileComparison.education?.match ? (
+                                  <Icon icon="mingcute:check-line" width={14} className="text-emerald-600" />
+                                ) : (
+                                  <Icon icon="mingcute:close-line" width={14} className="text-red-600" />
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-purple-700">Skills:</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold">
+                                  {competitiveAnalysis.profileComparison.skills?.user || 0} skills
+                                </span>
+                                <span className="text-purple-500">vs</span>
+                                <span>
+                                  {competitiveAnalysis.profileComparison.skills?.typical || "N/A"}
+                                </span>
+                                {competitiveAnalysis.profileComparison.skills?.match ? (
+                                  <Icon icon="mingcute:check-line" width={14} className="text-emerald-600" />
+                                ) : (
+                                  <Icon icon="mingcute:close-line" width={14} className="text-red-600" />
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Collapsed View - Quick Stats */}
+                  {!showCompetitiveDetails && (
+                    <div className="flex items-center gap-4 text-[11px] text-slate-600">
+                      <span>
+                        Advantages: <strong>{competitiveAnalysis.advantages?.length || 0}</strong>
+                      </span>
+                      <span>
+                        Areas to Improve: <strong>{competitiveAnalysis.disadvantages?.length || 0}</strong>
+                      </span>
+                      <span>
+                        Strategies: <strong>{competitiveAnalysis.strategies?.length || 0}</strong>
+                      </span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500">
+                  {competitiveError ||
+                    "Competitive analysis not available. This feature analyzes your competitiveness for this role."}
                 </p>
               )}
             </div>

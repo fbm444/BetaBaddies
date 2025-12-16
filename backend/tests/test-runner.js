@@ -14,6 +14,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const testFiles = [
+  { name: "Security Tests", file: "security.test.js" },
   { name: "Login Functionality", file: "login-functionality.test.js" },
   { name: "User API", file: "user-api.test.js" },
   { name: "Jobs Service", file: "jobs-service.test.js" },

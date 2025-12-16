@@ -36,6 +36,7 @@ import familyRoutes from "./routes/familyRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
 import followUpRoutes from "./routes/followUpRoutes.js";
 import followUpReminderRoutes from "./routes/followUpReminderRoutes.js";
+import optimizationRoutes from "./routes/optimizationRoutes.js";
 import salaryNegotiationRoutes from "./routes/salaryNegotiationRoutes.js";
 import writingPracticeRoutes from "./routes/writingPracticeRoutes.js";
 import interviewPredictionRoutes from "./routes/interviewPredictionRoutes.js";
@@ -220,6 +221,7 @@ app.use("/api/v1/admin/api-monitoring", apiMonitoringRoutes);
 app.use("/api/v1/geocoding", geocodingRoutes);
 app.use("/api/v1/salary-benchmarks", salaryBenchmarkRoutes);
 app.use("/api/v1/job-offers", jobOfferRoutes);
+app.use("/api/v1/optimization", optimizationRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

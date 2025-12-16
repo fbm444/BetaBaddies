@@ -128,8 +128,12 @@ export function BreathingExercise({ onComplete, onClose }: BreathingExerciseProp
             <h2 className="text-2xl font-bold text-slate-900">Breathing Exercise</h2>
             <p className="text-sm text-slate-600 mt-1">Cycle {cycle + 1} of {totalCycles}</p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
-            <Icon icon="mingcute:close-line" width={24} />
+          <button 
+            onClick={onClose} 
+            className="text-slate-400 hover:text-slate-600"
+            aria-label="Close exercise"
+          >
+            <Icon icon="mingcute:close-line" width={24} aria-hidden="true" />
           </button>
         </div>
 

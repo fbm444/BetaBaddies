@@ -91,8 +91,12 @@ export function SessionComparisonModal({
         {/* Header */}
         <div className="p-6 border-b border-slate-200 flex items-center justify-between">
           <h2 className="text-2xl font-bold text-slate-900">Session Comparison</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
-            <Icon icon="mingcute:close-line" width={24} />
+          <button 
+            onClick={onClose} 
+            className="text-slate-400 hover:text-slate-600"
+            aria-label="Close modal"
+          >
+            <Icon icon="mingcute:close-line" width={24} aria-hidden="true" />
           </button>
         </div>
 

@@ -4122,14 +4122,16 @@ export function Interviews() {
             <div className="space-y-4">
               {/* Interview Selection */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
+                <label htmlFor="thank-you-interview-select" className="block text-sm font-medium text-slate-700 mb-2">
                   Interview <span className="text-red-500">*</span>
                 </label>
                 <select
+                  id="thank-you-interview-select"
                   value={selectedInterviewForThankYou}
                   onChange={(e) => setSelectedInterviewForThankYou(e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-700"
                   required
+                  aria-required="true"
                 >
                   <option value="">Select an interview...</option>
                   {interviews

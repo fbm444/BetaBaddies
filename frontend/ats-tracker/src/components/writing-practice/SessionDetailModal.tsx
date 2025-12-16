@@ -117,8 +117,12 @@ export function SessionDetailModal({ sessionId, onClose }: SessionDetailModalPro
               {Math.floor(session.timeSpentSeconds / 60)} min
             </p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
-            <Icon icon="mingcute:close-line" width={24} />
+          <button 
+            onClick={onClose} 
+            className="text-slate-400 hover:text-slate-600"
+            aria-label="Close modal"
+          >
+            <Icon icon="mingcute:close-line" width={24} aria-hidden="true" />
           </button>
         </div>
 

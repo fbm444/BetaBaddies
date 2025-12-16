@@ -2362,8 +2362,12 @@ function TemplateGeneratorModal({
       <div className="bg-white rounded-lg max-w-4xl w-full my-4 sm:my-8 max-h-[calc(100vh-120px)] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
           <h2 className="text-xl font-semibold text-slate-900">Generate Referral Template</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
-            <Icon icon="mingcute:close-line" width={24} height={24} />
+          <button 
+            onClick={onClose} 
+            className="text-slate-400 hover:text-slate-600"
+            aria-label="Close modal"
+          >
+            <Icon icon="mingcute:close-line" width={24} height={24} aria-hidden="true" />
           </button>
         </div>
 

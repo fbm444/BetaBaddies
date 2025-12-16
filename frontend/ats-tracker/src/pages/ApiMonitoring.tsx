@@ -287,17 +287,24 @@ export function ApiMonitoring() {
               Auto-refresh
             </label>
             {autoRefresh && (
-              <select
-                value={refreshInterval}
-                onChange={(e) => setRefreshInterval(Number(e.target.value))}
-                className="ml-2 px-2 py-1 border rounded text-sm"
-              >
-                <option value={3}>3s</option>
-                <option value={5}>5s</option>
-                <option value={10}>10s</option>
-                <option value={30}>30s</option>
-                <option value={60}>1m</option>
-              </select>
+              <>
+                <label htmlFor="refresh-interval-select" className="sr-only">
+                  Refresh interval
+                </label>
+                <select
+                  id="refresh-interval-select"
+                  value={refreshInterval}
+                  onChange={(e) => setRefreshInterval(Number(e.target.value))}
+                  className="ml-2 px-2 py-1 border rounded text-sm"
+                  aria-label="Refresh interval"
+                >
+                  <option value={3}>3s</option>
+                  <option value={5}>5s</option>
+                  <option value={10}>10s</option>
+                  <option value={30}>30s</option>
+                  <option value={60}>1m</option>
+                </select>
+              </>
             )}
           </div>
           <button
@@ -353,13 +360,15 @@ export function ApiMonitoring() {
       {/* Filters */}
       <div className="mb-6 flex gap-4 items-end">
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
+          <label htmlFor="service-select" className="block text-sm font-medium text-slate-700 mb-1">
             Service
           </label>
           <select
+            id="service-select"
             value={selectedService}
             onChange={(e) => setSelectedService(e.target.value)}
             className="px-3 py-2 border rounded"
+            aria-label="Filter by service"
           >
             <option value="">All Services</option>
             <option value="openai">OpenAI</option>
@@ -371,13 +380,15 @@ export function ApiMonitoring() {
         </div>
         {activeTab === "dashboard" && (
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
+            <label htmlFor="stats-period-select" className="block text-sm font-medium text-slate-700 mb-1">
               Stats Period
             </label>
             <select
+              id="stats-period-select"
               value={statsPeriod}
               onChange={(e) => setStatsPeriod(e.target.value)}
               className="px-3 py-2 border rounded"
+              aria-label="Statistics period"
             >
               <option value="all_time">All Time</option>
               <option value="last_7_days">Last 7 Days</option>

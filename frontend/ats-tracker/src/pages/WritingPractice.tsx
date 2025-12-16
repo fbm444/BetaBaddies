@@ -311,7 +311,7 @@ export function WritingPractice() {
                             <span>{session.wordCount} words</span>
                             <span>{Math.floor(session.timeSpentSeconds / 60)} min</span>
                             {session.isCompleted && (
-                              <span className="text-green-600 font-medium">Completed</span>
+                              <span className="text-green-700 font-medium">Completed</span>
                             )}
                           </div>
                         </div>
@@ -404,7 +404,7 @@ export function WritingPractice() {
                             <span>{Math.floor(session.timeSpentSeconds / 60)} min</span>
                             <span className="capitalize">{session.sessionType.replace("_", " ")}</span>
                             {session.isCompleted && (
-                              <span className="text-green-600 font-medium">✓ Completed</span>
+                              <span className="text-green-700 font-medium">✓ Completed</span>
                             )}
                           </div>
                         </div>

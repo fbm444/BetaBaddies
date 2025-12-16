@@ -435,16 +435,18 @@ export function JobOpportunitiesMapView({
 
               {/* Distance Filter */}
               <div className="mb-4">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="block text-sm font-medium text-slate-700">
+                  <div className="flex items-center justify-between mb-2">
+                  <label htmlFor="distance-unit-select" className="block text-sm font-medium text-slate-700">
                     Max Distance
                   </label>
                   <select
+                    id="distance-unit-select"
                     value={distanceUnit}
                     onChange={(e) =>
                       setDistanceUnit(e.target.value as "km" | "miles")
                     }
                     className="text-xs px-2 py-1 border border-slate-300 rounded"
+                    aria-label="Distance unit"
                   >
                     <option value="km">km</option>
                     <option value="miles">miles</option>
@@ -570,11 +572,16 @@ export function JobOpportunitiesMapView({
                     }`}
                   >
                     <div className="flex items-start gap-2">
+                      <label htmlFor={`job-visibility-${jobId}`} className="sr-only">
+                        Toggle visibility for {opportunity.title} at {opportunity.company}
+                      </label>
                       <input
+                        id={`job-visibility-${jobId}`}
                         type="checkbox"
                         checked={isVisible}
                         onChange={() => toggleJobVisibility(jobId)}
                         className="mt-1 w-4 h-4 text-blue-700 border-slate-300 rounded focus:ring-blue-500"
+                        aria-label={`Toggle visibility for ${opportunity.title} at ${opportunity.company}`}
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">

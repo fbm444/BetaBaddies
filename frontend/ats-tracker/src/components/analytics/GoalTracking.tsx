@@ -611,16 +611,18 @@ function GoalFormModal({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-[#0F1D3A] mb-1">
+              <label htmlFor="target-date-input" className="block text-sm font-medium text-[#0F1D3A] mb-1">
                 Target Date
               </label>
               <input
+                id="target-date-input"
                 type="date"
                 value={formData.targetDate}
                 onChange={(e) =>
                   setFormData({ ...formData, targetDate: e.target.value })
                 }
                 className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]"
+                aria-label="Target date"
               />
             </div>
           </div>

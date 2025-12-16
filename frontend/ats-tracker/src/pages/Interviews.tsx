@@ -1383,7 +1383,7 @@ export function Interviews() {
                       >
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex-1">
-                            <h3 className="font-semibold text-slate-900 mb-1">{interview.title || "Interview"}</h3>
+                            <h2 className="font-semibold text-slate-900 mb-1">{interview.title || "Interview"}</h2>
                             <p className="text-slate-600 text-sm">{interview.company || "N/A"}</p>
                             {interview.jobOpportunityId && (
                               <button
@@ -1404,7 +1404,17 @@ export function Interviews() {
                             className="px-2 py-1 rounded text-xs font-medium"
                             style={{
                               backgroundColor: interview.status ? INTERVIEW_STATUS_COLORS[interview.status] + "20" : "#f1f5f9",
-                              color: interview.status ? INTERVIEW_STATUS_COLORS[interview.status] : "#64748b",
+                              color: interview.status 
+                                ? interview.status === "completed" 
+                                  ? "#047857" // green-700 for better contrast
+                                  : interview.status === "scheduled"
+                                  ? "#1E40AF" // blue-800 for better contrast
+                                  : interview.status === "cancelled"
+                                  ? "#B91C1C" // red-700 for better contrast
+                                  : interview.status === "rescheduled"
+                                  ? "#B45309" // amber-700 for better contrast
+                                  : INTERVIEW_STATUS_COLORS[interview.status]
+                                : "#64748b",
                             }}
                           >
                             {interview.status ? INTERVIEW_STATUS_LABELS[interview.status] : "Unknown"}
@@ -3066,9 +3076,9 @@ export function Interviews() {
                                     {/* Action Type */}
                           <div className="flex items-center gap-2 mb-2">
                             <Icon icon="mingcute:task-line" width={18} className="text-blue-700" />
-                            <h3 className="font-semibold text-slate-900 capitalize text-sm">
+                            <h4 className="font-semibold text-slate-900 capitalize text-sm">
                                         {followUp.action_type?.replace(/_/g, " ") || followUp.actionType?.replace(/_/g, " ")}
-                            </h3>
+                            </h4>
                           </div>
                                     {(followUp.due_date || followUp.dueDate) && (
                             <p className="text-xs text-slate-600 mb-2">

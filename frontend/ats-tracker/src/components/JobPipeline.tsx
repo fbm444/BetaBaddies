@@ -219,14 +219,14 @@ function PipelineCard({
                   className="inline-flex items-center gap-1.5 rounded-full px-1.5 py-0.5"
                   style={{
                     backgroundColor: "#EAE0FF",
-                    color: "#916BE3",
+                    color: "#6B46C1",
                   }}
                 >
                   <Icon icon="mingcute:calendar-line" width={10} />
                   {stageLabel}
                 </span>
                 {stageDate && (
-                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-[#F3F6FF] text-[#6A94EE] font-medium">
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-[#F3F6FF] text-[#1E40AF] font-medium">
                     {stageDate}
                   </span>
                 )}
@@ -276,7 +276,7 @@ function PipelineColumn({
               className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold"
               style={{
                 backgroundColor: "#D3E4FF",
-                color: "#3351FD",
+                color: "#1E3097",
                 borderRadius: "5px",
                 minWidth: "26px",
               }}

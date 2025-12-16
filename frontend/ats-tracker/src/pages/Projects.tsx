@@ -342,7 +342,7 @@ export function Projects() {
           </button>
           <button
             onClick={openAddModal}
-            className="bg-blue-500 text-white px-6 py-3 rounded-xl font-medium hover:bg-blue-600 transition-all flex items-center gap-2 shadow-md"
+            className="bg-blue-700 text-white px-6 py-3 rounded-xl font-medium hover:bg-blue-800 transition-all flex items-center gap-2 shadow-md"
           >
             <Icon icon="mingcute:add-line" width={20} />
             Add Project
@@ -380,10 +380,15 @@ export function Projects() {
 
           {/* Status Filter */}
           <div>
+            <label htmlFor="project-status-filter" className="sr-only">
+              Filter projects by status
+            </label>
             <select
+              id="project-status-filter"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-700"
+              aria-label="Filter projects by status"
             >
               <option value="all">All Status</option>
               <option value="Completed">Completed</option>
@@ -394,10 +399,15 @@ export function Projects() {
 
           {/* Sort */}
           <div className="flex gap-2">
+            <label htmlFor="project-sort-select" className="sr-only">
+              Sort projects
+            </label>
             <select
+              id="project-sort-select"
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as "date" | "name")}
-              className="flex-1 px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-1 px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-700"
+              aria-label="Sort projects"
             >
               <option value="date">Sort by Date</option>
               <option value="name">Sort by Name</option>
@@ -409,7 +419,7 @@ export function Projects() {
                 onClick={() => setViewMode("grid")}
                 className={`px-3 py-2 ${
                   viewMode === "grid"
-                    ? "bg-blue-500 text-white"
+                    ? "bg-blue-700 text-white"
                     : "bg-white text-slate-600"
                 }`}
               >
@@ -419,7 +429,7 @@ export function Projects() {
                 onClick={() => setViewMode("list")}
                 className={`px-3 py-2 ${
                   viewMode === "list"
-                    ? "bg-blue-500 text-white"
+                    ? "bg-blue-700 text-white"
                     : "bg-white text-slate-600"
                 }`}
               >
@@ -463,7 +473,7 @@ export function Projects() {
           </p>
           <button
             onClick={openAddModal}
-            className="bg-blue-500 text-white px-6 py-3 rounded-xl font-medium hover:bg-blue-600 transition-all inline-flex items-center gap-2"
+            className="bg-blue-700 text-white px-6 py-3 rounded-xl font-medium hover:bg-blue-800 transition-all inline-flex items-center gap-2"
           >
             <Icon icon="mingcute:add-line" width={20} />
             Add Your First Project
@@ -479,7 +489,7 @@ export function Projects() {
               {/* Project Header */}
               <div className="flex justify-between items-start mb-4">
                 <div className="flex-1">
-                  <h3 className="text-xl font-semibold text-slate-900 mb-1 group-hover:text-blue-500 transition-colors">
+                  <h3 className="text-xl font-semibold text-slate-900 mb-1 group-hover:text-blue-700 transition-colors">
                     {project.name}
                   </h3>
                   <span
@@ -596,7 +606,7 @@ export function Projects() {
                         href={project.link}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-1 text-blue-500 hover:text-blue-600"
+                        className="flex items-center gap-1 text-blue-700 hover:text-blue-600"
                       >
                         <Icon icon="mingcute:external-link-line" width={16} />
                         <span>View Project</span>
@@ -672,10 +682,11 @@ export function Projects() {
               {/* Status and Industry */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                  <label htmlFor="project-status-select" className="block text-sm font-medium text-slate-700 mb-1">
                     Status <span className="text-red-500">*</span>
                   </label>
                   <select
+                    id="project-status-select"
                     value={formData.status}
                     onChange={(e) =>
                       setFormData({
@@ -683,7 +694,8 @@ export function Projects() {
                         status: e.target.value as any,
                       })
                     }
-                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-700"
+                    aria-required="true"
                   >
                     <option value="Ongoing">Ongoing</option>
                     <option value="Completed">Completed</option>
@@ -863,7 +875,7 @@ export function Projects() {
               </button>
               <button
                 onClick={showAddModal ? handleAddProject : handleUpdateProject}
-                className="flex-1 px-6 py-3 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 transition-all"
+                className="flex-1 px-6 py-3 bg-blue-700 text-white rounded-xl font-medium hover:bg-blue-800 transition-all"
               >
                 {showAddModal ? "Add Project" : "Save Changes"}
               </button>
@@ -979,7 +991,7 @@ export function Projects() {
                     href={selectedProject.link}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-blue-500 hover:text-blue-600 font-medium"
+                    className="inline-flex items-center gap-2 text-blue-700 hover:text-blue-600 font-medium"
                   >
                     <Icon icon="mingcute:external-link-line" width={20} />
                     {selectedProject.link}
@@ -995,7 +1007,7 @@ export function Projects() {
                   setShowDetailModal(false);
                   openEditModal(selectedProject);
                 }}
-                className="flex-1 px-6 py-3 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 transition-all"
+                className="flex-1 px-6 py-3 bg-blue-700 text-white rounded-xl font-medium hover:bg-blue-800 transition-all"
               >
                 Edit Project
               </button>

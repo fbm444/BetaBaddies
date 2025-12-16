@@ -120,7 +120,7 @@ export function InterviewPreparation() {
           <Icon
             icon="mingcute:loading-line"
             width={48}
-            className="animate-spin mx-auto text-blue-500 mb-4"
+            className="animate-spin mx-auto text-blue-700 mb-4"
           />
           <p className="text-slate-600">Loading interview preparation...</p>
         </div>
@@ -167,7 +167,7 @@ export function InterviewPreparation() {
                   </p>
                   <button
                     onClick={() => navigate("/interview-scheduling")}
-                    className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition"
+                    className="bg-blue-700 text-white px-6 py-2 rounded-lg hover:bg-blue-800 transition"
                   >
                     Schedule an Interview
                   </button>
@@ -224,7 +224,7 @@ export function InterviewPreparation() {
                     <Icon
                       icon="mingcute:question-line"
                       width={24}
-                      className="text-blue-500"
+                      className="text-blue-700"
                     />
                     <div>
                       <h3 className="font-semibold text-slate-900">
@@ -244,7 +244,7 @@ export function InterviewPreparation() {
                     <Icon
                       icon="mingcute:video-line"
                       width={24}
-                      className="text-blue-500"
+                      className="text-blue-700"
                     />
                     <div>
                       <h3 className="font-semibold text-slate-900">
@@ -264,7 +264,7 @@ export function InterviewPreparation() {
                     <Icon
                       icon="mingcute:code-line"
                       width={24}
-                      className="text-blue-500"
+                      className="text-blue-700"
                     />
                     <div>
                       <h3 className="font-semibold text-slate-900">
@@ -327,7 +327,7 @@ export function InterviewPreparation() {
                 </p>
                 <button
                   onClick={() => navigate("/interview-scheduling")}
-                  className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition"
+                  className="bg-blue-700 text-white px-6 py-2 rounded-lg hover:bg-blue-800 transition"
                 >
                   Schedule an Interview
                 </button>
@@ -392,7 +392,7 @@ export function InterviewPreparation() {
           </p>
           <button
             onClick={() => navigate("/interview-preparation")}
-            className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition"
+            className="bg-blue-700 text-white px-6 py-2 rounded-lg hover:bg-blue-800 transition"
           >
             Back to Preparation
           </button>
@@ -455,7 +455,31 @@ export function InterviewPreparation() {
 
         {/* Tabs */}
         <div className="border-b border-slate-200 mb-8">
-          <div className="flex gap-1 overflow-x-auto scrollbar-hide">
+          <div 
+            role="tablist" 
+            aria-label="Interview preparation tabs"
+            className="flex gap-1 overflow-x-auto scrollbar-hide"
+            onKeyDown={(e) => {
+              const tabs = Array.from(e.currentTarget.querySelectorAll('button[role="tab"]')) as HTMLButtonElement[]
+              const currentIndex = tabs.findIndex(tab => tab === document.activeElement)
+              
+              if (e.key === 'ArrowRight') {
+                e.preventDefault()
+                const nextIndex = currentIndex < tabs.length - 1 ? currentIndex + 1 : 0
+                tabs[nextIndex]?.focus()
+              } else if (e.key === 'ArrowLeft') {
+                e.preventDefault()
+                const prevIndex = currentIndex > 0 ? currentIndex - 1 : tabs.length - 1
+                tabs[prevIndex]?.focus()
+              } else if (e.key === 'Home') {
+                e.preventDefault()
+                tabs[0]?.focus()
+              } else if (e.key === 'End') {
+                e.preventDefault()
+                tabs[tabs.length - 1]?.focus()
+              }
+            }}
+          >
               {[
                 {
                   id: "research" as TabType,
@@ -490,29 +514,32 @@ export function InterviewPreparation() {
               ].map((tab) => (
                 <button
                   key={tab.id}
+                  role="tab"
+                  id={`tab-${tab.id}`}
+                  aria-selected={activeTab === tab.id}
+                  aria-controls={`tabpanel-${tab.id}`}
+                  tabIndex={activeTab === tab.id ? 0 : -1}
                   onClick={() => {
                     setActiveTab(tab.id);
                     navigate(`?tab=${tab.id}`, { replace: true });
                   }}
-                  className={`px-6 py-3 font-medium text-sm whitespace-nowrap flex items-center gap-2 flex-shrink-0 min-w-fit bg-transparent hover:bg-transparent focus:bg-transparent ${
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      setActiveTab(tab.id);
+                      navigate(`?tab=${tab.id}`, { replace: true });
+                    }
+                  }}
+                  className={`px-6 py-3 font-medium text-sm whitespace-nowrap flex items-center gap-2 flex-shrink-0 min-w-fit bg-transparent hover:bg-transparent focus:bg-transparent focus:outline-none focus:ring-2 focus:ring-blue-700 focus:ring-offset-2 ${
                     activeTab === tab.id
-                      ? "text-blue-500 border-b-2 border-blue-500"
+                      ? "text-blue-700 border-b-2 border-blue-500"
                       : "text-slate-600"
                   }`}
                   style={{
-                    outline: 'none',
-                    boxShadow: 'none',
                     borderTop: 'none',
                     borderLeft: 'none',
                     borderRight: 'none',
                     borderRadius: '0'
-                  }}
-                  onFocus={(e) => e.target.blur()}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent';
                   }}
                 >
                   <Icon icon={tab.icon} width={18} height={18} className="flex-shrink-0" style={{ minWidth: '18px', minHeight: '18px' }} />
@@ -550,7 +577,7 @@ export function InterviewPreparation() {
               </p>
               <button
                 onClick={() => setShowInterviewSelector(true)}
-                className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition inline-flex items-center gap-2"
+                className="bg-blue-700 text-white px-6 py-2 rounded-lg hover:bg-blue-800 transition inline-flex items-center gap-2"
               >
                 <Icon icon="mingcute:calendar-line" width={20} />
                 Select an Interview
@@ -1244,7 +1271,7 @@ function CompanyResearchTab({
         <Icon
           icon="mingcute:loading-line"
           width={48}
-          className="animate-spin mx-auto text-blue-500 mb-4"
+          className="animate-spin mx-auto text-blue-700 mb-4"
         />
         <p className="text-slate-600">Loading company research...</p>
       </div>
@@ -1268,7 +1295,7 @@ function CompanyResearchTab({
         <button
           onClick={handleGenerate}
           disabled={isGenerating}
-          className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition disabled:opacity-50"
+          className="bg-blue-700 text-white px-6 py-2 rounded-lg hover:bg-blue-800 transition disabled:opacity-50"
         >
           {isGenerating ? "Generating..." : "Generate Company Research"}
         </button>
@@ -1331,7 +1358,7 @@ function CompanyResearchTab({
           <button
             onClick={handleExportClick}
             disabled={!research}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-700 text-white rounded-full hover:bg-blue-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Icon icon="mingcute:download-line" width={20} />
             Export
@@ -1352,7 +1379,7 @@ function CompanyResearchTab({
             <Icon
               icon="mingcute:building-2-line"
               width={24}
-              className="text-blue-500"
+              className="text-blue-700"
             />
             <h3 className="text-xl font-semibold text-slate-900">
               Company Overview
@@ -1417,7 +1444,7 @@ function CompanyResearchTab({
               <Icon
                 icon="mingcute:user-3-line"
                 width={24}
-                className="text-blue-500"
+                className="text-blue-700"
               />
               <h3 className="text-xl font-semibold text-slate-900">
                 Leadership Team & Potential Interviewers
@@ -1468,7 +1495,7 @@ function CompanyResearchTab({
           <Icon
             icon="mingcute:chart-line"
             width={24}
-            className="text-blue-500"
+            className="text-blue-700"
           />
           <h3 className="text-xl font-semibold text-slate-900">
             Competitive Landscape & Market Position
@@ -1692,7 +1719,7 @@ function CompanyResearchTab({
           <Icon
             icon="mingcute:news-line"
             width={24}
-            className="text-blue-500"
+            className="text-blue-700"
           />
           <h3 className="text-xl font-semibold text-slate-900">
             Recent News, Funding & Strategic Initiatives
@@ -1785,7 +1812,7 @@ function CompanyResearchTab({
             <Icon
               icon="mingcute:lightbulb-line"
               width={24}
-              className="text-blue-500"
+              className="text-blue-700"
             />
             <h3 className="text-xl font-semibold text-slate-900">
               Interview Process Insights
@@ -2301,7 +2328,7 @@ function QuestionBankTab({
         <Icon
           icon="mingcute:loading-line"
           width={48}
-          className="animate-spin mx-auto text-blue-500 mb-4"
+          className="animate-spin mx-auto text-blue-700 mb-4"
         />
         <p className="text-slate-600">Loading question bank...</p>
       </div>
@@ -2370,7 +2397,7 @@ function QuestionBankTab({
                 onClick={() => setSelectedCategory(cat)}
                 className={`px-4 py-2 rounded-full font-medium transition ${
                   selectedCategory === cat
-                    ? "bg-blue-500 text-white"
+                    ? "bg-blue-700 text-white"
                     : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                 }`}
               >
@@ -2844,7 +2871,7 @@ function QuestionBankTab({
                   <button
                     onClick={handleSubmitResponse}
                     disabled={!responseText.trim() || isSubmitting}
-                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50"
+                    className="px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition disabled:opacity-50"
                   >
                     {isSubmitting
                       ? "Analyzing..."
@@ -3164,7 +3191,7 @@ function QuestionBankTab({
                       setResponseText("");
                       setFeedback(null);
                     }}
-                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
+                    className="px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition"
                   >
                     Answer This Question
                   </button>
@@ -3315,7 +3342,7 @@ function ResponseCoachingTab({
             <div
               className={`max-w-[80%] rounded-lg p-4 ${
                 message.role === "user"
-                  ? "bg-blue-500 text-white"
+                  ? "bg-blue-700 text-white"
                   : "bg-white border border-slate-300 text-slate-900"
               }`}
             >
@@ -3681,7 +3708,7 @@ function MockInterviewTab({
           <button
             onClick={handleCreateSession}
             disabled={isCreating}
-            className="bg-blue-500 text-white px-6 py-2 rounded-full hover:bg-blue-600 transition disabled:opacity-50 inline-flex items-center gap-2"
+            className="bg-blue-700 text-white px-6 py-2 rounded-full hover:bg-blue-800 transition disabled:opacity-50 inline-flex items-center gap-2"
           >
             {isCreating ? (
               <>
@@ -3826,7 +3853,7 @@ function MockInterviewTab({
             <div
               className={`max-w-[80%] rounded-lg p-3 ${
                 message.role === "user"
-                  ? "bg-blue-500 text-white"
+                  ? "bg-blue-700 text-white"
                   : message.messageType === "summary"
                   ? "bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200"
                   : "bg-slate-100 text-slate-900"
@@ -3853,7 +3880,7 @@ function MockInterviewTab({
             <div className="bg-slate-100 rounded-lg p-3">
               <Icon
                 icon="mingcute:loading-line"
-                className="w-5 h-5 animate-spin text-blue-500"
+                className="w-5 h-5 animate-spin text-blue-700"
               />
             </div>
           </div>
@@ -3877,7 +3904,7 @@ function MockInterviewTab({
             <button
               type="submit"
               disabled={!inputMessage.trim() || isSending}
-              className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Icon icon="mingcute:send-plane-line" width={20} />
             </button>
@@ -3919,7 +3946,7 @@ function MockInterviewTab({
                   <Icon
                     icon="mingcute:loading-line"
                     width={48}
-                    className="animate-spin text-blue-500 mb-4"
+                    className="animate-spin text-blue-700 mb-4"
                   />
                   <h3 className="text-xl font-semibold text-slate-900 mb-2">
                     Evaluating Interview Performance
@@ -4209,7 +4236,7 @@ function MockInterviewTab({
                   setShowPerformanceModal(false);
                   setPerformanceSummary(null);
                 }}
-                className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
+                className="px-6 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition"
               >
                 Close
               </button>
@@ -4903,7 +4930,7 @@ function TechnicalPrepTab({
         <Icon
           icon="mingcute:loading-line"
           width={48}
-          className="animate-spin mx-auto text-blue-500 mb-4"
+          className="animate-spin mx-auto text-blue-700 mb-4"
         />
         <p className="text-slate-600">Loading technical prep...</p>
       </div>
@@ -5343,7 +5370,7 @@ def solve(nums):
                         <Icon
                           icon="mingcute:loading-line"
                           width={24}
-                          className="animate-spin mx-auto text-blue-500"
+                          className="animate-spin mx-auto text-blue-700"
                         />
                       </div>
                     ) : attemptHistory.length === 0 ? (
@@ -5475,7 +5502,7 @@ def solve(nums):
                       onClick={() => setActiveView("problem")}
                       className={`px-3 py-1 rounded text-sm font-medium transition ${
                         activeView === "problem"
-                          ? "bg-blue-500 text-white"
+                          ? "bg-blue-700 text-white"
                           : "text-slate-600 hover:bg-slate-100"
                       }`}
                     >
@@ -5485,7 +5512,7 @@ def solve(nums):
                       onClick={() => setActiveView("solution")}
                       className={`px-3 py-1 rounded text-sm font-medium transition ${
                         activeView === "solution"
-                          ? "bg-blue-500 text-white"
+                          ? "bg-blue-700 text-white"
                           : "text-slate-600 hover:bg-slate-100"
                       }`}
                     >
@@ -5519,10 +5546,11 @@ def solve(nums):
                     {/* Editor Toolbar */}
                     <div className="flex items-center justify-between px-4 py-2 border-b border-slate-700 bg-slate-800 flex-shrink-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-slate-400">
+                        <label htmlFor="editor-language-select" className="text-xs text-slate-400">
                           Language:
-                        </span>
+                        </label>
                         <select
+                          id="editor-language-select"
                           value={editorLanguage}
                           onChange={(e) => {
                             const newLang = e.target.value as any;

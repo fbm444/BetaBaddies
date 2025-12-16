@@ -54,7 +54,7 @@ export function ChatList({ conversationType, onSelectConversation, selectedConve
     return (
       <div className="bg-white rounded-xl shadow-sm border border-slate-200">
         <div className="flex items-center justify-center py-12">
-          <Icon icon="mingcute:loading-line" width={24} className="animate-spin text-blue-500" />
+          <Icon icon="mingcute:loading-line" width={24} className="animate-spin text-blue-700" />
         </div>
       </div>
     );
@@ -99,7 +99,7 @@ export function ChatList({ conversationType, onSelectConversation, selectedConve
                             : "Chat")}
                     </div>
                     {conv.unreadCount > 0 && (
-                      <span className="flex-shrink-0 bg-blue-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center shadow-sm">
+                      <span className="flex-shrink-0 bg-blue-700 text-white text-xs font-bold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center shadow-sm">
                         {conv.unreadCount > 9 ? "9+" : conv.unreadCount}
                       </span>
                     )}

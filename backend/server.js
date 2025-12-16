@@ -69,6 +69,7 @@ import collaborationRoutes from "./routes/collaborationRoutes.js";
 import familyRoutes from "./routes/familyRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
 import followUpRoutes from "./routes/followUpRoutes.js";
+import followUpReminderRoutes from "./routes/followUpReminderRoutes.js";
 import salaryNegotiationRoutes from "./routes/salaryNegotiationRoutes.js";
 import writingPracticeRoutes from "./routes/writingPracticeRoutes.js";
 import interviewPredictionRoutes from "./routes/interviewPredictionRoutes.js";
@@ -83,6 +84,7 @@ import networkingRoutes from "./routes/networkingRoutes.js";
 import githubRoutes from "./routes/githubRoutes.js";
 import apiMonitoringRoutes from "./routes/apiMonitoringRoutes.js";
 import geocodingRoutes from "./routes/geocodingRoutes.js";
+import salaryBenchmarkRoutes from "./routes/salaryBenchmarkRoutes.js";
 
 // Import middleware
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
@@ -581,6 +583,7 @@ app.use("/api/v1/collaboration", collaborationRoutes);
 app.use("/api/v1/family", familyRoutes);
 app.use("/api/v1/chat", chatRoutes);
 app.use("/api/v1", followUpRoutes); // For /api/v1/follow-ups/pending
+app.use("/api/v1/follow-up-reminders", followUpReminderRoutes);
 app.use("/api/v1/salary-negotiations", salaryNegotiationRoutes);
 app.use("/api/v1/writing-practice", writingPracticeRoutes);
 app.use("/api/v1/interview-predictions", interviewPredictionRoutes);
@@ -595,6 +598,7 @@ app.use("/api/v1/linkedin", linkedinRoutes);
 app.use("/api/v1/github", githubRoutes);
 app.use("/api/v1/admin/api-monitoring", apiMonitoringRoutes);
 app.use("/api/v1/geocoding", geocodingRoutes);
+app.use("/api/v1/salary-benchmarks", salaryBenchmarkRoutes);
 
 // Sentry debug endpoint (for testing)
 app.get("/debug-sentry", function mainHandler(req, res) {

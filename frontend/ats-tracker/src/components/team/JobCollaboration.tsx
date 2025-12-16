@@ -164,7 +164,7 @@ export function JobCollaboration({
           {/* Comments List */}
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
-              <Icon icon="mingcute:loading-line" width={24} className="animate-spin text-blue-500" />
+              <Icon icon="mingcute:loading-line" width={24} className="animate-spin text-blue-700" />
               <span className="ml-3 text-slate-600">Loading comments...</span>
             </div>
           ) : comments.length === 0 ? (
@@ -266,7 +266,7 @@ function CommentItem({
                 />
                 <button
                   type="submit"
-                  className="bg-blue-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-600 transition font-medium"
+                  className="bg-blue-700 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-800 transition font-medium"
                 >
                   Reply
                 </button>

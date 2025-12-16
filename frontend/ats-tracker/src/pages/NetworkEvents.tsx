@@ -608,7 +608,7 @@ export function NetworkEvents() {
               onClick={() => setActiveTab("my-events")}
               className={`px-6 py-3 font-medium text-sm whitespace-nowrap flex-shrink-0 min-w-fit bg-transparent hover:bg-transparent focus:bg-transparent ${
                 activeTab === "my-events"
-                  ? "text-blue-500 border-b-2 border-blue-500"
+                  ? "text-blue-700 border-b-2 border-blue-500"
                   : "text-slate-600"
               }`}
               style={{ 
@@ -633,7 +633,7 @@ export function NetworkEvents() {
               onClick={() => setActiveTab("discover")}
               className={`px-6 py-3 font-medium text-sm whitespace-nowrap flex-shrink-0 min-w-fit bg-transparent hover:bg-transparent focus:bg-transparent ${
                 activeTab === "discover"
-                  ? "text-blue-500 border-b-2 border-blue-500"
+                  ? "text-blue-700 border-b-2 border-blue-500"
                   : "text-slate-600"
               }`}
               style={{ 

@@ -75,7 +75,7 @@ export function GoalTracking({ dateRange }: GoalTrackingProps) {
           </p>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="inline-flex items-center gap-2 rounded-full bg-blue-500 px-6 py-3 text-sm font-medium text-white hover:bg-blue-600 transition-colors"
+            className="inline-flex items-center gap-2 rounded-full bg-blue-700 px-6 py-3 text-sm font-medium text-white hover:bg-blue-800 transition-colors"
           >
             <Icon icon="mingcute:add-line" width={20} />
             Create Goal
@@ -314,7 +314,7 @@ export function GoalTracking({ dateRange }: GoalTrackingProps) {
           </p>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="inline-flex items-center gap-2 rounded-full border-2 border-blue-500 px-6 py-3 text-sm font-medium text-blue-500 hover:bg-blue-50 transition-colors"
+            className="inline-flex items-center gap-2 rounded-full border-2 border-blue-500 px-6 py-3 text-sm font-medium text-blue-700 hover:bg-blue-50 transition-colors"
           >
             <Icon icon="mingcute:add-line" width={20} />
             Create Your First Goal

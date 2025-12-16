@@ -165,7 +165,7 @@ export function CounterofferEvaluatorTab({
             <button
               onClick={handleEvaluate}
               disabled={isEvaluating || !formData.baseSalary || formData.baseSalary <= 0}
-              className="w-full px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+              className="w-full px-4 py-3 bg-blue-700 text-white rounded-lg hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
             >
               {isEvaluating ? "Evaluating..." : "Evaluate Counteroffer"}
             </button>

@@ -122,9 +122,9 @@ export function SalaryNegotiation() {
       console.log("Jobs response data:", jobsRes.data);
       console.log("Jobs response data.jobs:", jobsRes.data?.jobs);
 
-      if (progressionRes.ok && progressionRes.data?.progression) {
+      if (progressionRes.ok && Array.isArray(progressionRes.data?.progression)) {
         console.log("Setting progression entries:", progressionRes.data.progression);
-        setProgressionEntries(progressionRes.data.progression);
+        setProgressionEntries(progressionRes.data.progression as SalaryProgressionEntry[]);
       } else {
         setProgressionEntries([]);
       }
@@ -241,11 +241,12 @@ export function SalaryNegotiation() {
 
       const response = await api.createSalaryNegotiation(negotiationData);
       if (response.ok && response.data?.negotiation) {
-        // Check if negotiation already existed
-        if (response.data.alreadyExists) {
+        // Check if negotiation already existed (backend may return this as an optional property)
+        const responseData = response.data as { negotiation: SalaryNegotiation; message?: string; alreadyExists?: boolean };
+        if (responseData.alreadyExists) {
           showMessage(
-            response.data.message || "A negotiation already exists for this job opportunity. Showing existing negotiation.",
-            "info"
+            responseData.message || "A negotiation already exists for this job opportunity. Showing existing negotiation.",
+            "success"
           );
         } else {
           showMessage("Salary negotiation created successfully!", "success");
@@ -273,8 +274,8 @@ export function SalaryNegotiation() {
         await fetchNegotiations();
         
         // If negotiation already existed, select it and show detail view
-        if (response.data.alreadyExists && response.data.negotiation) {
-          setSelectedNegotiation(response.data.negotiation);
+        if (responseData.alreadyExists && responseData.negotiation) {
+          setSelectedNegotiation(responseData.negotiation);
           setShowDetailModal(true);
         }
       } else {
@@ -321,7 +322,7 @@ export function SalaryNegotiation() {
         <div className="text-center">
           <Icon
             icon="mingcute:loading-line"
-            className="w-12 h-12 animate-spin mx-auto text-blue-500"
+            className="w-12 h-12 animate-spin mx-auto text-blue-700"
           />
           <p className="mt-4 text-slate-600">Loading salary negotiations...</p>
         </div>
@@ -370,7 +371,7 @@ export function SalaryNegotiation() {
                 onClick={() => setActiveTab(tab.id as TabType)}
                 className={`px-6 py-3 font-medium text-sm whitespace-nowrap flex items-center gap-2 flex-shrink-0 min-w-fit bg-transparent hover:bg-transparent focus:bg-transparent ${
                   activeTab === tab.id
-                    ? "text-blue-500 border-b-2 border-blue-500"
+                    ? "text-blue-700 border-b-2 border-blue-500"
                     : "text-slate-600"
                 }`}
                 style={{ 
@@ -428,7 +429,7 @@ export function SalaryNegotiation() {
                   <h2 className="text-xl font-semibold text-slate-900">Negotiations</h2>
                   <button
                     onClick={() => setShowCreateModal(true)}
-                    className="px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 text-sm font-medium flex items-center gap-2"
+                    className="px-4 py-2 bg-blue-700 text-white rounded-full hover:bg-blue-800 text-sm font-medium flex items-center gap-2"
                   >
                     <Icon icon="mingcute:add-line" width={18} />
                     New Negotiation
@@ -448,7 +449,7 @@ export function SalaryNegotiation() {
                       onClick={() => setStatusFilter(filter.value as StatusFilter)}
                       className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
                         statusFilter === filter.value
-                          ? "bg-blue-500 text-white"
+                          ? "bg-blue-700 text-white"
                           : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                       }`}
                     >
@@ -479,7 +480,7 @@ export function SalaryNegotiation() {
                           </p>
                           <button
                             onClick={() => setShowCreateModal(true)}
-                            className="px-6 py-3 bg-blue-500 text-white rounded-full hover:bg-blue-600 font-medium flex items-center gap-2"
+                            className="px-6 py-3 bg-blue-700 text-white rounded-full hover:bg-blue-800 font-medium flex items-center gap-2"
                           >
                             <Icon icon="mingcute:add-line" width={18} />
                             New Negotiation
@@ -733,7 +734,7 @@ export function SalaryNegotiation() {
                         setActiveTab("overview");
                         setStatusFilter("active");
                       }}
-                      className="px-6 py-3 bg-blue-500 text-white rounded-full hover:bg-blue-600 font-medium"
+                      className="px-6 py-3 bg-blue-700 text-white rounded-full hover:bg-blue-800 font-medium"
                     >
                       View Active Negotiations
                     </button>
@@ -1447,7 +1448,7 @@ export function SalaryNegotiation() {
                 <button
                   type="submit"
                   disabled={creatingNegotiation || !formData.jobOpportunityId || !formData.initialOffer.baseSalary}
-                  className="px-6 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-2 bg-blue-700 text-white rounded-full hover:bg-blue-800 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {creatingNegotiation ? "Creating..." : "Create Negotiation"}
                 </button>

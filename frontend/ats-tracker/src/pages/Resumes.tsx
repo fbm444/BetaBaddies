@@ -1065,13 +1065,6 @@ export function Resumes() {
                   </span>
                 )}
               </button>
-              <button
-                onClick={handleCreateResume}
-                className="flex items-center gap-2 px-6 py-3 rounded-full text-white transition-all text-sm font-semibold bg-gradient-to-r from-[#845BFF] to-[#F551A2] hover:opacity-90"
-              >
-                <Icon icon="mingcute:ai-fill" className="w-5 h-5" />
-                Create New Resume
-              </button>
             </div>
           </div>
 
@@ -1261,7 +1254,7 @@ export function Resumes() {
                             ? new Date(job.createdAt).toLocaleDateString()
                             : "N/A"}
                         </span>
-                        <div className="flex items-center gap-1 text-xs text-[#5B72FF] font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center gap-1 text-xs text-[#5B72FF] font-semibold">
                           <span>Create Resume</span>
                           <Icon
                             icon="mingcute:arrow-right-line"
@@ -1290,15 +1283,8 @@ export function Resumes() {
             <p className="text-[#6F7A97] mb-6">
               {searchQuery
                 ? "Try adjusting your search"
-                : "Get started by creating your first resume"}
+                : "Get started by creating a resume for a job in your pipeline"}
             </p>
-            <button
-              onClick={handleCreateResume}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-full text-white transition-all text-sm font-semibold bg-gradient-to-r from-[#845BFF] to-[#F551A2] hover:opacity-90"
-            >
-              <Icon icon="mingcute:ai-fill" className="w-5 h-5" />
-              Create New Resume
-            </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">

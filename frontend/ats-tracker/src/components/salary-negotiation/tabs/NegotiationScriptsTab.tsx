@@ -96,7 +96,7 @@ export function NegotiationScriptsTab({
               onClick={() => setSelectedScenario(scenario.id)}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 selectedScenario === scenario.id
-                  ? "bg-blue-500 text-white"
+                  ? "bg-blue-700 text-white"
                   : "bg-slate-100 text-slate-700 hover:bg-slate-200"
               }`}
             >
@@ -164,7 +164,7 @@ export function NegotiationScriptsTab({
               <ul className="bg-slate-50 rounded-lg p-4 border border-slate-200 space-y-2">
                 {currentScript.keyPhrases.map((phrase, idx) => (
                   <li key={idx} className="text-sm text-slate-700 flex items-start gap-2">
-                    <span className="text-blue-500 mt-1">•</span>
+                    <span className="text-blue-700 mt-1">•</span>
                     <span>{phrase}</span>
                   </li>
                 ))}

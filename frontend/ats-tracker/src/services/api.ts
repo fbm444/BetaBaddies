@@ -63,6 +63,8 @@ import {
   TimingStrategy,
   MarketSalaryData,
   SalaryProgressionEntry,
+  SalaryBenchmarkData,
+  SalaryBenchmarkResponse,
   WritingPracticeSession,
   WritingPracticeSessionInput,
   WritingPracticeSessionUpdate,
@@ -81,6 +83,9 @@ import {
   InterviewPrediction,
   PredictionComparison,
   PredictionAccuracyMetrics,
+  FollowUpReminder,
+  FollowUpReminderInput,
+  ResponseType,
 } from "../types";
 import {
   ProfessionalContact,
@@ -536,9 +541,17 @@ class ApiService {
     >(`/job-opportunities${query}`);
   }
 
-  async getJobOpportunity(id: string) {
-    return this.request<ApiResponse<{ jobOpportunity: JobOpportunityData }>>(
-      `/job-opportunities/${id}`
+  async getJobOpportunity(id: string, includeSalaryBenchmarks = false) {
+    const params = new URLSearchParams();
+    if (includeSalaryBenchmarks) {
+      params.append("includeSalaryBenchmarks", "true");
+    }
+    const queryString = params.toString();
+    return this.request<ApiResponse<{ 
+      jobOpportunity: JobOpportunityData;
+      salaryBenchmark?: SalaryBenchmarkData | null;
+    }>>(
+      `/job-opportunities/${id}${queryString ? `?${queryString}` : ""}`
     );
   }
 
@@ -642,8 +655,8 @@ class ApiService {
     return this.request<
       ApiResponse<{ jobOpportunity: JobOpportunityData; message: string }>
     >(`/job-opportunities/${id}/archive`, {
-      method: "POST",
-      body: JSON.stringify({ archiveReason }),
+        method: "POST",
+        body: JSON.stringify({ archiveReason }),
     });
   }
 
@@ -651,7 +664,7 @@ class ApiService {
     return this.request<
       ApiResponse<{ jobOpportunity: JobOpportunityData; message: string }>
     >(`/job-opportunities/${id}/unarchive`, {
-      method: "POST",
+        method: "POST",
     });
   }
 
@@ -674,8 +687,8 @@ class ApiService {
         message: string;
       }>
     >("/job-opportunities/bulk-archive", {
-      method: "POST",
-      body: JSON.stringify({ opportunityIds, archiveReason }),
+        method: "POST",
+        body: JSON.stringify({ opportunityIds, archiveReason }),
     });
   }
 
@@ -693,6 +706,15 @@ class ApiService {
     return this.request<
       ApiResponse<{ jobOpportunities: JobOpportunityData[] }>
     >(`/job-opportunities/archived${queryString ? `?${queryString}` : ""}`);
+  }
+
+  async getSalaryBenchmark(jobTitle: string, location: string) {
+    const params = new URLSearchParams();
+    params.append("jobTitle", jobTitle);
+    params.append("location", location);
+    return this.request<ApiResponse<SalaryBenchmarkResponse>>(
+      `/salary-benchmarks?${params.toString()}`
+    );
   }
 
   async getCompanyInformation(opportunityId: string) {
@@ -1259,8 +1281,8 @@ class ApiService {
     return this.request<ApiResponse<{ task: any; message: string }>>(
       `/interviews/${interviewId}/tasks/${taskId}`,
       {
-        method: "PUT",
-        body: JSON.stringify(updateData),
+      method: "PUT",
+      body: JSON.stringify(updateData),
       }
     );
   }
@@ -1316,7 +1338,7 @@ class ApiService {
     return this.request<ApiResponse<{ message: string }>>(
       "/calendar/disconnect",
       {
-        method: "POST",
+      method: "POST",
       }
     );
   }
@@ -1325,7 +1347,7 @@ class ApiService {
     return this.request<ApiResponse<{ event: any; message: string }>>(
       `/calendar/sync/interview/${interviewId}`,
       {
-        method: "POST",
+      method: "POST",
       }
     );
   }
@@ -3418,8 +3440,8 @@ class ApiService {
     return this.request<ApiResponse<{ note: any }>>(
       `/interviews/${interviewId}/thank-you-notes/${noteId}`,
       {
-        method: "PUT",
-        body: JSON.stringify(data),
+      method: "PUT",
+      body: JSON.stringify(data),
       }
     );
   }
@@ -3437,7 +3459,7 @@ class ApiService {
     return this.request<ApiResponse<{ message: string }>>(
       `/interviews/${interviewId}/thank-you-notes/${noteId}/send`,
       {
-        method: "POST",
+      method: "POST",
       }
     );
   }
@@ -4599,6 +4621,109 @@ class ApiService {
         method: "DELETE",
         body: JSON.stringify({ jobOpportunityId }),
       }
+    );
+  }
+
+  // ============================================
+  // Follow-Up Reminders
+  // ============================================
+  async getFollowUpReminders(filters?: {
+    status?: string;
+    jobOpportunityId?: string;
+    isActive?: boolean;
+    limit?: number;
+    offset?: number;
+  }) {
+    const params = new URLSearchParams();
+    if (filters?.status) params.append("status", filters.status);
+    if (filters?.jobOpportunityId) params.append("jobOpportunityId", filters.jobOpportunityId);
+    if (filters?.isActive !== undefined) params.append("isActive", String(filters.isActive));
+    if (filters?.limit) params.append("limit", String(filters.limit));
+    if (filters?.offset) params.append("offset", String(filters.offset));
+
+    const queryString = params.toString();
+    return this.request<ApiResponse<{ reminders: FollowUpReminder[] }>>(
+      `/follow-up-reminders${queryString ? `?${queryString}` : ""}`
+    );
+  }
+
+  async getPendingFollowUpReminders(limit?: number) {
+    const params = new URLSearchParams();
+    if (limit) params.append("limit", String(limit));
+    const queryString = params.toString();
+    return this.request<ApiResponse<{ reminders: FollowUpReminder[] }>>(
+      `/follow-up-reminders/pending${queryString ? `?${queryString}` : ""}`
+    );
+  }
+
+  async getFollowUpReminderById(id: string) {
+    return this.request<ApiResponse<{ reminder: FollowUpReminder }>>(
+      `/follow-up-reminders/${id}`
+    );
+  }
+
+  async createFollowUpReminder(data: FollowUpReminderInput) {
+    return this.request<ApiResponse<{ reminder: FollowUpReminder }>>(
+      "/follow-up-reminders",
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      }
+    );
+  }
+
+  async completeFollowUpReminder(id: string, responseType?: ResponseType) {
+    return this.request<ApiResponse<{ reminder: FollowUpReminder }>>(
+      `/follow-up-reminders/${id}/complete`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ responseType }),
+      }
+    );
+  }
+
+  async snoozeFollowUpReminder(id: string, days: number) {
+    return this.request<ApiResponse<{ reminder: FollowUpReminder }>>(
+      `/follow-up-reminders/${id}/snooze`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ days }),
+      }
+    );
+  }
+
+  async dismissFollowUpReminder(id: string) {
+    return this.request<ApiResponse<{ reminder: FollowUpReminder }>>(
+      `/follow-up-reminders/${id}/dismiss`,
+      {
+        method: "PATCH",
+      }
+    );
+  }
+
+  async deleteFollowUpReminder(id: string) {
+    return this.request<ApiResponse<{ message: string }>>(
+      `/follow-up-reminders/${id}`,
+      {
+        method: "DELETE",
+      }
+    );
+  }
+
+  async getFollowUpReminderEmailTemplate(id: string) {
+    return this.request<ApiResponse<{ emailTemplate: { subject: string; body: string } }>>(
+      `/follow-up-reminders/${id}/email-template`
+    );
+  }
+
+  async getFollowUpEtiquetteTips(applicationStage: string, daysSinceLastContact?: number) {
+    const params = new URLSearchParams();
+    params.append("applicationStage", applicationStage);
+    if (daysSinceLastContact !== undefined) {
+      params.append("daysSinceLastContact", String(daysSinceLastContact));
+    }
+    return this.request<ApiResponse<{ tips: string[] }>>(
+      `/follow-up-reminders/etiquette-tips?${params.toString()}`
     );
   }
 }

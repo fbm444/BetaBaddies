@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { Icon } from '@iconify/react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Menubar, MenubarMenu, MenubarTrigger } from '@/components/ui/menubar'
 import { cn } from '@/lib/utils'
 import { navigationGroups, navigationItems, ROUTES } from '@/config/routes'
 import { api } from '@/services/api'
+import { FollowUpReminderNotification } from '@/components/follow-up/FollowUpReminderNotification'
 import logo from '@/assets/logo.png'
 
 export function Navbar() {
@@ -176,30 +176,28 @@ export function Navbar() {
           {/* Desktop Navigation Menu - Centered with Groups */}
           {isLoggedIn && (
             <div className="hidden lg:flex flex-1 justify-center">
-              <Menubar className="border-0 bg-transparent shadow-none p-0 h-auto space-x-1">
+              <nav role="navigation" aria-label="Main navigation" className="flex items-center space-x-1">
                 {accountType === 'family_only' ? (
                   // For family-only accounts, show only the family dashboard link
-                  <MenubarMenu>
-                    <MenubarTrigger
-                      onClick={() => navigate(ROUTES.FAMILY_ONLY_DASHBOARD)}
-                      className={cn(
-                        "cursor-pointer bg-transparent data-[state=open]:bg-transparent focus:bg-transparent text-sm font-medium",
-                        location.pathname === ROUTES.FAMILY_ONLY_DASHBOARD
-                          ? "bg-black text-white hover:bg-black rounded-md px-4 py-2" 
-                          : "text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-md px-4 py-2"
-                      )}
-                    >
-                      <span className="flex items-center gap-2">
-                        <Icon 
-                          icon="mingcute:heart-line" 
-                          width={16} 
-                          height={16} 
-                          className={location.pathname === ROUTES.FAMILY_ONLY_DASHBOARD ? "text-white" : "text-slate-600"}
-                        />
-                        <span>Family Dashboard</span>
-                      </span>
-                    </MenubarTrigger>
-                  </MenubarMenu>
+                  <button
+                    onClick={() => navigate(ROUTES.FAMILY_ONLY_DASHBOARD)}
+                    className={cn(
+                      "cursor-pointer bg-transparent text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-700 focus:ring-offset-2",
+                      location.pathname === ROUTES.FAMILY_ONLY_DASHBOARD
+                        ? "bg-black text-white hover:bg-black rounded-md px-4 py-2" 
+                        : "text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-md px-4 py-2"
+                    )}
+                  >
+                    <span className="flex items-center gap-2">
+                      <Icon 
+                        icon="mingcute:heart-line" 
+                        width={16} 
+                        height={16} 
+                        className={location.pathname === ROUTES.FAMILY_ONLY_DASHBOARD ? "text-white" : "text-slate-600"}
+                      />
+                      <span>Family Dashboard</span>
+                    </span>
+                  </button>
                 ) : (
                   // For regular accounts, show all navigation groups
                   navigationGroups.map((group) => {
@@ -211,11 +209,17 @@ export function Navbar() {
                     const item = group.items[0]
                     const itemIsActive = location.pathname === item.path
                   return (
-                      <MenubarMenu key={group.id}>
-                      <MenubarTrigger
+                      <button
+                        key={group.id}
                         onClick={() => navigate(item.path)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            navigate(item.path)
+                          }
+                        }}
                         className={cn(
-                          "cursor-pointer bg-transparent data-[state=open]:bg-transparent focus:bg-transparent text-sm font-medium",
+                          "cursor-pointer bg-transparent text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-700 focus:ring-offset-2",
                             itemIsActive 
                             ? "bg-black text-white hover:bg-black rounded-md px-4 py-2" 
                             : "text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-md px-4 py-2"
@@ -230,8 +234,7 @@ export function Navbar() {
                           />
                           <span>{item.label}</span>
                         </span>
-                      </MenubarTrigger>
-                    </MenubarMenu>
+                      </button>
                     )
                   }
                   
@@ -253,12 +256,42 @@ export function Navbar() {
                       }}
                     >
                       <button
+                        type="button"
+                        aria-expanded={isExpanded}
+                        aria-haspopup="true"
+                        aria-controls={`menu-${group.id}`}
                         className={cn(
-                          "cursor-pointer bg-transparent text-sm font-medium flex items-center gap-1.5 rounded-md px-4 py-2 transition-colors",
+                          "cursor-pointer bg-transparent text-sm font-medium flex items-center gap-1.5 rounded-md px-4 py-2 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-700 focus:ring-offset-2",
                           groupIsActive 
                             ? "bg-black text-white hover:bg-black" 
                             : "text-slate-700 hover:text-slate-900 hover:bg-slate-50"
                         )}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            setExpandedGroup(isExpanded ? null : group.id)
+                            if (!isExpanded) {
+                              // Focus first item after menu opens
+                              setTimeout(() => {
+                                const menu = document.getElementById(`menu-${group.id}`)
+                                const firstButton = menu?.querySelector('button[role="menuitem"]') as HTMLButtonElement
+                                firstButton?.focus()
+                              }, 50)
+                            }
+                          } else if (e.key === 'ArrowDown' && !isExpanded) {
+                            e.preventDefault()
+                            setExpandedGroup(group.id)
+                            // Focus first item after a brief delay
+                            setTimeout(() => {
+                              const menu = document.getElementById(`menu-${group.id}`)
+                              const firstButton = menu?.querySelector('button[role="menuitem"]') as HTMLButtonElement
+                              firstButton?.focus()
+                            }, 50)
+                          } else if (e.key === 'Escape' && isExpanded) {
+                            e.preventDefault()
+                            setExpandedGroup(null)
+                          }
+                        }}
                       >
                         <span>{group.label}</span>
                         <Icon 
@@ -273,6 +306,8 @@ export function Navbar() {
                       </button>
                       {isExpanded && (
                         <div
+                          id={`menu-${group.id}`}
+                          role="menu"
                           className="absolute top-full left-0 mt-1 min-w-[200px] bg-white border border-slate-200 rounded-lg shadow-lg p-1 z-50"
                           onMouseEnter={() => {
                             if (groupTimeoutRef.current) {
@@ -284,6 +319,33 @@ export function Navbar() {
                               setExpandedGroup(null)
                             }, 150)
                           }}
+                          onKeyDown={(e) => {
+                            const menu = e.currentTarget
+                            const menuItems = Array.from(menu.querySelectorAll('button[role="menuitem"]')) as HTMLButtonElement[]
+                            const currentIndex = menuItems.findIndex(btn => btn === document.activeElement)
+                            
+                            if (e.key === 'Escape') {
+                              e.preventDefault()
+                              setExpandedGroup(null)
+                              // Return focus to the trigger button
+                              const trigger = menu.parentElement?.querySelector('button[aria-expanded]') as HTMLButtonElement
+                              trigger?.focus()
+                            } else if (e.key === 'ArrowDown') {
+                              e.preventDefault()
+                              const nextIndex = currentIndex < menuItems.length - 1 ? currentIndex + 1 : 0
+                              menuItems[nextIndex]?.focus()
+                            } else if (e.key === 'ArrowUp') {
+                              e.preventDefault()
+                              const prevIndex = currentIndex > 0 ? currentIndex - 1 : menuItems.length - 1
+                              menuItems[prevIndex]?.focus()
+                            } else if (e.key === 'Home') {
+                              e.preventDefault()
+                              menuItems[0]?.focus()
+                            } else if (e.key === 'End') {
+                              e.preventDefault()
+                              menuItems[menuItems.length - 1]?.focus()
+                            }
+                          }}
                         >
                           {group.items.map((item) => {
                             // Special case: interview-analytics should highlight the Interviews item
@@ -292,12 +354,21 @@ export function Navbar() {
                             return (
                               <button
                                 key={item.id}
+                                type="button"
+                                role="menuitem"
                                 onClick={() => {
                                   navigate(item.path)
                                   setExpandedGroup(null)
                                 }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault()
+                                    navigate(item.path)
+                                    setExpandedGroup(null)
+                                  }
+                                }}
                                 className={cn(
-                                  "w-full cursor-pointer rounded-md px-3 py-2 text-sm font-medium flex items-center gap-2 text-left transition-colors",
+                                  "w-full cursor-pointer rounded-md px-3 py-2 text-sm font-medium flex items-center gap-2 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-blue-700 focus:ring-offset-2",
                                   itemIsActive
                                     ? "bg-black text-white hover:bg-black"
                                     : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
@@ -318,11 +389,11 @@ export function Navbar() {
                     </div>
                   )
                 }))}
-              </Menubar>
+              </nav>
             </div>
           )}
 
-          {/* Right Side: Mobile Menu Button + User Profile */}
+          {/* Right Side: Mobile Menu Button + Notifications + User Profile */}
           <div className="flex items-center gap-2 md:gap-3">
             {/* Mobile Menu Button */}
             {isLoggedIn && (
@@ -340,6 +411,9 @@ export function Navbar() {
               </button>
             )}
 
+            {/* Follow-Up Reminder Notification */}
+            {isLoggedIn && <FollowUpReminderNotification />}
+
             {/* User Profile Area */}
             {isCheckingAuth || isLoggingOut ? (
               <div className="flex items-center gap-2 text-slate-600">
@@ -352,7 +426,7 @@ export function Navbar() {
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                 className="flex items-center gap-2 md:gap-3 px-2 md:px-4 py-2 bg-transparent border border-slate-200 rounded-lg cursor-pointer transition-all duration-200 hover:bg-slate-50"
               >
-                <div className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm md:text-base font-semibold overflow-hidden flex-shrink-0">
+                <div className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-blue-700 text-white flex items-center justify-center text-sm md:text-base font-semibold overflow-hidden flex-shrink-0">
                   {profilePicture && !profilePicture.includes('blank-profile-picture') ? (
                     <img 
                       src={profilePicture} 
@@ -388,7 +462,7 @@ export function Navbar() {
               {isDropdownOpen && (
                 <div className="absolute top-full right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-lg min-w-[280px] overflow-hidden z-50">
                   <div className="p-4 flex items-center gap-3 bg-slate-50">
-                    <div className="w-12 h-12 rounded-full bg-blue-500 text-white flex items-center justify-center text-lg font-semibold overflow-hidden">
+                    <div className="w-12 h-12 rounded-full bg-blue-700 text-white flex items-center justify-center text-lg font-semibold overflow-hidden">
                       {profilePicture && !profilePicture.includes('blank-profile-picture') ? (
                         <img 
                           src={profilePicture} 

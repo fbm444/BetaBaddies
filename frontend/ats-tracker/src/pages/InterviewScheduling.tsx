@@ -161,7 +161,7 @@ export function InterviewScheduling() {
         <div className="text-center">
           <Icon
             icon="mingcute:loading-line"
-            className="animate-spin text-blue-500 mx-auto mb-4"
+            className="animate-spin text-blue-700 mx-auto mb-4"
             width={48}
           />
           <div className="text-2xl font-semibold text-slate-900 mb-2">
@@ -214,7 +214,7 @@ export function InterviewScheduling() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setShowScheduleModal(true)}
-              className="px-4 py-2 rounded-full bg-[#5490FF] text-white text-sm font-semibold inline-flex items-center gap-2 shadow hover:bg-[#4478D9]"
+              className="px-4 py-2 rounded-full bg-blue-700 text-white text-sm font-semibold inline-flex items-center gap-2 shadow hover:bg-blue-800"
             >
               <Icon icon="mingcute:add-line" width={16} />
               Schedule Interview
@@ -245,10 +245,15 @@ export function InterviewScheduling() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <label htmlFor="interview-status-filter" className="sr-only">
+              Filter interviews by status
+            </label>
             <select
+              id="interview-status-filter"
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value as InterviewStatus | "all")}
               className="px-4 py-2 rounded-full border border-slate-200 bg-white text-slate-700 text-sm font-medium"
+              aria-label="Filter interviews by status"
             >
               <option value="all">All Statuses</option>
               {INTERVIEW_STATUSES.map((status) => (
@@ -481,7 +486,7 @@ END:VCALENDAR`;
           </button>
           <button
             onClick={onScheduleClick}
-            className="px-4 py-2 rounded-full bg-[#5490FF] text-white text-sm font-semibold inline-flex items-center gap-2 shadow hover:bg-[#4478D9]"
+            className="px-4 py-2 rounded-full bg-blue-700 text-white text-sm font-semibold inline-flex items-center gap-2 shadow hover:bg-blue-800"
           >
             <Icon icon="mingcute:add-line" width={16} />
             Schedule
@@ -859,7 +864,7 @@ function InterviewCard({
                       console.error("Failed to update task:", err);
                     }
                   }}
-                  className="w-4 h-4 text-blue-500 border-slate-300 rounded focus:ring-blue-500"
+                  className="w-4 h-4 text-blue-700 border-slate-300 rounded focus:ring-blue-500"
                 />
                 <span
                   className={task.completed ? "line-through text-slate-400" : ""}
@@ -884,7 +889,7 @@ function InterviewCard({
             e.stopPropagation();
             window.location.href = `/interview-preparation/${interview.id}`;
           }}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
+          className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition"
         >
           <Icon icon="mingcute:book-line" width={20} />
           <span>Prepare for Interview</span>
@@ -1008,32 +1013,51 @@ function InterviewScheduleModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 font-poppins">
-      <div className="bg-white rounded-2xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[110] p-4 font-poppins"
+      onKeyDown={(e) => {
+        if (e.key === "Escape" && !isSubmitting) {
+          onClose();
+        }
+      }}
+    >
+      <div 
+        className="bg-white rounded-2xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="schedule-interview-modal-title"
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-slate-900">Schedule Interview</h2>
+          <h2 id="schedule-interview-modal-title" className="text-2xl font-bold text-slate-900">Schedule Interview</h2>
           <button
             onClick={onClose}
             className="text-slate-400 hover:text-slate-600"
             disabled={isSubmitting}
+            aria-label="Close modal"
           >
-            <Icon icon="mingcute:close-line" width={24} />
+            <Icon icon="mingcute:close-line" width={24} aria-hidden="true" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Job Opportunity */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <label htmlFor="job-opportunity-select" className="block text-sm font-medium text-slate-700 mb-2">
               Job Opportunity <span className="text-red-500">*</span>
             </label>
             <select
+              id="job-opportunity-select"
               value={formData.jobOpportunityId}
               onChange={(e) => handleChange("jobOpportunityId", e.target.value)}
-              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-700 focus:border-transparent ${
                 errors.jobOpportunityId ? "border-red-500" : "border-slate-300"
               }`}
               disabled={isSubmitting}
+              aria-required="true"
+              aria-invalid={!!errors.jobOpportunityId}
+              aria-describedby={errors.jobOpportunityId ? "error-job-opportunity" : undefined}
             >
               <option value="">Select a job opportunity</option>
               {jobOpportunities.map((job) => (
@@ -1043,7 +1067,7 @@ function InterviewScheduleModal({
               ))}
             </select>
             {errors.jobOpportunityId && (
-              <p className="text-red-500 text-sm mt-1">{errors.jobOpportunityId}</p>
+              <p id="error-job-opportunity" className="text-red-500 text-sm mt-1" role="alert">{errors.jobOpportunityId}</p>
             )}
           </div>
 
@@ -1131,16 +1155,20 @@ function InterviewScheduleModal({
 
           {/* Duration */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <label htmlFor="duration-select" className="block text-sm font-medium text-slate-700 mb-2">
               Duration (minutes) <span className="text-red-500">*</span>
             </label>
             <select
+              id="duration-select"
               value={formData.duration}
               onChange={(e) => handleChange("duration", parseInt(e.target.value))}
-              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-700 focus:border-transparent ${
                 errors.duration ? "border-red-500" : "border-slate-300"
               }`}
               disabled={isSubmitting}
+              aria-required="true"
+              aria-invalid={!!errors.duration}
+              aria-describedby={errors.duration ? "error-duration" : undefined}
             >
               <option value={15}>15 minutes</option>
               <option value={30}>30 minutes</option>
@@ -1150,7 +1178,7 @@ function InterviewScheduleModal({
               <option value={120}>2 hours</option>
             </select>
             {errors.duration && (
-              <p className="text-red-500 text-sm mt-1">{errors.duration}</p>
+              <p id="error-duration" className="text-red-500 text-sm mt-1" role="alert">{errors.duration}</p>
             )}
           </div>
 
@@ -1326,7 +1354,7 @@ function InterviewScheduleModal({
             <button
               type="submit"
               disabled={isSubmitting || checkingConflicts}
-              className="flex-1 px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+              className="flex-1 px-6 py-3 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors font-medium disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {isSubmitting ? (
                 <>
@@ -1411,17 +1439,32 @@ function InterviewDetailModal({
 
   return (
     <>
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 font-poppins">
-        <div className="bg-white rounded-2xl p-8 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+      <div 
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[110] p-4 font-poppins"
+        onKeyDown={(e) => {
+          if (e.key === "Escape") {
+            onClose();
+          }
+        }}
+      >
+        <div 
+          className="bg-white rounded-2xl p-8 max-w-3xl w-full max-h-[90vh] overflow-y-auto"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="interview-detail-modal-title"
+          tabIndex={-1}
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-slate-900">
+            <h2 id="interview-detail-modal-title" className="text-2xl font-bold text-slate-900">
               Interview Details
             </h2>
             <button
               onClick={onClose}
               className="text-slate-400 hover:text-slate-600"
+              aria-label="Close modal"
             >
-              <Icon icon="mingcute:close-line" width={24} />
+              <Icon icon="mingcute:close-line" width={24} aria-hidden="true" />
             </button>
           </div>
 
@@ -1612,7 +1655,7 @@ function InterviewDetailModal({
                         type="checkbox"
                         checked={task.completed}
                         onChange={(e) => handleTaskToggle(task.id, e.target.checked)}
-                        className="w-5 h-5 text-blue-500 border-slate-300 rounded focus:ring-blue-500"
+                        className="w-5 h-5 text-blue-700 border-slate-300 rounded focus:ring-blue-500"
                       />
                       <span
                         className={`flex-1 ${
@@ -1664,10 +1707,15 @@ function InterviewDetailModal({
                   </div>
                 ) : (
                   <div className="space-y-3">
+                    <label htmlFor="outcome-select" className="block text-sm font-medium text-slate-700 mb-2">
+                      Interview Outcome
+                    </label>
                     <select
+                      id="outcome-select"
                       value={outcome}
                       onChange={(e) => setOutcome(e.target.value as InterviewOutcome)}
-                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-700 focus:border-transparent"
+                      aria-label="Interview outcome"
                     >
                       <option value="">Select outcome</option>
                       {INTERVIEW_OUTCOMES.map((outcomeOption) => (
@@ -1686,7 +1734,7 @@ function InterviewDetailModal({
                     <div className="flex gap-2">
                       <button
                         onClick={handleUpdateOutcome}
-                        className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium text-sm"
+                        className="px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors font-medium text-sm"
                       >
                         Save
                       </button>
@@ -1713,7 +1761,7 @@ function InterviewDetailModal({
                   onClose();
                   window.location.href = `/interview-preparation/${interview.id}`;
                 }}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium text-sm inline-flex items-center gap-2"
+                className="px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors font-medium text-sm inline-flex items-center gap-2"
               >
                 <Icon icon="mingcute:book-line" width={16} />
                 Prepare for Interview
@@ -1814,23 +1862,40 @@ function CancelInterviewModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4 font-poppins">
-      <div className="bg-white rounded-2xl p-8 max-w-md w-full">
-        <h2 className="text-2xl font-bold text-slate-900 mb-4">Cancel Interview</h2>
-        <p className="text-slate-600 mb-4">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[120] p-4 font-poppins"
+      onKeyDown={(e) => {
+        if (e.key === "Escape" && !isCancelling) {
+          onClose();
+        }
+      }}
+    >
+      <div 
+        className="bg-white rounded-2xl p-8 max-w-md w-full"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="cancel-interview-modal-title"
+        aria-describedby="cancel-interview-modal-description"
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 id="cancel-interview-modal-title" className="text-2xl font-bold text-slate-900 mb-4">Cancel Interview</h2>
+        <p id="cancel-interview-modal-description" className="text-slate-600 mb-4">
           Are you sure you want to cancel this interview?
         </p>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <label htmlFor="cancel-reason-textarea" className="block text-sm font-medium text-slate-700 mb-2">
               Cancellation Reason (optional)
             </label>
             <textarea
+              id="cancel-reason-textarea"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={3}
               className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
               placeholder="e.g., Rescheduled to a different time"
+              aria-label="Cancellation reason"
             />
           </div>
           <div className="flex gap-3">
@@ -1944,19 +2009,37 @@ function RescheduleInterviewModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4 font-poppins">
-      <div className="bg-white rounded-2xl p-8 max-w-md w-full">
-        <h2 className="text-2xl font-bold text-slate-900 mb-4">Reschedule Interview</h2>
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[120] p-4 font-poppins"
+      onKeyDown={(e) => {
+        if (e.key === "Escape" && !isRescheduling) {
+          onClose();
+        }
+      }}
+    >
+      <div 
+        className="bg-white rounded-2xl p-8 max-w-md w-full"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="reschedule-interview-modal-title"
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 id="reschedule-interview-modal-title" className="text-2xl font-bold text-slate-900 mb-4">Reschedule Interview</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+              <label htmlFor="reschedule-date-input" className="block text-sm font-medium text-slate-700 mb-2">
                 Date <span className="text-red-500">*</span>
               </label>
               <input
+                id="reschedule-date-input"
                 type="date"
                 value={scheduledAt}
                 onChange={(e) => setScheduledAt(e.target.value)}
+                aria-required="true"
+                aria-invalid={!!errors.scheduledAt}
+                aria-describedby={errors.scheduledAt ? "error-reschedule-date" : undefined}
                 className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                   errors.scheduledAt ? "border-red-500" : "border-slate-300"
                 }`}
@@ -1987,13 +2070,14 @@ function RescheduleInterviewModal({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <label htmlFor="reschedule-duration-select" className="block text-sm font-medium text-slate-700 mb-2">
               Duration (minutes)
             </label>
             <select
+              id="reschedule-duration-select"
               value={duration}
               onChange={(e) => setDuration(parseInt(e.target.value))}
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-700 focus:border-transparent"
               disabled={isRescheduling}
             >
               <option value={15}>15 minutes</option>
@@ -2036,7 +2120,7 @@ function RescheduleInterviewModal({
             <button
               type="submit"
               disabled={isRescheduling}
-              className="flex-1 px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+              className="flex-1 px-6 py-3 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors font-medium disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {isRescheduling ? (
                 <>
@@ -2076,13 +2160,28 @@ function DeleteInterviewModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4 font-poppins">
-      <div className="bg-white rounded-2xl p-8 max-w-md w-full">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[120] p-4 font-poppins"
+      onKeyDown={(e) => {
+        if (e.key === "Escape" && !isDeleting) {
+          onClose();
+        }
+      }}
+    >
+      <div 
+        className="bg-white rounded-2xl p-8 max-w-md w-full"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="delete-interview-modal-title"
+        aria-describedby="delete-interview-modal-description"
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center gap-3 mb-4">
-          <Icon icon="mingcute:alert-fill" className="text-red-500" width={32} />
-          <h2 className="text-2xl font-bold text-slate-900">Delete Interview?</h2>
+          <Icon icon="mingcute:alert-fill" className="text-red-500" width={32} aria-hidden="true" />
+          <h2 id="delete-interview-modal-title" className="text-2xl font-bold text-slate-900">Delete Interview?</h2>
         </div>
-        <p className="text-slate-600 mb-4">
+        <p id="delete-interview-modal-description" className="text-slate-600 mb-4">
           Are you sure you want to delete this interview? This action cannot be undone.
         </p>
         <div className="bg-slate-50 rounded-lg p-4 mb-4">

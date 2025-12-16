@@ -184,8 +184,9 @@ export default function BasicInformation() {
           <button 
             onClick={() => setMessage(null)}
             className="text-green-600 hover:text-green-800"
+            aria-label="Close success message"
           >
-            <Icon icon="mingcute:close-line" className="h-4 w-4" />
+            <Icon icon="mingcute:close-line" className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
       )}
@@ -197,8 +198,9 @@ export default function BasicInformation() {
           <button 
             onClick={() => setError(null)}
             className="text-red-600 hover:text-red-800"
+            aria-label="Close error message"
           >
-            <Icon icon="mingcute:close-line" className="h-4 w-4" />
+            <Icon icon="mingcute:close-line" className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
       )}
@@ -342,15 +344,17 @@ export default function BasicInformation() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="industry-select" className="block text-sm font-medium text-gray-700 mb-2">
                   Industry
                 </label>
                 <select
+                  id="industry-select"
                   name="industry"
                   value={formData.industry}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-700 focus:border-transparent"
                   disabled={saving}
+                  aria-label="Industry"
                 >
                   <option value="">Select Industry</option>
                   {industries.map((industry) => (
@@ -362,14 +366,15 @@ export default function BasicInformation() {
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="exp-level-select" className="block text-sm font-medium text-gray-700 mb-2">
                   Experience Level
                 </label>
                 <select
+                  id="exp-level-select"
                   name="expLevel"
                   value={formData.expLevel}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-700 focus:border-transparent"
                   disabled={saving}
                 >
                   <option value="">Select Experience Level</option>

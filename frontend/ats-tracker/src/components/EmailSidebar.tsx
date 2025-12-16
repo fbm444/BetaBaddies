@@ -445,7 +445,7 @@ export function EmailSidebar({
           <button
             onClick={handleConnectGmail}
             disabled={isLoading}
-            className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-full px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {isLoading ? (
               <>
@@ -621,7 +621,7 @@ export function EmailSidebar({
                       <Icon
                         icon="mingcute:check-circle-fill"
                         width={16}
-                        className="text-blue-500 flex-shrink-0"
+                        className="text-blue-700 flex-shrink-0"
                       />
                     )}
                   </div>
@@ -642,7 +642,7 @@ export function EmailSidebar({
                         <button
                           onClick={() => handleLinkEmail(email)}
                           disabled={isLoading}
-                          className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors disabled:opacity-50"
+                          className="px-2 py-1 text-xs bg-blue-700 text-white rounded hover:bg-blue-800 transition-colors disabled:opacity-50"
                           title="Link to job application"
                         >
                           Link

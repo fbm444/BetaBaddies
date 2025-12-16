@@ -251,7 +251,7 @@ export function JobOpportunitiesMapView({
 
   if (loading) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+      <div className="fixed inset-0 bg-black bg-opacity-50 z-[110] flex items-center justify-center">
         <div className="bg-white rounded-lg p-6 max-w-md">
           <div className="flex items-center gap-3">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
@@ -264,21 +264,29 @@ export function JobOpportunitiesMapView({
 
   if (error) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+      <div 
+        className="fixed inset-0 bg-black bg-opacity-50 z-[110] flex items-center justify-center"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="map-error-title"
+        aria-describedby="map-error-message"
+      >
         <div className="bg-white rounded-lg p-6 max-w-md">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-slate-900">Map View</h3>
+            <h3 id="map-error-title" className="text-lg font-semibold text-slate-900">Map View</h3>
             <button
               onClick={onClose}
               className="text-slate-500 hover:text-slate-700"
+              aria-label="Close map view"
             >
-              <Icon icon="mingcute:close-line" className="w-6 h-6" />
+              <Icon icon="mingcute:close-line" className="w-6 h-6" aria-hidden="true" />
             </button>
           </div>
-          <p className="text-red-600 mb-4">{error}</p>
+          <p id="map-error-message" className="text-red-600 mb-4" role="alert">{error}</p>
           <button
             onClick={onClose}
-            className="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            className="w-full px-4 py-2 bg-blue-700 text-white rounded hover:bg-blue-800"
+            aria-label="Close map view"
           >
             Close
           </button>
@@ -359,16 +367,31 @@ export function JobOpportunitiesMapView({
   const visibleJobs = filteredJobs.map((opp) => opp.id);
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-      <div className="bg-white rounded-lg w-full h-full md:w-11/12 md:h-5/6 flex flex-col">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 z-[110] flex items-center justify-center"
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          onClose();
+        }
+      }}
+    >
+      <div 
+        className="bg-white rounded-lg w-full h-full md:w-11/12 md:h-5/6 flex flex-col"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="map-modal-title"
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
-          <h3 className="text-lg font-semibold text-slate-900">Map View</h3>
+          <h3 id="map-modal-title" className="text-lg font-semibold text-slate-900">Map View</h3>
           <button
             onClick={onClose}
             className="text-slate-500 hover:text-slate-700"
+            aria-label="Close map view"
           >
-            <Icon icon="mingcute:close-line" className="w-6 h-6" />
+            <Icon icon="mingcute:close-line" className="w-6 h-6" aria-hidden="true" />
           </button>
         </div>
 
@@ -400,7 +423,7 @@ export function JobOpportunitiesMapView({
                           }
                           setLocationTypeFilter(newSet);
                         }}
-                        className="w-4 h-4 text-blue-500 border-slate-300 rounded focus:ring-blue-500"
+                        className="w-4 h-4 text-blue-700 border-slate-300 rounded focus:ring-blue-500"
                       />
                       <span className="text-sm text-slate-700 capitalize">
                         {type === "on-site" ? "On-Site" : type}
@@ -551,7 +574,7 @@ export function JobOpportunitiesMapView({
                         type="checkbox"
                         checked={isVisible}
                         onChange={() => toggleJobVisibility(jobId)}
-                        className="mt-1 w-4 h-4 text-blue-500 border-slate-300 rounded focus:ring-blue-500"
+                        className="mt-1 w-4 h-4 text-blue-700 border-slate-300 rounded focus:ring-blue-500"
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
@@ -581,7 +604,7 @@ export function JobOpportunitiesMapView({
                             <div className="flex items-center gap-2 text-xs">
                               <Icon
                                 icon="mingcute:route-line"
-                                className="w-3 h-3 text-blue-500"
+                                className="w-3 h-3 text-blue-700"
                               />
                               <span className="text-slate-600">
                                 {distanceUnit === "km"
@@ -591,7 +614,7 @@ export function JobOpportunitiesMapView({
                               <span className="text-slate-400">•</span>
                               <Icon
                                 icon="mingcute:time-line"
-                                className="w-3 h-3 text-blue-500"
+                                className="w-3 h-3 text-blue-700"
                               />
                               <span className="text-slate-600">
                                 ~{distanceInfo.travelTime} min
@@ -724,7 +747,7 @@ export function JobOpportunitiesMapView({
                                 <div className="flex items-center gap-2">
                                   <Icon
                                     icon="mingcute:route-line"
-                                    className="w-4 h-4 text-blue-500"
+                                    className="w-4 h-4 text-blue-700"
                                   />
                                   <span className="text-slate-700">
                                     {distanceInfo.distance.toFixed(1)} km (
@@ -734,7 +757,7 @@ export function JobOpportunitiesMapView({
                                 <div className="flex items-center gap-2">
                                   <Icon
                                     icon="mingcute:time-line"
-                                    className="w-4 h-4 text-blue-500"
+                                    className="w-4 h-4 text-blue-700"
                                   />
                                   <span className="text-slate-700">
                                     ~{distanceInfo.travelTime} minutes

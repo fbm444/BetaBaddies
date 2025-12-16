@@ -161,17 +161,17 @@ function PipelineCard({
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <h4 className="text-[14px] font-medium text-slate-900 leading-tight truncate">
+          <h3 className="text-[14px] font-medium text-slate-900 leading-tight truncate">
             {highlightSearchTerm(opportunity.title, searchTerm)}
-          </h4>
-          <div className="flex items-center gap-1 text-[11px] font-medium text-[#848484] mt-0.5 truncate">
+          </h3>
+          <div className="flex items-center gap-1 text-[11px] font-medium text-slate-600 mt-0.5 truncate">
             <span className="truncate">
               {highlightSearchTerm(opportunity.company, searchTerm)}
             </span>
             {opportunity.location && (
               <>
-                <span className="text-[#C9C9C9]">•</span>
-                <span className="truncate text-[#848484]">{opportunity.location}</span>
+                <span className="text-slate-400">•</span>
+                <span className="truncate text-slate-600">{opportunity.location}</span>
               </>
             )}
           </div>
@@ -271,7 +271,7 @@ function PipelineColumn({
             style={{ backgroundColor: statusColor }}
           />
           <span className="flex items-center gap-2">
-            <h3 className="font-semibold text-slate-800 text-sm whitespace-nowrap">{status}</h3>
+            <h2 className="font-semibold text-slate-800 text-sm whitespace-nowrap">{status}</h2>
             <span
               className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold"
               style={{
@@ -305,11 +305,11 @@ function PipelineColumn({
       >
         <div className="flex-1 space-y-3 min-h-[120px] overflow-y-auto pr-1.5">
           {opportunities.length === 0 ? (
-            <div className="text-center py-8 px-3 text-slate-400 text-sm border-2 border-dashed border-slate-200 rounded-xl">
+            <div className="text-center py-8 px-3 text-slate-600 text-sm border-2 border-dashed border-slate-300 rounded-xl">
               <Icon
                 icon="mingcute:inbox-line"
                 width={24}
-                className="mx-auto mb-2 opacity-50"
+                className="mx-auto mb-2 opacity-60"
               />
               Drop jobs here
             </div>

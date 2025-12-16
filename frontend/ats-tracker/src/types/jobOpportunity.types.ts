@@ -1,4 +1,5 @@
 import type { SkillGapHistoryEntry } from "./skillGap.types";
+import type { SalaryBenchmarkData } from "./salaryBenchmark.types";
 
 export type JobStatus =
   | "Interested"
@@ -59,6 +60,8 @@ export interface JobOpportunityData {
   archiveReason?: string;
   createdAt?: string;
   updatedAt?: string;
+  /** Salary benchmark data (optional, included when requested) */
+  salaryBenchmark?: SalaryBenchmarkData | null;
 }
 
 export interface JobOpportunityInput {

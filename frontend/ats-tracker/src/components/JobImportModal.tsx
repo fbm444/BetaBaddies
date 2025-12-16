@@ -149,16 +149,30 @@ export function JobImportModal({ onImport, onClose }: JobImportModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 font-poppins">
-      <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-xl max-h-[90vh] overflow-y-auto font-poppins">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[110] p-4 font-poppins"
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          onClose();
+        }
+      }}
+    >
+      <div 
+        className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-xl max-h-[90vh] overflow-y-auto font-poppins"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="import-modal-title"
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
+            <div className="p-2 bg-blue-100 rounded-lg" aria-hidden="true">
               <Icon icon="mingcute:link-line" className="text-blue-600" width={24} />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-slate-900">Import Job from URL</h2>
+              <h2 id="import-modal-title" className="text-xl font-bold text-slate-900">Import Job from URL</h2>
               <p className="text-sm text-slate-600">
                 Paste a job posting URL to auto-populate fields
               </p>
@@ -167,19 +181,21 @@ export function JobImportModal({ onImport, onClose }: JobImportModalProps) {
           <button
             onClick={onClose}
             className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
+            aria-label="Close modal"
           >
-            <Icon icon="mingcute:close-line" width={24} />
+            <Icon icon="mingcute:close-line" width={24} aria-hidden="true" />
           </button>
         </div>
 
         {/* URL Input Form */}
         <form onSubmit={handleImport} className="mb-6">
           <div className="mb-4">
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <label htmlFor="import-url-input" className="block text-sm font-medium text-slate-700 mb-2">
               Job Posting URL
             </label>
             <div className="flex gap-2">
               <input
+                id="import-url-input"
                 type="url"
                 value={url}
                 onChange={(e) => {
@@ -192,11 +208,14 @@ export function JobImportModal({ onImport, onClose }: JobImportModalProps) {
                   errors.url ? "border-red-300" : "border-slate-300"
                 }`}
                 disabled={isImporting}
+                aria-required="true"
+                aria-invalid={!!errors.url}
+                aria-describedby={errors.url ? "error-import-url" : undefined}
               />
               <button
                 type="submit"
                 disabled={isImporting || !url.trim()}
-                className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-6 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {isImporting ? (
                   <>
@@ -212,7 +231,7 @@ export function JobImportModal({ onImport, onClose }: JobImportModalProps) {
               </button>
             </div>
             {errors.url && (
-              <p className="mt-1 text-sm text-red-600">{errors.url}</p>
+              <p id="error-import-url" className="mt-1 text-sm text-red-600" role="alert">{errors.url}</p>
             )}
           </div>
 
@@ -322,7 +341,7 @@ export function JobImportModal({ onImport, onClose }: JobImportModalProps) {
           {(importResult || url) && (
             <button
               onClick={handleContinue}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium flex items-center gap-2"
+              className="px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors font-medium flex items-center gap-2"
             >
               <Icon icon="mingcute:arrow-right-line" width={18} />
               {importResult?.data?.importStatus === "success"

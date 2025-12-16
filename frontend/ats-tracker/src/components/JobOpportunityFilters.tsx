@@ -100,8 +100,9 @@ export function JobOpportunityFilters({
             <div className="relative flex-1">
               <Icon
                 icon="mingcute:search-line"
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
                 width={20}
+                aria-hidden="true"
               />
               <input
                 type="text"
@@ -122,8 +123,9 @@ export function JobOpportunityFilters({
                     setSearchInput("");
                     updateFilter("search", "");
                   }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700"
                   type="button"
+                  aria-label="Clear search"
                 >
                   <Icon icon="mingcute:close-line" width={18} />
                 </button>

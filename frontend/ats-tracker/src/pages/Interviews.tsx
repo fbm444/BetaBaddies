@@ -56,6 +56,13 @@ export function Interviews() {
   const [pendingFollowUps, setPendingFollowUps] = useState<any[]>([]);
   const [completedFollowUps, setCompletedFollowUps] = useState<any[]>([]);
   const [loadingFollowUps, setLoadingFollowUps] = useState(false);
+  const [showCreateFollowUpModal, setShowCreateFollowUpModal] = useState(false);
+  const [newFollowUpData, setNewFollowUpData] = useState({
+    interviewId: "",
+    actionType: "other",
+    dueDate: "",
+    notes: "",
+  });
   const [activeFollowUpDraft, setActiveFollowUpDraft] = useState<{
     id: string;
     interviewId: string;
@@ -63,6 +70,7 @@ export function Interviews() {
     body: string;
     generatedBy?: string;
   } | null>(null);
+  const [isEditingDraft, setIsEditingDraft] = useState(false);
   const [draftLoadingId, setDraftLoadingId] = useState<string | null>(null);
   // Store generated drafts history by follow-up ID (latest first)
   const [storedFollowUpDrafts, setStoredFollowUpDrafts] = useState<
@@ -89,6 +97,42 @@ export function Interviews() {
   const [thankYouNotes, setThankYouNotes] = useState<any[]>([]);
   const [loadingThankYou, setLoadingThankYou] = useState(false);
   const [showAllThankYouNotes, setShowAllThankYouNotes] = useState(false);
+  const [isEditingThankYouNote, setIsEditingThankYouNote] = useState(false);
+  const [editedThankYouContent, setEditedThankYouContent] = useState<{
+    subject: string;
+    body: string;
+  } | null>(null);
+  const [showCreateThankYouModal, setShowCreateThankYouModal] = useState(false);
+  const [selectedInterviewForThankYou, setSelectedInterviewForThankYou] = useState<string>("");
+  const [thankYouNoteStyle, setThankYouNoteStyle] = useState<"standard" | "enthusiastic" | "concise">("standard");
+  // Store generated thank you notes by interview ID (latest first)
+  const [storedThankYouNotes, setStoredThankYouNotes] = useState<
+    Map<
+      string,
+      Array<{
+        subject: string;
+        body: string;
+        style?: string;
+        generatedBy?: string;
+        createdAt: string;
+      }>
+    >
+  >(new Map());
+  // Store recently generated drafts (separate from cached notes)
+  const [recentThankYouDrafts, setRecentThankYouDrafts] = useState<
+    Array<{
+      id: string;
+      interviewId: string;
+      subject: string;
+      body: string;
+      style?: string;
+      generatedBy?: string;
+      createdAt: string;
+      interview: any;
+    }>
+  >([]);
+  const [expandedThankYouCards, setExpandedThankYouCards] = useState<Map<string, boolean>>(new Map());
+  const [editingThankYouCards, setEditingThankYouCards] = useState<Map<string, boolean>>(new Map());
 
   // Calendar state
   const [calendarConnected, setCalendarConnected] = useState(false);
@@ -271,6 +315,51 @@ export function Interviews() {
     }
   };
 
+  const handleCreateFollowUp = async () => {
+    if (!newFollowUpData.interviewId) {
+      showMessage("Please select an interview", "error");
+      return;
+    }
+    if (!newFollowUpData.actionType) {
+      showMessage("Please select an action type", "error");
+      return;
+    }
+
+    try {
+      const response = await api.createFollowUpAction(
+        newFollowUpData.interviewId,
+        {
+          actionType: newFollowUpData.actionType,
+          dueDate: newFollowUpData.dueDate || undefined,
+          notes: newFollowUpData.notes || undefined,
+        }
+      );
+
+      if (response.ok) {
+        showMessage("Follow-up action created successfully!", "success");
+        setShowCreateFollowUpModal(false);
+        setNewFollowUpData({
+          interviewId: "",
+          actionType: "other",
+          dueDate: "",
+          notes: "",
+        });
+        fetchPendingFollowUps();
+      } else {
+        showMessage(
+          response.error?.message || "Failed to create follow-up action",
+          "error"
+        );
+      }
+    } catch (err: any) {
+      console.error("Failed to create follow-up:", err);
+      showMessage(
+        err.message || "Failed to create follow-up action",
+        "error"
+      );
+    }
+  };
+
   const checkCalendarStatus = async () => {
     setCalendarLoading(true);
     try {
@@ -358,6 +447,64 @@ export function Interviews() {
     } catch (err) {
       console.error("Failed to load thank-you notes:", err);
       setThankYouNotes([]);
+    } finally {
+      setLoadingThankYou(false);
+    }
+  };
+
+  const addToRecentDrafts = (interviewId: string, note: any, style: string) => {
+    const interview = interviews.find(i => i.id === interviewId);
+    const draftId = `${interviewId}-${Date.now()}-${Math.random()}`;
+    
+    setRecentThankYouDrafts(prev => [
+      {
+        id: draftId,
+        interviewId,
+        subject: note.subject || "",
+        body: note.body || "",
+        style,
+        generatedBy: note.generatedBy || "ai",
+        createdAt: new Date().toISOString(),
+        interview: interview || null,
+      },
+      ...prev,
+    ]);
+  };
+
+  const handleCreateThankYouNote = async () => {
+    if (!selectedInterviewForThankYou) {
+      showMessage("Please select an interview", "error");
+      return;
+    }
+
+    try {
+      setLoadingThankYou(true);
+      const response = await api.generateThankYouNote(
+        selectedInterviewForThankYou,
+        thankYouNoteStyle
+      );
+
+      if (response.ok && response.data?.note) {
+        const note = response.data.note;
+        // Add to recent drafts (newly generated)
+        addToRecentDrafts(selectedInterviewForThankYou, note, thankYouNoteStyle);
+        
+        showMessage("Thank you note generated successfully! View it in 'Recent Drafts' below.", "success");
+        setShowCreateThankYouModal(false);
+        setSelectedInterviewForThankYou("");
+        setThankYouNoteStyle("standard");
+      } else {
+        showMessage(
+          response.error?.message || "Failed to generate thank you note",
+          "error"
+        );
+      }
+    } catch (err: any) {
+      console.error("Failed to create thank you note:", err);
+      showMessage(
+        err.message || "Failed to generate thank you note",
+        "error"
+      );
     } finally {
       setLoadingThankYou(false);
     }
@@ -591,9 +738,9 @@ export function Interviews() {
               View and manage your interviews. Schedule new interviews, view upcoming ones, and access all interview details.
             </p>
             <div className="flex items-center gap-3 flex-shrink-0">
-              <button
+            <button
                 onClick={() => navigate(ROUTES.INTERVIEW_SCHEDULING)}
-                className="px-6 py-3 rounded-full bg-blue-500 text-white text-sm font-medium inline-flex items-center gap-2 shadow-md hover:bg-blue-600 transition-all"
+                className="px-6 py-3 rounded-full bg-blue-700 text-white text-sm font-medium inline-flex items-center gap-2 shadow-md hover:bg-blue-800 transition-all"
               >
                 <Icon icon="mingcute:calendar-line" width={20} />
                 Interview Calendar
@@ -601,7 +748,7 @@ export function Interviews() {
               {!calendarConnected ? (
                 <button
                   onClick={handleConnectCalendar}
-                  className="px-6 py-3 rounded-full border-2 border-blue-500 text-blue-500 text-sm font-medium inline-flex items-center gap-2 hover:bg-blue-50 transition-all"
+                  className="px-6 py-3 rounded-full border-2 border-blue-500 text-blue-700 text-sm font-medium inline-flex items-center gap-2 hover:bg-blue-50 transition-all"
                 >
                   Connect Google Calendar
                 </button>
@@ -620,8 +767,8 @@ export function Interviews() {
                 >
                   <Icon icon="mingcute:check-circle-line" width={20} />
                   Connected
-                </button>
-              )}
+            </button>
+          )}
             </div>
           </div>
         </div>
@@ -678,7 +825,7 @@ export function Interviews() {
                 <div className="text-center py-8">
                   <Icon
                     icon="mingcute:loading-line"
-                    className="animate-spin text-blue-500 mx-auto mb-2"
+                    className="animate-spin text-blue-700 mx-auto mb-2"
                     width={24}
                   />
                   <p className="text-slate-600 text-sm">Loading thank-you notes...</p>
@@ -691,30 +838,77 @@ export function Interviews() {
                         <label className="block text-xs font-medium text-slate-500">
                           Latest Draft
                         </label>
-                        {thankYouNotes.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => setShowAllThankYouNotes((prev) => !prev)}
-                            className="text-[11px] text-blue-600 hover:text-blue-700 underline"
-                          >
-                            {showAllThankYouNotes
-                              ? "Hide previous drafts"
-                              : `View previous drafts (${thankYouNotes.length - 1})`}
-                          </button>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {thankYouNotes.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => setShowAllThankYouNotes((prev) => !prev)}
+                              className="text-[11px] text-blue-600 hover:text-blue-700 underline"
+                            >
+                              {showAllThankYouNotes
+                                ? "Hide previous drafts"
+                                : `View previous drafts (${thankYouNotes.length - 1})`}
+                            </button>
+                          )}
+                          {!isEditingThankYouNote && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsEditingThankYouNote(true);
+                                setEditedThankYouContent({
+                                  subject: thankYouNotes[0].subject || "",
+                                  body: thankYouNotes[0].body || "",
+                                });
+                              }}
+                              className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+                            >
+                              <Icon icon="mingcute:edit-line" width={14} />
+                              Edit
+                            </button>
+                          )}
+                        </div>
                       </div>
                       <input
                         type="text"
-                        readOnly
-                        value={thankYouNotes[0].subject}
-                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-slate-50 mb-2"
+                        readOnly={!isEditingThankYouNote}
+                        value={isEditingThankYouNote && editedThankYouContent ? editedThankYouContent.subject : (thankYouNotes[0].subject || "")}
+                        onChange={(e) => {
+                          if (isEditingThankYouNote && editedThankYouContent) {
+                            setEditedThankYouContent({
+                              ...editedThankYouContent,
+                              subject: e.target.value,
+                            });
+                          }
+                        }}
+                        className={`w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mb-2 font-mono whitespace-pre-wrap ${
+                          isEditingThankYouNote
+                            ? "bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            : "bg-slate-50"
+                        }`}
                       />
                       <textarea
-                        readOnly
+                        readOnly={!isEditingThankYouNote}
                         rows={8}
-                        value={thankYouNotes[0].body}
-                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-slate-50 font-mono whitespace-pre-wrap"
+                        value={isEditingThankYouNote && editedThankYouContent ? editedThankYouContent.body : (thankYouNotes[0].body || "")}
+                        onChange={(e) => {
+                          if (isEditingThankYouNote && editedThankYouContent) {
+                            setEditedThankYouContent({
+                              ...editedThankYouContent,
+                              body: e.target.value,
+                            });
+                          }
+                        }}
+                        className={`w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono whitespace-pre-wrap ${
+                          isEditingThankYouNote
+                            ? "bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            : "bg-slate-50"
+                        }`}
                       />
+                      {!isEditingThankYouNote && (
+                        <p className="text-xs text-slate-500 mt-2">
+                          Click "Edit" to modify this draft, or copy it into your email client.
+                        </p>
+                      )}
 
                       {showAllThankYouNotes && thankYouNotes.length > 1 && (
                         <div className="mt-3 border-t border-slate-200 pt-3 space-y-2 max-h-40 overflow-y-auto">
@@ -774,6 +968,9 @@ export function Interviews() {
                                   { regenerate: true }
                                 );
                                 if (response.ok && response.data?.note) {
+                                  const note = response.data.note;
+                                  // Add to recent drafts
+                                  addToRecentDrafts(activeThankYouInterview.id, note, "standard");
                                   const notesResponse = await api.getThankYouNotes(
                                     activeThankYouInterview.id
                                   );
@@ -791,7 +988,7 @@ export function Interviews() {
                                 setLoadingThankYou(false);
                               }
                             }}
-                            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-xs sm:text-sm font-medium"
+                            className="px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 text-xs sm:text-sm font-medium"
                           >
                             Generate Standard
                           </button>
@@ -808,6 +1005,9 @@ export function Interviews() {
                                   { regenerate: true }
                                 );
                                 if (response.ok && response.data?.note) {
+                                  const note = response.data.note;
+                                  // Add to recent drafts
+                                  addToRecentDrafts(activeThankYouInterview.id, note, "enthusiastic");
                                   const notesResponse = await api.getThankYouNotes(
                                     activeThankYouInterview.id
                                   );
@@ -842,6 +1042,9 @@ export function Interviews() {
                                   { regenerate: true }
                                 );
                                 if (response.ok && response.data?.note) {
+                                  const note = response.data.note;
+                                  // Add to recent drafts
+                                  addToRecentDrafts(activeThankYouInterview.id, note, "concise");
                                   const notesResponse = await api.getThankYouNotes(
                                     activeThankYouInterview.id
                                   );
@@ -877,6 +1080,9 @@ export function Interviews() {
                                   "standard"
                                 );
                                 if (response.ok && response.data?.note) {
+                                  const note = response.data.note;
+                                  // Add to recent drafts
+                                  addToRecentDrafts(activeThankYouInterview.id, note, "standard");
                                   const notesResponse = await api.getThankYouNotes(
                                     activeThankYouInterview.id
                                   );
@@ -923,6 +1129,9 @@ export function Interviews() {
                                   "enthusiastic"
                                 );
                                 if (response.ok && response.data?.note) {
+                                  const note = response.data.note;
+                                  // Add to recent drafts
+                                  addToRecentDrafts(activeThankYouInterview.id, note, "enthusiastic");
                                   const notesResponse = await api.getThankYouNotes(
                                     activeThankYouInterview.id
                                   );
@@ -969,6 +1178,9 @@ export function Interviews() {
                                   "concise"
                                 );
                                 if (response.ok && response.data?.note) {
+                                  const note = response.data.note;
+                                  // Add to recent drafts
+                                  addToRecentDrafts(activeThankYouInterview.id, note, "concise");
                                   const notesResponse = await api.getThankYouNotes(
                                     activeThankYouInterview.id
                                   );
@@ -1007,15 +1219,52 @@ export function Interviews() {
                       )}
                     </div>
 
-                    <button
-                      onClick={() => {
-                        setActiveThankYouInterview(null);
-                        setThankYouNotes([]);
-                      }}
-                      className="px-4 py-2 text-sm font-medium text-slate-700 hover:text-slate-900"
-                    >
-                      Close
-                    </button>
+                    {isEditingThankYouNote ? (
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => {
+                            setIsEditingThankYouNote(false);
+                            setEditedThankYouContent(null);
+                          }}
+                          className="px-4 py-2 text-sm font-medium text-slate-700 hover:text-slate-900 border border-slate-300 rounded-lg hover:bg-slate-50"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (editedThankYouContent && thankYouNotes.length > 0) {
+                              // Update the first note in the array
+                              const updatedNotes = [...thankYouNotes];
+                              updatedNotes[0] = {
+                                ...updatedNotes[0],
+                                subject: editedThankYouContent.subject,
+                                body: editedThankYouContent.body,
+                                updatedAt: new Date().toISOString(),
+                              };
+                              setThankYouNotes(updatedNotes);
+                              setIsEditingThankYouNote(false);
+                              setEditedThankYouContent(null);
+                              showMessage("Thank you note updated successfully!", "success");
+                            }
+                          }}
+                          className="px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded-lg hover:bg-blue-800 transition"
+                        >
+                          Save Changes
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setActiveThankYouInterview(null);
+                          setThankYouNotes([]);
+                          setIsEditingThankYouNote(false);
+                          setEditedThankYouContent(null);
+                        }}
+                        className="px-4 py-2 text-sm font-medium text-slate-700 hover:text-slate-900"
+                      >
+                        Close
+                      </button>
+                    )}
                   </div>
                 </>
               )}
@@ -1025,10 +1274,39 @@ export function Interviews() {
 
         {/* Tabs */}
         <div className="border-b border-slate-200 mb-8">
-          <div className="flex gap-1 overflow-x-auto scrollbar-hide">
+          <div 
+            role="tablist" 
+            aria-label="Interview tabs"
+            className="flex gap-1 overflow-x-auto scrollbar-hide"
+            onKeyDown={(e) => {
+              const tabs = Array.from(e.currentTarget.querySelectorAll('button[role="tab"]')) as HTMLButtonElement[]
+              const currentIndex = tabs.findIndex(tab => tab === document.activeElement)
+              
+              if (e.key === 'ArrowRight') {
+                e.preventDefault()
+                const nextIndex = currentIndex < tabs.length - 1 ? currentIndex + 1 : 0
+                tabs[nextIndex]?.focus()
+              } else if (e.key === 'ArrowLeft') {
+                e.preventDefault()
+                const prevIndex = currentIndex > 0 ? currentIndex - 1 : tabs.length - 1
+                tabs[prevIndex]?.focus()
+              } else if (e.key === 'Home') {
+                e.preventDefault()
+                tabs[0]?.focus()
+              } else if (e.key === 'End') {
+                e.preventDefault()
+                tabs[tabs.length - 1]?.focus()
+              }
+            }}
+          >
             {tabs.map((tab) => (
               <button
                 key={tab.id}
+                role="tab"
+                id={`tab-${tab.id}`}
+                aria-selected={activeTab === tab.id}
+                aria-controls={`tabpanel-${tab.id}`}
+                tabIndex={activeTab === tab.id ? 0 : -1}
                 onClick={() => {
                   setActiveTab(tab.id);
                   // Update URL without navigating away
@@ -1036,25 +1314,25 @@ export function Interviews() {
                   newSearchParams.set("tab", tab.id);
                   navigate(`?${newSearchParams.toString()}`, { replace: true });
                 }}
-                className={`px-6 py-3 font-medium text-sm whitespace-nowrap flex items-center gap-2 flex-shrink-0 min-w-fit bg-transparent hover:bg-transparent focus:bg-transparent ${
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    setActiveTab(tab.id);
+                    const newSearchParams = new URLSearchParams(searchParams);
+                    newSearchParams.set("tab", tab.id);
+                    navigate(`?${newSearchParams.toString()}`, { replace: true });
+                  }
+                }}
+                className={`px-6 py-3 font-medium text-sm whitespace-nowrap flex items-center gap-2 flex-shrink-0 min-w-fit bg-transparent hover:bg-transparent focus:bg-transparent focus:outline-none focus:ring-2 focus:ring-blue-700 focus:ring-offset-2 ${
                   activeTab === tab.id
-                    ? "text-blue-500 border-b-2 border-blue-500"
+                    ? "text-blue-700 border-b-2 border-blue-500"
                     : "text-slate-600"
                 }`}
                 style={{ 
-                  outline: 'none', 
-                  boxShadow: 'none',
                   borderTop: 'none',
                   borderLeft: 'none',
                   borderRight: 'none',
                   borderRadius: '0'
-                }}
-                onFocus={(e) => e.target.blur()}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
                 }}
               >
                 <Icon icon={tab.icon} width={18} height={18} className="flex-shrink-0" style={{ minWidth: '18px', minHeight: '18px' }} />
@@ -1067,7 +1345,7 @@ export function Interviews() {
         {/* Tab Content */}
         <div className="mt-8 bg-slate-50 -mx-6 lg:-mx-10 px-6 lg:px-10 py-10 rounded-t-2xl">
           {activeTab === "schedule" && (
-            <div>
+            <div role="tabpanel" id="tabpanel-schedule" aria-labelledby="tab-schedule">
               {jobOpportunityId && (
                 <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                   <p className="text-blue-800 text-sm">
@@ -1079,7 +1357,7 @@ export function Interviews() {
               
               {isLoading ? (
                 <div className="text-center py-12">
-                  <Icon icon="mingcute:loading-line" className="animate-spin text-blue-500 mx-auto mb-4" width={32} />
+                  <Icon icon="mingcute:loading-line" className="animate-spin text-blue-700 mx-auto mb-4" width={32} />
                   <p className="text-slate-600">Loading interviews...</p>
                 </div>
               ) : interviews.length === 0 ? (
@@ -1088,7 +1366,7 @@ export function Interviews() {
                   <p className="text-slate-600 mb-2">No interviews scheduled yet</p>
                   <button
                     onClick={() => navigate(`${ROUTES.INTERVIEW_SCHEDULING}${jobOpportunityId ? `?jobOpportunityId=${jobOpportunityId}` : ""}`)}
-                    className="mt-4 px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium inline-flex items-center gap-2"
+                    className="mt-4 px-6 py-3 bg-blue-700 text-white rounded-lg hover:bg-blue-800 font-medium inline-flex items-center gap-2"
                   >
                     <Icon icon="mingcute:add-line" width={18} />
                     Schedule Your First Interview
@@ -1138,7 +1416,7 @@ export function Interviews() {
                             {formatDateTime(interview.scheduledAt)}
                           </p>
                         )}
-                        <button className="px-4 py-2 bg-transparent border-2 border-blue-500 text-blue-500 rounded-full hover:bg-blue-50 text-sm font-medium transition-colors">
+                        <button className="px-4 py-2 bg-transparent border-2 border-blue-500 text-blue-700 rounded-full hover:bg-blue-50 text-sm font-medium transition-colors">
                           View Details →
                         </button>
                       </div>
@@ -1148,7 +1426,7 @@ export function Interviews() {
                     <div className="text-center">
                       <button
                         onClick={() => navigate(ROUTES.INTERVIEW_SCHEDULING)}
-                        className="px-6 py-3 bg-blue-500 text-white rounded-full hover:bg-blue-600 font-medium transition-colors"
+                        className="px-6 py-3 bg-blue-700 text-white rounded-full hover:bg-blue-800 font-medium transition-colors"
                       >
                         View All Interviews
                       </button>
@@ -1160,14 +1438,14 @@ export function Interviews() {
           )}
 
           {activeTab === "preparation" && (
-            <div>
+            <div role="tabpanel" id="tabpanel-preparation" aria-labelledby="tab-preparation">
               <h2 className="text-2xl font-bold text-slate-900 mb-4">Interview Preparation</h2>
               <p className="text-slate-600 mb-6">
                 Get personalized interview tips, insights, and preparation guides organized by company. This information is cached and saved for quick access.
               </p>
               {loadingPreparation ? (
                 <div className="text-center py-12">
-                  <Icon icon="mingcute:loading-line" className="animate-spin text-blue-500 mx-auto mb-4" width={32} />
+                  <Icon icon="mingcute:loading-line" className="animate-spin text-blue-700 mx-auto mb-4" width={32} />
                   <p className="text-slate-600">Loading interview insights...</p>
                 </div>
               ) : companyInsights.size === 0 ? (
@@ -1198,11 +1476,11 @@ export function Interviews() {
                           )}
                         </div>
                         <div className="flex items-center gap-2 ml-4">
-                          {companyData.metadata?.fromCache && (
-                            <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
-                              Cached
-                            </span>
-                          )}
+                        {companyData.metadata?.fromCache && (
+                          <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                            Cached
+                          </span>
+                        )}
                           <button
                             onClick={() => toggleCard(companyKey)}
                             className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
@@ -1221,7 +1499,7 @@ export function Interviews() {
                         <>
                       {companyData.loading ? (
                         <div className="text-center py-8">
-                          <Icon icon="mingcute:loading-line" className="animate-spin text-blue-500 mx-auto mb-2" width={24} />
+                          <Icon icon="mingcute:loading-line" className="animate-spin text-blue-700 mx-auto mb-2" width={24} />
                           <p className="text-slate-600 text-sm">Loading insights...</p>
                         </div>
                       ) : companyData.error ? (
@@ -1242,7 +1520,7 @@ export function Interviews() {
                             )}
                             <button
                               onClick={() => refreshInsightsForCompany(companyData.jobId, companyKey)}
-                              className="flex items-center gap-1 text-blue-500 hover:text-blue-600 font-medium bg-transparent hover:bg-transparent border-none p-0 outline-none"
+                              className="flex items-center gap-1 text-blue-700 hover:text-blue-600 font-medium bg-transparent hover:bg-transparent border-none p-0 outline-none"
                             >
                               <Icon icon="mingcute:refresh-2-line" width={16} />
                               Refresh
@@ -1358,7 +1636,7 @@ export function Interviews() {
                           <p className="text-slate-600 text-sm mb-4">No insights available yet</p>
                           <button
                             onClick={() => fetchInsightsForCompany(companyData.jobId, companyData.company, companyKey)}
-                            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm font-medium"
+                            className="px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 text-sm font-medium"
                           >
                             Generate Insights
                           </button>
@@ -1375,11 +1653,11 @@ export function Interviews() {
           )}
 
           {activeTab === "reminders" && (
-            <div>
+            <div role="tabpanel" id="tabpanel-reminders" aria-labelledby="tab-reminders">
               <h2 className="text-2xl font-bold text-slate-900 mb-4">Upcoming Reminders</h2>
               {loadingReminders ? (
                 <div className="text-center py-12">
-                  <Icon icon="mingcute:loading-line" className="animate-spin text-blue-500 mx-auto mb-4" width={32} />
+                  <Icon icon="mingcute:loading-line" className="animate-spin text-blue-700 mx-auto mb-4" width={32} />
                   <p className="text-slate-600">Loading reminders...</p>
                 </div>
               ) : upcomingReminders.length === 0 ? (
@@ -1403,7 +1681,7 @@ export function Interviews() {
                             <Icon
                               icon={reminder.reminderType === "24_hours" ? "mingcute:time-line" : "mingcute:alarm-line"}
                               width={20}
-                              className="text-blue-500"
+                              className="text-blue-700"
                             />
                             <h3 className="font-semibold text-slate-900">
                               {reminder.reminderType === "24_hours" ? "24 Hours Before" : "2 Hours Before"}
@@ -1431,11 +1709,22 @@ export function Interviews() {
           )}
 
           {activeTab === "thank-you" && (
-            <div>
-              <h2 className="text-2xl font-bold text-slate-900 mb-4">Thank You Notes</h2>
-              <p className="text-slate-600 mb-6">
-                Generate and send thank-you notes after your interviews. Click on any interview to create or review a draft.
-              </p>
+            <div role="tabpanel" id="tabpanel-thank-you" aria-labelledby="tab-thank-you">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-900">Thank You Notes</h2>
+                  <p className="text-slate-600 mt-2">
+                    Generate and send thank-you notes after your interviews. Click on any interview to create or review a draft.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowCreateThankYouModal(true)}
+                  className="bg-blue-700 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-800 transition-all flex items-center gap-2 shadow-md"
+                >
+                  <Icon icon="mingcute:add-line" width={20} />
+                  Create Thank You Note
+                </button>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {interviews
                   .filter((i) => i.status === "completed" || i.outcome)
@@ -1530,7 +1819,7 @@ export function Interviews() {
                   >
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
-                        <Icon icon="mingcute:mail-line" width={20} className="text-blue-500" />
+                        <Icon icon="mingcute:mail-line" width={20} className="text-blue-700" />
                         <div>
                           <p className="text-xs font-semibold uppercase text-blue-600 tracking-wide">
                             Thank-You Note
@@ -1880,7 +2169,7 @@ export function Interviews() {
                                       className={
                                         actionType === "status_inquiry" ? "text-orange-500" :
                                         actionType === "other" ? "text-purple-500" :
-                                        "text-blue-500"
+                                        "text-blue-700"
                                       }
                                     />
                                     <p className="text-xs font-semibold uppercase text-slate-600 tracking-wide">
@@ -2032,7 +2321,7 @@ export function Interviews() {
                                             return updated;
                                           });
                                         }}
-                                        className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-xs font-medium transition-colors"
+                                        className="px-3 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 text-xs font-medium transition-colors"
                                       >
                                         Edit
                                       </button>
@@ -2052,7 +2341,7 @@ export function Interviews() {
                                       return updated;
                                     });
                                   }}
-                                  className="flex-1 px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-xs font-medium transition-colors"
+                                  className="flex-1 px-3 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 text-xs font-medium transition-colors"
                                 >
                                   {isExpanded ? "Hide Draft" : "View Draft"}
                                 </button>
@@ -2102,7 +2391,7 @@ export function Interviews() {
                                     className={
                                       actionType === "status_inquiry" ? "text-orange-500" :
                                       actionType === "other" ? "text-purple-500" :
-                                      "text-blue-500"
+                                      "text-blue-700"
                                     }
                                   />
                                   <p className="text-xs font-semibold uppercase text-slate-600 tracking-wide">
@@ -2179,7 +2468,7 @@ export function Interviews() {
                                     return updated;
                                   });
                                 }}
-                                className="flex-1 px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-xs font-medium transition-colors"
+                                className="flex-1 px-3 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 text-xs font-medium transition-colors"
                               >
                                 {isExpanded ? "Hide Draft" : "View Draft"}
                               </button>
@@ -2232,16 +2521,478 @@ export function Interviews() {
                     </div>
                   </div>
                 )}
+
+                {/* Recent Drafts Section - Newly generated notes */}
+                {recentThankYouDrafts.length > 0 && (
+                  <div className="mt-10">
+                    <h3 className="text-xl font-semibold text-slate-900 mb-3">
+                      Recent Drafts ({recentThankYouDrafts.length})
+                    </h3>
+                    <p className="text-slate-600 text-sm mb-4">
+                      Your newly generated thank you note drafts. Edit, copy, or move to saved notes.
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {recentThankYouDrafts.map((draft) => {
+                        const noteKey = draft.id;
+                        const isExpanded = expandedThankYouCards.get(noteKey) || false;
+                        const isEditing = editingThankYouCards.get(noteKey) || false;
+                        const editedContent = editedDraftContent.get(noteKey) || { subject: draft.subject, body: draft.body };
+                        
+                        return (
+                          <div
+                            key={noteKey}
+                            className="bg-blue-50 border-2 border-blue-300 rounded-xl p-6 hover:shadow-lg transition-all"
+                          >
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <Icon 
+                                    icon="mingcute:mail-line"
+                                    width={18} 
+                                    className="text-blue-600"
+                                  />
+                                  <p className="text-xs font-semibold uppercase text-blue-700 tracking-wide">
+                                    {draft.style ? draft.style.charAt(0).toUpperCase() + draft.style.slice(1) : "Thank You"}
+                                  </p>
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] bg-blue-200 text-blue-800 font-medium">
+                                    New
+                                  </span>
+                                </div>
+                                {draft.interview && (
+                                  <p className="text-sm font-medium text-slate-900">
+                                    {draft.interview.title || "Interview"} at {draft.interview.company || "Company"}
+                                  </p>
+                                )}
+                                <p className="text-xs text-slate-500 mt-1">
+                                  {draft.createdAt && new Date(draft.createdAt).toLocaleDateString()}
+                                </p>
+                              </div>
+                            </div>
+                            
+                            <div className="mb-3">
+                              {!isExpanded && (
+                                <p className="text-xs font-semibold text-slate-700 mb-1 truncate">
+                                  {draft.subject || "No subject"}
+                                </p>
+                              )}
+                              {!isExpanded && (
+                                <p className="text-xs text-slate-600 line-clamp-2">
+                                  {draft.body?.substring(0, 100)}...
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Expanded/Edit view */}
+                            {isExpanded && (
+                              <div className="mb-4 p-4 bg-white rounded-lg border border-blue-200 space-y-3">
+                                <div>
+                                  <label className="block text-xs font-medium text-slate-600 mb-1">
+                                    Subject
+                                  </label>
+                                  {isEditing ? (
+                                    <input
+                                      type="text"
+                                      value={editedContent.subject}
+                                      onChange={(e) => {
+                                        setEditedDraftContent(prev => {
+                                          const updated = new Map(prev);
+                                          updated.set(noteKey, { ...editedContent, subject: e.target.value });
+                                          return updated;
+                                        });
+                                      }}
+                                      className="w-full text-sm font-medium text-slate-900 px-2 py-1 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    />
+                                  ) : (
+                                    <p className="text-sm font-medium text-slate-900">
+                                      {editedContent.subject || "No subject"}
+                                    </p>
+                                  )}
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-medium text-slate-600 mb-1">
+                                    Email Body
+                                  </label>
+                                  {isEditing ? (
+                                    <textarea
+                                      value={editedContent.body}
+                                      onChange={(e) => {
+                                        setEditedDraftContent(prev => {
+                                          const updated = new Map(prev);
+                                          updated.set(noteKey, { ...editedContent, body: e.target.value });
+                                          return updated;
+                                        });
+                                      }}
+                                      rows={8}
+                                      className="w-full text-sm text-slate-700 whitespace-pre-wrap font-mono bg-white p-3 rounded border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    />
+                                  ) : (
+                                    <div className="text-sm text-slate-700 whitespace-pre-wrap font-mono bg-white p-3 rounded border border-slate-300 max-h-96 overflow-y-auto">
+                                      {editedContent.body || "No content"}
+                                    </div>
+                                  )}
+                                </div>
+                                {isEditing ? (
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setEditingThankYouCards(prev => {
+                                          const updated = new Map(prev);
+                                          updated.set(noteKey, false);
+                                          return updated;
+                                        });
+                                      }}
+                                      className="flex-1 px-3 py-2 bg-slate-500 text-white rounded-lg hover:bg-slate-600 text-xs font-medium transition-colors"
+                                    >
+                                      Cancel
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        // Update the draft
+                                        setRecentThankYouDrafts(prev => 
+                                          prev.map(d => d.id === noteKey ? {
+                                            ...d,
+                                            subject: editedContent.subject,
+                                            body: editedContent.body,
+                                          } : d)
+                                        );
+                                        setEditingThankYouCards(prev => {
+                                          const updated = new Map(prev);
+                                          updated.set(noteKey, false);
+                                          return updated;
+                                        });
+                                        showMessage("Draft updated!", "success");
+                                      }}
+                                      className="flex-1 px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-xs font-medium transition-colors"
+                                    >
+                                      Save Changes
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        navigator.clipboard.writeText(editedContent.body || "");
+                                        showMessage("Note copied to clipboard!", "success");
+                                      }}
+                                      className="flex-1 px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-xs font-medium transition-colors"
+                                    >
+                                      Copy to Clipboard
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setEditingThankYouCards(prev => {
+                                          const updated = new Map(prev);
+                                          updated.set(noteKey, true);
+                                          return updated;
+                                        });
+                                      }}
+                                      className="px-3 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 text-xs font-medium transition-colors"
+                                    >
+                                      Edit
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            {!isExpanded && (
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const newExpanded = !isExpanded;
+                                    setExpandedThankYouCards(prev => {
+                                      const updated = new Map(prev);
+                                      updated.set(noteKey, newExpanded);
+                                      return updated;
+                                    });
+                                  }}
+                                  className="flex-1 px-3 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 text-xs font-medium transition-colors"
+                                >
+                                  {isExpanded ? "Hide Note" : "View Note"}
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    // Move to cached notes
+                                    setStoredThankYouNotes(prev => {
+                                      const updated = new Map(prev);
+                                      const existing = updated.get(draft.interviewId) || [];
+                                      updated.set(draft.interviewId, [
+                                        {
+                                          subject: draft.subject,
+                                          body: draft.body,
+                                          style: draft.style,
+                                          generatedBy: draft.generatedBy,
+                                          createdAt: draft.createdAt,
+                                        },
+                                        ...existing,
+                                      ]);
+                                      return updated;
+                                    });
+                                    // Remove from recent drafts
+                                    setRecentThankYouDrafts(prev => prev.filter(d => d.id !== noteKey));
+                                    showMessage("Draft moved to saved notes!", "success");
+                                  }}
+                                  className="px-3 py-2 bg-slate-500 text-white rounded-lg hover:bg-slate-600 text-xs font-medium transition-colors"
+                                  title="Save to cached notes"
+                                >
+                                  <Icon icon="mingcute:bookmark-line" width={14} />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Cached Thank You Notes Section - Show all notes individually */}
+                {storedThankYouNotes.size > 0 && (() => {
+                  // Flatten all notes into a single list with metadata
+                  const allNotes: Array<{
+                    interviewId: string;
+                    noteIndex: number;
+                    note: { subject: string; body: string; style?: string; generatedBy?: string; createdAt: string };
+                    interview: any;
+                  }> = [];
+                  
+                  Array.from(storedThankYouNotes.entries()).forEach(([interviewId, notes]) => {
+                    const interview = interviews.find(i => i.id === interviewId);
+                    
+                    notes.forEach((note, index) => {
+                      allNotes.push({ interviewId, noteIndex: index, note, interview });
+                    });
+                  });
+                  
+                  return allNotes.length > 0 ? (
+                    <div className="mt-10">
+                      <h3 className="text-xl font-semibold text-slate-900 mb-3">
+                        All Cached Thank You Notes ({allNotes.length})
+                      </h3>
+                      <p className="text-slate-600 text-sm mb-4">
+                        View and edit all your generated thank you note drafts. Each draft is saved individually.
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {allNotes.map(({ interviewId, noteIndex, note, interview }) => {
+                          const noteKey = `${interviewId}-${noteIndex}`;
+                          const isExpanded = expandedThankYouCards.get(noteKey) || false;
+                          const isEditing = editingThankYouCards.get(noteKey) || false;
+                          const editedContent = editedDraftContent.get(noteKey) || { subject: note.subject, body: note.body };
+                          
+                          return (
+                            <div
+                              key={noteKey}
+                              className="bg-white border border-slate-300 rounded-xl p-6 hover:shadow-lg transition-all"
+                            >
+                              <div className="flex items-start justify-between mb-3">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <Icon 
+                                      icon="mingcute:mail-line"
+                                      width={18} 
+                                      className="text-blue-700"
+                                    />
+                                    <p className="text-xs font-semibold uppercase text-slate-600 tracking-wide">
+                                      {note.style ? note.style.charAt(0).toUpperCase() + note.style.slice(1) : "Thank You"}
+                                    </p>
+                                  </div>
+                                  {interview && (
+                                    <p className="text-sm font-medium text-slate-900">
+                                      {interview.title || "Interview"} at {interview.company || "Company"}
+                                    </p>
+                                  )}
+                                  <p className="text-xs text-slate-500 mt-1">
+                                    {note.createdAt && new Date(note.createdAt).toLocaleDateString()}
+                                  </p>
+                                </div>
+                              </div>
+                              
+                              <div className="mb-3">
+                                {!isExpanded && (
+                                  <p className="text-xs font-semibold text-slate-700 mb-1 truncate">
+                                    {note.subject || "No subject"}
+                                  </p>
+                                )}
+                                {!isExpanded && (
+                                  <p className="text-xs text-slate-600 line-clamp-2">
+                                    {note.body?.substring(0, 100)}...
+                                  </p>
+                                )}
+                              </div>
+
+                              {/* Expanded/Edit view */}
+                              {isExpanded && (
+                                <div className="mb-4 p-4 bg-slate-50 rounded-lg border border-slate-300 space-y-3">
+                                  <div>
+                                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                                      Subject
+                                    </label>
+                                    {isEditing ? (
+                                      <input
+                                        type="text"
+                                        value={editedContent.subject}
+                                        onChange={(e) => {
+                                          setEditedDraftContent(prev => {
+                                            const updated = new Map(prev);
+                                            updated.set(noteKey, { ...editedContent, subject: e.target.value });
+                                            return updated;
+                                          });
+                                        }}
+                                        className="w-full text-sm font-medium text-slate-900 px-2 py-1 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                      />
+                                    ) : (
+                                      <p className="text-sm font-medium text-slate-900">
+                                        {editedContent.subject || "No subject"}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                                      Email Body
+                                    </label>
+                                    {isEditing ? (
+                                      <textarea
+                                        value={editedContent.body}
+                                        onChange={(e) => {
+                                          setEditedDraftContent(prev => {
+                                            const updated = new Map(prev);
+                                            updated.set(noteKey, { ...editedContent, body: e.target.value });
+                                            return updated;
+                                          });
+                                        }}
+                                        rows={8}
+                                        className="w-full text-sm text-slate-700 whitespace-pre-wrap font-mono bg-white p-3 rounded border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                      />
+                                    ) : (
+                                      <div className="text-sm text-slate-700 whitespace-pre-wrap font-mono bg-white p-3 rounded border border-slate-300 max-h-96 overflow-y-auto">
+                                        {editedContent.body || "No content"}
+                                      </div>
+                                    )}
+                                  </div>
+                                  {isEditing ? (
+                                    <div className="flex gap-2">
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setEditingThankYouCards(prev => {
+                                            const updated = new Map(prev);
+                                            updated.set(noteKey, false);
+                                            return updated;
+                                          });
+                                        }}
+                                        className="flex-1 px-3 py-2 bg-slate-500 text-white rounded-lg hover:bg-slate-600 text-xs font-medium transition-colors"
+                                      >
+                                        Cancel
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          // Save edited content
+                                          setStoredThankYouNotes(prev => {
+                                            const updated = new Map(prev);
+                                            const notes = updated.get(interviewId) || [];
+                                            const newNotes = [...notes];
+                                            newNotes[noteIndex] = {
+                                              ...newNotes[noteIndex],
+                                              subject: editedContent.subject,
+                                              body: editedContent.body,
+                                              createdAt: newNotes[noteIndex].createdAt,
+                                              style: newNotes[noteIndex].style,
+                                              generatedBy: newNotes[noteIndex].generatedBy,
+                                            };
+                                            updated.set(interviewId, newNotes);
+                                            return updated;
+                                          });
+                                          setEditingThankYouCards(prev => {
+                                            const updated = new Map(prev);
+                                            updated.set(noteKey, false);
+                                            return updated;
+                                          });
+                                          showMessage("Note saved!", "success");
+                                        }}
+                                        className="flex-1 px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-xs font-medium transition-colors"
+                                      >
+                                        Save Changes
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div className="flex gap-2">
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          navigator.clipboard.writeText(editedContent.body || "");
+                                          showMessage("Note copied to clipboard!", "success");
+                                        }}
+                                        className="flex-1 px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-xs font-medium transition-colors"
+                                      >
+                                        Copy to Clipboard
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setEditingThankYouCards(prev => {
+                                            const updated = new Map(prev);
+                                            updated.set(noteKey, true);
+                                            return updated;
+                                          });
+                                        }}
+                                        className="px-3 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 text-xs font-medium transition-colors"
+                                      >
+                                        Edit
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                              {!isExpanded && (
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const newExpanded = !isExpanded;
+                                      setExpandedThankYouCards(prev => {
+                                        const updated = new Map(prev);
+                                        updated.set(noteKey, newExpanded);
+                                        return updated;
+                                      });
+                                    }}
+                                    className="flex-1 px-3 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 text-xs font-medium transition-colors"
+                                  >
+                                    {isExpanded ? "Hide Note" : "View Note"}
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null;
+                })()}
               </div>
             </div>
           )}
 
           {activeTab === "follow-ups" && (
-            <div>
-              <h2 className="text-2xl font-bold text-slate-900 mb-4">Follow-up Actions</h2>
+            <div role="tabpanel" id="tabpanel-follow-ups" aria-labelledby="tab-follow-ups">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-2xl font-bold text-slate-900">Follow-up Actions</h2>
+                <button
+                  onClick={() => setShowCreateFollowUpModal(true)}
+                  className="bg-blue-700 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-800 transition-all flex items-center gap-2 shadow-md"
+                >
+                  <Icon icon="mingcute:add-line" width={20} />
+                  Create Follow-up
+                </button>
+              </div>
               {loadingFollowUps ? (
                 <div className="text-center py-12">
-                  <Icon icon="mingcute:loading-line" className="animate-spin text-blue-500 mx-auto mb-4" width={32} />
+                  <Icon icon="mingcute:loading-line" className="animate-spin text-blue-700 mx-auto mb-4" width={32} />
                   <p className="text-slate-600">Loading follow-ups...</p>
                 </div>
               ) : (
@@ -2288,10 +3039,10 @@ export function Interviews() {
                           className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-lg transition-colors"
                           aria-label="View draft"
                         >
-                          <Icon icon="mingcute:eye-line" width={18} className="text-blue-500" />
+                          <Icon icon="mingcute:eye-line" width={18} className="text-blue-700" />
                         </button>
                       )}
-                      <div className="flex-1">
+                        <div className="flex-1">
                                     {/* Interview Context - Position, Company, Date */}
                                     {(followUp.interview?.jobTitle || followUp.interview?.company || followUp.interview?.scheduledAt) && (
                                       <div className="mb-3 pb-3 border-b border-slate-200">
@@ -2314,7 +3065,7 @@ export function Interviews() {
                                     
                                     {/* Action Type */}
                           <div className="flex items-center gap-2 mb-2">
-                            <Icon icon="mingcute:task-line" width={18} className="text-blue-500" />
+                            <Icon icon="mingcute:task-line" width={18} className="text-blue-700" />
                             <h3 className="font-semibold text-slate-900 capitalize text-sm">
                                         {followUp.action_type?.replace(/_/g, " ") || followUp.actionType?.replace(/_/g, " ")}
                             </h3>
@@ -2327,12 +3078,12 @@ export function Interviews() {
                           {followUp.notes && (
                             <p className="text-xs text-slate-600 mb-3 line-clamp-2">{followUp.notes}</p>
                           )}
-                      </div>
+                        </div>
                       <div className="flex flex-col gap-2 mt-auto pt-3 border-t border-slate-100">
                                     {hasDraft ? (
-                                      <button
-                                        onClick={async () => {
-                                          try {
+                        <button
+                          onClick={async () => {
+                            try {
                                             setDraftLoadingId(followUp.id);
                                             const interviewId = followUp.interviewId || followUp.interview_id;
                                             const response = await api.getFollowUpEmailDraft(
@@ -2469,17 +3220,17 @@ export function Interviews() {
                               showMessage(err.message || "Failed to complete action", "error");
                             }
                           }}
-                          className="w-full px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 text-xs font-medium"
+                          className="w-full px-4 py-2 bg-blue-700 text-white rounded-full hover:bg-blue-800 text-xs font-medium"
                         >
                           Mark Complete
                         </button>
-                                  </div>
+                      </div>
                     </div>
                   );
                   })}
                           </div>
                 </div>
-                      )}
+              )}
 
                       {/* Completed Follow-ups Section */}
                       {completedFollowUps.length > 0 && (
@@ -2509,9 +3260,9 @@ export function Interviews() {
                                             {formatDate(followUp.interview.scheduledAt)}
                                           </p>
                                         )}
-                                      </div>
-                                    )}
-                                    
+            </div>
+          )}
+
                                     {/* Action Type */}
                                     <div className="flex items-center gap-2 mb-2">
                                       <Icon icon="mingcute:check-circle-line" width={18} className="text-green-500" />
@@ -2543,7 +3294,7 @@ export function Interviews() {
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-40 px-4">
             <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-6 font-poppins">
               <div className="flex items-center justify-between mb-4">
-                <div>
+            <div>
                   <h3 className="text-lg font-semibold text-slate-900">
                     Follow-up Email Draft
                   </h3>
@@ -2552,7 +3303,7 @@ export function Interviews() {
                       Generated by {activeFollowUpDraft.generatedBy === "openai" ? "AI" : "template"}
                     </p>
                   )}
-                </div>
+                  </div>
                 <button
                   onClick={() => setActiveFollowUpDraft(null)}
                   className="text-slate-400 hover:text-slate-600"
@@ -2623,15 +3374,62 @@ export function Interviews() {
                           )}
                         </div>
                       )}
-                      <div>
-                        <label className="block text-xs font-medium text-slate-500 mb-1">
-                          Subject
-                        </label>
+                  <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="block text-xs font-medium text-slate-500">
+                            Subject
+                          </label>
+                          {!isEditingDraft && (
+                            <button
+                              onClick={() => {
+                                setIsEditingDraft(true);
+                                const draftKey = `modal-${activeFollowUpDraft.id}`;
+                                setEditedDraftContent(prev => {
+                                  const updated = new Map(prev);
+                                  updated.set(draftKey, {
+                                    subject: activeFollowUpDraft.subject,
+                                    body: activeFollowUpDraft.body,
+                                  });
+                                  return updated;
+                                });
+                              }}
+                              className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                            >
+                              <Icon icon="mingcute:edit-line" width={14} className="inline mr-1" />
+                              Edit
+                            </button>
+                          )}
+                        </div>
                         <input
                           type="text"
-                          readOnly
-                          value={activeFollowUpDraft.subject}
-                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-slate-50"
+                          readOnly={!isEditingDraft}
+                          value={(() => {
+                            if (isEditingDraft) {
+                              const draftKey = `modal-${activeFollowUpDraft.id}`;
+                              const edited = editedDraftContent.get(draftKey);
+                              return edited ? edited.subject : activeFollowUpDraft.subject;
+                            }
+                            return activeFollowUpDraft.subject;
+                          })()}
+                          onChange={(e) => {
+                            if (isEditingDraft) {
+                              const draftKey = `modal-${activeFollowUpDraft.id}`;
+                              setEditedDraftContent(prev => {
+                                const updated = new Map(prev);
+                                const current = updated.get(draftKey) || { subject: activeFollowUpDraft.subject, body: activeFollowUpDraft.body };
+                                updated.set(draftKey, {
+                                  ...current,
+                                  subject: e.target.value,
+                                });
+                                return updated;
+                              });
+                            }
+                          }}
+                          className={`w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono whitespace-pre-wrap ${
+                            isEditingDraft
+                              ? "bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              : "bg-slate-50"
+                          }`}
                         />
                       </div>
                       <div>
@@ -2639,29 +3437,131 @@ export function Interviews() {
                           Body
                         </label>
                         <textarea
-                          readOnly
+                          readOnly={!isEditingDraft}
                           rows={8}
-                          value={activeFollowUpDraft.body}
-                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-slate-50 font-mono whitespace-pre-wrap"
+                          value={(() => {
+                            if (isEditingDraft) {
+                              const draftKey = `modal-${activeFollowUpDraft.id}`;
+                              const edited = editedDraftContent.get(draftKey);
+                              return edited ? edited.body : activeFollowUpDraft.body;
+                            }
+                            return activeFollowUpDraft.body;
+                          })()}
+                          onChange={(e) => {
+                            if (isEditingDraft) {
+                              const draftKey = `modal-${activeFollowUpDraft.id}`;
+                              setEditedDraftContent(prev => {
+                                const updated = new Map(prev);
+                                const current = updated.get(draftKey) || { subject: activeFollowUpDraft.subject, body: activeFollowUpDraft.body };
+                                updated.set(draftKey, {
+                                  ...current,
+                                  body: e.target.value,
+                                });
+                                return updated;
+                              });
+                            }
+                          }}
+                          className={`w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono whitespace-pre-wrap ${
+                            isEditingDraft
+                              ? "bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              : "bg-slate-50"
+                          }`}
                         />
                       </div>
-                      <p className="text-xs text-slate-500">
-                        You can copy this draft into your email client and edit as needed before sending.
-                      </p>
+                      {!isEditingDraft && (
+                        <p className="text-xs text-slate-500">
+                          Click "Edit" to modify this draft, or copy it into your email client.
+                        </p>
+                      )}
                     </>
                   );
                 })()}
-              </div>
+                    </div>
 
-              <div className="mt-4 flex justify-end">
-                <button
-                  onClick={() => setActiveFollowUpDraft(null)}
-                  className="px-4 py-2 text-sm font-medium text-slate-700 hover:text-slate-900"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
+              <div className="mt-4 flex justify-between items-center">
+                {isEditingDraft ? (
+                  <>
+                      <button
+                      onClick={() => {
+                        setIsEditingDraft(false);
+                        const draftKey = `modal-${activeFollowUpDraft.id}`;
+                        setEditedDraftContent(prev => {
+                          const updated = new Map(prev);
+                          updated.delete(draftKey);
+                          return updated;
+                        });
+                      }}
+                      className="px-4 py-2 text-sm font-medium text-slate-700 hover:text-slate-900 border border-slate-300 rounded-lg hover:bg-slate-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (activeFollowUpDraft) {
+                          const draftKey = `modal-${activeFollowUpDraft.id}`;
+                          const edited = editedDraftContent.get(draftKey);
+                          if (edited) {
+                            // Update the draft in stored drafts
+                            setStoredFollowUpDrafts((prev) => {
+                              const updated = new Map(prev);
+                              const drafts = updated.get(activeFollowUpDraft.id) || [];
+                              if (drafts.length > 0) {
+                                // Update the first (latest) draft
+                                const updatedDrafts = [
+                                  {
+                                    ...drafts[0],
+                                    subject: edited.subject,
+                                    body: edited.body,
+                                    createdAt: new Date().toISOString(),
+                                  },
+                                  ...drafts.slice(1),
+                                ];
+                                updated.set(activeFollowUpDraft.id, updatedDrafts);
+                              }
+                              return updated;
+                            });
+                            // Update the active draft
+                            setActiveFollowUpDraft({
+                              ...activeFollowUpDraft,
+                              subject: edited.subject,
+                              body: edited.body,
+                            });
+                            setIsEditingDraft(false);
+                            setEditedDraftContent(prev => {
+                              const updated = new Map(prev);
+                              updated.delete(draftKey);
+                              return updated;
+                            });
+                            showMessage("Draft updated successfully!", "success");
+                          }
+                        }
+                      }}
+                      className="px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded-lg hover:bg-blue-800 transition"
+                    >
+                      Save Changes
+                      </button>
+                  </>
+                ) : (
+                      <button
+                    onClick={() => {
+                      setActiveFollowUpDraft(null);
+                      setIsEditingDraft(false);
+                      const draftKey = activeFollowUpDraft ? `modal-${activeFollowUpDraft.id}` : null;
+                      if (draftKey) {
+                        setEditedDraftContent(prev => {
+                          const updated = new Map(prev);
+                          updated.delete(draftKey);
+                          return updated;
+                        });
+                      }
+                    }}
+                    className="px-4 py-2 text-sm font-medium text-slate-700 hover:text-slate-900"
+                  >
+                    Close
+                      </button>
+                )}
+                    </div>
+                  </div>
           </div>
               )}
             </div>
@@ -2669,14 +3569,14 @@ export function Interviews() {
 
 
           {activeTab === "analytics" && (
-            <div>
+            <div role="tabpanel" id="tabpanel-analytics" aria-labelledby="tab-analytics">
               <h2 className="text-2xl font-bold text-slate-900 mb-4">Interview Performance Analytics</h2>
               <p className="text-slate-600 mb-6">
                 Track your progress and identify patterns
               </p>
               {loadingAnalytics ? (
                 <div className="text-center py-12">
-                  <Icon icon="mingcute:loading-line" className="animate-spin text-blue-500 mx-auto mb-4" width={32} />
+                  <Icon icon="mingcute:loading-line" className="animate-spin text-blue-700 mx-auto mb-4" width={32} />
                   <p className="text-slate-600">Loading analytics...</p>
                 </div>
               ) : analytics ? (
@@ -3073,13 +3973,13 @@ export function Interviews() {
                                     <div className="border border-slate-300 rounded-lg p-3">
                                       <h4 className="font-semibold text-slate-700 mb-2" style={{ fontFamily: 'Poppins' }}>Practice Interviews</h4>
                                       <div className="space-y-2">
-                                        <div>
+                  <div>
                                           <span className="text-sm text-slate-600" style={{ fontFamily: 'Poppins' }}>Conversion Rate: </span>
                                           <span className="font-bold text-slate-900" style={{ fontFamily: 'Poppins' }}>
                                             {analytics.practiceVsRealComparison.practice.conversionRate.toFixed(1)}%
                                           </span>
                                         </div>
-                                        <div>
+                      <div>
                                           <span className="text-sm text-slate-600" style={{ fontFamily: 'Poppins' }}>Completed: </span>
                                           <span className="font-medium text-slate-900" style={{ fontFamily: 'Poppins' }}>
                                             {analytics.practiceVsRealComparison.practice.completed}
@@ -3159,10 +4059,12 @@ export function Interviews() {
           )}
 
           {activeTab === "predictions" && (
-            <InterviewPredictionTab
-              jobOpportunities={jobOpportunities}
-              interviews={interviews}
-            />
+            <div role="tabpanel" id="tabpanel-predictions" aria-labelledby="tab-predictions">
+              <InterviewPredictionTab
+                jobOpportunities={jobOpportunities}
+                interviews={interviews}
+              />
+            </div>
           )}
         </div>
       </main>
@@ -3172,7 +4074,7 @@ export function Interviews() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
             <div className="flex items-center gap-3 mb-4">
-              <Icon icon="mingcute:calendar-line" width={32} className="text-blue-500" />
+              <Icon icon="mingcute:calendar-line" width={32} className="text-blue-700" />
               <h3 className="text-xl font-semibold text-slate-900">Connect Google Calendar</h3>
             </div>
             <p className="text-slate-600 mb-6">
@@ -3190,6 +4092,235 @@ export function Interviews() {
                 className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg hover:from-blue-600 hover:to-indigo-700 font-medium transition shadow-md"
               >
                 Connect
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Thank You Note Modal */}
+      {showCreateThankYouModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-lg w-full mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <Icon icon="mingcute:mail-line" width={32} className="text-blue-700" />
+                <h3 className="text-xl font-semibold text-slate-900">Create Thank You Note</h3>
+                    </div>
+                    <button
+                onClick={() => {
+                  setShowCreateThankYouModal(false);
+                  setSelectedInterviewForThankYou("");
+                  setThankYouNoteStyle("standard");
+                }}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <Icon icon="mingcute:close-line" width={24} />
+                    </button>
+                  </div>
+
+            <div className="space-y-4">
+              {/* Interview Selection */}
+              <div>
+                <label htmlFor="thank-you-interview-select" className="block text-sm font-medium text-slate-700 mb-2">
+                  Interview <span className="text-red-500">*</span>
+                </label>
+                <select
+                  id="thank-you-interview-select"
+                  value={selectedInterviewForThankYou}
+                  onChange={(e) => setSelectedInterviewForThankYou(e.target.value)}
+                  className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-700"
+                  required
+                  aria-required="true"
+                >
+                  <option value="">Select an interview...</option>
+                  {interviews
+                    .filter((interview) => interview.status === "completed" || interview.outcome || interview.scheduledAt)
+                    .map((interview) => (
+                      <option key={interview.id} value={interview.id}>
+                        {interview.title || interview.company || "Interview"} - {interview.company || "Company"} ({formatDate(interview.scheduledAt || interview.createdAt)})
+                      </option>
+                    ))}
+                </select>
+                {interviews.filter((interview) => interview.status === "completed" || interview.outcome || interview.scheduledAt).length === 0 && (
+                  <p className="text-xs text-slate-500 mt-1">No interviews available. Complete an interview first.</p>
+                )}
+              </div>
+
+              {/* Note Style */}
+              <div>
+                <label htmlFor="note-style-select" className="block text-sm font-medium text-slate-700 mb-2">
+                  Note Style <span className="text-red-500">*</span>
+                </label>
+                <select
+                  id="note-style-select"
+                  value={thankYouNoteStyle}
+                  onChange={(e) => setThankYouNoteStyle(e.target.value as "standard" | "enthusiastic" | "concise")}
+                  className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-700"
+                  required
+                  aria-required="true"
+                >
+                  <option value="standard">Standard</option>
+                  <option value="enthusiastic">Enthusiastic</option>
+                  <option value="concise">Concise</option>
+                </select>
+                <p className="text-xs text-slate-500 mt-1">
+                  {thankYouNoteStyle === "standard" && "Professional and balanced tone"}
+                  {thankYouNoteStyle === "enthusiastic" && "Energetic and positive tone"}
+                  {thankYouNoteStyle === "concise" && "Brief and to the point"}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowCreateThankYouModal(false);
+                  setSelectedInterviewForThankYou("");
+                  setThankYouNoteStyle("standard");
+                }}
+                className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-medium transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateThankYouNote}
+                disabled={loadingThankYou || !selectedInterviewForThankYou}
+                className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg hover:from-blue-600 hover:to-indigo-700 font-medium transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loadingThankYou ? "Generating..." : "Generate Note"}
+              </button>
+            </div>
+              </div>
+            </div>
+          )}
+
+      {/* Create Follow-up Modal */}
+      {showCreateFollowUpModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-lg w-full mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <Icon icon="mingcute:task-line" width={32} className="text-blue-700" />
+                <h3 className="text-xl font-semibold text-slate-900">Create Follow-up Action</h3>
+        </div>
+              <button
+                onClick={() => {
+                  setShowCreateFollowUpModal(false);
+                  setNewFollowUpData({
+                    interviewId: "",
+                    actionType: "other",
+                    dueDate: "",
+                    notes: "",
+                  });
+                }}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <Icon icon="mingcute:close-line" width={24} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Interview Selection */}
+              <div>
+                <label htmlFor="follow-up-interview-select" className="block text-sm font-medium text-slate-700 mb-2">
+                  Interview <span className="text-red-500">*</span>
+                </label>
+                <select
+                  id="follow-up-interview-select"
+                  value={newFollowUpData.interviewId}
+                  onChange={(e) =>
+                    setNewFollowUpData({ ...newFollowUpData, interviewId: e.target.value })
+                  }
+                  className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-700"
+                  required
+                  aria-required="true"
+                >
+                  <option value="">Select an interview...</option>
+                  {interviews.map((interview) => (
+                    <option key={interview.id} value={interview.id}>
+                      {interview.title || interview.company || "Interview"} - {interview.company || "Company"} ({formatDate(interview.scheduledAt || interview.createdAt)})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Action Type */}
+              <div>
+                <label htmlFor="action-type-select" className="block text-sm font-medium text-slate-700 mb-2">
+                  Action Type <span className="text-red-500">*</span>
+                </label>
+                <select
+                  id="action-type-select"
+                  value={newFollowUpData.actionType}
+                  onChange={(e) =>
+                    setNewFollowUpData({ ...newFollowUpData, actionType: e.target.value })
+                  }
+                  className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-700"
+                  required
+                  aria-required="true"
+                >
+                  <option value="thank_you_note">Thank You Note</option>
+                  <option value="follow_up_email">Follow-up Email</option>
+                  <option value="status_inquiry">Status Inquiry</option>
+                  <option value="references_sent">References Sent</option>
+                  <option value="portfolio_sent">Portfolio Sent</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              {/* Due Date */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Due Date (Optional)
+                </label>
+                <input
+                  type="date"
+                  value={newFollowUpData.dueDate}
+                  onChange={(e) =>
+                    setNewFollowUpData({ ...newFollowUpData, dueDate: e.target.value })
+                  }
+                  className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Notes (Optional)
+                </label>
+                <textarea
+                  value={newFollowUpData.notes}
+                  onChange={(e) =>
+                    setNewFollowUpData({ ...newFollowUpData, notes: e.target.value })
+                  }
+                  rows={4}
+                  className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Add any notes or reminders about this follow-up..."
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowCreateFollowUpModal(false);
+                  setNewFollowUpData({
+                    interviewId: "",
+                    actionType: "other",
+                    dueDate: "",
+                    notes: "",
+                  });
+                }}
+                className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-medium transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateFollowUp}
+                className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg hover:from-blue-600 hover:to-indigo-700 font-medium transition shadow-md"
+              >
+                Create Follow-up
               </button>
             </div>
           </div>

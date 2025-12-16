@@ -23,6 +23,7 @@ import { JobSkillGapPanel } from "./skill-gaps/SkillGapPanel";
 import { JobMaterialsSection } from "./JobMaterialsSection";
 import { JobMatchScore } from "./JobMatchScore";
 import { EmailSidebar } from "./EmailSidebar";
+import { SalaryBenchmark } from "./SalaryBenchmark";
 import { api } from "../services/api";
 import { ROUTES } from "../config/routes";
 
@@ -412,7 +413,7 @@ export function JobOpportunityDetailModal({
                 {PROGRESS_STATUS_LABELS[entry.status]}
               </p>
             </div>
-            <span className="text-xs text-slate-400">{formattedTimestamp}</span>
+            <span className="text-xs text-slate-600">{formattedTimestamp}</span>
           </div>
           {entry.notes && (
             <p className="mt-2 text-sm text-slate-600">{entry.notes}</p>
@@ -432,7 +433,7 @@ export function JobOpportunityDetailModal({
               ) : (
                 entry.resource.title
               )}
-              <span className="text-slate-400">
+              <span className="text-slate-600">
                 {entry.resource.provider ? ` (${entry.resource.provider})` : ""}
               </span>
             </p>
@@ -586,9 +587,9 @@ export function JobOpportunityDetailModal({
         <h3 className="text-lg font-semibold text-slate-900 mb-4">Linked Emails</h3>
         {linkedEmails.length === 0 ? (
           <div className="text-center py-8 text-slate-500">
-            <Icon icon="mingcute:mail-line" width={32} className="mx-auto mb-2 text-slate-300" />
+            <Icon icon="mingcute:mail-line" width={32} className="mx-auto mb-2 text-slate-400" aria-hidden="true" />
             <p className="text-sm">No emails linked to this job opportunity yet</p>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-slate-600 mt-1">
               Link emails using the email sidebar on the right
             </p>
           </div>
@@ -673,10 +674,19 @@ export function JobOpportunityDetailModal({
     <div 
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[110] p-4 font-poppins"
       onClick={handleBackdropClick}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          onClose();
+        }
+      }}
     >
       <div 
         className="bg-white rounded-2xl max-w-7xl w-full max-h-[90vh] flex overflow-hidden font-poppins"
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="detail-modal-title"
+        tabIndex={-1}
       >
         {/* Main Content */}
         <div className="flex-1 overflow-y-auto">
@@ -687,6 +697,7 @@ export function JobOpportunityDetailModal({
               <div className="flex items-center gap-3 mb-2">
               {isEditMode ? (
                 <input
+                  id="detail-title-input"
                   type="text"
                   value={formData.title}
                   onChange={(e) =>
@@ -694,9 +705,10 @@ export function JobOpportunityDetailModal({
                   }
                   className="text-2xl font-bold text-slate-900 border-b-2 border-blue-500 focus:outline-none flex-1"
                   placeholder="Job Title"
+                  aria-label="Job title"
                 />
               ) : (
-                <h2 className="text-2xl font-bold text-slate-900">
+                <h2 id="detail-modal-title" className="text-2xl font-bold text-slate-900">
                   {opportunity.title}
                 </h2>
               )}
@@ -762,7 +774,7 @@ export function JobOpportunityDetailModal({
                 {!opportunity.archived && (
                   <button
                     onClick={() => setIsEditMode(true)}
-                    className="px-2.5 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors flex items-center gap-1 text-xs font-medium"
+                    className="px-2.5 py-1 bg-blue-700 text-white rounded-md hover:bg-blue-800 transition-colors flex items-center gap-1 text-xs font-medium"
                   >
                     <Icon icon="mingcute:edit-line" width={14} />
                     Edit
@@ -797,9 +809,10 @@ export function JobOpportunityDetailModal({
             )}
             <button
               onClick={onClose}
-              className="p-2 text-slate-400 hover:text-slate-600"
+              className="p-2 text-slate-500 hover:text-slate-700"
+              aria-label="Close modal"
             >
-              <Icon icon="mingcute:close-line" width={24} />
+              <Icon icon="mingcute:close-line" width={24} aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -978,6 +991,8 @@ export function JobOpportunityDetailModal({
                     </p>
                   )}
                 </div>
+
+
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     Application Deadline
@@ -1487,7 +1502,7 @@ export function JobOpportunityDetailModal({
                   <button
                     type="button"
                     onClick={handleAddHistoryEntry}
-                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
+                    className="px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors text-sm"
                   >
                     Add History Entry
                   </button>
@@ -1505,6 +1520,18 @@ export function JobOpportunityDetailModal({
             </section>
           </div>
 
+          {/* Salary Benchmark - At the bottom */}
+          {!isEditMode && opportunity.title && opportunity.location && (
+            <div className="mt-8 pt-6 border-t border-slate-200">
+              <SalaryBenchmark
+                jobTitle={opportunity.title}
+                location={opportunity.location}
+                jobSalaryMin={opportunity.salaryMin}
+                jobSalaryMax={opportunity.salaryMax}
+              />
+            </div>
+          )}
+
           {/* Footer Actions */}
           {isEditMode && (
             <div className="sticky bottom-0 bg-white border-t border-slate-200 px-8 py-4 mt-6 flex justify-end gap-3">
@@ -1518,7 +1545,7 @@ export function JobOpportunityDetailModal({
               </button>
               <button
                 type="submit"
-                className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2"
+                className="px-6 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors flex items-center gap-2"
                 disabled={isSaving}
               >
                 {isSaving ? (
@@ -1579,9 +1606,9 @@ export function JobOpportunityDetailModal({
                   setShowShareModal(false);
                   setSelectedTeamId(null);
                 }}
-                className="text-slate-400 hover:text-slate-600"
+                className="text-slate-500 hover:text-slate-700"
               >
-                <Icon icon="mingcute:close-line" width={24} />
+                <Icon icon="mingcute:close-line" width={24} aria-hidden="true" />
               </button>
             </div>
             <p className="text-sm text-slate-600 mb-4">
@@ -1589,7 +1616,7 @@ export function JobOpportunityDetailModal({
             </p>
             {teams.length === 0 ? (
               <div className="text-center py-8">
-                <Icon icon="mingcute:user-group-line" width={48} className="mx-auto text-slate-300 mb-2" />
+                <Icon icon="mingcute:user-group-line" width={48} className="mx-auto text-slate-400 mb-2" aria-hidden="true" />
                 <p className="text-slate-600 mb-4">You don't have any teams yet.</p>
                 <button
                   onClick={() => {
@@ -1634,7 +1661,8 @@ export function JobOpportunityDetailModal({
                           <Icon
                             icon="mingcute:arrow-right-line"
                             width={20}
-                            className="text-slate-400"
+                            className="text-slate-500"
+                            aria-hidden="true"
                           />
                         )}
                       </div>

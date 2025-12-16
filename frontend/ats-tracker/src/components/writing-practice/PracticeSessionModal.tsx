@@ -143,7 +143,7 @@ export function PracticeSessionModal({
         <div className="bg-white rounded-2xl p-8 max-w-md text-center">
           <Icon
             icon="mingcute:loading-line"
-            className="w-12 h-12 animate-spin mx-auto text-blue-500 mb-4"
+            className="w-12 h-12 animate-spin mx-auto text-blue-700 mb-4"
           />
           <h3 className="text-xl font-semibold text-slate-900 mb-2">
             Generating Feedback
@@ -262,7 +262,7 @@ export function PracticeSessionModal({
           <div className="p-6 border-t border-slate-200 flex justify-end gap-4">
             <button
               onClick={onClose}
-              className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium"
+              className="px-6 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 font-medium"
             >
               Close
             </button>
@@ -278,7 +278,7 @@ export function PracticeSessionModal({
         <div className="bg-white rounded-2xl p-8 text-center">
           <Icon
             icon="mingcute:loading-line"
-            className="w-12 h-12 animate-spin mx-auto text-blue-500 mb-4"
+            className="w-12 h-12 animate-spin mx-auto text-blue-700 mb-4"
           />
           <p className="text-slate-600">Setting up practice session...</p>
         </div>

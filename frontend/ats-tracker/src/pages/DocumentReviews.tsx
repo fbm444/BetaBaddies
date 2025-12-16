@@ -40,7 +40,7 @@ export function DocumentReviews() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Icon icon="mingcute:loading-line" width={48} className="animate-spin text-blue-500" />
+        <Icon icon="mingcute:loading-line" width={48} className="animate-spin text-blue-700" />
       </div>
     );
   }
@@ -53,7 +53,7 @@ export function DocumentReviews() {
           <button
             onClick={() => setRole("all")}
             className={`px-4 py-2 rounded-lg ${
-              role === "all" ? "bg-blue-500 text-white" : "bg-slate-100 text-slate-700"
+              role === "all" ? "bg-blue-700 text-white" : "bg-slate-100 text-slate-700"
             }`}
           >
             All
@@ -61,7 +61,7 @@ export function DocumentReviews() {
           <button
             onClick={() => setRole("requestor")}
             className={`px-4 py-2 rounded-lg ${
-              role === "requestor" ? "bg-blue-500 text-white" : "bg-slate-100 text-slate-700"
+              role === "requestor" ? "bg-blue-700 text-white" : "bg-slate-100 text-slate-700"
             }`}
           >
             My Requests
@@ -69,7 +69,7 @@ export function DocumentReviews() {
           <button
             onClick={() => setRole("reviewer")}
             className={`px-4 py-2 rounded-lg ${
-              role === "reviewer" ? "bg-blue-500 text-white" : "bg-slate-100 text-slate-700"
+              role === "reviewer" ? "bg-blue-700 text-white" : "bg-slate-100 text-slate-700"
             }`}
           >
             To Review

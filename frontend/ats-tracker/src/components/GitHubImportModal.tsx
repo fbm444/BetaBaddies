@@ -333,7 +333,7 @@ export function GitHubImportModal({
               {!showConnectForm ? (
                 <button
                   onClick={() => setShowConnectForm(true)}
-                  className="bg-blue-500 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-600 transition-colors flex items-center gap-2 mx-auto"
+                  className="bg-blue-700 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-800 transition-colors flex items-center gap-2 mx-auto"
                 >
                   <Icon icon="mingcute:github-line" width={20} />
                   Connect GitHub Account
@@ -390,7 +390,7 @@ export function GitHubImportModal({
                     <button
                       onClick={handleConnect}
                       disabled={isConnecting}
-                      className="flex-1 bg-blue-500 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                      className="flex-1 bg-blue-700 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                     >
                       {isConnecting ? (
                         <>
@@ -454,14 +454,14 @@ export function GitHubImportModal({
                       type="checkbox"
                       checked={includePrivate}
                       onChange={(e) => setIncludePrivate(e.target.checked)}
-                      className="w-4 h-4 text-blue-500 border-slate-300 rounded focus:ring-blue-500"
+                      className="w-4 h-4 text-blue-700 border-slate-300 rounded focus:ring-blue-500"
                     />
                     <span className="text-sm text-slate-700">Include private repositories</span>
                   </label>
                   <button
                     onClick={handleImportRepositories}
                     disabled={isLoading}
-                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2 disabled:opacity-50"
+                    className="px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors flex items-center gap-2 disabled:opacity-50"
                   >
                     <Icon icon="mingcute:download-line" width={18} />
                     Import from GitHub
@@ -480,7 +480,7 @@ export function GitHubImportModal({
                         filteredRepos.every((r) => selectedRepos.has(r.id))
                       }
                       onChange={toggleSelectAll}
-                      className="w-4 h-4 text-blue-500 border-slate-300 rounded focus:ring-blue-500"
+                      className="w-4 h-4 text-blue-700 border-slate-300 rounded focus:ring-blue-500"
                     />
                     <span className="text-sm font-medium text-slate-700">
                       Select All ({filteredRepos.length})
@@ -546,7 +546,7 @@ export function GitHubImportModal({
                             type="checkbox"
                             checked={selectedRepos.has(repo.id)}
                             onChange={() => toggleRepoSelection(repo.id)}
-                            className="mt-1 w-4 h-4 text-blue-500 border-slate-300 rounded focus:ring-blue-500"
+                            className="mt-1 w-4 h-4 text-blue-700 border-slate-300 rounded focus:ring-blue-500"
                           />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -820,7 +820,7 @@ export function GitHubImportModal({
                       setSelectedRepoDetails(null);
                       setContributionData(null);
                     }}
-                    className="w-full px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                    className="w-full px-6 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors"
                   >
                     Close
                   </button>
@@ -869,7 +869,7 @@ export function GitHubImportModal({
               <button
                 onClick={handleAddSelectedToProjects}
                 disabled={isImporting || selectedRepos.size === 0}
-                className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isImporting ? (
                   <>

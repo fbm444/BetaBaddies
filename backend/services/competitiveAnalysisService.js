@@ -115,7 +115,7 @@ class CompetitiveAnalysisService {
       );
 
       const confidence = this.calculateConfidence(job, userProfile);
-      
+
       // Update interview likelihood with confidence
       interviewLikelihood.confidence = confidence;
 
@@ -154,11 +154,19 @@ class CompetitiveAnalysisService {
     const title = (job.title || "").toLowerCase();
     let baseApplicants = 100; // Default mid-level
 
-    if (title.includes("junior") || title.includes("entry") || title.includes("intern")) {
+    if (
+      title.includes("junior") ||
+      title.includes("entry") ||
+      title.includes("intern")
+    ) {
       baseApplicants = 200;
     } else if (title.includes("senior")) {
       baseApplicants = 150;
-    } else if (title.includes("staff") || title.includes("principal") || title.includes("lead")) {
+    } else if (
+      title.includes("staff") ||
+      title.includes("principal") ||
+      title.includes("lead")
+    ) {
       baseApplicants = 80;
     } else if (title.includes("director") || title.includes("vp")) {
       baseApplicants = 50;
@@ -178,13 +186,21 @@ class CompetitiveAnalysisService {
     }
 
     // Platform multiplier
-    const source = (job.application_source || job.application_method || "").toLowerCase();
+    const source = (
+      job.application_source ||
+      job.application_method ||
+      ""
+    ).toLowerCase();
     let platformMultiplier = 1.0;
     if (source.includes("linkedin")) {
       platformMultiplier = 1.5;
     } else if (source.includes("referral")) {
       platformMultiplier = 0.3;
-    } else if (source.includes("job board") || source.includes("indeed") || source.includes("glassdoor")) {
+    } else if (
+      source.includes("job board") ||
+      source.includes("indeed") ||
+      source.includes("glassdoor")
+    ) {
       platformMultiplier = 1.2;
     } else if (source.includes("company") || source.includes("website")) {
       platformMultiplier = 1.0;
@@ -192,7 +208,9 @@ class CompetitiveAnalysisService {
 
     // Age decay factor
     const createdAt = job.created_at ? new Date(job.created_at) : new Date();
-    const daysSincePosting = Math.floor((Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+    const daysSincePosting = Math.floor(
+      (Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24)
+    );
     let ageDecay = 1.0;
     if (daysSincePosting < 7) {
       ageDecay = 1.0; // First week: full applicants
@@ -204,7 +222,9 @@ class CompetitiveAnalysisService {
       ageDecay = 0.4; // 1+ month
     }
 
-    const estimatedCount = Math.round(baseApplicants * sizeMultiplier * platformMultiplier * ageDecay);
+    const estimatedCount = Math.round(
+      baseApplicants * sizeMultiplier * platformMultiplier * ageDecay
+    );
     return {
       total: estimatedCount,
       breakdown: {
@@ -240,7 +260,12 @@ class CompetitiveAnalysisService {
       job.id
     );
 
-    const totalScore = skillsScore + experienceScore + educationScore + advantagesScore + qualityScore;
+    const totalScore =
+      skillsScore +
+      experienceScore +
+      educationScore +
+      advantagesScore +
+      qualityScore;
     return Math.min(100, Math.max(0, totalScore));
   }
 
@@ -250,7 +275,10 @@ class CompetitiveAnalysisService {
   async calculateSkillsMatch(userProfile, job) {
     // Extract skills from job description using AI
     const jobDesc = job.job_description || "";
-    const requiredSkills = await this.extractSkillsFromDescription(jobDesc, job.title);
+    const requiredSkills = await this.extractSkillsFromDescription(
+      jobDesc,
+      job.title
+    );
 
     if (requiredSkills.length === 0) {
       return { matched: 0, total: 0, matchPercentage: 50 }; // Neutral if no skills found
@@ -258,7 +286,9 @@ class CompetitiveAnalysisService {
 
     // Normalize skills to lowercase for matching
     const requiredSkillsLower = requiredSkills.map((s) => s.toLowerCase());
-    const userSkills = userProfile.skills.map((s) => s.skill_name.toLowerCase());
+    const userSkills = userProfile.skills.map((s) =>
+      s.skill_name.toLowerCase()
+    );
 
     // Match skills (fuzzy matching)
     const matched = requiredSkillsLower.filter((reqSkill) =>
@@ -266,11 +296,15 @@ class CompetitiveAnalysisService {
         // Exact match
         if (userSkill === reqSkill) return true;
         // Contains match
-        if (userSkill.includes(reqSkill) || reqSkill.includes(userSkill)) return true;
+        if (userSkill.includes(reqSkill) || reqSkill.includes(userSkill))
+          return true;
         // Handle variations (e.g., "node.js" vs "nodejs")
         const normalizedReq = reqSkill.replace(/[.\s-]/g, "");
         const normalizedUser = userSkill.replace(/[.\s-]/g, "");
-        return normalizedUser.includes(normalizedReq) || normalizedReq.includes(normalizedUser);
+        return (
+          normalizedUser.includes(normalizedReq) ||
+          normalizedReq.includes(normalizedUser)
+        );
       })
     );
 
@@ -365,15 +399,27 @@ class CompetitiveAnalysisService {
 
     if (hasCSDegree) {
       score += 5; // Degree type match
-      if (jobDesc.includes("computer science") || jobDesc.includes("cs degree")) {
+      if (
+        jobDesc.includes("computer science") ||
+        jobDesc.includes("cs degree")
+      ) {
         score += 5; // Field match
       }
     }
 
     // Prestige bonus (top schools)
-    const topSchools = ["stanford", "mit", "berkeley", "carnegie", "harvard", "princeton"];
+    const topSchools = [
+      "stanford",
+      "mit",
+      "berkeley",
+      "carnegie",
+      "harvard",
+      "princeton",
+    ];
     const hasTopSchool = userProfile.education.some((edu) =>
-      topSchools.some((school) => edu.school && edu.school.toLowerCase().includes(school))
+      topSchools.some(
+        (school) => edu.school && edu.school.toLowerCase().includes(school)
+      )
     );
     if (hasTopSchool) {
       score += 2;
@@ -389,7 +435,9 @@ class CompetitiveAnalysisService {
     let score = 0;
 
     // Rare skills
-    const userSkills = userProfile.skills.map((s) => s.skill_name.toLowerCase());
+    const userSkills = userProfile.skills.map((s) =>
+      s.skill_name.toLowerCase()
+    );
     const rareCount = userSkills.filter((skill) =>
       this.rareSkills.some((rare) => skill.includes(rare.toLowerCase()))
     ).length;
@@ -397,8 +445,10 @@ class CompetitiveAnalysisService {
 
     // Notable company experience
     const notableCount = userProfile.employmentHistory.filter((job) =>
-      this.notableCompanies.some((company) =>
-        job.company && job.company.toLowerCase().includes(company.toLowerCase())
+      this.notableCompanies.some(
+        (company) =>
+          job.company &&
+          job.company.toLowerCase().includes(company.toLowerCase())
       )
     ).length;
     score += Math.min(3, notableCount * 1.5); // Max 3% from notable companies
@@ -445,13 +495,19 @@ class CompetitiveAnalysisService {
     // Rare skills
     const userSkills = userProfile.skills.map((s) => s.skill_name);
     const rareSkills = userSkills.filter((skill) =>
-      this.rareSkills.some((rare) => skill.toLowerCase().includes(rare.toLowerCase()))
+      this.rareSkills.some((rare) =>
+        skill.toLowerCase().includes(rare.toLowerCase())
+      )
     );
     if (rareSkills.length > 0) {
       advantages.push({
         type: "rare_skills",
         title: "Rare Technical Skills",
-        description: `You have ${rareSkills.length} rare skill(s) that <10% of applicants typically have: ${rareSkills.slice(0, 3).join(", ")}`,
+        description: `You have ${
+          rareSkills.length
+        } rare skill(s) that <10% of applicants typically have: ${rareSkills
+          .slice(0, 3)
+          .join(", ")}`,
         impact: "high",
         skills: rareSkills,
       });
@@ -459,15 +515,19 @@ class CompetitiveAnalysisService {
 
     // Notable company experience
     const notableJobs = userProfile.employmentHistory.filter((job) =>
-      this.notableCompanies.some((company) =>
-        job.company && job.company.toLowerCase().includes(company.toLowerCase())
+      this.notableCompanies.some(
+        (company) =>
+          job.company &&
+          job.company.toLowerCase().includes(company.toLowerCase())
       )
     );
     if (notableJobs.length > 0) {
       advantages.push({
         type: "notable_companies",
         title: "Prestigious Company Experience",
-        description: `You've worked at notable companies: ${notableJobs.map((j) => j.company).join(", ")}`,
+        description: `You've worked at notable companies: ${notableJobs
+          .map((j) => j.company)
+          .join(", ")}`,
         impact: "high",
         companies: notableJobs.map((j) => j.company),
       });
@@ -488,7 +548,8 @@ class CompetitiveAnalysisService {
     const title = (job.title || "").toLowerCase();
     let requiredYears = 3;
     if (title.includes("senior")) requiredYears = 5;
-    else if (title.includes("staff") || title.includes("principal")) requiredYears = 8;
+    else if (title.includes("staff") || title.includes("principal"))
+      requiredYears = 8;
 
     if (userProfile.totalExperienceYears > requiredYears + 2) {
       advantages.push({
@@ -514,15 +575,21 @@ class CompetitiveAnalysisService {
       job.title
     );
     const requiredSkillsLower = requiredSkills.map((s) => s.toLowerCase());
-    const userSkills = userProfile.skills.map((s) => s.skill_name.toLowerCase());
+    const userSkills = userProfile.skills.map((s) =>
+      s.skill_name.toLowerCase()
+    );
     const missingSkills = requiredSkillsLower.filter(
       (reqSkill) =>
         !userSkills.some((userSkill) => {
           if (userSkill === reqSkill) return true;
-          if (userSkill.includes(reqSkill) || reqSkill.includes(userSkill)) return true;
+          if (userSkill.includes(reqSkill) || reqSkill.includes(userSkill))
+            return true;
           const normalizedReq = reqSkill.replace(/[.\s-]/g, "");
           const normalizedUser = userSkill.replace(/[.\s-]/g, "");
-          return normalizedUser.includes(normalizedReq) || normalizedReq.includes(normalizedUser);
+          return (
+            normalizedUser.includes(normalizedReq) ||
+            normalizedReq.includes(normalizedUser)
+          );
         })
     );
 
@@ -530,7 +597,9 @@ class CompetitiveAnalysisService {
       disadvantages.push({
         type: "missing_skills",
         title: "Missing Key Skills",
-        description: `The job requires skills you don't have: ${missingSkills.slice(0, 5).join(", ")}`,
+        description: `The job requires skills you don't have: ${missingSkills
+          .slice(0, 5)
+          .join(", ")}`,
         severity: missingSkills.length > 3 ? "high" : "medium",
         mitigation: `Consider learning these skills through online courses, side projects, or certifications. Highlight transferable skills in your application.`,
         missingSkills: missingSkills,
@@ -541,32 +610,45 @@ class CompetitiveAnalysisService {
     const title = (job.title || "").toLowerCase();
     let requiredYears = 3;
     if (title.includes("senior")) requiredYears = 5;
-    else if (title.includes("staff") || title.includes("principal")) requiredYears = 8;
+    else if (title.includes("staff") || title.includes("principal"))
+      requiredYears = 8;
 
     if (userProfile.totalExperienceYears < requiredYears - 1) {
       disadvantages.push({
         type: "experience_gap",
         title: "Below Required Experience",
         description: `The role typically requires ${requiredYears} years of experience, but you have ${userProfile.totalExperienceYears} years`,
-        severity: userProfile.totalExperienceYears < requiredYears - 2 ? "high" : "medium",
+        severity:
+          userProfile.totalExperienceYears < requiredYears - 2
+            ? "high"
+            : "medium",
         mitigation: `Emphasize relevant projects, internships, or accelerated learning. Highlight impact over years. Consider applying to a more junior role first.`,
       });
     }
 
     // Education mismatch
     const jobDesc = (job.job_description || "").toLowerCase();
-    const requiresDegree = jobDesc.includes("degree") || jobDesc.includes("bachelor") || jobDesc.includes("master");
+    const requiresDegree =
+      jobDesc.includes("degree") ||
+      jobDesc.includes("bachelor") ||
+      jobDesc.includes("master");
     const hasRelevantDegree = userProfile.education.some(
       (edu) => edu.field && edu.field.toLowerCase().includes("computer")
     );
 
-    if (requiresDegree && !hasRelevantDegree && userProfile.education.length === 0) {
+    if (
+      requiresDegree &&
+      !hasRelevantDegree &&
+      userProfile.education.length === 0
+    ) {
       disadvantages.push({
         type: "education_mismatch",
         title: "Education Requirements",
-        description: "The role may require a relevant degree or equivalent experience",
+        description:
+          "The role may require a relevant degree or equivalent experience",
         severity: "low",
-        mitigation: "Emphasize practical experience, bootcamp completion, or self-taught expertise. Highlight relevant projects and achievements.",
+        mitigation:
+          "Emphasize practical experience, bootcamp completion, or self-taught expertise. Highlight relevant projects and achievements.",
       });
     }
 
@@ -576,7 +658,13 @@ class CompetitiveAnalysisService {
   /**
    * Estimate interview likelihood
    */
-  estimateInterviewLikelihood(competitiveScore, applicantCount, advantages, disadvantages, job) {
+  estimateInterviewLikelihood(
+    competitiveScore,
+    applicantCount,
+    advantages,
+    disadvantages,
+    job
+  ) {
     // Base likelihood by role level
     const title = (job.title || "").toLowerCase();
     let baseLikelihood = 8; // Default mid-level
@@ -609,9 +697,14 @@ class CompetitiveAnalysisService {
     }, 0);
 
     // Applicant count penalty (more applicants = lower chance)
-    const applicantPenalty = Math.max(0, (applicantCount.total - 500) / 100) * 0.1;
+    const applicantPenalty =
+      Math.max(0, (applicantCount.total - 500) / 100) * 0.1;
 
-    let likelihood = baseLikelihood * scoreMultiplier + advantageBonus - disadvantagePenalty - applicantPenalty;
+    let likelihood =
+      baseLikelihood * scoreMultiplier +
+      advantageBonus -
+      disadvantagePenalty -
+      applicantPenalty;
     likelihood = Math.max(1, Math.min(50, likelihood)); // Clamp between 1% and 50%
 
     // Determine level
@@ -628,14 +721,23 @@ class CompetitiveAnalysisService {
   /**
    * Generate differentiating strategies using AI or fallback
    */
-  async generateDifferentiatingStrategies(job, advantages, disadvantages, userProfile) {
+  async generateDifferentiatingStrategies(
+    job,
+    advantages,
+    disadvantages,
+    userProfile
+  ) {
     const strategies = [];
 
     // Try AI-generated strategies first
-    if (this.openai && job.job_description && job.job_description.length > 100) {
+    if (
+      this.openai &&
+      job.job_description &&
+      job.job_description.length > 100
+    ) {
       try {
         const systemPrompt = `You are a career coach. Generate specific, actionable strategies to help a job applicant stand out. Return ONLY JSON with an array of strategy objects.`;
-        
+
         const userPrompt = `Job Title: ${job.title}
 Company: ${job.company}
 Job Description: ${job.job_description.substring(0, 2000)}
@@ -681,7 +783,10 @@ Return JSON: { "strategies": [...] }`;
           console.warn("Failed to parse AI strategies:", e);
         }
       } catch (error) {
-        console.warn("AI strategy generation failed, using fallback:", error.message);
+        console.warn(
+          "AI strategy generation failed, using fallback:",
+          error.message
+        );
       }
     }
 
@@ -693,13 +798,20 @@ Return JSON: { "strategies": [...] }`;
       id: "fallback-1",
       priority: "high",
       title: "Customize Resume & Cover Letter",
-      description: `Tailor your resume and cover letter to match keywords from the job description. Highlight ${advantages.length > 0 ? advantages[0].title.toLowerCase() : "relevant experience"} prominently.`,
+      description: `Tailor your resume and cover letter to match keywords from the job description. Highlight ${
+        advantages.length > 0
+          ? advantages[0].title.toLowerCase()
+          : "relevant experience"
+      } prominently.`,
       estimatedImpact: 15,
       category: "application_materials",
     });
 
     // Get referral
-    if (!job.application_method || !job.application_method.toLowerCase().includes("referral")) {
+    if (
+      !job.application_method ||
+      !job.application_method.toLowerCase().includes("referral")
+    ) {
       fallbackStrategies.push({
         id: "fallback-2",
         priority: "high",
@@ -711,13 +823,17 @@ Return JSON: { "strategies": [...] }`;
     }
 
     // Address missing skills
-    const missingSkillsDis = disadvantages.find((d) => d.type === "missing_skills");
+    const missingSkillsDis = disadvantages.find(
+      (d) => d.type === "missing_skills"
+    );
     if (missingSkillsDis && missingSkillsDis.missingSkills.length > 0) {
       fallbackStrategies.push({
         id: "fallback-3",
         priority: "high",
         title: "Address Missing Skills",
-        description: `Quickly learn or demonstrate proficiency in: ${missingSkillsDis.missingSkills.slice(0, 3).join(", ")}. Build a small project or complete a course.`,
+        description: `Quickly learn or demonstrate proficiency in: ${missingSkillsDis.missingSkills
+          .slice(0, 3)
+          .join(", ")}. Build a small project or complete a course.`,
         estimatedImpact: 12,
         category: "skill_development",
       });
@@ -725,14 +841,18 @@ Return JSON: { "strategies": [...] }`;
 
     // Apply early
     const daysSincePosting = job.created_at
-      ? Math.floor((Date.now() - new Date(job.created_at).getTime()) / (1000 * 60 * 60 * 24))
+      ? Math.floor(
+          (Date.now() - new Date(job.created_at).getTime()) /
+            (1000 * 60 * 60 * 24)
+        )
       : 30;
     if (daysSincePosting < 7) {
       fallbackStrategies.push({
         id: "fallback-4",
         priority: "medium",
         title: "Apply Quickly",
-        description: "This posting is less than a week old. Early applicants often have higher response rates.",
+        description:
+          "This posting is less than a week old. Early applicants often have higher response rates.",
         estimatedImpact: 8,
         category: "timing",
       });
@@ -744,7 +864,9 @@ Return JSON: { "strategies": [...] }`;
         id: "fallback-5",
         priority: "medium",
         title: "Create Relevant Portfolio Project",
-        description: `Build a project showcasing ${missingSkillsDis.missingSkills[0] || "relevant skills"} and add it to your portfolio/GitHub.`,
+        description: `Build a project showcasing ${
+          missingSkillsDis.missingSkills[0] || "relevant skills"
+        } and add it to your portfolio/GitHub.`,
         estimatedImpact: 10,
         category: "portfolio",
       });
@@ -762,14 +884,17 @@ Return JSON: { "strategies": [...] }`;
 
     // Combine AI and fallback strategies, remove duplicates
     const allStrategies = [...strategies, ...fallbackStrategies];
-    const uniqueStrategies = allStrategies.filter((strategy, index, self) =>
-      index === self.findIndex((s) => s.title === strategy.title)
+    const uniqueStrategies = allStrategies.filter(
+      (strategy, index, self) =>
+        index === self.findIndex((s) => s.title === strategy.title)
     );
 
     // Sort by priority
     return uniqueStrategies.sort((a, b) => {
       const priorityOrder = { high: 3, medium: 2, low: 1 };
-      return (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0);
+      return (
+        (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0)
+      );
     });
   }
 
@@ -794,12 +919,20 @@ Return JSON: { "strategies": [...] }`;
       experience: {
         user: userProfile.totalExperienceYears || 0,
         typical: typicalExperience,
-        match: Math.abs((userProfile.totalExperienceYears || 0) - typicalExperience) <= 2,
+        match:
+          Math.abs(
+            (userProfile.totalExperienceYears || 0) - typicalExperience
+          ) <= 2,
       },
       education: {
-        user: userProfile.education.length > 0 ? userProfile.education[0].degree_type : "None",
+        user:
+          userProfile.education.length > 0
+            ? userProfile.education[0].degree_type
+            : "None",
         typical: typicalEducation,
-        match: userProfile.education.some((edu) => edu.field && edu.field.toLowerCase().includes("computer")),
+        match: userProfile.education.some(
+          (edu) => edu.field && edu.field.toLowerCase().includes("computer")
+        ),
       },
       skills: {
         user: userProfile.skills.length,
@@ -808,8 +941,10 @@ Return JSON: { "strategies": [...] }`;
       },
       companyPrestige: {
         user: userProfile.employmentHistory.some((job) =>
-          this.notableCompanies.some((company) =>
-            job.company && job.company.toLowerCase().includes(company.toLowerCase())
+          this.notableCompanies.some(
+            (company) =>
+              job.company &&
+              job.company.toLowerCase().includes(company.toLowerCase())
           )
         )
           ? "Notable companies"
@@ -845,7 +980,10 @@ Return JSON: { "strategies": [...] }`;
     const prioritized = [];
 
     for (const job of jobsRes.rows) {
-      const competitiveScore = await this.calculateCompetitiveScore(userProfile, job);
+      const competitiveScore = await this.calculateCompetitiveScore(
+        userProfile,
+        job
+      );
       const advantages = this.identifyAdvantages(userProfile, job);
       const disadvantages = await this.identifyDisadvantages(userProfile, job);
       const interviewLikelihood = this.estimateInterviewLikelihood(
@@ -865,7 +1003,11 @@ Return JSON: { "strategies": [...] }`;
         interviewLikelihood: interviewLikelihood.percentage,
         advantagesCount: advantages.length,
         disadvantagesCount: disadvantages.length,
-        reasoning: this.generatePrioritizationReasoning(competitiveScore, advantages, disadvantages),
+        reasoning: this.generatePrioritizationReasoning(
+          competitiveScore,
+          advantages,
+          disadvantages
+        ),
       });
     }
 

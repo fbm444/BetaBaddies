@@ -52,6 +52,7 @@ export const ROUTES = {
   NETWORK_REFERRALS: "/network/referrals",
   FOLLOW_UP_REMINDERS: "/follow-up-reminders",
   API_MONITORING: "/admin/api-monitoring",
+  APPLICATION_OPTIMIZATION: "/application-optimization",
 } as const;
 
 // Navigation item type
@@ -119,6 +120,12 @@ export const navigationGroups: NavigationGroup[] = [
         label: "Company Research",
         icon: "mdi:office-building",
         path: ROUTES.COMPANY_RESEARCH,
+      },
+      {
+        id: "application-optimization",
+        label: "Optimization Stats",
+        icon: "mingcute:dashboard-line",
+        path: ROUTES.APPLICATION_OPTIMIZATION,
       },
     ],
   },

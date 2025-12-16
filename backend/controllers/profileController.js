@@ -1,5 +1,6 @@
 import profileService from "../services/profileService.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
+import { sanitizeInput } from "../utils/helpers.js";
 
 class ProfileController {
   // Get current user's profile
@@ -106,15 +107,15 @@ class ProfileController {
     } = req.body;
 
     const profile = await profileService.updateProfile(userId, {
-      firstName,
-      middleName,
-      lastName,
-      phone,
-      city,
+      firstName: firstName ? sanitizeInput(firstName) : firstName,
+      middleName: middleName ? sanitizeInput(middleName) : middleName,
+      lastName: lastName ? sanitizeInput(lastName) : lastName,
+      phone: phone ? sanitizeInput(phone) : phone,
+      city: city ? sanitizeInput(city) : city,
       state,
-      jobTitle,
-      bio,
-      industry,
+      jobTitle: jobTitle ? sanitizeInput(jobTitle) : jobTitle,
+      bio: bio ? sanitizeInput(bio) : bio,
+      industry: industry ? sanitizeInput(industry) : industry,
       expLevel,
     });
 

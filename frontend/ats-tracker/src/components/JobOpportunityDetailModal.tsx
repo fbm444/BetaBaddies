@@ -57,6 +57,14 @@ export function JobOpportunityDetailModal({
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [isSharing, setIsSharing] = useState(false);
   const [sharedTeams, setSharedTeams] = useState<string[]>([]);
+  const [responsePrediction, setResponsePrediction] = useState<any | null>(null);
+  const [isLoadingPrediction, setIsLoadingPrediction] = useState(false);
+  const [predictionError, setPredictionError] = useState<string | null>(null);
+  const [quality, setQuality] = useState<any | null>(null);
+  const [qualityStats, setQualityStats] = useState<any | null>(null);
+  const [isLoadingQuality, setIsLoadingQuality] = useState(false);
+  const [isScoringQuality, setIsScoringQuality] = useState(false);
+  const [qualityError, setQualityError] = useState<string | null>(null);
 
   const handleScheduleInterview = () => {
     navigate(`${ROUTES.INTERVIEW_SCHEDULING}?jobOpportunityId=${opportunity.id}`);
@@ -127,6 +135,64 @@ export function JobOpportunityDetailModal({
     fetchTeams();
     checkSharedTeams();
   }, [opportunity]);
+
+  // Load response time prediction
+  useEffect(() => {
+    const loadPrediction = async () => {
+      if (!opportunity.id) return;
+      try {
+        setIsLoadingPrediction(true);
+        setPredictionError(null);
+        const res = await api.getResponseTimePrediction(opportunity.id);
+        if (res.ok && res.data && res.data.prediction) {
+          setResponsePrediction(res.data.prediction);
+        } else {
+          setResponsePrediction(null);
+        }
+      } catch (err: any) {
+        console.error("Error loading response time prediction:", err);
+        setPredictionError("Response time prediction not available yet.");
+        setResponsePrediction(null);
+      } finally {
+        setIsLoadingPrediction(false);
+      }
+    };
+
+    loadPrediction();
+  }, [opportunity.id]);
+
+  // Load application quality (latest + stats)
+  useEffect(() => {
+    const loadQuality = async () => {
+      if (!opportunity.id) return;
+      try {
+        setIsLoadingQuality(true);
+        setQualityError(null);
+        const [qRes, statsRes] = await Promise.all([
+          api.getApplicationQuality(opportunity.id),
+          api.getApplicationQualityStats(),
+        ]);
+        if (qRes.ok && qRes.data) {
+          setQuality(qRes.data.quality || null);
+        } else {
+          setQuality(null);
+        }
+        if (statsRes.ok && statsRes.data) {
+          setQualityStats(statsRes.data.stats || null);
+        } else {
+          setQualityStats(null);
+        }
+      } catch (err: any) {
+        console.error("Error loading application quality:", err);
+        setQualityError("Quality score not available yet.");
+        setQuality(null);
+      } finally {
+        setIsLoadingQuality(false);
+      }
+    };
+
+    loadQuality();
+  }, [opportunity.id]);
 
   const fetchTeams = async () => {
     try {
@@ -1519,6 +1585,213 @@ export function JobOpportunityDetailModal({
               </div>
             </section>
           </div>
+
+          {/* Application Quality Score */}
+          {!isEditMode && (
+            <div className="mt-8 pt-6 border-t border-slate-200">
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <div className="flex items-center gap-2">
+                  <Icon icon="mingcute:magic-line" width={18} className="text-purple-600" />
+                  <h3 className="text-sm font-semibold text-slate-900">
+                    Application Quality
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!opportunity.id) return;
+                    try {
+                      setIsScoringQuality(true);
+                      setQualityError(null);
+                      const res = await api.scoreApplicationQuality(opportunity.id);
+                      if (res.ok && res.data) {
+                        setQuality(res.data.quality || null);
+                      }
+                      // Refresh stats too
+                      const statsRes = await api.getApplicationQualityStats();
+                      if (statsRes.ok && statsRes.data) {
+                        setQualityStats(statsRes.data.stats || null);
+                      }
+                    } catch (err: any) {
+                      console.error("Error scoring application quality:", err);
+                      setQualityError("Failed to score application. Try again.");
+                    } finally {
+                      setIsScoringQuality(false);
+                    }
+                  }}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700 hover:bg-purple-100 transition-colors disabled:opacity-50"
+                  disabled={isScoringQuality}
+                >
+                  {isScoringQuality ? (
+                    <>
+                      <Icon icon="mingcute:loading-line" className="animate-spin" width={14} />
+                      Scoring...
+                    </>
+                  ) : (
+                    <>
+                      <Icon icon="mingcute:sparkles-line" width={14} />
+                      Re-score
+                    </>
+                  )}
+                </button>
+              </div>
+              {isLoadingQuality ? (
+                <p className="text-xs text-slate-500">Loading quality score...</p>
+              ) : quality ? (
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="flex flex-col items-start">
+                      <span className="text-[11px] uppercase tracking-wide text-slate-500">
+                        Overall Score
+                      </span>
+                      <span
+                        className={`text-2xl font-bold ${
+                          quality.overall_score >= 80
+                            ? "text-emerald-600"
+                            : quality.overall_score >= 70
+                            ? "text-amber-600"
+                            : "text-red-600"
+                        }`}
+                      >
+                        {Math.round(quality.overall_score)} / 100
+                      </span>
+                      {qualityStats && typeof qualityStats.avg_score === "number" && (
+                        <span className="mt-1 text-[11px] text-slate-500">
+                          Your avg: {Math.round(qualityStats.avg_score)} · Top:{" "}
+                          {typeof qualityStats.p90_score === "number"
+                            ? Math.round(qualityStats.p90_score)
+                            : "—"}
+                        </span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-1 gap-1 text-[11px] text-slate-600">
+                      <span>
+                        Alignment:{" "}
+                        <strong>
+                          {quality.alignment_score != null
+                            ? Math.round(quality.alignment_score)
+                            : "—"}
+                        </strong>
+                      </span>
+                      <span>
+                        Formatting:{" "}
+                        <strong>
+                          {quality.format_score != null
+                            ? Math.round(quality.format_score)
+                            : "—"}
+                        </strong>
+                      </span>
+                      <span>
+                        Consistency:{" "}
+                        <strong>
+                          {quality.consistency_score != null
+                            ? Math.round(quality.consistency_score)
+                            : "—"}
+                        </strong>
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    {Array.isArray(quality.suggestions) && quality.suggestions.length > 0 ? (
+                      <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                        <p className="text-[11px] font-semibold text-slate-700 mb-1">
+                          Top Suggestions
+                        </p>
+                        <ul className="space-y-1 max-h-28 overflow-y-auto pr-1">
+                          {quality.suggestions.slice(0, 3).map((s: any, idx: number) => (
+                            <li key={s.id || idx} className="text-[11px] text-slate-600">
+                              <span className="font-medium">
+                                {s.title || `Suggestion ${idx + 1}`}:
+                              </span>{" "}
+                              {s.description}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-slate-500">
+                        No specific suggestions yet. Re-score after updating your resume or cover
+                        letter.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500">
+                  {qualityError ||
+                    "No quality score yet. Click Re-score to analyze this application before submitting."}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Response Time Prediction */}
+          {!isEditMode && (
+            <div className="mt-8 pt-6 border-t border-slate-200">
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                  <Icon icon="mingcute:time-line" width={18} className="text-slate-600" />
+                  Expected Employer Response
+                </h3>
+                {responsePrediction?.isOverdue && (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-50 text-red-700 text-[11px] font-medium">
+                    <Icon icon="mingcute:alarm-line" width={14} />
+                    Overdue by{" "}
+                    {Math.round(responsePrediction.overdueDays || 0)}{" "}
+                    {Math.round(responsePrediction.overdueDays || 0) === 1 ? "day" : "days"}
+                  </span>
+                )}
+              </div>
+              {isLoadingPrediction ? (
+                <p className="text-xs text-slate-500">Loading response time prediction...</p>
+              ) : responsePrediction ? (
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div>
+                    <p className="text-sm text-slate-700">
+                      Typically responds in{" "}
+                      <span className="font-semibold">
+                        {Math.round(responsePrediction.lowerDays)}–
+                        {Math.round(responsePrediction.upperDays)} days
+                      </span>{" "}
+                      for similar {responsePrediction.cohort?.jobType || "roles"} in{" "}
+                      {responsePrediction.cohort?.industry || "your history"}.
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Based on {responsePrediction.sampleSize} past applications. ~
+                      {Math.round((responsePrediction.confidence || 0.8) * 100)}% responded
+                      within this window.
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Suggested follow-up date:{" "}
+                      <span className="font-semibold">
+                        {new Date(
+                          responsePrediction.recommendedFollowUpDate
+                        ).toLocaleDateString()}
+                      </span>
+                      .
+                    </p>
+                  </div>
+                  <div className="px-3 py-2 rounded-lg bg-blue-50 text-blue-700 text-xs font-medium inline-flex flex-col items-start">
+                    <span className="uppercase tracking-wide text-[10px] text-blue-500 mb-1">
+                      Follow-up Hint
+                    </span>
+                    <span>
+                      If you haven&apos;t heard back by{" "}
+                      {new Date(
+                        responsePrediction.recommendedFollowUpDate
+                      ).toLocaleDateString()}
+                      , send a polite check-in.
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500">
+                  {predictionError ||
+                    "Not enough past data yet to generate a response time prediction for this role."}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Salary Benchmark - At the bottom */}
           {!isEditMode && opportunity.title && opportunity.location && (

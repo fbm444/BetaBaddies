@@ -6,6 +6,8 @@ import abTestingService from "../services/abTestingService.js";
 import successMetricsService from "../services/successMetricsService.js";
 import optimizationRecommendationsService from "../services/optimizationRecommendationsService.js";
 import roleTypeAnalysisService from "../services/roleTypeAnalysisService.js";
+import responseTimePredictionService from "../services/responseTimePredictionService.js";
+import applicationQualityService from "../services/applicationQualityService.js";
 
 class OptimizationController {
   // ============================================================================
@@ -13,7 +15,7 @@ class OptimizationController {
   // ============================================================================
 
   getMetrics = asyncHandler(async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.session.userId;
     const { period } = req.query;
 
     const metrics = await successMetricsService.calculateSuccessMetrics(
@@ -28,7 +30,7 @@ class OptimizationController {
   });
 
   getTrends = asyncHandler(async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.session.userId;
     const { metric, periodType, limit } = req.query;
 
     const trends = await successMetricsService.getTrendData(
@@ -45,7 +47,7 @@ class OptimizationController {
   });
 
   getSnapshots = asyncHandler(async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.session.userId;
     const { periodType, limit } = req.query;
 
     const snapshots = await successMetricsService.getHistoricalSnapshots(
@@ -61,7 +63,7 @@ class OptimizationController {
   });
 
   createSnapshot = asyncHandler(async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.session.userId;
     const { date, periodType } = req.body;
 
     const snapshot = await successMetricsService.createSnapshot(
@@ -81,7 +83,7 @@ class OptimizationController {
   // ============================================================================
 
   trackStrategy = asyncHandler(async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.session.userId;
     const { jobOpportunityId, ...strategyData } = req.body;
 
     if (!jobOpportunityId) {
@@ -104,7 +106,7 @@ class OptimizationController {
   });
 
   getStrategyPerformance = asyncHandler(async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.session.userId;
     const { applicationMethod, startDate, endDate } = req.query;
 
     const filters = {};
@@ -121,7 +123,7 @@ class OptimizationController {
   });
 
   getBestStrategies = asyncHandler(async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.session.userId;
     const limit = parseInt(req.query.limit) || 5;
 
     const strategies = await applicationStrategyService.getBestPerformingStrategies(userId, limit);
@@ -133,7 +135,7 @@ class OptimizationController {
   });
 
   compareStrategies = asyncHandler(async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.session.userId;
     const { strategy1, strategy2 } = req.body;
 
     if (!strategy1 || !strategy2) {
@@ -160,7 +162,7 @@ class OptimizationController {
   // ============================================================================
 
   registerDocument = asyncHandler(async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.session.userId;
     const documentData = req.body;
 
     const document = await documentPerformanceService.registerDocumentVersion(userId, documentData);
@@ -172,7 +174,7 @@ class OptimizationController {
   });
 
   getDocumentPerformance = asyncHandler(async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.session.userId;
     const { id } = req.params;
 
     const document = await documentPerformanceService.getDocumentPerformance(userId, id);
@@ -184,7 +186,7 @@ class OptimizationController {
   });
 
   compareDocuments = asyncHandler(async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.session.userId;
     const { documentType } = req.query;
 
     if (!documentType) {
@@ -203,7 +205,7 @@ class OptimizationController {
   });
 
   getBestDocuments = asyncHandler(async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.session.userId;
     const { documentType, limit } = req.query;
 
     if (!documentType) {
@@ -226,7 +228,7 @@ class OptimizationController {
   });
 
   setPrimaryDocument = asyncHandler(async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.session.userId;
     const { id } = req.params;
 
     const document = await documentPerformanceService.setPrimaryDocument(userId, id);
@@ -242,7 +244,7 @@ class OptimizationController {
   // ============================================================================
 
   getOptimalTiming = asyncHandler(async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.session.userId;
 
     const analysis = await timingAnalysisService.analyzeOptimalTiming(userId);
 
@@ -253,7 +255,7 @@ class OptimizationController {
   });
 
   getDayOfWeekPerformance = asyncHandler(async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.session.userId;
 
     const performance = await timingAnalysisService.getDayOfWeekPerformance(userId);
 
@@ -264,7 +266,7 @@ class OptimizationController {
   });
 
   getHourOfDayPerformance = asyncHandler(async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.session.userId;
 
     const performance = await timingAnalysisService.getHourOfDayPerformance(userId);
 
@@ -275,7 +277,7 @@ class OptimizationController {
   });
 
   getTimeOfDayPerformance = asyncHandler(async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.session.userId;
 
     const performance = await timingAnalysisService.getTimeOfDayPerformance(userId);
 
@@ -286,11 +288,43 @@ class OptimizationController {
   });
 
   // ============================================================================
+  // Response Time Prediction
+  // ============================================================================
+
+  getResponseTimePrediction = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { jobId } = req.params;
+
+    const prediction = await responseTimePredictionService.predictForJob(
+      userId,
+      jobId
+    );
+
+    res.status(200).json({
+      ok: true,
+      data: { prediction },
+    });
+  });
+
+  getResponseTimeBenchmarks = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+
+    const benchmarks = await responseTimePredictionService.getBenchmarks(
+      userId
+    );
+
+    res.status(200).json({
+      ok: true,
+      data: { benchmarks },
+    });
+  });
+
+  // ============================================================================
   // A/B Testing
   // ============================================================================
 
   createABTest = asyncHandler(async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.session.userId;
     const testConfig = req.body;
 
     const test = await abTestingService.createABTest(userId, testConfig);
@@ -302,7 +336,7 @@ class OptimizationController {
   });
 
   getABTests = asyncHandler(async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.session.userId;
     const { status, testType } = req.query;
 
     const filters = {};
@@ -318,7 +352,7 @@ class OptimizationController {
   });
 
   getABTestResults = asyncHandler(async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.session.userId;
     const { id } = req.params;
 
     const results = await abTestingService.getTestResults(id, userId);
@@ -330,7 +364,7 @@ class OptimizationController {
   });
 
   startABTest = asyncHandler(async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.session.userId;
     const { id } = req.params;
 
     const test = await abTestingService.startTest(id, userId);
@@ -342,7 +376,7 @@ class OptimizationController {
   });
 
   completeABTest = asyncHandler(async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.session.userId;
     const { id } = req.params;
 
     const test = await abTestingService.completeTest(id, userId);
@@ -358,7 +392,7 @@ class OptimizationController {
   // ============================================================================
 
   generateRecommendations = asyncHandler(async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.session.userId;
 
     const recommendations = await optimizationRecommendationsService.generateRecommendations(userId);
 
@@ -369,7 +403,7 @@ class OptimizationController {
   });
 
   getRecommendations = asyncHandler(async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.session.userId;
     const { status, priority, recommendationType } = req.query;
 
     const filters = {};
@@ -386,7 +420,7 @@ class OptimizationController {
   });
 
   acknowledgeRecommendation = asyncHandler(async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.session.userId;
     const { id } = req.params;
 
     const recommendation = await optimizationRecommendationsService.acknowledgeRecommendation(id, userId);
@@ -398,7 +432,7 @@ class OptimizationController {
   });
 
   completeRecommendation = asyncHandler(async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.session.userId;
     const { id } = req.params;
 
     const recommendation = await optimizationRecommendationsService.completeRecommendation(id, userId);
@@ -410,7 +444,7 @@ class OptimizationController {
   });
 
   dismissRecommendation = asyncHandler(async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.session.userId;
     const { id } = req.params;
 
     const recommendation = await optimizationRecommendationsService.dismissRecommendation(id, userId);
@@ -426,7 +460,7 @@ class OptimizationController {
   // ============================================================================
 
   getRoleTypePerformance = asyncHandler(async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.session.userId;
 
     const performance = await roleTypeAnalysisService.getRoleTypePerformance(userId);
 
@@ -437,7 +471,7 @@ class OptimizationController {
   });
 
   getBestRoleTypes = asyncHandler(async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.session.userId;
     const limit = parseInt(req.query.limit) || 5;
 
     const roleTypes = await roleTypeAnalysisService.getBestPerformingRoleTypes(userId, limit);
@@ -445,6 +479,83 @@ class OptimizationController {
     res.status(200).json({
       ok: true,
       data: { roleTypes }
+    });
+  });
+
+  // ============================================================================
+  // Application Quality Scoring
+  // ============================================================================
+
+  scoreApplicationQuality = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { jobId } = req.params;
+    const { resumeDocumentId, coverLetterDocumentId, linkedinUrl } = req.body || {};
+
+    if (!jobId) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: "VALIDATION_ERROR", message: "jobId is required" }
+      });
+    }
+
+    const quality = await applicationQualityService.scoreApplication(userId, jobId, {
+      resumeDocumentId,
+      coverLetterDocumentId,
+      linkedinUrl,
+    });
+
+    res.status(201).json({
+      ok: true,
+      data: { quality }
+    });
+  });
+
+  getApplicationQuality = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { jobId } = req.params;
+
+    if (!jobId) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: "VALIDATION_ERROR", message: "jobId is required" }
+      });
+    }
+
+    const quality = await applicationQualityService.getLatestScore(userId, jobId);
+
+    res.status(200).json({
+      ok: true,
+      data: { quality }
+    });
+  });
+
+  getApplicationQualityStats = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+
+    const stats = await applicationQualityService.getStats(userId);
+
+    res.status(200).json({
+      ok: true,
+      data: { stats }
+    });
+  });
+
+  getApplicationQualityHistory = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { jobId } = req.params;
+
+    if (!jobId) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: "VALIDATION_ERROR", message: "jobId is required" }
+      });
+    }
+
+    const history = await applicationQualityService.getHistory(userId, jobId);
+
+    res.status(200).json({
+      ok: true,
+      data: { history }
     });
   });
 }

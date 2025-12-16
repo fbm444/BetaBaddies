@@ -6,6 +6,7 @@ import type {
   JobOfferInput,
   HealthInsuranceCoverage,
   RemotePolicy,
+  EquityType,
 } from "../../types/jobOffer.types";
 
 interface OfferComparisonTabProps {
@@ -51,9 +52,12 @@ export function OfferComparisonTab({
   const fetchOffers = async () => {
     try {
       setIsLoading(true);
+      setError(null);
       const response = await api.getJobOffers();
-      if (response.success && response.data) {
-        setOffers(response.data);
+      if (response.ok && response.data) {
+        setOffers(Array.isArray(response.data) ? response.data : []);
+      } else {
+        setError("Failed to fetch offers");
       }
     } catch (err) {
       console.error("Error fetching offers:", err);
@@ -65,12 +69,15 @@ export function OfferComparisonTab({
 
   const handleCreateOffer = async () => {
     try {
+      setError(null);
       const response = await api.createJobOffer(formData);
-      if (response.success) {
+      if (response.ok) {
         setSuccessMessage("Offer created successfully!");
         setShowCreateModal(false);
         fetchOffers();
         resetForm();
+      } else {
+        setError(response.error?.message || "Failed to create offer");
       }
     } catch (err) {
       setError((err as Error).message || "Failed to create offer");
@@ -81,13 +88,16 @@ export function OfferComparisonTab({
     if (!editingOffer) return;
     
     try {
+      setError(null);
       const response = await api.updateJobOffer(editingOffer.id, formData);
-      if (response.success) {
+      if (response.ok) {
         setSuccessMessage("Offer updated successfully!");
         setShowEditModal(false);
         setEditingOffer(null);
         fetchOffers();
         resetForm();
+      } else {
+        setError(response.error?.message || "Failed to update offer");
       }
     } catch (err) {
       setError((err as Error).message || "Failed to update offer");
@@ -141,10 +151,13 @@ export function OfferComparisonTab({
 
     try {
       setIsLoading(true);
+      setError(null);
       const response = await api.compareJobOffers(selectedOffers);
-      if (response.success && response.data) {
+      if (response.ok && response.data) {
         setComparisonData(response.data);
         setShowComparisonView(true);
+      } else {
+        setError(response.error?.message || "Failed to compare offers");
       }
     } catch (err) {
       setError((err as Error).message || "Failed to compare offers");
@@ -861,7 +874,10 @@ export function OfferComparisonTab({
                     <select
                       value={formData.equity_type || ""}
                       onChange={(e) =>
-                        setFormData({ ...formData, equity_type: e.target.value || undefined })
+                        setFormData({ 
+                          ...formData, 
+                          equity_type: (e.target.value || undefined) as EquityType | undefined 
+                        })
                       }
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >

@@ -29,6 +29,34 @@ class InterviewResponseService {
   // Create a new interview response
   async createResponse(userId, responseData) {
     try {
+      // Check if table exists
+      const tableCheck = await database.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_name = 'interview_responses'
+        );
+      `);
+      
+      if (!tableCheck.rows[0]?.exists) {
+        throw new Error("Database tables not found. Please run the migration to create interview_responses tables.");
+      }
+
+      // Verify user exists
+      if (!userId) {
+        throw new Error("User ID is required");
+      }
+
+      const userCheck = await database.query(
+        `SELECT u_id FROM users WHERE u_id = $1`,
+        [userId]
+      );
+
+      if (userCheck.rows.length === 0) {
+        const error = new Error(`User with ID ${userId} does not exist in the users table`);
+        error.code = "USER_NOT_FOUND";
+        throw error;
+      }
+
       const { questionText, questionType, responseText, tags = [], editNotes } = responseData;
 
       this.validateQuestionType(questionType);
@@ -42,36 +70,58 @@ class InterviewResponseService {
 
       // Use transaction to ensure data consistency
       return await database.transaction(async (client) => {
-        // Create the response entry
-        const responseQuery = `
-          INSERT INTO interview_responses (id, user_id, question_text, question_type, current_version_id)
-          VALUES ($1, $2, $3, $4, $5)
-          RETURNING id, question_text, question_type, current_version_id, created_at, updated_at
-        `;
+        try {
+          // Create the response entry (set current_version_id to NULL initially)
+          // The trigger will set it after the version is created
+          const responseQuery = `
+            INSERT INTO interview_responses (id, user_id, question_text, question_type, current_version_id)
+            VALUES ($1, $2, $3, $4, NULL)
+            RETURNING id, question_text, question_type, current_version_id, created_at, updated_at
+          `;
 
-        const responseResult = await client.query(responseQuery, [
-          responseId,
-          userId,
-          questionText,
-          questionType,
-          versionId,
-        ]);
+          console.log("Creating interview response with:", { responseId, userId, questionText, questionType });
 
-        // Create the first version
-        const versionQuery = `
-          INSERT INTO interview_response_versions (id, response_id, version_number, response_text, created_by, edit_notes)
-          VALUES ($1, $2, $3, $4, $5, $6)
-          RETURNING id, version_number, response_text, created_at, edit_notes
-        `;
+          const responseResult = await client.query(responseQuery, [
+            responseId,
+            userId,
+            questionText,
+            questionType,
+          ]);
 
-        await client.query(versionQuery, [
-          versionId,
-          responseId,
-          1,
-          responseText,
-          userId,
-          editNotes || null,
-        ]);
+          console.log("Response created successfully:", responseResult.rows[0]?.id);
+
+          // Create the first version
+          // The trigger will automatically set current_version_id after this insert
+          const versionQuery = `
+            INSERT INTO interview_response_versions (id, response_id, version_number, response_text, created_by, edit_notes)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            RETURNING id, version_number, response_text, created_at, edit_notes
+          `;
+
+          console.log("Creating version with:", { versionId, responseId, userId });
+
+          await client.query(versionQuery, [
+            versionId,
+            responseId,
+            1,
+            responseText,
+            userId,
+            editNotes || null,
+          ]);
+
+          console.log("Version created successfully");
+        } catch (transactionError) {
+          console.error("Transaction error details:", {
+            code: transactionError.code,
+            constraint: transactionError.constraint,
+            detail: transactionError.detail,
+            message: transactionError.message,
+            table: transactionError.table,
+            schema: transactionError.schema,
+            column: transactionError.column,
+          });
+          throw transactionError;
+        }
 
         // Add tags if provided
         if (tags.length > 0) {
@@ -91,6 +141,31 @@ class InterviewResponseService {
       });
     } catch (error) {
       console.error("Error creating interview response:", error);
+      console.error("Error details:", {
+        code: error.code,
+        constraint: error.constraint,
+        detail: error.detail,
+        message: error.message,
+        table: error.table,
+        schema: error.schema
+      });
+      
+      // Provide more helpful error messages
+      if (error.message?.includes("does not exist") || error.code === "42P01") {
+        throw new Error("Database tables not found. Please run the migration: db/migrations/add_interview_response_library.sql");
+      }
+      
+      if (error.code === "23503" || (error.constraint && error.constraint.includes("fkey"))) {
+        const constraintName = error.constraint || "unknown constraint";
+        const detail = error.detail || error.message || "Referenced table or column does not exist";
+        const errorMessage = `Foreign key constraint violation${constraintName !== "unknown constraint" ? ` (${constraintName})` : ""}: ${detail}. Please ensure all referenced tables exist and the user ID is valid.`;
+        const enhancedError = new Error(errorMessage);
+        enhancedError.code = error.code;
+        enhancedError.constraint = error.constraint;
+        enhancedError.detail = error.detail;
+        throw enhancedError;
+      }
+      
       throw error;
     }
   }
@@ -98,6 +173,19 @@ class InterviewResponseService {
   // Get all responses for a user with filters
   async getResponses(userId, filters = {}) {
     try {
+      // Check if table exists, return empty array if not
+      const tableCheck = await database.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_name = 'interview_responses'
+        );
+      `);
+      
+      if (!tableCheck.rows[0]?.exists) {
+        console.warn("interview_responses table does not exist. Please run the migration.");
+        return [];
+      }
+
       const { questionType, tagValue, searchTerm } = filters;
       let query = `
         SELECT DISTINCT
@@ -174,6 +262,11 @@ class InterviewResponseService {
       return responses;
     } catch (error) {
       console.error("Error fetching interview responses:", error);
+      // If table doesn't exist or other database error, return empty array
+      if (error.message?.includes("does not exist") || error.code === "42P01") {
+        console.warn("interview_responses table does not exist. Please run the migration.");
+        return [];
+      }
       throw error;
     }
   }
@@ -591,6 +684,26 @@ class InterviewResponseService {
   // Get gap analysis - identify missing question types
   async getGapAnalysis(userId) {
     try {
+      // Check if table exists
+      const tableCheck = await database.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_name = 'interview_responses'
+        );
+      `);
+      
+      if (!tableCheck.rows[0]?.exists) {
+        console.warn("interview_responses table does not exist. Please run the migration.");
+        return {
+          existing: [],
+          missing: this.validQuestionTypes.map((type) => ({
+            questionType: type,
+            count: 0,
+          })),
+          totalResponses: 0,
+        };
+      }
+
       const query = `
         SELECT question_type, COUNT(*) as count
         FROM interview_responses
@@ -614,6 +727,17 @@ class InterviewResponseService {
       };
     } catch (error) {
       console.error("Error getting gap analysis:", error);
+      // If table doesn't exist, return empty gap analysis
+      if (error.message?.includes("does not exist") || error.code === "42P01") {
+        return {
+          existing: [],
+          missing: this.validQuestionTypes.map((type) => ({
+            questionType: type,
+            count: 0,
+          })),
+          totalResponses: 0,
+        };
+      }
       throw error;
     }
   }

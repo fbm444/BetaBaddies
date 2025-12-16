@@ -69,13 +69,27 @@ export const errorHandler = (err, req, res, next) => {
 
   if (errorCode === "23503") {
     // Foreign key constraint violation
-    return res.status(400).json({
+    const constraint = err.constraint || (err.originalError && err.originalError.constraint) || undefined;
+    const detail = err.detail || (err.originalError && err.originalError.detail) || undefined;
+    const message = err.message || "Referenced resource does not exist";
+    
+    const errorResponse = {
       ok: false,
       error: {
-        code: "INVALID_REFERENCE",
-        message: "Referenced resource does not exist",
+        code: err.code || "INVALID_REFERENCE",
+        message: message,
       },
-    });
+    };
+
+    // Only include optional fields if they exist
+    if (constraint !== undefined) {
+      errorResponse.error.constraint = constraint;
+    }
+    if (detail !== undefined) {
+      errorResponse.error.detail = detail;
+    }
+    
+    return res.status(400).json(errorResponse);
   }
 
   if (errorCode === "23514") {
@@ -230,14 +244,23 @@ export const errorHandler = (err, req, res, next) => {
     });
   }
   
-  res.status(statusCode).json({
+  const errorResponse = {
     ok: false,
     error: {
       code: err.code || "INTERNAL_SERVER_ERROR",
       message: errorMessage,
-      detail: err.detail || undefined,
     },
-  });
+  };
+
+  // Only include optional fields if they exist
+  if (err.detail) {
+    errorResponse.error.detail = err.detail;
+  }
+  if (err.constraint) {
+    errorResponse.error.constraint = err.constraint;
+  }
+
+  res.status(statusCode).json(errorResponse);
 };
 
 // 404 handler

@@ -26,16 +26,18 @@ router.post("/", async (req, res) => {
     const newOffer = await jobOfferService.createJobOffer(userId, offerData);
 
     res.status(201).json({
-      success: true,
+      ok: true,
       message: "Job offer created successfully",
       data: newOffer,
     });
   } catch (error) {
     console.error("Error in POST /api/job-offers:", error);
     res.status(500).json({
-      success: false,
-      message: "Failed to create job offer",
-      error: error.message,
+      ok: false,
+      error: {
+        code: "CREATE_OFFER_ERROR",
+        message: error.message || "Failed to create job offer",
+      },
     });
   }
 });
@@ -62,16 +64,18 @@ router.get("/", async (req, res) => {
     const offers = await jobOfferService.getJobOffersByUserId(userId, filters);
 
     res.json({
-      success: true,
+      ok: true,
       data: offers,
       count: offers.length,
     });
   } catch (error) {
     console.error("Error in GET /api/job-offers:", error);
     res.status(500).json({
-      success: false,
-      message: "Failed to fetch job offers",
-      error: error.message,
+      ok: false,
+      error: {
+        code: "FETCH_OFFERS_ERROR",
+        message: error.message || "Failed to fetch job offers",
+      },
     });
   }
 });
@@ -90,21 +94,26 @@ router.get("/:id", async (req, res) => {
 
     if (!offer) {
       return res.status(404).json({
-        success: false,
-        message: "Job offer not found",
+        ok: false,
+        error: {
+          code: "OFFER_NOT_FOUND",
+          message: "Job offer not found",
+        },
       });
     }
 
     res.json({
-      success: true,
+      ok: true,
       data: offer,
     });
   } catch (error) {
     console.error(`Error in GET /api/job-offers/${req.params.id}:`, error);
     res.status(500).json({
-      success: false,
-      message: "Failed to fetch job offer",
-      error: error.message,
+      ok: false,
+      error: {
+        code: "FETCH_OFFER_ERROR",
+        message: error.message || "Failed to fetch job offer",
+      },
     });
   }
 });
@@ -131,16 +140,18 @@ router.put("/:id", async (req, res) => {
     );
 
     res.json({
-      success: true,
+      ok: true,
       message: "Job offer updated successfully",
       data: updatedOffer,
     });
   } catch (error) {
     console.error(`Error in PUT /api/job-offers/${req.params.id}:`, error);
     res.status(500).json({
-      success: false,
-      message: "Failed to update job offer",
-      error: error.message,
+      ok: false,
+      error: {
+        code: "UPDATE_OFFER_ERROR",
+        message: error.message || "Failed to update job offer",
+      },
     });
   }
 });
@@ -163,21 +174,26 @@ router.delete("/:id", async (req, res) => {
 
     if (!deleted) {
       return res.status(404).json({
-        success: false,
-        message: "Job offer not found",
+        ok: false,
+        error: {
+          code: "OFFER_NOT_FOUND",
+          message: "Job offer not found",
+        },
       });
     }
 
     res.json({
-      success: true,
+      ok: true,
       message: "Job offer deleted successfully",
     });
   } catch (error) {
     console.error(`Error in DELETE /api/job-offers/${req.params.id}:`, error);
     res.status(500).json({
-      success: false,
-      message: "Failed to delete job offer",
-      error: error.message,
+      ok: false,
+      error: {
+        code: "DELETE_OFFER_ERROR",
+        message: error.message || "Failed to delete job offer",
+      },
     });
   }
 });
@@ -199,7 +215,7 @@ router.post("/:id/accept", async (req, res) => {
     const acceptedOffer = await jobOfferService.acceptOffer(offerId, userId);
 
     res.json({
-      success: true,
+      ok: true,
       message: "Job offer accepted",
       data: acceptedOffer,
     });
@@ -209,9 +225,11 @@ router.post("/:id/accept", async (req, res) => {
       error
     );
     res.status(500).json({
-      success: false,
-      message: "Failed to accept job offer",
-      error: error.message,
+      ok: false,
+      error: {
+        code: "ACCEPT_OFFER_ERROR",
+        message: error.message || "Failed to accept job offer",
+      },
     });
   }
 });
@@ -235,7 +253,7 @@ router.post("/:id/decline", async (req, res) => {
     );
 
     res.json({
-      success: true,
+      ok: true,
       message: "Job offer declined",
       data: declinedOffer,
     });
@@ -245,9 +263,11 @@ router.post("/:id/decline", async (req, res) => {
       error
     );
     res.status(500).json({
-      success: false,
-      message: "Failed to decline job offer",
-      error: error.message,
+      ok: false,
+      error: {
+        code: "DECLINE_OFFER_ERROR",
+        message: error.message || "Failed to decline job offer",
+      },
     });
   }
 });
@@ -275,7 +295,7 @@ router.post("/:id/scenarios", async (req, res) => {
     );
 
     res.json({
-      success: true,
+      ok: true,
       message: "Scenario added successfully",
       data: updatedOffer,
     });
@@ -285,9 +305,11 @@ router.post("/:id/scenarios", async (req, res) => {
       error
     );
     res.status(500).json({
-      success: false,
-      message: "Failed to add scenario",
-      error: error.message,
+      ok: false,
+      error: {
+        code: "ADD_SCENARIO_ERROR",
+        message: error.message || "Failed to add scenario",
+      },
     });
   }
 });
@@ -310,7 +332,7 @@ router.delete("/:id/scenarios/:scenarioId", async (req, res) => {
     );
 
     res.json({
-      success: true,
+      ok: true,
       message: "Scenario deleted successfully",
       data: updatedOffer,
     });
@@ -320,9 +342,11 @@ router.delete("/:id/scenarios/:scenarioId", async (req, res) => {
       error
     );
     res.status(500).json({
-      success: false,
-      message: "Failed to delete scenario",
-      error: error.message,
+      ok: false,
+      error: {
+        code: "DELETE_SCENARIO_ERROR",
+        message: error.message || "Failed to delete scenario",
+      },
     });
   }
 });
@@ -350,7 +374,7 @@ router.post("/:id/negotiation", async (req, res) => {
     );
 
     res.json({
-      success: true,
+      ok: true,
       message: "Negotiation entry added successfully",
       data: updatedOffer,
     });
@@ -360,9 +384,11 @@ router.post("/:id/negotiation", async (req, res) => {
       error
     );
     res.status(500).json({
-      success: false,
-      message: "Failed to add negotiation entry",
-      error: error.message,
+      ok: false,
+      error: {
+        code: "ADD_NEGOTIATION_ERROR",
+        message: error.message || "Failed to add negotiation entry",
+      },
     });
   }
 });
@@ -381,7 +407,7 @@ router.get("/:id/negotiation/recommendations", async (req, res) => {
       await jobOfferService.generateNegotiationRecommendations(offerId, userId);
 
     res.json({
-      success: true,
+      ok: true,
       data: updatedOffer.negotiation_recommendations,
     });
   } catch (error) {
@@ -390,9 +416,11 @@ router.get("/:id/negotiation/recommendations", async (req, res) => {
       error
     );
     res.status(500).json({
-      success: false,
-      message: "Failed to generate negotiation recommendations",
-      error: error.message,
+      ok: false,
+      error: {
+        code: "GENERATE_RECOMMENDATIONS_ERROR",
+        message: error.message || "Failed to generate negotiation recommendations",
+      },
     });
   }
 });
@@ -414,8 +442,11 @@ router.post("/compare", async (req, res) => {
 
     if (!offer_ids || !Array.isArray(offer_ids) || offer_ids.length < 2) {
       return res.status(400).json({
-        success: false,
-        message: "Please provide at least 2 offer IDs to compare",
+        ok: false,
+        error: {
+          code: "INVALID_INPUT",
+          message: "Please provide at least 2 offer IDs to compare",
+        },
       });
     }
 
@@ -426,15 +457,17 @@ router.post("/compare", async (req, res) => {
     );
 
     res.json({
-      success: true,
+      ok: true,
       data: comparison,
     });
   } catch (error) {
     console.error("Error in POST /api/job-offers/compare:", error);
     res.status(500).json({
-      success: false,
-      message: "Failed to compare offers",
-      error: error.message,
+      ok: false,
+      error: {
+        code: "COMPARE_OFFERS_ERROR",
+        message: error.message || "Failed to compare offers",
+      },
     });
   }
 });
@@ -462,7 +495,7 @@ router.post("/:id/career-simulation", async (req, res) => {
     );
 
     res.json({
-      success: true,
+      ok: true,
       data: simulation,
     });
   } catch (error) {
@@ -471,9 +504,11 @@ router.post("/:id/career-simulation", async (req, res) => {
       error
     );
     res.status(500).json({
-      success: false,
-      message: "Failed to generate career path simulation",
-      error: error.message,
+      ok: false,
+      error: {
+        code: "CAREER_SIMULATION_ERROR",
+        message: error.message || "Failed to generate career path simulation",
+      },
     });
   }
 });
@@ -491,8 +526,11 @@ router.post("/career-comparison", async (req, res) => {
 
     if (!offer_ids || !Array.isArray(offer_ids) || offer_ids.length < 1) {
       return res.status(400).json({
-        success: false,
-        message: "Please provide at least 1 offer ID",
+        ok: false,
+        error: {
+          code: "INVALID_INPUT",
+          message: "Please provide at least 1 offer ID",
+        },
       });
     }
 
@@ -503,15 +541,17 @@ router.post("/career-comparison", async (req, res) => {
     );
 
     res.json({
-      success: true,
+      ok: true,
       data: comparison,
     });
   } catch (error) {
     console.error("Error in POST /api/job-offers/career-comparison:", error);
     res.status(500).json({
-      success: false,
-      message: "Failed to compare career paths",
-      error: error.message,
+      ok: false,
+      error: {
+        code: "CAREER_COMPARISON_ERROR",
+        message: error.message || "Failed to compare career paths",
+      },
     });
   }
 });

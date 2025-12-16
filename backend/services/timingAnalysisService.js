@@ -63,7 +63,8 @@ class TimingAnalysisService {
    */
   async getDayOfWeekPerformance(userId) {
     try {
-      const query = `
+      // First try from application_strategies
+      let query = `
         SELECT 
           s.day_of_week,
           COUNT(DISTINCT s.job_opportunity_id) as total_applications,
@@ -87,8 +88,41 @@ class TimingAnalysisService {
         ORDER BY s.day_of_week
       `;
 
-      const result = await database.query(query, [userId]);
-      return result.rows;
+      let result = await database.query(query, [userId]);
+      
+      // Fallback to job_opportunities.created_at if no data
+      if (result.rows.length === 0) {
+        query = `
+          SELECT 
+            EXTRACT(DOW FROM jo.created_at)::INTEGER as day_of_week,
+            COUNT(DISTINCT jo.id) as total_applications,
+            COUNT(DISTINCT CASE WHEN jo.status IN ('Phone Screen', 'Interview', 'Offer') THEN jo.id END) as responses,
+            COUNT(DISTINCT CASE WHEN jo.status IN ('Interview', 'Offer') THEN jo.id END) as interviews,
+            COUNT(DISTINCT CASE WHEN jo.status = 'Offer' THEN jo.id END) as offers,
+            ROUND(
+              COUNT(DISTINCT CASE WHEN jo.status IN ('Phone Screen', 'Interview', 'Offer') THEN jo.id END)::DECIMAL / 
+              NULLIF(COUNT(DISTINCT jo.id), 0) * 100,
+              2
+            ) as response_rate,
+            ROUND(
+              COUNT(DISTINCT CASE WHEN jo.status = 'Offer' THEN jo.id END)::DECIMAL / 
+              NULLIF(COUNT(DISTINCT jo.id), 0) * 100,
+              2
+            ) as offer_rate
+          FROM job_opportunities jo
+          WHERE jo.user_id = $1 AND jo.created_at IS NOT NULL
+          GROUP BY EXTRACT(DOW FROM jo.created_at)
+          ORDER BY day_of_week
+        `;
+        result = await database.query(query, [userId]);
+      }
+      
+      return result.rows.map(row => ({
+        dayOfWeek: parseInt(row.day_of_week) + 1, // Convert 0-6 to 1-7 (Monday-Sunday)
+        applicationCount: parseInt(row.total_applications) || 0,
+        responseRate: parseFloat(row.response_rate) / 100 || 0,
+        offerRate: parseFloat(row.offer_rate) / 100 || 0
+      }));
     } catch (error) {
       console.error("❌ Error getting day of week performance:", error);
       throw error;
@@ -100,11 +134,13 @@ class TimingAnalysisService {
    */
   async getHourOfDayPerformance(userId) {
     try {
-      const query = `
+      // First try from application_strategies
+      let query = `
         SELECT 
           s.hour_of_day,
           COUNT(DISTINCT s.job_opportunity_id) as total_applications,
           COUNT(DISTINCT CASE WHEN jo.status IN ('Phone Screen', 'Interview', 'Offer') THEN s.job_opportunity_id END) as responses,
+          COUNT(DISTINCT CASE WHEN jo.status IN ('Interview', 'Offer') THEN s.job_opportunity_id END) as interviews,
           COUNT(DISTINCT CASE WHEN jo.status = 'Offer' THEN s.job_opportunity_id END) as offers,
           ROUND(
             COUNT(DISTINCT CASE WHEN jo.status IN ('Phone Screen', 'Interview', 'Offer') THEN s.job_opportunity_id END)::DECIMAL / 
@@ -123,13 +159,47 @@ class TimingAnalysisService {
         ORDER BY s.hour_of_day
       `;
 
-      const result = await database.query(query, [userId]);
-      return result.rows;
+      let result = await database.query(query, [userId]);
+      
+      // Fallback to job_opportunities.created_at if no data
+      if (result.rows.length === 0) {
+        query = `
+          SELECT 
+            EXTRACT(HOUR FROM jo.created_at)::INTEGER as hour_of_day,
+            COUNT(DISTINCT jo.id) as total_applications,
+            COUNT(DISTINCT CASE WHEN jo.status IN ('Phone Screen', 'Interview', 'Offer') THEN jo.id END) as responses,
+            COUNT(DISTINCT CASE WHEN jo.status IN ('Interview', 'Offer') THEN jo.id END) as interviews,
+            COUNT(DISTINCT CASE WHEN jo.status = 'Offer' THEN jo.id END) as offers,
+            ROUND(
+              COUNT(DISTINCT CASE WHEN jo.status IN ('Phone Screen', 'Interview', 'Offer') THEN jo.id END)::DECIMAL / 
+              NULLIF(COUNT(DISTINCT jo.id), 0) * 100,
+              2
+            ) as response_rate,
+            ROUND(
+              COUNT(DISTINCT CASE WHEN jo.status = 'Offer' THEN jo.id END)::DECIMAL / 
+              NULLIF(COUNT(DISTINCT jo.id), 0) * 100,
+              2
+            ) as offer_rate
+          FROM job_opportunities jo
+          WHERE jo.user_id = $1 AND jo.created_at IS NOT NULL
+          GROUP BY EXTRACT(HOUR FROM jo.created_at)
+          ORDER BY hour_of_day
+        `;
+        result = await database.query(query, [userId]);
+      }
+      
+      return result.rows.map(row => ({
+        hourOfDay: parseInt(row.hour_of_day) || 0,
+        applicationCount: parseInt(row.total_applications) || 0,
+        responseRate: parseFloat(row.response_rate) / 100 || 0,
+        offerRate: parseFloat(row.offer_rate) / 100 || 0
+      }));
     } catch (error) {
       console.error("❌ Error getting hour of day performance:", error);
       throw error;
     }
   }
+
 
   /**
    * Get performance by time of day category

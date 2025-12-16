@@ -3,6 +3,10 @@
  * Tests for common OWASP Top 10 vulnerabilities
  */
 
+// Load environment variables FIRST before any other imports
+import dotenv from "dotenv";
+dotenv.config();
+
 import request from "supertest";
 import app from "../server.js";
 import database from "../services/database.js";

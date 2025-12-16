@@ -38,7 +38,15 @@ class RoleTypeAnalysisService {
       `;
 
       const result = await database.query(query, [userId]);
-      return result.rows;
+      return result.rows.map(row => ({
+        roleType: row.role_title || row.job_type || 'Unknown',
+        jobType: row.job_type,
+        industry: row.industry,
+        applicationCount: parseInt(row.total_applications) || 0,
+        responseRate: (parseFloat(row.response_rate) || 0) / 100,
+        interviewRate: (parseFloat(row.interview_conversion_rate) || 0) / 100,
+        offerRate: (parseFloat(row.offer_rate) || 0) / 100
+      }));
     } catch (error) {
       console.error("❌ Error getting role type performance:", error);
       throw error;
@@ -75,7 +83,15 @@ class RoleTypeAnalysisService {
       `;
 
       const result = await database.query(query, [userId, limit]);
-      return result.rows;
+      return result.rows.map(row => ({
+        roleType: row.role_title || row.job_type || 'Unknown',
+        jobType: row.job_type,
+        industry: row.industry,
+        applicationCount: parseInt(row.total_applications) || 0,
+        responseRate: parseFloat(row.response_rate) / 100 || 0,
+        interviewRate: 0, // Not calculated in this query
+        offerRate: parseFloat(row.offer_rate) / 100 || 0
+      }));
     } catch (error) {
       console.error("❌ Error getting best performing role types:", error);
       throw error;

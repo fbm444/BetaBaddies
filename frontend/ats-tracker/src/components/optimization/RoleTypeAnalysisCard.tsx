@@ -86,8 +86,14 @@ export function RoleTypeAnalysisCard({ dateRange }: RoleTypeAnalysisCardProps) {
                         #{index + 1}
                       </span>
                       <h4 className="text-lg font-semibold text-slate-900">
-                        {role.roleType || "Unknown Role Type"}
+                        {role.roleType || role.role_title || "Unknown Role Type"}
                       </h4>
+                      {role.industry && (
+                        <p className="text-xs text-slate-500 mt-1">{role.industry}</p>
+                      )}
+                      {role.jobType && (
+                        <p className="text-xs text-slate-500">{role.jobType}</p>
+                      )}
                     </div>
                     <div className="grid grid-cols-3 gap-4 mt-3">
                       <div>

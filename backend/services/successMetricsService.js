@@ -32,11 +32,11 @@ class SuccessMetricsService {
         totalResponses: parseInt(counts.total_responses) || 0,
         totalInterviews: parseInt(counts.total_interviews) || 0,
         totalOffers: parseInt(counts.total_offers) || 0,
-        responseRate: parseFloat(responseRate) || 0,
-        interviewConversionRate: parseFloat(interviewConversion) || 0,
-        offerRate: parseFloat(offerRate) || 0,
-        interviewToOfferConversion: parseFloat(interviewToOffer) || 0,
-        overallSuccessRate: parseFloat(offerRate) || 0
+        responseRate: (parseFloat(responseRate) || 0) / 100, // Convert percentage to decimal
+        interviewConversionRate: (parseFloat(interviewConversion) || 0) / 100,
+        offerRate: (parseFloat(offerRate) || 0) / 100,
+        interviewToOfferConversion: (parseFloat(interviewToOffer) || 0) / 100,
+        overallSuccessRate: (parseFloat(offerRate) || 0) / 100
       };
     } catch (error) {
       console.error("❌ Error calculating success metrics:", error);
@@ -161,13 +161,121 @@ class SuccessMetricsService {
    */
   async getTrendData(userId, metric, periodType = 'monthly', limit = 12) {
     try {
-      // Get snapshots
-      const snapshots = await this.getHistoricalSnapshots(userId, periodType, limit);
+      // First try to get from snapshots
+      let snapshots = [];
+      try {
+        snapshots = await this.getHistoricalSnapshots(userId, periodType, limit);
+      } catch (err) {
+        console.log("No snapshots found, generating from job_opportunities");
+      }
 
-      // Extract metric values
+      // If no snapshots, generate trend data directly from job_opportunities
+      if (snapshots.length === 0) {
+        const dateFormat = periodType === 'monthly' 
+          ? "TO_CHAR(jo.created_at, 'YYYY-MM')" 
+          : periodType === 'weekly'
+          ? "TO_CHAR(jo.created_at, 'IYYY-IW')"
+          : "TO_CHAR(jo.created_at, 'YYYY-MM-DD')";
+        
+        let metricQuery = '';
+        switch (metric) {
+          case 'response_rate':
+            metricQuery = `
+              ROUND(
+                COUNT(DISTINCT CASE WHEN jo.status IN ('Phone Screen', 'Interview', 'Offer') THEN jo.id END)::DECIMAL / 
+                NULLIF(COUNT(DISTINCT jo.id), 0) * 100,
+                2
+              ) / 100 as value
+            `;
+            break;
+          case 'interview_rate':
+          case 'interview_conversion_rate':
+            metricQuery = `
+              ROUND(
+                COUNT(DISTINCT CASE WHEN jo.status IN ('Interview', 'Offer') THEN jo.id END)::DECIMAL / 
+                NULLIF(COUNT(DISTINCT CASE WHEN jo.status IN ('Phone Screen', 'Interview', 'Offer') THEN jo.id END), 0) * 100,
+                2
+              ) / 100 as value
+            `;
+            break;
+          case 'offer_rate':
+            metricQuery = `
+              ROUND(
+                COUNT(DISTINCT CASE WHEN jo.status = 'Offer' THEN jo.id END)::DECIMAL / 
+                NULLIF(COUNT(DISTINCT jo.id), 0) * 100,
+                2
+              ) / 100 as value
+            `;
+            break;
+          default:
+            metricQuery = `
+              ROUND(
+                COUNT(DISTINCT CASE WHEN jo.status = 'Offer' THEN jo.id END)::DECIMAL / 
+                NULLIF(COUNT(DISTINCT jo.id), 0) * 100,
+                2
+              ) / 100 as value
+            `;
+        }
+
+        const query = `
+          SELECT 
+            ${dateFormat} as period,
+            COUNT(DISTINCT jo.id) as total_applications,
+            COUNT(DISTINCT CASE WHEN jo.status IN ('Phone Screen', 'Interview', 'Offer') THEN jo.id END) as total_responses,
+            COUNT(DISTINCT CASE WHEN jo.status IN ('Interview', 'Offer') THEN jo.id END) as total_interviews,
+            COUNT(DISTINCT CASE WHEN jo.status = 'Offer' THEN jo.id END) as total_offers,
+            ROUND(
+              COUNT(DISTINCT CASE WHEN jo.status IN ('Phone Screen', 'Interview', 'Offer') THEN jo.id END)::DECIMAL / 
+              NULLIF(COUNT(DISTINCT jo.id), 0) * 100,
+              2
+            ) / 100 as response_rate,
+            ROUND(
+              COUNT(DISTINCT CASE WHEN jo.status IN ('Interview', 'Offer') THEN jo.id END)::DECIMAL / 
+              NULLIF(COUNT(DISTINCT CASE WHEN jo.status IN ('Phone Screen', 'Interview', 'Offer') THEN jo.id END), 0) * 100,
+              2
+            ) / 100 as interview_rate,
+            ROUND(
+              COUNT(DISTINCT CASE WHEN jo.status = 'Offer' THEN jo.id END)::DECIMAL / 
+              NULLIF(COUNT(DISTINCT jo.id), 0) * 100,
+              2
+            ) / 100 as offer_rate,
+            ${metricQuery}
+          FROM job_opportunities jo
+          WHERE jo.user_id = $1
+            AND jo.created_at IS NOT NULL
+          GROUP BY ${dateFormat}
+          ORDER BY period DESC
+          LIMIT $2
+        `;
+
+        const result = await database.query(query, [userId, limit]);
+        
+        return result.rows.map(row => ({
+          period: row.period,
+          date: row.period,
+          value: parseFloat(row.value) || 0,
+          responseRate: parseFloat(row.response_rate) || 0,
+          interviewRate: parseFloat(row.interview_rate) || 0,
+          offerRate: parseFloat(row.offer_rate) || 0,
+          totalApplications: parseInt(row.total_applications) || 0,
+          totalResponses: parseInt(row.total_responses) || 0,
+          totalInterviews: parseInt(row.total_interviews) || 0,
+          totalOffers: parseInt(row.total_offers) || 0,
+        }));
+      }
+
+      // Extract metric values from snapshots
       const trendData = snapshots.map(snapshot => ({
-        date: snapshot.snapshot_date,
-        value: this.getMetricFromSnapshot(snapshot, metric)
+        period: snapshot.snapshot_date || snapshot.period,
+        date: snapshot.snapshot_date || snapshot.period,
+        value: this.getMetricFromSnapshot(snapshot, metric) / 100, // Convert percentage to decimal
+        responseRate: (parseFloat(snapshot.response_rate) || 0) / 100,
+        interviewRate: (parseFloat(snapshot.interview_rate) || 0) / 100,
+        offerRate: (parseFloat(snapshot.offer_rate) || 0) / 100,
+        totalApplications: parseInt(snapshot.total_applications) || 0,
+        totalResponses: parseInt(snapshot.total_responses) || 0,
+        totalInterviews: parseInt(snapshot.total_interviews) || 0,
+        totalOffers: parseInt(snapshot.total_offers) || 0,
       }));
 
       return trendData;
@@ -298,7 +406,8 @@ class SuccessMetricsService {
    */
   async getHistoricalSnapshots(userId, periodType = 'monthly', limit = 12) {
     try {
-      const query = `
+      // First try to get from snapshots table
+      let query = `
         SELECT *
         FROM success_metrics_snapshots
         WHERE user_id = $1 AND period_type = $2
@@ -306,7 +415,51 @@ class SuccessMetricsService {
         LIMIT $3
       `;
 
-      const result = await database.query(query, [userId, periodType, limit]);
+      let result = await database.query(query, [userId, periodType, limit]);
+      
+      // If no snapshots, generate from job_opportunities
+      if (result.rows.length === 0) {
+        const dateFormat = periodType === 'monthly' 
+          ? "TO_CHAR(jo.created_at, 'YYYY-MM')" 
+          : periodType === 'weekly'
+          ? "TO_CHAR(jo.created_at, 'IYYY-IW')"
+          : "TO_CHAR(jo.created_at, 'YYYY-MM-DD')";
+        
+        query = `
+          SELECT 
+            ${dateFormat} as period,
+            ${dateFormat} as snapshot_date,
+            '${periodType}' as period_type,
+            COUNT(DISTINCT jo.id) as total_applications,
+            COUNT(DISTINCT CASE WHEN jo.status IN ('Phone Screen', 'Interview', 'Offer') THEN jo.id END) as total_responses,
+            COUNT(DISTINCT CASE WHEN jo.status IN ('Interview', 'Offer') THEN jo.id END) as total_interviews,
+            COUNT(DISTINCT CASE WHEN jo.status = 'Offer' THEN jo.id END) as total_offers,
+            ROUND(
+              COUNT(DISTINCT CASE WHEN jo.status IN ('Phone Screen', 'Interview', 'Offer') THEN jo.id END)::DECIMAL / 
+              NULLIF(COUNT(DISTINCT jo.id), 0) * 100,
+              2
+            ) as response_rate,
+            ROUND(
+              COUNT(DISTINCT CASE WHEN jo.status IN ('Interview', 'Offer') THEN jo.id END)::DECIMAL / 
+              NULLIF(COUNT(DISTINCT CASE WHEN jo.status IN ('Phone Screen', 'Interview', 'Offer') THEN jo.id END), 0) * 100,
+              2
+            ) as interview_rate,
+            ROUND(
+              COUNT(DISTINCT CASE WHEN jo.status = 'Offer' THEN jo.id END)::DECIMAL / 
+              NULLIF(COUNT(DISTINCT jo.id), 0) * 100,
+              2
+            ) as offer_rate
+          FROM job_opportunities jo
+          WHERE jo.user_id = $1
+            AND jo.created_at IS NOT NULL
+          GROUP BY ${dateFormat}
+          ORDER BY period DESC
+          LIMIT $2
+        `;
+        
+        result = await database.query(query, [userId, limit]);
+      }
+      
       return result.rows;
     } catch (error) {
       console.error("❌ Error getting historical snapshots:", error);

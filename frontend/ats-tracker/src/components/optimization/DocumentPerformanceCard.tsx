@@ -1,6 +1,17 @@
 import { useState, useEffect } from "react";
 import { Icon } from "@iconify/react";
 import { api } from "../../services/api";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  Cell,
+} from "recharts";
 
 interface DocumentPerformanceCardProps {
   dateRange?: { startDate?: string; endDate?: string };
@@ -45,6 +56,18 @@ export function DocumentPerformanceCard({ dateRange }: DocumentPerformanceCardPr
       console.error("Error comparing documents:", err);
     }
   };
+
+  // Prepare chart data from best documents
+  const chartData = bestDocuments.map((doc, index) => ({
+    name: doc.documentName || doc.versionName || `Version ${doc.versionNumber || index + 1}`,
+    responseRate: doc.responseRate !== undefined && doc.responseRate !== null ? doc.responseRate * 100 : 0,
+    interviewRate: doc.interviewRate !== undefined && doc.interviewRate !== null ? doc.interviewRate * 100 : 0,
+    offerRate: doc.offerRate !== undefined && doc.offerRate !== null ? doc.offerRate * 100 : 0,
+    usageCount: doc.usageCount || doc.total_uses || 0,
+  }));
+
+  // Colors for bars
+  const colors = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#06B6D4'];
 
   if (isLoading) {
     return (
@@ -110,25 +133,34 @@ export function DocumentPerformanceCard({ dateRange }: DocumentPerformanceCardPr
                       #{index + 1}
                     </span>
                     <h4 className="text-lg font-semibold text-slate-900">
-                      {doc.versionName || `Version ${doc.versionNumber || index + 1}`}
+                      {doc.documentName || doc.versionName || `Version ${doc.versionNumber || index + 1}`}
                     </h4>
+                    {doc.templateName && doc.templateName !== 'Unknown' && (
+                      <span className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">
+                        {doc.templateName}
+                      </span>
+                    )}
                   </div>
                   <div className="grid grid-cols-3 gap-4 mt-4">
                     <div>
                       <p className="text-xs text-slate-600 mb-1">Response Rate</p>
                       <p className="text-lg font-bold text-slate-900">
-                        {doc.responseRate ? `${(doc.responseRate * 100).toFixed(1)}%` : "N/A"}
+                        {doc.responseRate !== undefined && doc.responseRate !== null
+                          ? `${(doc.responseRate * 100).toFixed(1)}%`
+                          : "N/A"}
                       </p>
                     </div>
                     <div>
                       <p className="text-xs text-slate-600 mb-1">Interview Rate</p>
                       <p className="text-lg font-bold text-slate-900">
-                        {doc.interviewRate ? `${(doc.interviewRate * 100).toFixed(1)}%` : "N/A"}
+                        {doc.interviewRate !== undefined && doc.interviewRate !== null
+                          ? `${(doc.interviewRate * 100).toFixed(1)}%`
+                          : "N/A"}
                       </p>
                     </div>
                     <div>
                       <p className="text-xs text-slate-600 mb-1">Usage Count</p>
-                      <p className="text-lg font-bold text-slate-900">{doc.usageCount || 0}</p>
+                      <p className="text-lg font-bold text-slate-900">{doc.usageCount || doc.total_uses || 0}</p>
                     </div>
                   </div>
                 </div>
@@ -151,10 +183,113 @@ export function DocumentPerformanceCard({ dateRange }: DocumentPerformanceCardPr
         </div>
       )}
 
+      {/* Version Comparison Graph */}
+      {bestDocuments.length > 0 && (
+        <div className="mt-6 bg-white rounded-lg p-6 border border-slate-200">
+          <h3 className="text-lg font-semibold text-slate-900 mb-4">Version Performance Comparison</h3>
+          <p className="text-sm text-slate-600 mb-4">
+            Compare response rates, interview rates, and offer rates across all versions
+          </p>
+          <ResponsiveContainer width="100%" height={400}>
+            <BarChart
+              data={chartData}
+              margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+              <XAxis
+                dataKey="name"
+                angle={-45}
+                textAnchor="end"
+                height={100}
+                stroke="#64748B"
+                fontSize={12}
+                tickLine={false}
+                axisLine={false}
+              />
+              <YAxis
+                stroke="#64748B"
+                fontSize={12}
+                tickLine={false}
+                axisLine={false}
+                tickFormatter={(value) => `${value}%`}
+                label={{ value: 'Rate (%)', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle' } }}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "white",
+                  border: "1px solid #E2E8F0",
+                  borderRadius: "8px",
+                }}
+                formatter={(value: number, name: string) => [
+                  `${value.toFixed(1)}%`,
+                  name === 'responseRate' ? 'Response Rate' : name === 'interviewRate' ? 'Interview Rate' : 'Offer Rate'
+                ]}
+              />
+              <Legend
+                formatter={(value) => {
+                  const labels: { [key: string]: string } = {
+                    responseRate: 'Response Rate',
+                    interviewRate: 'Interview Rate',
+                    offerRate: 'Offer Rate',
+                  };
+                  return labels[value] || value;
+                }}
+              />
+              <Bar dataKey="responseRate" fill="#3B82F6" name="responseRate" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="interviewRate" fill="#8B5CF6" name="interviewRate" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="offerRate" fill="#10B981" name="offerRate" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+          
+          {/* Usage Count Visualization */}
+          <div className="mt-6">
+            <h4 className="text-sm font-semibold text-slate-700 mb-3">Usage Count by Version</h4>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart
+                data={chartData}
+                margin={{ top: 10, right: 30, left: 20, bottom: 60 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                <XAxis
+                  dataKey="name"
+                  angle={-45}
+                  textAnchor="end"
+                  height={100}
+                  stroke="#64748B"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis
+                  stroke="#64748B"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                  label={{ value: 'Usage Count', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle' } }}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "white",
+                    border: "1px solid #E2E8F0",
+                    borderRadius: "8px",
+                  }}
+                  formatter={(value: number) => [`${value} applications`, 'Usage Count']}
+                />
+                <Bar dataKey="usageCount" fill="#F59E0B" radius={[4, 4, 0, 0]}>
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-usage-${index}`} fill={colors[index % colors.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
       {/* Comparison Results */}
       {comparison && (
         <div className="mt-6 bg-blue-50 rounded-lg p-6 border border-blue-200">
-          <h3 className="text-lg font-semibold text-blue-900 mb-4">Version Comparison</h3>
+          <h3 className="text-lg font-semibold text-blue-900 mb-4">Detailed Version Comparison</h3>
           <div className="space-y-2">
             {comparison.versions?.map((v: any, i: number) => (
               <div key={i} className="bg-white rounded p-3">

@@ -108,53 +108,122 @@ export function TrendVisualizationCard({ dateRange }: TrendVisualizationCardProp
         </select>
       </div>
 
-      {/* Trend Chart */}
+      {/* Trend Charts */}
       {chartData.length > 0 ? (
-        <div className="bg-slate-50 rounded-lg p-6 border border-slate-200">
-          <h3 className="text-lg font-semibold text-slate-900 mb-4">
-            {selectedMetric.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase())} Over Time
-          </h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={chartData}>
-              <defs>
-                <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.8} />
-                  <stop offset="95%" stopColor="#3B82F6" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-              <XAxis
-                dataKey="period"
-                stroke="#64748B"
-                fontSize={12}
-                tickLine={false}
-                axisLine={false}
-              />
-              <YAxis
-                stroke="#64748B"
-                fontSize={12}
-                tickLine={false}
-                axisLine={false}
-                tickFormatter={(value) => `${(value * 100).toFixed(0)}%`}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "white",
-                  border: "1px solid #E2E8F0",
-                  borderRadius: "8px",
-                }}
-                formatter={(value: number) => [`${(value * 100).toFixed(1)}%`, "Value"]}
-              />
-              <Area
-                type="monotone"
-                dataKey="value"
-                stroke="#3B82F6"
-                strokeWidth={2}
-                fillOpacity={1}
-                fill="url(#colorValue)"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+        <div className="space-y-6">
+          {/* Main Metric Chart */}
+          <div className="bg-slate-50 rounded-lg p-6 border border-slate-200">
+            <h3 className="text-lg font-semibold text-slate-900 mb-4">
+              {selectedMetric.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase())} Over Time
+            </h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart data={chartData}>
+                <defs>
+                  <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.8} />
+                    <stop offset="95%" stopColor="#3B82F6" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                <XAxis
+                  dataKey="period"
+                  stroke="#64748B"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis
+                  stroke="#64748B"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(value) => `${(value * 100).toFixed(0)}%`}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "white",
+                    border: "1px solid #E2E8F0",
+                    borderRadius: "8px",
+                  }}
+                  formatter={(value: number) => [`${(value * 100).toFixed(1)}%`, "Value"]}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="value"
+                  stroke="#3B82F6"
+                  strokeWidth={2}
+                  fillOpacity={1}
+                  fill="url(#colorValue)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* All Metrics Comparison Chart */}
+          {snapshots.length > 0 && (
+            <div className="bg-slate-50 rounded-lg p-6 border border-slate-200">
+              <h3 className="text-lg font-semibold text-slate-900 mb-4">
+                All Metrics Comparison
+              </h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={snapshots.map((s: any) => ({
+                  period: s.period || s.snapshot_date || "Unknown",
+                  responseRate: (s.response_rate || 0) / 100,
+                  interviewRate: (s.interview_rate || 0) / 100,
+                  offerRate: (s.offer_rate || 0) / 100,
+                }))}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                  <XAxis
+                    dataKey="period"
+                    stroke="#64748B"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    stroke="#64748B"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(value) => `${(value * 100).toFixed(0)}%`}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "white",
+                      border: "1px solid #E2E8F0",
+                      borderRadius: "8px",
+                    }}
+                    formatter={(value: number) => [`${(value * 100).toFixed(1)}%`, ""]}
+                  />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="responseRate"
+                    stroke="#3B82F6"
+                    strokeWidth={2}
+                    name="Response Rate"
+                    dot={{ r: 4 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="interviewRate"
+                    stroke="#8B5CF6"
+                    strokeWidth={2}
+                    name="Interview Rate"
+                    dot={{ r: 4 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="offerRate"
+                    stroke="#10B981"
+                    strokeWidth={2}
+                    name="Offer Rate"
+                    dot={{ r: 4 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
       ) : (
         <div className="text-center py-12 bg-slate-50 rounded-lg border border-slate-200">

@@ -1,6 +1,20 @@
 import { useState, useEffect } from "react";
 import { Icon } from "@iconify/react";
 import { api } from "../../services/api";
+import { ABTestFormModal } from "./ABTestFormModal";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  Cell,
+  PieChart,
+  Pie,
+} from "recharts";
 
 interface ABTestingCardProps {
   dateRange?: { startDate?: string; endDate?: string };
@@ -11,6 +25,8 @@ export function ABTestingCard({ dateRange }: ABTestingCardProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [expandedTestId, setExpandedTestId] = useState<string | null>(null);
+  const [testResults, setTestResults] = useState<{ [key: string]: any }>({});
 
   useEffect(() => {
     fetchABTests();
@@ -45,6 +61,61 @@ export function ABTestingCard({ dateRange }: ABTestingCardProps) {
       default:
         return "bg-slate-100 text-slate-700 border-slate-200";
     }
+  };
+
+  const fetchTestResults = async (testId: string) => {
+    try {
+      const response = await api.getABTestResults(testId);
+      if (response.ok && response.data) {
+        setTestResults({ ...testResults, [testId]: response.data.results });
+        setExpandedTestId(testId);
+      }
+    } catch (err) {
+      console.error("Error fetching test results:", err);
+    }
+  };
+
+  const prepareChartData = (test: any, results: any) => {
+    const data = [];
+    
+    // Control group
+    if (test.controlGroupConfig || results?.control) {
+      const control = results?.control || test.results?.control || {};
+      data.push({
+        name: test.controlGroupConfig?.name || "Control",
+        responseRate: (control.responseRate || 0) * 100,
+        interviewRate: (control.interviewRate || 0) * 100,
+        offerRate: (control.offerRate || 0) * 100,
+        sampleSize: control.sampleSize || control.applicationCount || 0,
+      });
+    }
+
+    // Variant groups
+    if (test.variantGroups && Array.isArray(test.variantGroups)) {
+      test.variantGroups.forEach((variant: any, index: number) => {
+        const variantKey = `variant_${String.fromCharCode(65 + index).toLowerCase()}`;
+        const variantData = results?.[variantKey] || test.results?.[variantKey] || {};
+        data.push({
+          name: variant.name || `Variant ${String.fromCharCode(65 + index)}`,
+          responseRate: (variantData.responseRate || 0) * 100,
+          interviewRate: (variantData.interviewRate || 0) * 100,
+          offerRate: (variantData.offerRate || 0) * 100,
+          sampleSize: variantData.sampleSize || variantData.applicationCount || 0,
+        });
+      });
+    } else if (results?.variant_a || test.results?.variantA) {
+      // Fallback for variant_a format
+      const variantA = results?.variant_a || test.results?.variantA || {};
+      data.push({
+        name: "Variant A",
+        responseRate: (variantA.responseRate || 0) * 100,
+        interviewRate: (variantA.interviewRate || 0) * 100,
+        offerRate: (variantA.offerRate || 0) * 100,
+        sampleSize: variantA.sampleSize || variantA.applicationCount || 0,
+      });
+    }
+
+    return data;
   };
 
   if (isLoading) {
@@ -140,6 +211,28 @@ export function ABTestingCard({ dateRange }: ABTestingCardProps) {
                   )}
                 </div>
               </div>
+
+              {/* Results Graph for Completed Tests */}
+              {test.status === "completed" && (
+                <div className="mt-6 pt-6 border-t border-violet-200">
+                  {expandedTestId === test.id && testResults[test.id] ? (
+                    <ABTestResultsGraph
+                      test={test}
+                      results={testResults[test.id]}
+                      onClose={() => setExpandedTestId(null)}
+                    />
+                  ) : (
+                    <button
+                      onClick={() => fetchTestResults(test.id)}
+                      className="w-full px-4 py-2 bg-violet-100 text-violet-700 rounded-lg hover:bg-violet-200 transition-colors text-sm font-medium flex items-center justify-center gap-2"
+                    >
+                      <Icon icon="mingcute:chart-line" width={18} />
+                      View Detailed Results Graph
+                    </button>
+                  )}
+                </div>
+              )}
+
               <div className="flex gap-2 mt-4">
                 {test.status === "draft" && (
                   <button
@@ -171,22 +264,14 @@ export function ABTestingCard({ dateRange }: ABTestingCardProps) {
                     Complete Test
                   </button>
                 )}
-                <button
-                  onClick={async () => {
-                    try {
-                      const response = await api.getABTestResults(test.id);
-                      if (response.ok && response.data) {
-                        // Show results modal or navigate
-                        console.log("Test results:", response.data.results);
-                      }
-                    } catch (err) {
-                      console.error("Error fetching results:", err);
-                    }
-                  }}
-                  className="px-3 py-1.5 bg-slate-300 text-slate-700 text-xs font-medium rounded hover:bg-slate-400 transition-colors"
-                >
-                  View Results
-                </button>
+                {test.status === "completed" && (
+                  <button
+                    onClick={() => fetchTestResults(test.id)}
+                    className="px-3 py-1.5 bg-violet-600 text-white text-xs font-medium rounded hover:bg-violet-700 transition-colors"
+                  >
+                    {expandedTestId === test.id ? "Hide Graph" : "Show Graph"}
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -201,22 +286,15 @@ export function ABTestingCard({ dateRange }: ABTestingCardProps) {
         </div>
       )}
 
-      {/* Create A/B Test Modal - Simplified for now */}
+      {/* Create A/B Test Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold text-slate-900 mb-4">Create A/B Test</h3>
-            <p className="text-sm text-slate-600 mb-4">
-              A/B test creation form will be implemented here.
-            </p>
-            <button
-              onClick={() => setShowCreateModal(false)}
-              className="w-full px-4 py-2 bg-slate-300 text-slate-700 rounded-lg hover:bg-slate-400 transition-colors"
-            >
-              Close
-            </button>
-          </div>
-        </div>
+        <ABTestFormModal
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={() => {
+            setShowCreateModal(false);
+            fetchABTests();
+          }}
+        />
       )}
     </div>
   );

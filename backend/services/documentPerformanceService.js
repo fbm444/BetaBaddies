@@ -198,35 +198,116 @@ class DocumentPerformanceService {
    */
   async getBestPerformingDocuments(userId, documentType, limit = 3) {
     try {
-      const query = `
+      // First try from application_documents table
+      let query = `
         SELECT 
           d.id,
           d.document_name,
           d.version_number,
           d.template_name,
+          d.is_primary,
           COUNT(DISTINCT s.job_opportunity_id) as total_uses,
+          ROUND(
+            COUNT(DISTINCT CASE WHEN jo.status IN ('Phone Screen', 'Interview', 'Offer') THEN s.job_opportunity_id END)::DECIMAL / 
+            NULLIF(COUNT(DISTINCT s.job_opportunity_id), 0) * 100,
+            2
+          ) as response_rate,
+          ROUND(
+            COUNT(DISTINCT CASE WHEN jo.status IN ('Interview', 'Offer') THEN s.job_opportunity_id END)::DECIMAL / 
+            NULLIF(COUNT(DISTINCT CASE WHEN jo.status IN ('Phone Screen', 'Interview', 'Offer') THEN s.job_opportunity_id END), 0) * 100,
+            2
+          ) as interview_rate,
           ROUND(
             COUNT(DISTINCT CASE WHEN jo.status = 'Offer' THEN s.job_opportunity_id END)::DECIMAL / 
             NULLIF(COUNT(DISTINCT s.job_opportunity_id), 0) * 100,
             2
           ) as offer_rate
         FROM application_documents d
-        JOIN application_strategies s ON (
+        LEFT JOIN application_strategies s ON (
           (s.resume_version_id = d.id AND d.document_type = 'resume')
           OR (s.cover_letter_version_id = d.id AND d.document_type = 'cover_letter')
         ) AND s.user_id = $1
-        JOIN job_opportunities jo ON s.job_opportunity_id = jo.id
+        LEFT JOIN job_opportunities jo ON s.job_opportunity_id = jo.id
         WHERE d.user_id = $1 
           AND d.document_type = $2
           AND d.is_active = true
-        GROUP BY d.id, d.document_name, d.version_number, d.template_name
-        HAVING COUNT(DISTINCT s.job_opportunity_id) >= 3
-        ORDER BY offer_rate DESC NULLS LAST
+        GROUP BY d.id, d.document_name, d.version_number, d.template_name, d.is_primary
+        HAVING COUNT(DISTINCT s.job_opportunity_id) >= 2
+        ORDER BY offer_rate DESC NULLS LAST, response_rate DESC NULLS LAST
         LIMIT $3
       `;
 
-      const result = await database.query(query, [userId, documentType, limit]);
-      return result.rows;
+      let result = await database.query(query, [userId, documentType, limit]);
+      
+      // If no results, try to get from job_opportunities directly (resume_id/coverletter_id)
+      if (result.rows.length === 0) {
+        const columnName = documentType === 'resume' ? 'resume_id' : 'coverletter_id';
+        
+        // Check if column exists
+        const columnCheck = await database.query(`
+          SELECT column_name 
+          FROM information_schema.columns 
+          WHERE table_name = 'job_opportunities' 
+          AND column_name = $1
+        `, [columnName]);
+        
+        if (columnCheck.rows.length > 0) {
+          query = `
+            WITH ranked_docs AS (
+              SELECT 
+                jo.${columnName} as id,
+                COUNT(DISTINCT jo.id) as total_uses,
+                ROUND(
+                  COUNT(DISTINCT CASE WHEN jo.status IN ('Phone Screen', 'Interview', 'Offer') THEN jo.id END)::DECIMAL / 
+                  NULLIF(COUNT(DISTINCT jo.id), 0) * 100,
+                  2
+                ) as response_rate,
+                ROUND(
+                  COUNT(DISTINCT CASE WHEN jo.status IN ('Interview', 'Offer') THEN jo.id END)::DECIMAL / 
+                  NULLIF(COUNT(DISTINCT CASE WHEN jo.status IN ('Phone Screen', 'Interview', 'Offer') THEN jo.id END), 0) * 100,
+                  2
+                ) as interview_rate,
+                ROUND(
+                  COUNT(DISTINCT CASE WHEN jo.status = 'Offer' THEN jo.id END)::DECIMAL / 
+                  NULLIF(COUNT(DISTINCT jo.id), 0) * 100,
+                  2
+                ) as offer_rate
+              FROM job_opportunities jo
+              WHERE jo.user_id = $1
+                AND jo.${columnName} IS NOT NULL
+              GROUP BY jo.${columnName}
+              HAVING COUNT(DISTINCT jo.id) >= 2
+            )
+            SELECT 
+              id,
+              'Version ' || ROW_NUMBER() OVER (ORDER BY offer_rate DESC NULLS LAST, response_rate DESC NULLS LAST) as document_name,
+              ROW_NUMBER() OVER (ORDER BY offer_rate DESC NULLS LAST, response_rate DESC NULLS LAST) as version_number,
+              'Unknown' as template_name,
+              false as is_primary,
+              total_uses,
+              response_rate,
+              interview_rate,
+              offer_rate
+            FROM ranked_docs
+            ORDER BY offer_rate DESC NULLS LAST, response_rate DESC NULLS LAST
+            LIMIT $2
+          `;
+          result = await database.query(query, [userId, limit]);
+        }
+      }
+      
+      return result.rows.map(row => ({
+        id: row.id,
+        documentName: row.document_name,
+        versionName: row.document_name,
+        versionNumber: row.version_number,
+        templateName: row.template_name,
+        isPrimary: row.is_primary || false,
+        usageCount: parseInt(row.total_uses) || 0,
+        responseRate: (parseFloat(row.response_rate) || 0) / 100,
+        interviewRate: (parseFloat(row.interview_rate) || 0) / 100,
+        offerRate: (parseFloat(row.offer_rate) || 0) / 100
+      }));
     } catch (error) {
       console.error("❌ Error getting best performing documents:", error);
       throw error;

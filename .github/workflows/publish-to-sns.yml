@@ -15,8 +15,8 @@ jobs:
   publish-to-sns:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # Only run if the deployment workflow completed successfully
-    if: github.event.workflow_run.conclusion == 'success'
+    # Only run if triggered manually OR if the deployment workflow completed successfully
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
 
     steps:
       - name: Check if SNS is configured
@@ -47,15 +47,17 @@ jobs:
         if: steps.check-sns.outputs.configured == 'true'
         env:
           AWS_SNS_TOPIC_ARN: ${{ secrets.AWS_SNS_TOPIC_ARN }}
-          WORKFLOW_STATUS: ${{ github.event.workflow_run.conclusion }}
-          WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
-          COMMIT_SHA: ${{ github.event.workflow_run.head_sha }}
-          COMMIT_MESSAGE: ${{ github.event.workflow_run.head_commit.message }}
-          ACTOR: ${{ github.event.workflow_run.actor.login }}
-          BRANCH: ${{ github.event.workflow_run.head_branch }}
-          RUN_ID: ${{ github.event.workflow_run.id }}
-          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          WORKFLOW_STATUS: ${{ github.event.workflow_run.conclusion || 'success' }}
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name || 'Manual Trigger' }}
+          COMMIT_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          COMMIT_MESSAGE: ${{ github.event.workflow_run.head_commit.message || github.event.head_commit.message || 'Manual test notification' }}
+          ACTOR: ${{ github.event.workflow_run.actor.login || github.actor }}
+          BRANCH: ${{ github.event.workflow_run.head_branch || github.ref_name }}
+          RUN_ID: ${{ github.event.workflow_run.id || github.run_id }}
+          WORKFLOW_RUN_URL: ${{ github.event.workflow_run.html_url }}
           REPOSITORY: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+          CURRENT_RUN_ID: ${{ github.run_id }}
         run: |
           # Determine status emoji and color
           if [ "$WORKFLOW_STATUS" = "success" ]; then
@@ -80,102 +82,46 @@ jobs:
           COMMIT_MSG_SHORT=$(echo "$COMMIT_MESSAGE" | head -n 1 | cut -c1-100)
           COMMIT_SHORT=$(echo "$COMMIT_SHA" | cut -c1-7)
 
-          # Create email-friendly plain text message
-          EMAIL_BODY=$(cat <<EOF
-          ${STATUS_EMOJI} Production Deployment ${STATUS_TEXT}
+          # Set RUN_URL based on trigger type
+          if [ -n "$WORKFLOW_RUN_URL" ]; then
+            RUN_URL="$WORKFLOW_RUN_URL"
+          else
+            RUN_URL="${SERVER_URL}/${REPOSITORY}/actions/runs/${CURRENT_RUN_ID}"
+          fi
 
-          Repository: ${REPOSITORY}
-          Branch: ${BRANCH}
-          Workflow: ${WORKFLOW_NAME}
+          # Create plain text email message
+          MESSAGE_BODY=$(cat <<EOF
+${STATUS_EMOJI} Production Deployment ${STATUS_TEXT}
 
-          Commit: ${COMMIT_SHORT}
-          Message: ${COMMIT_MSG_SHORT}
-          Author: ${ACTOR}
+Repository: ${REPOSITORY}
+Branch: ${BRANCH}
+Workflow: ${WORKFLOW_NAME}
 
-          Status: ${STATUS_TEXT}
-          Timestamp: $(date -u +'%Y-%m-%d %H:%M:%S UTC')
+Commit: ${COMMIT_SHORT}
+Message: ${COMMIT_MSG_SHORT}
+Author: ${ACTOR}
 
-          View Deployment: ${RUN_URL}
+Status: ${STATUS_TEXT}
+Timestamp: $(date -u +'%Y-%m-%d %H:%M:%S UTC')
 
-          ---
-          This is an automated notification from GitHub Actions.
-          EOF
-          )
+View Deployment: ${RUN_URL}
 
-          # Create HTML message for better email formatting
-          HTML_BODY=$(cat <<EOF
-          <html>
-          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-              <h2 style="color: #${STATUS_COLOR}; border-bottom: 2px solid #${STATUS_COLOR}; padding-bottom: 10px;">
-                ${STATUS_EMOJI} Production Deployment ${STATUS_TEXT}
-              </h2>
-              
-              <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                <table style="width: 100%; border-collapse: collapse;">
-                  <tr>
-                    <td style="padding: 8px 0; font-weight: bold; width: 140px;">Repository:</td>
-                    <td style="padding: 8px 0;">${REPOSITORY}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 8px 0; font-weight: bold;">Branch:</td>
-                    <td style="padding: 8px 0;"><strong>${BRANCH}</strong></td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 8px 0; font-weight: bold;">Workflow:</td>
-                    <td style="padding: 8px 0;">${WORKFLOW_NAME}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 8px 0; font-weight: bold;">Commit:</td>
-                    <td style="padding: 8px 0;"><code style="background-color: #e8e8e8; padding: 2px 6px; border-radius: 3px;">${COMMIT_SHORT}</code></td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 8px 0; font-weight: bold;">Message:</td>
-                    <td style="padding: 8px 0;">${COMMIT_MSG_SHORT}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 8px 0; font-weight: bold;">Author:</td>
-                    <td style="padding: 8px 0;">${ACTOR}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 8px 0; font-weight: bold;">Status:</td>
-                    <td style="padding: 8px 0;"><strong style="color: #${STATUS_COLOR};">${STATUS_TEXT}</strong></td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 8px 0; font-weight: bold;">Timestamp:</td>
-                    <td style="padding: 8px 0;">$(date -u +'%Y-%m-%d %H:%M:%S UTC')</td>
-                  </tr>
-                </table>
-              </div>
-              
-              <div style="text-align: center; margin: 30px 0;">
-                <a href="${RUN_URL}" style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
-                  View Deployment Details
-                </a>
-              </div>
-              
-              <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
-              <p style="color: #666; font-size: 12px; text-align: center;">
-                This is an automated notification from GitHub Actions.
-              </p>
-            </div>
-          </body>
-          </html>
-          EOF
+---
+This is an automated notification from GitHub Actions.
+EOF
           )
 
           # Create subject line
           SUBJECT="${STATUS_EMOJI} Production Deployment ${STATUS_TEXT}: ${REPOSITORY} - ${BRANCH}"
 
-          # Publish to SNS with HTML email body
-          # SNS email subscriptions will render HTML automatically
+          # Publish to SNS with plain text message
           echo "📧 Publishing to SNS topic: $AWS_SNS_TOPIC_ARN"
           echo "Subject: $SUBJECT"
 
           OUTPUT=$(aws sns publish \
             --topic-arn "$AWS_SNS_TOPIC_ARN" \
             --subject "$SUBJECT" \
-            --message "$HTML_BODY" 2>&1)
+            --message "$MESSAGE_BODY" 2>&1)
 
           EXIT_CODE=$?
           if [ $EXIT_CODE -eq 0 ]; then

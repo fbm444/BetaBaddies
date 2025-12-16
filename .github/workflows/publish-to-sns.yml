@@ -15,7 +15,7 @@ jobs:
   publish-to-sns:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    
+
     steps:
       - name: Check if SNS is configured
         id: check-sns
@@ -33,7 +33,52 @@ jobs:
             echo "✅ SNS configuration found"
           fi
 
+      - name: Configure AWS credentials
+        if: steps.check-sns.outputs.configured == 'true'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
       - name: Publish to AWS SNS Topic
         if: steps.check-sns.outputs.configured == 'true'
-        uses: d-dot-one/publish-to-sns@v1
+        env:
+          AWS_SNS_TOPIC_ARN: ${{ secrets.AWS_SNS_TOPIC_ARN }}
+        run: |
+          # Create message payload
+          MESSAGE=$(cat <<EOF
+          {
+            "event": "${{ github.event_name }}",
+            "repository": "${{ github.repository }}",
+            "ref": "${{ github.ref }}",
+            "workflow": "${{ github.workflow }}",
+            "run_id": "${{ github.run_id }}",
+            "actor": "${{ github.actor }}",
+            "commit": "${{ github.sha }}",
+            "commit_message": "${{ github.event.head_commit.message }}",
+            "branch": "${{ github.ref_name }}",
+            "status": "${{ job.status }}",
+            "timestamp": "${{ github.event.head_commit.timestamp }}",
+            "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          }
+          EOF
+          )
 
+          # Publish to SNS
+          echo "📧 Publishing to SNS topic: $AWS_SNS_TOPIC_ARN"
+          OUTPUT=$(aws sns publish \
+            --topic-arn "$AWS_SNS_TOPIC_ARN" \
+            --subject "🚀 Deployment: ${{ github.repository }} - ${{ github.ref_name }}" \
+            --message "$MESSAGE" 2>&1)
+
+          EXIT_CODE=$?
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "✅ Message published to SNS topic successfully"
+            echo "Response: $OUTPUT"
+          else
+            echo "❌ Failed to publish to SNS topic"
+            echo "Exit code: $EXIT_CODE"
+            echo "Error: $OUTPUT"
+            exit $EXIT_CODE
+          fi

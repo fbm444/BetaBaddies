@@ -439,6 +439,132 @@ const coverSystems = docIds["Cover Letter - Systems"];
       size: "10000+",
     },
     {
+      key: "apple-swe",
+      title: "Senior Software Engineer, iOS",
+      company: "Apple",
+      location: "Cupertino, CA",
+      industry: "Technology",
+      jobType: "Full-time",
+      salaryMin: 180000,
+      salaryMax: 280000,
+      url: "https://jobs.apple.com/en-us/details/200123456/senior-software-engineer-ios",
+      desc: "Design and implement core iOS features, work on frameworks and APIs that power millions of devices worldwide.",
+      status: "Interested",
+      appliedDaysAgo: null,
+      responseDaysAgo: null,
+      locationType: "on-site",
+      timezone: "America/Los_Angeles",
+      size: "10000+",
+    },
+    {
+      key: "tesla",
+      title: "Full Stack Engineer, Energy Products",
+      company: "Tesla",
+      location: "Palo Alto, CA",
+      industry: "Energy",
+      jobType: "Full-time",
+      salaryMin: 150000,
+      salaryMax: 230000,
+      url: "https://www.tesla.com/careers/search/job/full-stack-engineer-energy",
+      desc: "Build software for Tesla Energy products including solar, Powerwall, and grid services. Work on customer-facing web apps and internal tools.",
+      status: "Interested",
+      appliedDaysAgo: null,
+      responseDaysAgo: null,
+      locationType: "hybrid",
+      timezone: "America/Los_Angeles",
+      size: "10000+",
+    },
+    {
+      key: "nvidia",
+      title: "Senior Software Engineer, AI Infrastructure",
+      company: "NVIDIA",
+      location: "Santa Clara, CA",
+      industry: "Technology",
+      jobType: "Full-time",
+      salaryMin: 200000,
+      salaryMax: 320000,
+      url: "https://nvidia.wd5.myworkdayjobs.com/en-US/NVIDIAExternalCareerSite/job/Senior-Software-Engineer-AI-Infrastructure",
+      desc: "Build scalable infrastructure for training and deploying large language models. Work on distributed systems, GPU optimization, and ML frameworks.",
+      status: "Interested",
+      appliedDaysAgo: null,
+      responseDaysAgo: null,
+      locationType: "hybrid",
+      timezone: "America/Los_Angeles",
+      size: "10000+",
+    },
+    {
+      key: "uber",
+      title: "Staff Engineer, Marketplace",
+      company: "Uber",
+      location: "San Francisco, CA",
+      industry: "Transportation",
+      jobType: "Full-time",
+      salaryMin: 220000,
+      salaryMax: 300000,
+      url: "https://www.uber.com/careers/list/123456",
+      desc: "Lead technical initiatives in Uber's marketplace team. Design systems that match riders with drivers, optimize pricing, and improve supply-demand balance.",
+      status: "Interested",
+      appliedDaysAgo: null,
+      responseDaysAgo: null,
+      locationType: "hybrid",
+      timezone: "America/Los_Angeles",
+      size: "10000+",
+    },
+    {
+      key: "salesforce",
+      title: "Principal Software Engineer, Platform",
+      company: "Salesforce",
+      location: "San Francisco, CA",
+      industry: "Technology",
+      jobType: "Full-time",
+      salaryMin: 210000,
+      salaryMax: 310000,
+      url: "https://salesforce.wd1.myworkdayjobs.com/en-US/External_Careers/job/Principal-Software-Engineer-Platform",
+      desc: "Architect and build core platform services for Salesforce. Design APIs, data pipelines, and infrastructure that powers millions of customers.",
+      status: "Interested",
+      appliedDaysAgo: null,
+      responseDaysAgo: null,
+      locationType: "hybrid",
+      timezone: "America/Los_Angeles",
+      size: "10000+",
+    },
+    {
+      key: "palantir",
+      title: "Software Engineer, Forward Deployed",
+      company: "Palantir",
+      location: "Palo Alto, CA",
+      industry: "Technology",
+      jobType: "Full-time",
+      salaryMin: 180000,
+      salaryMax: 280000,
+      url: "https://www.palantir.com/careers/software-engineer-forward-deployed",
+      desc: "Deploy Palantir's platform to solve complex problems for enterprise and government clients. Work directly with customers to build custom solutions.",
+      status: "Interested",
+      appliedDaysAgo: null,
+      responseDaysAgo: null,
+      locationType: "on-site",
+      timezone: "America/Los_Angeles",
+      size: "1001-5000",
+    },
+    {
+      key: "coinbase",
+      title: "Senior Backend Engineer, Trading",
+      company: "Coinbase",
+      location: "San Francisco, CA",
+      industry: "Fintech",
+      jobType: "Full-time",
+      salaryMin: 190000,
+      salaryMax: 290000,
+      url: "https://www.coinbase.com/careers/positions/senior-backend-engineer-trading",
+      desc: "Build high-performance trading systems for cryptocurrency exchange. Work on order matching, risk management, and real-time market data.",
+      status: "Interested",
+      appliedDaysAgo: null,
+      responseDaysAgo: null,
+      locationType: "remote",
+      timezone: "America/Los_Angeles",
+      size: "5001-10000",
+    },
+    {
       key: "stripe",
       title: "Product Manager, Issuing",
       company: "Stripe",
@@ -479,11 +605,21 @@ const coverSystems = docIds["Cover Letter - Systems"];
   const jobIds = {};
   const jobMeta = {};
   for (const j of jobs) {
-    const appliedAt = new Date(Date.now() - j.appliedDaysAgo * 24 * 60 * 60 * 1000);
+    // For "Interested" status, don't set application dates
+    const isInterested = j.status === "Interested";
+    const appliedAt = isInterested 
+      ? null 
+      : (j.appliedDaysAgo != null 
+          ? new Date(Date.now() - j.appliedDaysAgo * 24 * 60 * 60 * 1000)
+          : null);
     const firstResponseAt =
-      j.responseDaysAgo != null
-        ? new Date(Date.now() - j.responseDaysAgo * 24 * 60 * 60 * 1000)
-        : null;
+      isInterested || j.responseDaysAgo == null
+        ? null
+        : new Date(Date.now() - j.responseDaysAgo * 24 * 60 * 60 * 1000);
+    
+    // For interested jobs, use current date as created_at, otherwise use applied date
+    const createdAt = isInterested ? new Date() : (appliedAt || new Date());
+    const statusUpdatedAt = isInterested ? new Date() : (firstResponseAt || appliedAt || new Date());
 
     const res = await database.query(
       `INSERT INTO job_opportunities (
@@ -515,9 +651,9 @@ const coverSystems = docIds["Cover Letter - Systems"];
         j.timezone,
         appliedAt,
         firstResponseAt,
-        firstResponseAt || appliedAt,
-        appliedAt,
-        firstResponseAt || appliedAt,
+        statusUpdatedAt,
+        createdAt,
+        statusUpdatedAt,
       ]
     );
     const newJobId = res.rows[0].id;

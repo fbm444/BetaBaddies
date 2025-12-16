@@ -62,9 +62,13 @@ export function JobOpportunityDetailModal({
   const [predictionError, setPredictionError] = useState<string | null>(null);
   const [quality, setQuality] = useState<any | null>(null);
   const [qualityStats, setQualityStats] = useState<any | null>(null);
+  const [qualityHistory, setQualityHistory] = useState<any[]>([]);
   const [isLoadingQuality, setIsLoadingQuality] = useState(false);
   const [isScoringQuality, setIsScoringQuality] = useState(false);
   const [qualityError, setQualityError] = useState<string | null>(null);
+  const [linkedinUrl, setLinkedinUrl] = useState<string>("");
+  const [showQualityDetails, setShowQualityDetails] = useState(false);
+  const QUALITY_THRESHOLD = 70; // Minimum score to allow "Applied" status
 
   const handleScheduleInterview = () => {
     navigate(`${ROUTES.INTERVIEW_SCHEDULING}?jobOpportunityId=${opportunity.id}`);
@@ -161,19 +165,22 @@ export function JobOpportunityDetailModal({
     loadPrediction();
   }, [opportunity.id]);
 
-  // Load application quality (latest + stats)
+  // Load application quality (latest + stats + history)
   useEffect(() => {
     const loadQuality = async () => {
       if (!opportunity.id) return;
       try {
         setIsLoadingQuality(true);
         setQualityError(null);
-        const [qRes, statsRes] = await Promise.all([
+        const [qRes, statsRes, historyRes] = await Promise.all([
           api.getApplicationQuality(opportunity.id),
           api.getApplicationQualityStats(),
+          api.getApplicationQualityHistory(opportunity.id),
         ]);
         if (qRes.ok && qRes.data) {
-          setQuality(qRes.data.quality || null);
+          const q = qRes.data.quality || null;
+          setQuality(q);
+          if (q?.linkedin_url) setLinkedinUrl(q.linkedin_url);
         } else {
           setQuality(null);
         }
@@ -181,6 +188,11 @@ export function JobOpportunityDetailModal({
           setQualityStats(statsRes.data.stats || null);
         } else {
           setQualityStats(null);
+        }
+        if (historyRes.ok && historyRes.data) {
+          setQualityHistory(historyRes.data.history || []);
+        } else {
+          setQualityHistory([]);
         }
       } catch (err: any) {
         console.error("Error loading application quality:", err);
@@ -297,6 +309,18 @@ export function JobOpportunityDetailModal({
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    
+    // Quality threshold check: if changing to "Applied" and score is below threshold
+    if (formData.status === "Applied" && quality && quality.overall_score < QUALITY_THRESHOLD) {
+      const proceed = confirm(
+        `Your application quality score is ${Math.round(quality.overall_score)}/100, which is below the recommended threshold of ${QUALITY_THRESHOLD}.\n\n` +
+        `We recommend improving your application before submitting. Would you like to proceed anyway?`
+      );
+      if (!proceed) {
+        return;
+      }
+    }
+    
     setIsSaving(true);
     try {
       // Ensure recruiter fields are included even if empty (backend will convert empty strings to null)
@@ -998,12 +1022,23 @@ export function JobOpportunityDetailModal({
                   {isEditMode ? (
                     <select
                       value={formData.status}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        const newStatus = e.target.value as JobStatus;
+                        // Warn if changing to "Applied" with low quality score
+                        if (newStatus === "Applied" && quality && quality.overall_score < QUALITY_THRESHOLD) {
+                          const proceed = confirm(
+                            `Your application quality score is ${Math.round(quality.overall_score)}/100, which is below the recommended threshold of ${QUALITY_THRESHOLD}.\n\n` +
+                            `We recommend improving your application before submitting. Would you like to proceed anyway?`
+                          );
+                          if (!proceed) {
+                            return; // Don't change status
+                          }
+                        }
                         setFormData({
                           ...formData,
-                          status: e.target.value as JobStatus,
-                        })
-                      }
+                          status: newStatus,
+                        });
+                      }}
                       className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     >
                       {JOB_STATUSES.map((status) => (
@@ -1595,126 +1630,370 @@ export function JobOpportunityDetailModal({
                   <h3 className="text-sm font-semibold text-slate-900">
                     Application Quality
                   </h3>
-                </div>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (!opportunity.id) return;
-                    try {
-                      setIsScoringQuality(true);
-                      setQualityError(null);
-                      const res = await api.scoreApplicationQuality(opportunity.id);
-                      if (res.ok && res.data) {
-                        setQuality(res.data.quality || null);
-                      }
-                      // Refresh stats too
-                      const statsRes = await api.getApplicationQualityStats();
-                      if (statsRes.ok && statsRes.data) {
-                        setQualityStats(statsRes.data.stats || null);
-                      }
-                    } catch (err: any) {
-                      console.error("Error scoring application quality:", err);
-                      setQualityError("Failed to score application. Try again.");
-                    } finally {
-                      setIsScoringQuality(false);
-                    }
-                  }}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700 hover:bg-purple-100 transition-colors disabled:opacity-50"
-                  disabled={isScoringQuality}
-                >
-                  {isScoringQuality ? (
-                    <>
-                      <Icon icon="mingcute:loading-line" className="animate-spin" width={14} />
-                      Scoring...
-                    </>
-                  ) : (
-                    <>
-                      <Icon icon="mingcute:sparkles-line" width={14} />
-                      Re-score
-                    </>
+                  {quality && quality.overall_score < QUALITY_THRESHOLD && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 text-red-700 text-[10px] font-medium">
+                      <Icon icon="mingcute:alert-line" width={12} />
+                      Below Threshold ({QUALITY_THRESHOLD})
+                    </span>
                   )}
-                </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowQualityDetails(!showQualityDetails)}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-50 text-slate-700 hover:bg-slate-100 transition-colors"
+                  >
+                    <Icon icon={showQualityDetails ? "mingcute:up-line" : "mingcute:down-line"} width={14} />
+                    {showQualityDetails ? "Less" : "Details"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!opportunity.id) return;
+                      try {
+                        setIsScoringQuality(true);
+                        setQualityError(null);
+                        const payload: any = {};
+                        if (linkedinUrl) payload.linkedinUrl = linkedinUrl;
+                        const res = await api.scoreApplicationQuality(opportunity.id, payload);
+                        if (res.ok && res.data) {
+                          setQuality(res.data.quality || null);
+                        }
+                        // Refresh stats and history
+                        const [statsRes, historyRes] = await Promise.all([
+                          api.getApplicationQualityStats(),
+                          api.getApplicationQualityHistory(opportunity.id),
+                        ]);
+                        if (statsRes.ok && statsRes.data) {
+                          setQualityStats(statsRes.data.stats || null);
+                        }
+                        if (historyRes.ok && historyRes.data) {
+                          setQualityHistory(historyRes.data.history || []);
+                        }
+                      } catch (err: any) {
+                        console.error("Error scoring application quality:", err);
+                        setQualityError("Failed to score application. Try again.");
+                      } finally {
+                        setIsScoringQuality(false);
+                      }
+                    }}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700 hover:bg-purple-100 transition-colors disabled:opacity-50"
+                    disabled={isScoringQuality}
+                  >
+                    {isScoringQuality ? (
+                      <>
+                        <Icon icon="mingcute:loading-line" className="animate-spin" width={14} />
+                        Scoring...
+                      </>
+                    ) : (
+                      <>
+                        <Icon icon="mingcute:sparkles-line" width={14} />
+                        Re-score
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
+
+              {/* LinkedIn URL Input */}
+              <div className="mb-3">
+                <label className="block text-xs font-medium text-slate-700 mb-1">
+                  LinkedIn Profile URL (optional, for better analysis)
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={linkedinUrl}
+                    onChange={(e) => setLinkedinUrl(e.target.value)}
+                    placeholder="https://linkedin.com/in/yourprofile"
+                    className="flex-1 px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
               {isLoadingQuality ? (
                 <p className="text-xs text-slate-500">Loading quality score...</p>
               ) : quality ? (
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="flex flex-col items-start">
-                      <span className="text-[11px] uppercase tracking-wide text-slate-500">
-                        Overall Score
-                      </span>
-                      <span
-                        className={`text-2xl font-bold ${
-                          quality.overall_score >= 80
-                            ? "text-emerald-600"
-                            : quality.overall_score >= 70
-                            ? "text-amber-600"
-                            : "text-red-600"
-                        }`}
-                      >
-                        {Math.round(quality.overall_score)} / 100
-                      </span>
-                      {qualityStats && typeof qualityStats.avg_score === "number" && (
-                        <span className="mt-1 text-[11px] text-slate-500">
-                          Your avg: {Math.round(qualityStats.avg_score)} · Top:{" "}
-                          {typeof qualityStats.p90_score === "number"
-                            ? Math.round(qualityStats.p90_score)
-                            : "—"}
+                <div className="space-y-4">
+                  {/* Overall Score & Sub-scores */}
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="flex flex-col items-start">
+                        <span className="text-[11px] uppercase tracking-wide text-slate-500">
+                          Overall Score
                         </span>
+                        <span
+                          className={`text-2xl font-bold ${
+                            quality.overall_score >= 80
+                              ? "text-emerald-600"
+                              : quality.overall_score >= 70
+                              ? "text-amber-600"
+                              : "text-red-600"
+                          }`}
+                        >
+                          {Math.round(quality.overall_score)} / 100
+                        </span>
+                        {qualityStats && typeof qualityStats.avg_score === "number" && (
+                          <span className="mt-1 text-[11px] text-slate-500">
+                            Your avg: {Math.round(qualityStats.avg_score)} · Top:{" "}
+                            {typeof qualityStats.p90_score === "number"
+                              ? Math.round(qualityStats.p90_score)
+                              : "—"}
+                          </span>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-1 gap-1 text-[11px] text-slate-600">
+                        <span>
+                          Alignment:{" "}
+                          <strong>
+                            {quality.alignment_score != null
+                              ? Math.round(quality.alignment_score)
+                              : "—"}
+                          </strong>
+                        </span>
+                        <span>
+                          Formatting:{" "}
+                          <strong>
+                            {quality.format_score != null
+                              ? Math.round(quality.format_score)
+                              : "—"}
+                          </strong>
+                        </span>
+                        <span>
+                          Consistency:{" "}
+                          <strong>
+                            {quality.consistency_score != null
+                              ? Math.round(quality.consistency_score)
+                              : "—"}
+                          </strong>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Expanded Details */}
+                  {showQualityDetails && (
+                    <div className="space-y-3 pt-3 border-t border-slate-200">
+                      {/* Missing Keywords */}
+                      {Array.isArray(quality.missing_keywords) && quality.missing_keywords.length > 0 && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Icon icon="mingcute:search-line" width={14} className="text-amber-700" />
+                            <p className="text-xs font-semibold text-amber-900">Missing Keywords</p>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {quality.missing_keywords.map((kw: any, idx: number) => (
+                              <span
+                                key={idx}
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium ${
+                                  kw.importance === "high"
+                                    ? "bg-red-100 text-red-800"
+                                    : kw.importance === "medium"
+                                    ? "bg-amber-100 text-amber-800"
+                                    : "bg-slate-100 text-slate-700"
+                                }`}
+                              >
+                                {kw.keyword}
+                                {kw.importance === "high" && (
+                                  <Icon icon="mingcute:alert-fill" width={10} />
+                                )}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Missing Skills */}
+                      {Array.isArray(quality.missing_skills) && quality.missing_skills.length > 0 && (
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Icon icon="mingcute:code-line" width={14} className="text-blue-700" />
+                            <p className="text-xs font-semibold text-blue-900">Missing Skills</p>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {quality.missing_skills.map((skill: any, idx: number) => (
+                              <span
+                                key={idx}
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium ${
+                                  skill.importance === "high"
+                                    ? "bg-red-100 text-red-800"
+                                    : skill.importance === "medium"
+                                    ? "bg-amber-100 text-amber-800"
+                                    : "bg-slate-100 text-slate-700"
+                                }`}
+                              >
+                                {skill.skill}
+                                {skill.importance === "high" && (
+                                  <Icon icon="mingcute:alert-fill" width={10} />
+                                )}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Formatting Issues */}
+                      {Array.isArray(quality.issues) && quality.issues.length > 0 && (
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Icon icon="mingcute:file-warning-line" width={14} className="text-red-700" />
+                            <p className="text-xs font-semibold text-red-900">Formatting Issues & Typos</p>
+                          </div>
+                          <ul className="space-y-1.5">
+                            {quality.issues.map((issue: any, idx: number) => (
+                              <li key={idx} className="text-[11px] text-red-800">
+                                <div className="flex items-start gap-2">
+                                  <span
+                                    className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                      issue.severity === "high"
+                                        ? "bg-red-200 text-red-900"
+                                        : issue.severity === "medium"
+                                        ? "bg-amber-200 text-amber-900"
+                                        : "bg-slate-200 text-slate-700"
+                                    }`}
+                                  >
+                                    {issue.severity || "low"}
+                                  </span>
+                                  <div className="flex-1">
+                                    <span className="font-medium">{issue.type}:</span> {issue.description}
+                                    {issue.location && (
+                                      <span className="text-red-600 ml-1">({issue.location})</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Prioritized Suggestions */}
+                      {Array.isArray(quality.suggestions) && quality.suggestions.length > 0 && (
+                        <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                          <p className="text-xs font-semibold text-slate-700 mb-2">
+                            Improvement Suggestions (Prioritized)
+                          </p>
+                          <ul className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                            {quality.suggestions
+                              .sort((a: any, b: any) => {
+                                const priorityOrder = { high: 3, medium: 2, low: 1 };
+                                return (
+                                  (priorityOrder[b.priority as keyof typeof priorityOrder] || 0) -
+                                  (priorityOrder[a.priority as keyof typeof priorityOrder] || 0)
+                                );
+                              })
+                              .map((s: any, idx: number) => (
+                                <li key={s.id || idx} className="text-[11px] text-slate-700">
+                                  <div className="flex items-start gap-2">
+                                    <span
+                                      className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                        s.priority === "high"
+                                          ? "bg-red-100 text-red-800"
+                                          : s.priority === "medium"
+                                          ? "bg-amber-100 text-amber-800"
+                                          : "bg-slate-200 text-slate-700"
+                                      }`}
+                                    >
+                                      {s.priority || "low"}
+                                    </span>
+                                    <div className="flex-1">
+                                      <span className="font-semibold">
+                                        {s.title || `Suggestion ${idx + 1}`}:
+                                      </span>{" "}
+                                      {s.description}
+                                      {s.estimatedImpact && (
+                                        <span className="text-slate-500 ml-1">
+                                          (+{s.estimatedImpact} pts)
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </li>
+                              ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Score History */}
+                      {qualityHistory.length > 0 && (
+                        <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Icon icon="mingcute:chart-line" width={14} className="text-purple-700" />
+                            <p className="text-xs font-semibold text-purple-900">Score History</p>
+                          </div>
+                          <div className="space-y-1.5">
+                            {qualityHistory.slice(-5).reverse().map((h: any, idx: number) => {
+                              const prevScore = idx < qualityHistory.length - 1 
+                                ? qualityHistory[qualityHistory.length - 2 - idx]?.overall_score 
+                                : null;
+                              const improvement = prevScore ? h.overall_score - prevScore : 0;
+                              return (
+                                <div
+                                  key={h.id || idx}
+                                  className="flex items-center justify-between text-[11px]"
+                                >
+                                  <span className="text-slate-600">
+                                    {new Date(h.created_at).toLocaleDateString()}
+                                  </span>
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-semibold">
+                                      {Math.round(h.overall_score)}/100
+                                    </span>
+                                    {improvement !== 0 && (
+                                      <span
+                                        className={`text-[10px] ${
+                                          improvement > 0 ? "text-emerald-600" : "text-red-600"
+                                        }`}
+                                      >
+                                        {improvement > 0 ? "↑" : "↓"} {Math.abs(Math.round(improvement))}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
                       )}
                     </div>
-                    <div className="grid grid-cols-1 gap-1 text-[11px] text-slate-600">
-                      <span>
-                        Alignment:{" "}
-                        <strong>
-                          {quality.alignment_score != null
-                            ? Math.round(quality.alignment_score)
-                            : "—"}
-                        </strong>
-                      </span>
-                      <span>
-                        Formatting:{" "}
-                        <strong>
-                          {quality.format_score != null
-                            ? Math.round(quality.format_score)
-                            : "—"}
-                        </strong>
-                      </span>
-                      <span>
-                        Consistency:{" "}
-                        <strong>
-                          {quality.consistency_score != null
-                            ? Math.round(quality.consistency_score)
-                            : "—"}
-                        </strong>
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex-1">
-                    {Array.isArray(quality.suggestions) && quality.suggestions.length > 0 ? (
-                      <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-                        <p className="text-[11px] font-semibold text-slate-700 mb-1">
-                          Top Suggestions
+                  )}
+
+                  {/* Collapsed View - Top Suggestions */}
+                  {!showQualityDetails && (
+                    <div className="flex-1">
+                      {Array.isArray(quality.suggestions) && quality.suggestions.length > 0 ? (
+                        <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                          <p className="text-[11px] font-semibold text-slate-700 mb-1">
+                            Top Suggestions
+                          </p>
+                          <ul className="space-y-1 max-h-28 overflow-y-auto pr-1">
+                            {quality.suggestions
+                              .sort((a: any, b: any) => {
+                                const priorityOrder = { high: 3, medium: 2, low: 1 };
+                                return (
+                                  (priorityOrder[b.priority as keyof typeof priorityOrder] || 0) -
+                                  (priorityOrder[a.priority as keyof typeof priorityOrder] || 0)
+                                );
+                              })
+                              .slice(0, 3)
+                              .map((s: any, idx: number) => (
+                                <li key={s.id || idx} className="text-[11px] text-slate-600">
+                                  <span className="font-medium">
+                                    {s.title || `Suggestion ${idx + 1}`}:
+                                  </span>{" "}
+                                  {s.description}
+                                </li>
+                              ))}
+                          </ul>
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-slate-500">
+                          No specific suggestions yet. Re-score after updating your resume or cover
+                          letter.
                         </p>
-                        <ul className="space-y-1 max-h-28 overflow-y-auto pr-1">
-                          {quality.suggestions.slice(0, 3).map((s: any, idx: number) => (
-                            <li key={s.id || idx} className="text-[11px] text-slate-600">
-                              <span className="font-medium">
-                                {s.title || `Suggestion ${idx + 1}`}:
-                              </span>{" "}
-                              {s.description}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ) : (
-                      <p className="text-[11px] text-slate-500">
-                        No specific suggestions yet. Re-score after updating your resume or cover
-                        letter.
-                      </p>
-                    )}
-                  </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ) : (
                 <p className="text-xs text-slate-500">

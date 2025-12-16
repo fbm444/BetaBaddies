@@ -5175,6 +5175,12 @@ class ApiService {
       `/optimization/quality/stats`
     );
   }
+
+  async getApplicationQualityHistory(jobId: string) {
+    return this.request<ApiResponse<{ history: any[] }>>(
+      `/optimization/quality/history/${jobId}`
+    );
+  }
 }
 
 export const api = new ApiService();

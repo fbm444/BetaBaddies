@@ -6,7 +6,33 @@ import morgan from "morgan";
 import rateLimit from "express-rate-limit";
 import passport from "./config/passport.js";
 import logger from "./utils/logger.js";
-import * as Sentry from "@sentry/node";
+// Import Sentry with error handling for Node.js version incompatibility
+// Check Node.js version first - Sentry v10+ requires Node.js v18.13.0+
+const nodeVersion = process.version;
+const majorVersion = parseInt(nodeVersion.slice(1).split('.')[0]);
+const minorVersion = parseInt(nodeVersion.slice(1).split('.')[1]);
+const isNodeVersionCompatible = majorVersion > 18 || (majorVersion === 18 && minorVersion >= 13) || majorVersion >= 19;
+
+// Use dynamic import in IIFE to handle potential import failures
+let Sentry = {
+  logger: { info: () => {}, warn: () => {}, error: () => {} },
+  metrics: { count: () => {} },
+  setupExpressErrorHandler: () => {},
+};
+
+if (isNodeVersionCompatible) {
+  (async () => {
+    try {
+      const sentryModule = await import("@sentry/node");
+      Sentry = sentryModule.default || sentryModule;
+    } catch (error) {
+      console.warn("⚠️  Sentry not available - error monitoring disabled");
+      console.warn(`   Error: ${error.message}`);
+    }
+  })();
+} else {
+  console.warn(`⚠️  Sentry skipped - Node.js ${nodeVersion} is incompatible (requires v18.13.0+)`);
+}
 import database from "./services/database.js";
 
 // Import routes

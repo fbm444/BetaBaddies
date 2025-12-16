@@ -157,6 +157,26 @@ run_test() {
   fi
 }
 
+# Check if test users exist, create them if needed
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${BLUE}Setting up test users...${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo ""
+
+# Run the setup script to create test users
+if [ -f "$SCRIPT_DIR/setup-test-users.js" ]; then
+  cd "$SCRIPT_DIR/../.." || exit 1
+  node tests/k6/setup-test-users.js
+  SETUP_EXIT_CODE=$?
+  if [ $SETUP_EXIT_CODE -ne 0 ]; then
+    echo -e "${YELLOW}⚠️  Warning: Test user setup had issues, but continuing with tests...${NC}"
+  fi
+  echo ""
+else
+  echo -e "${YELLOW}⚠️  Warning: setup-test-users.js not found. Tests may fail if users don't exist.${NC}"
+  echo ""
+fi
+
 # Start timer
 START_TIME=$(date +%s)
 

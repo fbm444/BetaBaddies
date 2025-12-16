@@ -1,0 +1,10 @@
+# k6 Load Test Results
+load-test-results/
+*.json
+*.csv
+*.html
+*.log
+
+# Test user data
+.env.test
+

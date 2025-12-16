@@ -4,6 +4,7 @@ import { Icon } from "@iconify/react";
 import { api } from "../services/api";
 import { ROUTES } from "../config/routes";
 import type { InterviewAnalytics } from "../types";
+import { InterviewResponseLibrary } from "../components/InterviewResponseLibrary";
 import {
   BarChart,
   Bar,
@@ -16,7 +17,7 @@ import {
   Area,
 } from "recharts";
 
-type TabType = "schedule" | "preparation" | "reminders" | "thank-you" | "follow-ups" | "analytics" | "predictions";
+type TabType = "schedule" | "preparation" | "reminders" | "thank-you" | "follow-ups" | "analytics" | "predictions" | "responses";
 
 export function InterviewAnalytics() {
   const navigate = useNavigate();
@@ -90,149 +91,23 @@ export function InterviewAnalytics() {
     { id: "follow-ups", label: "Follow-ups", icon: "mingcute:task-line" },
     { id: "analytics", label: "Analytics", icon: "mingcute:chart-line" },
     { id: "predictions", label: "Predictions", icon: "mingcute:target-line" },
+    { id: "responses", label: "Response Library", icon: "mingcute:file-text-line" },
   ];
 
+  const [activeTab, setActiveTab] = useState<TabType>("analytics");
+
   const handleTabClick = (tabId: TabType) => {
-    if (tabId === "analytics") {
-      return; // Already on analytics page
+    if (tabId === "analytics" || tabId === "responses") {
+      setActiveTab(tabId);
+      return;
     }
     // Navigate back to interviews page with the selected tab
     navigate(`${ROUTES.INTERVIEWS}?tab=${tabId}`);
   };
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-white font-poppins">
-        <main className="max-w-[1400px] mx-auto px-6 lg:px-10 py-10">
-          {/* Header */}
-          <div className="mb-6">
-            <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4">
-              Interviews
-            </h1>
-            <p className="text-slate-600">
-              View and manage your interviews. Schedule new interviews, view upcoming ones, and access all interview details.
-            </p>
-          </div>
+  // Always show the page structure, but conditionally render content based on active tab
 
-          {/* Tabs */}
-          <div className="border-b border-slate-200 mb-8">
-            <div className="flex gap-6 overflow-x-auto">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => handleTabClick(tab.id)}
-                  className={`relative pb-3 font-medium text-sm whitespace-nowrap transition-colors flex items-center gap-2 bg-transparent ${
-                    tab.id === "analytics"
-                      ? "text-blue-500"
-                      : "text-slate-600"
-                  }`}
-                  style={{ 
-                    fontFamily: 'Poppins',
-                    outline: 'none', 
-                    boxShadow: 'none', 
-                    border: 'none',
-                    borderRadius: '0px',
-                    borderTopLeftRadius: '0px',
-                    borderTopRightRadius: '0px',
-                    borderBottomLeftRadius: '0px',
-                    borderBottomRightRadius: '0px'
-                  }}
-                  onFocus={(e) => e.target.blur()}
-                >
-                  <Icon icon={tab.icon} width={18} />
-                  {tab.label}
-                  {tab.id === "analytics" && (
-                    <div 
-                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500"
-                      style={{ height: '2px', borderRadius: '0px' }}
-                    />
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Loading State */}
-          <div className="text-center py-12">
-            <Icon icon="mingcute:loading-line" className="animate-spin text-blue-500 mx-auto mb-4" width={32} />
-            <p className="text-slate-600" style={{ fontFamily: 'Poppins' }}>Loading analytics...</p>
-        </div>
-        </main>
-      </div>
-    );
-  }
-
-  if (error || !analytics) {
-    return (
-      <div className="min-h-screen bg-white font-poppins">
-        <main className="max-w-[1400px] mx-auto px-6 lg:px-10 py-10">
-          {/* Header */}
-          <div className="mb-6">
-            <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4">
-              Interviews
-            </h1>
-            <p className="text-slate-600">
-              View and manage your interviews. Schedule new interviews, view upcoming ones, and access all interview details.
-            </p>
-          </div>
-
-          {/* Tabs */}
-          <div className="border-b border-slate-200 mb-8">
-            <div className="flex gap-6 overflow-x-auto">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => handleTabClick(tab.id)}
-                  className={`relative pb-3 font-medium text-sm whitespace-nowrap transition-colors flex items-center gap-2 bg-transparent ${
-                    tab.id === "analytics"
-                      ? "text-blue-500"
-                      : "text-slate-600"
-                  }`}
-                  style={{ 
-                    fontFamily: 'Poppins',
-                    outline: 'none', 
-                    boxShadow: 'none', 
-                    border: 'none',
-                    borderRadius: '0px',
-                    borderTopLeftRadius: '0px',
-                    borderTopRightRadius: '0px',
-                    borderBottomLeftRadius: '0px',
-                    borderBottomRightRadius: '0px'
-                  }}
-                  onFocus={(e) => e.target.blur()}
-                >
-                  <Icon icon={tab.icon} width={18} />
-                  {tab.label}
-                  {tab.id === "analytics" && (
-                    <div 
-                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500"
-                      style={{ height: '2px', borderRadius: '0px' }}
-                    />
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Error State */}
-          <div className="bg-red-50 border border-red-200 rounded-xl p-6">
-            <p className="text-red-800 mb-4" style={{ fontFamily: 'Poppins' }}>
-              {error || "Failed to load analytics data"}
-            </p>
-            <button
-              onClick={fetchAnalytics}
-              className="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium"
-              style={{ fontFamily: 'Poppins' }}
-            >
-              Try again
-            </button>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
-  // Prepare chart data with abbreviated labels
+  // Prepare chart data with abbreviated labels (only when analytics is available)
   const abbreviateFormatLabel = (label: string) => {
     const labelLower = label.toLowerCase();
     if (labelLower.includes('system design')) return 'Sys Design';
@@ -244,35 +119,35 @@ export function InterviewAnalytics() {
     return label.length > 8 ? label.substring(0, 8) : label;
   };
 
-  const formatChartData = analytics.performanceByFormat.map((item) => ({
+  const formatChartData = analytics?.performanceByFormat.map((item) => ({
     name: abbreviateFormatLabel(item.formatLabel),
     successful: item.successful,
     total: item.total,
-  }));
+  })) || [];
 
-  const companyTypeChartData = analytics.performanceByCompanyType.map(
+  const companyTypeChartData = analytics?.performanceByCompanyType.map(
     (item) => ({
       name: item.companyType,
       successful: item.successful,
       total: item.total,
     })
-  );
+  ) || [];
 
-  const skillAreaChartData = analytics.skillAreaPerformance.map((item) => ({
+  const skillAreaChartData = analytics?.skillAreaPerformance.map((item) => ({
     name: item.skillAreaLabel,
     score: item.averageScore,
     remaining: 100 - item.averageScore,
-  }));
+  })) || [];
 
-  const trendChartData = analytics.improvementTrend
+  const trendChartData = analytics?.improvementTrend
     .filter((item) => item.period && item.averageScore !== null)
     .map((item) => ({
       period: item.period,
       score: item.averageScore || 0,
-    }));
+    })) || [];
 
   // Confidence trend data
-  const confidenceChartData = analytics.confidenceTrends
+  const confidenceChartData = analytics?.confidenceTrends
     ? analytics.confidenceTrends
         .filter((item) => item.period && item.avgPreConfidence !== null)
         .map((item) => ({
@@ -282,7 +157,7 @@ export function InterviewAnalytics() {
     : [];
 
   // Anxiety trend data
-  const anxietyChartData = analytics.anxietyProgress
+  const anxietyChartData = analytics?.anxietyProgress
     ? analytics.anxietyProgress
         .filter((item) => item.period && item.avgPreAnxiety !== null)
         .map((item) => ({
@@ -312,7 +187,7 @@ export function InterviewAnalytics() {
                 key={tab.id}
                 onClick={() => handleTabClick(tab.id)}
                 className={`px-6 py-3 font-medium text-sm whitespace-nowrap border-b-2 transition-colors flex items-center gap-2 flex-shrink-0 min-w-fit ${
-                  tab.id === "analytics"
+                  tab.id === activeTab
                     ? "text-blue-500"
                     : "text-slate-600"
                 }`}
@@ -330,7 +205,7 @@ export function InterviewAnalytics() {
               >
                 <Icon icon={tab.icon} width={18} />
                 {tab.label}
-                {tab.id === "analytics" && (
+                {tab.id === activeTab && (
                   <div 
                     className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500"
                     style={{ height: '2px', borderRadius: '0px' }}
@@ -341,8 +216,35 @@ export function InterviewAnalytics() {
           </div>
         </div>
 
-        {/* Tab Content - Analytics */}
-        <div className="mt-8 bg-slate-50 -mx-6 lg:-mx-10 px-6 lg:px-10 py-10 rounded-t-2xl">
+        {/* Tab Content */}
+        {activeTab === "responses" ? (
+          <div className="mt-8 bg-slate-50 -mx-6 lg:-mx-10 px-6 lg:px-10 py-10 rounded-t-2xl">
+            <InterviewResponseLibrary />
+          </div>
+        ) : activeTab === "analytics" && isLoading ? (
+          <div className="mt-8 bg-slate-50 -mx-6 lg:-mx-10 px-6 lg:px-10 py-10 rounded-t-2xl">
+            <div className="text-center py-12">
+              <Icon icon="mingcute:loading-line" className="animate-spin text-blue-500 mx-auto mb-4" width={32} />
+              <p className="text-slate-600" style={{ fontFamily: 'Poppins' }}>Loading analytics...</p>
+            </div>
+          </div>
+        ) : activeTab === "analytics" && (error || !analytics) ? (
+          <div className="mt-8 bg-slate-50 -mx-6 lg:-mx-10 px-6 lg:px-10 py-10 rounded-t-2xl">
+            <div className="bg-red-50 border border-red-200 rounded-xl p-6">
+              <p className="text-red-800 mb-4" style={{ fontFamily: 'Poppins' }}>
+                {error || "Failed to load analytics data"}
+              </p>
+              <button
+                onClick={fetchAnalytics}
+                className="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium"
+                style={{ fontFamily: 'Poppins' }}
+              >
+                Try again
+              </button>
+            </div>
+          </div>
+        ) : activeTab === "analytics" && analytics ? (
+          <div className="mt-8 bg-slate-50 -mx-6 lg:-mx-10 px-6 lg:px-10 py-10 rounded-t-2xl">
           {/* Main Content Container with Light Blue Background */}
           <div className="bg-[#EBF5FF] rounded-t-[30px] border border-[#B7B7B7] p-8">
             {/* Single Grid Layout with Strategy Insights spanning all rows */}
@@ -737,6 +639,7 @@ export function InterviewAnalytics() {
             </div>
           </div>
         </div>
+        ) : null}
 
         {/* Return to Original Screen Button */}
         <div className="mt-12 pt-8 border-t border-slate-200 flex justify-center">

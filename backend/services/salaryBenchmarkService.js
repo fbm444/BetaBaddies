@@ -241,16 +241,23 @@ class SalaryBenchmarkService {
 
   /**
    * Fetch national BLS data (fallback when state data unavailable)
+   * Uses percentile series IDs: 02=25th, 03=50th, 04=75th
    */
   async fetchNationalBlsData(socCode) {
-    const seriesId = `OEUN0000000000000${socCode}00`; // National data series
+    // BLS percentile series IDs:
+    // 02 = 25th percentile, 03 = 50th percentile (median), 04 = 75th percentile
+    const seriesIds = [
+      `OEUN0000000000000${socCode}02`, // 25th percentile
+      `OEUN0000000000000${socCode}03`, // 50th percentile (median)
+      `OEUN0000000000000${socCode}04`, // 75th percentile
+    ];
     
     return await wrapApiCall({
       serviceName: "bls",
       endpoint: "timeseries_data",
       apiCall: async () => {
         const requestBody = {
-          seriesid: [seriesId],
+          seriesid: seriesIds,
           startyear: new Date().getFullYear() - 1,
           endyear: new Date().getFullYear(),
         };
@@ -274,16 +281,17 @@ class SalaryBenchmarkService {
           throw new Error(`BLS API error: ${response.data.message || "Unknown error"}`);
         }
 
-        return this.parseBlsResponse(response.data);
+        return this.parseBlsResponse(response.data, seriesIds);
       },
     });
   }
 
   /**
    * Fetch state-specific BLS data
+   * Uses percentile series IDs: 02=25th, 03=50th, 04=75th
    */
   async fetchStateBlsData(socCode, stateCode) {
-    // BLS state series format: OEUS[STATE_CODE]0000000000000[SOC_CODE]00
+    // BLS state series format: OEUS[STATE_CODE]0000000000000[SOC_CODE][PERCENTILE]
     // State codes are numeric: CA=06, NY=36, TX=48, etc.
     const stateNumericCodes = {
       "AL": "01", "AK": "02", "AZ": "04", "AR": "05", "CA": "06", "CO": "08",
@@ -302,14 +310,19 @@ class SalaryBenchmarkService {
       throw new Error(`Invalid state code: ${stateCode}`);
     }
 
-    const seriesId = `OEUS${stateNumeric}0000000000000${socCode}00`;
+    // BLS percentile series IDs: 02=25th, 03=50th, 04=75th
+    const seriesIds = [
+      `OEUS${stateNumeric}0000000000000${socCode}02`, // 25th percentile
+      `OEUS${stateNumeric}0000000000000${socCode}03`, // 50th percentile (median)
+      `OEUS${stateNumeric}0000000000000${socCode}04`, // 75th percentile
+    ];
 
     return await wrapApiCall({
       serviceName: "bls",
       endpoint: "timeseries_data_state",
       apiCall: async () => {
         const requestBody = {
-          seriesid: [seriesId],
+          seriesid: seriesIds,
           startyear: new Date().getFullYear() - 1,
           endyear: new Date().getFullYear(),
         };
@@ -333,60 +346,70 @@ class SalaryBenchmarkService {
           throw new Error(`BLS API error: ${response.data.message || "Unknown error"}`);
         }
 
-        return this.parseBlsResponse(response.data);
+        return this.parseBlsResponse(response.data, seriesIds);
       },
     });
   }
 
   /**
    * Parse BLS API response and extract percentile data
+   * Expects 3 series: 25th percentile, 50th percentile (median), 75th percentile
    */
-  parseBlsResponse(blsData) {
+  parseBlsResponse(blsData, seriesIds = []) {
     if (!blsData.Results || !blsData.Results.series || blsData.Results.series.length === 0) {
       throw new Error("No data in BLS response");
     }
 
-    const series = blsData.Results.series[0];
-    const data = series.data || [];
-
-    if (data.length === 0) {
-      throw new Error("No salary data points in BLS response");
-    }
-
-    // BLS provides annual wage data with percentiles
-    // Look for the most recent year's data
-    const latestData = data[0]; // BLS returns data in reverse chronological order
-
-    // BLS data structure varies, but typically includes:
-    // - Annual mean wage
-    // - Percentile wages (10th, 25th, 50th, 75th, 90th)
-    // We need to extract the percentile values
+    const series = blsData.Results.series;
     
-    // Note: BLS API structure may vary. This is a simplified parser.
-    // You may need to adjust based on actual BLS response structure.
-    const percentile25 = latestData.value ? parseFloat(latestData.value) * 0.75 : null;
-    const percentile50 = latestData.value ? parseFloat(latestData.value) : null;
-    const percentile75 = latestData.value ? parseFloat(latestData.value) * 1.25 : null;
+    // Extract percentile values from each series
+    // Series order should be: 25th, 50th, 75th (matching seriesIds order)
+    let percentile25 = null;
+    let percentile50 = null;
+    let percentile75 = null;
+    let dataYear = new Date().getFullYear();
 
-    // If BLS provides actual percentile data, use that instead
-    // This is a placeholder - actual BLS response may have different structure
-    if (latestData.calculations && latestData.calculations.pct_annual) {
-      // Use actual percentile data if available
-      return {
-        percentile25: latestData.calculations.pct_annual.p25 || percentile25,
-        percentile50: latestData.calculations.pct_annual.p50 || percentile50,
-        percentile75: latestData.calculations.pct_annual.p75 || percentile75,
-        dataYear: parseInt(latestData.year) || new Date().getFullYear(),
-        source: "bls"
-      };
+    for (let i = 0; i < series.length; i++) {
+      const s = series[i];
+      const data = s.data || [];
+      
+      if (data.length === 0) continue;
+      
+      // Get most recent year's data (BLS returns in reverse chronological order)
+      const latestData = data[0];
+      const value = latestData.value ? parseFloat(latestData.value) : null;
+      
+      // Determine which percentile this series represents based on series ID
+      // Series IDs end with: 02=25th, 03=50th, 04=75th
+      const seriesId = s.seriesID || (seriesIds[i] || "");
+      
+      if (seriesId.endsWith("02") || i === 0) {
+        // 25th percentile
+        percentile25 = value;
+      } else if (seriesId.endsWith("03") || i === 1) {
+        // 50th percentile (median)
+        percentile50 = value;
+      } else if (seriesId.endsWith("04") || i === 2) {
+        // 75th percentile
+        percentile75 = value;
+      }
+      
+      // Use the year from any series (they should all be the same)
+      if (latestData.year) {
+        dataYear = parseInt(latestData.year);
+      }
     }
 
-    // Fallback: estimate percentiles from mean (rough approximation)
+    // Validate we have all required percentiles
+    if (percentile25 === null || percentile50 === null || percentile75 === null) {
+      throw new Error("Missing percentile data in BLS response");
+    }
+
     return {
-      percentile25: percentile25,
-      percentile50: percentile50,
-      percentile75: percentile75,
-      dataYear: parseInt(latestData.year) || new Date().getFullYear(),
+      percentile25,
+      percentile50,
+      percentile75,
+      dataYear,
       source: "bls"
     };
   }

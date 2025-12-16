@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Icon } from '@iconify/react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Menubar, MenubarMenu, MenubarTrigger } from '@/components/ui/menubar'
 import { cn } from '@/lib/utils'
 import { navigationGroups, navigationItems, ROUTES } from '@/config/routes'
 import { api } from '@/services/api'
@@ -177,30 +176,28 @@ export function Navbar() {
           {/* Desktop Navigation Menu - Centered with Groups */}
           {isLoggedIn && (
             <div className="hidden lg:flex flex-1 justify-center">
-              <Menubar className="border-0 bg-transparent shadow-none p-0 h-auto space-x-1">
+              <nav role="navigation" aria-label="Main navigation" className="flex items-center space-x-1">
                 {accountType === 'family_only' ? (
                   // For family-only accounts, show only the family dashboard link
-                  <MenubarMenu>
-                    <MenubarTrigger
-                      onClick={() => navigate(ROUTES.FAMILY_ONLY_DASHBOARD)}
-                      className={cn(
-                        "cursor-pointer bg-transparent data-[state=open]:bg-transparent focus:bg-transparent text-sm font-medium",
-                        location.pathname === ROUTES.FAMILY_ONLY_DASHBOARD
-                          ? "bg-black text-white hover:bg-black rounded-md px-4 py-2" 
-                          : "text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-md px-4 py-2"
-                      )}
-                    >
-                      <span className="flex items-center gap-2">
-                        <Icon 
-                          icon="mingcute:heart-line" 
-                          width={16} 
-                          height={16} 
-                          className={location.pathname === ROUTES.FAMILY_ONLY_DASHBOARD ? "text-white" : "text-slate-600"}
-                        />
-                        <span>Family Dashboard</span>
-                      </span>
-                    </MenubarTrigger>
-                  </MenubarMenu>
+                  <button
+                    onClick={() => navigate(ROUTES.FAMILY_ONLY_DASHBOARD)}
+                    className={cn(
+                      "cursor-pointer bg-transparent text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-700 focus:ring-offset-2",
+                      location.pathname === ROUTES.FAMILY_ONLY_DASHBOARD
+                        ? "bg-black text-white hover:bg-black rounded-md px-4 py-2" 
+                        : "text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-md px-4 py-2"
+                    )}
+                  >
+                    <span className="flex items-center gap-2">
+                      <Icon 
+                        icon="mingcute:heart-line" 
+                        width={16} 
+                        height={16} 
+                        className={location.pathname === ROUTES.FAMILY_ONLY_DASHBOARD ? "text-white" : "text-slate-600"}
+                      />
+                      <span>Family Dashboard</span>
+                    </span>
+                  </button>
                 ) : (
                   // For regular accounts, show all navigation groups
                   navigationGroups.map((group) => {
@@ -212,8 +209,8 @@ export function Navbar() {
                     const item = group.items[0]
                     const itemIsActive = location.pathname === item.path
                   return (
-                      <MenubarMenu key={group.id}>
-                      <MenubarTrigger
+                      <button
+                        key={group.id}
                         onClick={() => navigate(item.path)}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' || e.key === ' ') {
@@ -222,7 +219,7 @@ export function Navbar() {
                           }
                         }}
                         className={cn(
-                          "cursor-pointer bg-transparent data-[state=open]:bg-transparent focus:bg-transparent text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-700 focus:ring-offset-2",
+                          "cursor-pointer bg-transparent text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-700 focus:ring-offset-2",
                             itemIsActive 
                             ? "bg-black text-white hover:bg-black rounded-md px-4 py-2" 
                             : "text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-md px-4 py-2"
@@ -237,8 +234,7 @@ export function Navbar() {
                           />
                           <span>{item.label}</span>
                         </span>
-                      </MenubarTrigger>
-                    </MenubarMenu>
+                      </button>
                     )
                   }
                   
@@ -393,7 +389,7 @@ export function Navbar() {
                     </div>
                   )
                 }))}
-              </Menubar>
+              </nav>
             </div>
           )}
 

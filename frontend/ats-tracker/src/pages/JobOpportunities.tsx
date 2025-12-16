@@ -698,8 +698,9 @@ export function JobOpportunities() {
               <div className="relative flex-1">
                 <Icon
                   icon="mingcute:search-line"
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
                   width={20}
+                  aria-hidden="true"
                 />
                 <input
                   type="text"
@@ -724,9 +725,10 @@ export function JobOpportunities() {
                         return { ...prev, search: undefined };
                       });
                     }}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700"
+                    aria-label="Clear search"
                   >
-                    <Icon icon="mingcute:close-line" width={18} />
+                    <Icon icon="mingcute:close-line" width={18} aria-hidden="true" />
                   </button>
                 )}
               </div>
@@ -804,10 +806,10 @@ export function JobOpportunities() {
                   <h2 id="filter-modal-title" className="text-2xl font-semibold text-slate-900">Filters</h2>
                   <button
                     onClick={() => setIsFiltersOpen(false)}
-                    className="text-slate-400 hover:text-slate-600"
+                    className="text-slate-500 hover:text-slate-700"
                     aria-label="Close filters"
                   >
-                    <Icon icon="mingcute:close-line" width={24} />
+                    <Icon icon="mingcute:close-line" width={24} aria-hidden="true" />
                   </button>
                 </div>
                 <FiltersComponent
@@ -915,9 +917,10 @@ export function JobOpportunities() {
           <Icon
             icon={showArchived ? "mingcute:archive-line" : "mingcute:briefcase-line"}
             width={64}
-            className="mx-auto text-slate-300 mb-4"
+            className="mx-auto text-slate-400 mb-4"
+            aria-hidden="true"
           />
-          <h3 className="text-xl font-semibold text-slate-900 mb-2">
+          <h2 className="text-xl font-semibold text-slate-900 mb-2">
             {showArchived
               ? "No Archived Jobs"
               : filters.search ||
@@ -930,7 +933,7 @@ export function JobOpportunities() {
                 filters.deadlineTo
               ? "No jobs match your filters"
               : "No Job Opportunities Yet"}
-          </h3>
+          </h2>
           <p className="text-slate-600 mb-6">
             {showArchived
               ? "You haven't archived any job opportunities yet. Archive completed or irrelevant jobs to keep your active list organized."
@@ -1180,9 +1183,9 @@ export function JobOpportunities() {
         <div className="mt-8 p-6 bg-white rounded-lg shadow-sm border border-slate-200">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-semibold text-slate-900 mb-2">
+              <h2 className="text-lg font-semibold text-slate-900 mb-2">
                 View Job Opportunities on Map
-              </h3>
+              </h2>
               <p className="text-sm text-slate-600">
                 See all your job opportunities plotted on a map relative to your home location.
                 This helps you visualize commute distances and geographic distribution.
@@ -1307,9 +1310,9 @@ function OpportunityCard({
             />
           )}
           <div className="flex-1">
-            <h3 className="text-lg font-semibold text-slate-900 mb-1">
+            <h2 className="text-lg font-semibold text-slate-900 mb-1">
               {highlightSearchTerm(opportunity.title, searchTerm)}
-            </h3>
+            </h2>
             <p className="text-base font-medium text-slate-700">
               {highlightSearchTerm(opportunity.company, searchTerm)}
             </p>
@@ -1347,17 +1350,19 @@ function OpportunityCard({
             <button
               onClick={() => onEdit(opportunity)}
               className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+              aria-label={`Edit ${opportunity.title || 'job opportunity'}`}
               title="Edit"
             >
-              <Icon icon="mingcute:edit-line" width={18} />
+              <Icon icon="mingcute:edit-line" width={18} aria-hidden="true" />
             </button>
           )}
           <button
             onClick={() => onDelete(opportunity)}
             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            aria-label={`Delete ${opportunity.title || 'job opportunity'}`}
             title="Delete"
           >
-            <Icon icon="mingcute:delete-line" width={18} />
+            <Icon icon="mingcute:delete-line" width={18} aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -1681,11 +1686,11 @@ function JobOpportunityFormModal({
           <h2 id="job-opportunity-modal-title" className="text-2xl font-bold text-slate-900">{title}</h2>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600"
+            className="text-slate-500 hover:text-slate-700"
             disabled={isSubmitting}
             aria-label="Close modal"
           >
-            <Icon icon="mingcute:close-line" width={24} />
+            <Icon icon="mingcute:close-line" width={24} aria-hidden="true" />
           </button>
         </div>
 

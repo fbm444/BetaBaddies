@@ -413,7 +413,7 @@ export function JobOpportunityDetailModal({
                 {PROGRESS_STATUS_LABELS[entry.status]}
               </p>
             </div>
-            <span className="text-xs text-slate-400">{formattedTimestamp}</span>
+            <span className="text-xs text-slate-600">{formattedTimestamp}</span>
           </div>
           {entry.notes && (
             <p className="mt-2 text-sm text-slate-600">{entry.notes}</p>
@@ -433,7 +433,7 @@ export function JobOpportunityDetailModal({
               ) : (
                 entry.resource.title
               )}
-              <span className="text-slate-400">
+              <span className="text-slate-600">
                 {entry.resource.provider ? ` (${entry.resource.provider})` : ""}
               </span>
             </p>
@@ -587,9 +587,9 @@ export function JobOpportunityDetailModal({
         <h3 className="text-lg font-semibold text-slate-900 mb-4">Linked Emails</h3>
         {linkedEmails.length === 0 ? (
           <div className="text-center py-8 text-slate-500">
-            <Icon icon="mingcute:mail-line" width={32} className="mx-auto mb-2 text-slate-300" />
+            <Icon icon="mingcute:mail-line" width={32} className="mx-auto mb-2 text-slate-400" aria-hidden="true" />
             <p className="text-sm">No emails linked to this job opportunity yet</p>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-slate-600 mt-1">
               Link emails using the email sidebar on the right
             </p>
           </div>
@@ -809,7 +809,7 @@ export function JobOpportunityDetailModal({
             )}
             <button
               onClick={onClose}
-              className="p-2 text-slate-400 hover:text-slate-600"
+              className="p-2 text-slate-500 hover:text-slate-700"
               aria-label="Close modal"
             >
               <Icon icon="mingcute:close-line" width={24} aria-hidden="true" />
@@ -1606,9 +1606,9 @@ export function JobOpportunityDetailModal({
                   setShowShareModal(false);
                   setSelectedTeamId(null);
                 }}
-                className="text-slate-400 hover:text-slate-600"
+                className="text-slate-500 hover:text-slate-700"
               >
-                <Icon icon="mingcute:close-line" width={24} />
+                <Icon icon="mingcute:close-line" width={24} aria-hidden="true" />
               </button>
             </div>
             <p className="text-sm text-slate-600 mb-4">
@@ -1616,7 +1616,7 @@ export function JobOpportunityDetailModal({
             </p>
             {teams.length === 0 ? (
               <div className="text-center py-8">
-                <Icon icon="mingcute:user-group-line" width={48} className="mx-auto text-slate-300 mb-2" />
+                <Icon icon="mingcute:user-group-line" width={48} className="mx-auto text-slate-400 mb-2" aria-hidden="true" />
                 <p className="text-slate-600 mb-4">You don't have any teams yet.</p>
                 <button
                   onClick={() => {
@@ -1661,7 +1661,8 @@ export function JobOpportunityDetailModal({
                           <Icon
                             icon="mingcute:arrow-right-line"
                             width={20}
-                            className="text-slate-400"
+                            className="text-slate-500"
+                            aria-hidden="true"
                           />
                         )}
                       </div>

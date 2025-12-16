@@ -116,16 +116,18 @@ function SortableSkillItem({
           <button
             onClick={() => onEdit(skill)}
             className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+            aria-label={`Edit ${skill.name} skill`}
             title="Edit skill"
           >
-            <Icon icon="mingcute:edit-line" width={18} height={18} />
+            <Icon icon="mingcute:edit-line" width={18} height={18} aria-hidden="true" />
           </button>
           <button
             onClick={() => onDelete(skill)}
             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            aria-label={`Delete ${skill.name} skill`}
             title="Delete skill"
           >
-            <Icon icon="mingcute:delete-line" width={18} height={18} />
+            <Icon icon="mingcute:delete-line" width={18} height={18} aria-hidden="true" />
           </button>
         </div>
       </div>

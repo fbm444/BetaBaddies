@@ -5546,10 +5546,11 @@ def solve(nums):
                     {/* Editor Toolbar */}
                     <div className="flex items-center justify-between px-4 py-2 border-b border-slate-700 bg-slate-800 flex-shrink-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-slate-400">
+                        <label htmlFor="editor-language-select" className="text-xs text-slate-400">
                           Language:
-                        </span>
+                        </label>
                         <select
+                          id="editor-language-select"
                           value={editorLanguage}
                           onChange={(e) => {
                             const newLang = e.target.value as any;

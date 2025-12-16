@@ -4704,6 +4704,20 @@ class ApiService {
       body: JSON.stringify({ offer_ids: offerIds, weights }),
     });
   }
+
+  async generateCareerSimulation(offerId: string, userPreferences?: any) {
+    return this.request<ApiResponse<any>>(`/job-offers/${offerId}/career-simulation`, {
+      method: "POST",
+      body: JSON.stringify({ userPreferences }),
+    });
+  }
+
+  async compareCareerPaths(offerIds: string[], userPreferences?: any) {
+    return this.request<ApiResponse<any>>("/job-offers/career-comparison", {
+      method: "POST",
+      body: JSON.stringify({ offer_ids: offerIds, userPreferences }),
+    });
+  }
 }
 
 export const api = new ApiService();

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Icon } from "@iconify/react";
 import { api } from "../../services/api";
+import { CareerPathSimulation } from "./CareerPathSimulation";
 import type {
   JobOfferData,
   JobOfferInput,
@@ -30,6 +31,7 @@ export function OfferComparisonTab({
   const [comparisonData, setComparisonData] = useState<any>(null);
   const [activeOffer, setActiveOffer] = useState<any>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showCareerSimulation, setShowCareerSimulation] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -211,6 +213,17 @@ export function OfferComparisonTab({
       <div className="flex items-center justify-center py-12">
         <Icon icon="mingcute:loading-line" className="w-8 h-8 animate-spin text-blue-500" />
       </div>
+    );
+  }
+
+  // Show career simulation if active
+  if (showCareerSimulation) {
+    return (
+      <CareerPathSimulation
+        selectedOffers={selectedOffers}
+        offers={offers}
+        onClose={() => setShowCareerSimulation(false)}
+      />
     );
   }
 
@@ -558,6 +571,15 @@ export function OfferComparisonTab({
           </p>
         </div>
         <div className="flex gap-3">
+          {selectedOffers.length >= 1 && (
+            <button
+              onClick={() => setShowCareerSimulation(true)}
+              className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors font-medium flex items-center gap-2"
+            >
+              <Icon icon="mingcute:chart-line-line" className="w-5 h-5" />
+              Career Simulation
+            </button>
+          )}
           {selectedOffers.length >= 2 && (
             <button
               onClick={handleCompareOffers}

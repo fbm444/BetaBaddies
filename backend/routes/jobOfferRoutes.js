@@ -1,6 +1,7 @@
 // Job Offer Routes for UC-127: Offer Evaluation & Comparison Tool
 import express from "express";
 import jobOfferService from "../services/jobOfferService.js";
+import careerPathSimulationService from "../services/careerPathSimulationService.js";
 import { isAuthenticated } from "../middleware/auth.js";
 
 const router = express.Router();
@@ -433,6 +434,83 @@ router.post("/compare", async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to compare offers",
+      error: error.message,
+    });
+  }
+});
+
+// ============================================================================
+// CAREER PATH SIMULATION
+// ============================================================================
+
+/**
+ * @route   POST /api/job-offers/:id/career-simulation
+ * @desc    Generate career path simulation for a specific offer
+ * @access  Private
+ * @body    { userPreferences?: object }
+ */
+router.post("/:id/career-simulation", async (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const offerId = req.params.id;
+    const { userPreferences } = req.body;
+
+    const simulation = await careerPathSimulationService.simulateCareerPath(
+      userId,
+      offerId,
+      userPreferences || {}
+    );
+
+    res.json({
+      success: true,
+      data: simulation,
+    });
+  } catch (error) {
+    console.error(
+      `Error in POST /api/job-offers/${req.params.id}/career-simulation:`,
+      error
+    );
+    res.status(500).json({
+      success: false,
+      message: "Failed to generate career path simulation",
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * @route   POST /api/job-offers/career-comparison
+ * @desc    Compare career paths for multiple offers
+ * @access  Private
+ * @body    { offer_ids: string[], userPreferences?: object }
+ */
+router.post("/career-comparison", async (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const { offer_ids, userPreferences } = req.body;
+
+    if (!offer_ids || !Array.isArray(offer_ids) || offer_ids.length < 1) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide at least 1 offer ID",
+      });
+    }
+
+    const comparison = await careerPathSimulationService.compareCareerPaths(
+      userId,
+      offer_ids,
+      userPreferences || {}
+    );
+
+    res.json({
+      success: true,
+      data: comparison,
+    });
+  } catch (error) {
+    console.error("Error in POST /api/job-offers/career-comparison:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to compare career paths",
       error: error.message,
     });
   }

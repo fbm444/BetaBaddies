@@ -1,9 +1,6 @@
 import certificationService from "../services/certificationService.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 import multer from "multer";
-import { v4 as uuidv4 } from "uuid";
-import fs from "fs/promises";
-import path from "path";
 import fileUploadService from "../services/fileUploadService.js";
 
 // Configure multer for memory storage
@@ -252,28 +249,15 @@ class CertificationController {
       }
 
       try {
-        // Generate unique filename
-        const fileId = uuidv4();
-        const fileExtension = path.extname(req.file.originalname).toLowerCase();
-        const fileName = `cert_badge_${fileId}${fileExtension}`;
-        const uploadDir = path.join(process.cwd(), "uploads", "certification-badges");
-        
-        // Ensure directory exists
-        await fs.mkdir(uploadDir, { recursive: true });
-        
-        const filePath = path.join(uploadDir, fileName);
-        
-        // Write file to disk
-        await fs.writeFile(filePath, req.file.buffer);
-
-        // Return the file path (relative to uploads directory)
-        const relativePath = `/uploads/certification-badges/${fileName}`;
+        const result = await fileUploadService.uploadCertificationBadge(
+          userId,
+          req.file
+        );
 
         res.status(201).json({
           ok: true,
           data: {
-            filePath: relativePath,
-            fileName: fileName,
+            ...result,
             message: "Badge image uploaded successfully",
           },
         });
@@ -281,7 +265,8 @@ class CertificationController {
         console.error("❌ Error uploading badge image:", error);
         if (
           error.message.includes("File size exceeds") ||
-          error.message.includes("Invalid file type")
+          error.message.includes("Invalid file type") ||
+          error.message.includes("not allowed")
         ) {
           return res.status(400).json({
             ok: false,

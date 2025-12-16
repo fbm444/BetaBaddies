@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import database from "./database.js";
 import { teamService } from "./collaboration/index.js";
+import fileUploadService from "./fileUploadService.js";
 
 class CertificationService {
   // Create a new certification
@@ -58,7 +59,7 @@ class CertificationService {
         achievements ? JSON.stringify(achievements) : null,
       ]);
 
-      const certification = this.formatCertification(result.rows[0]);
+      const certification = await this.formatCertification(result.rows[0]);
 
       // Log activity to all teams user is a member of
       try {
@@ -105,7 +106,10 @@ class CertificationService {
       `;
 
       const result = await database.query(query, [userId]);
-      return result.rows.map(cert => this.formatCertification(cert));
+      const certifications = await Promise.all(
+        result.rows.map(cert => this.formatCertification(cert))
+      );
+      return certifications;
     } catch (error) {
       console.error("❌ Error getting certifications:", error);
       throw error;
@@ -127,7 +131,7 @@ class CertificationService {
         throw new Error("Certification not found");
       }
 
-      return this.formatCertification(result.rows[0]);
+      return await this.formatCertification(result.rows[0]);
     } catch (error) {
       console.error("❌ Error getting certification:", error);
       throw error;
@@ -204,7 +208,7 @@ class CertificationService {
         throw new Error("Certification not found");
       }
 
-      return this.formatCertification(result.rows[0]);
+      return await this.formatCertification(result.rows[0]);
     } catch (error) {
       console.error("❌ Error updating certification:", error);
       throw error;
@@ -244,7 +248,10 @@ class CertificationService {
       `;
 
       const result = await database.query(query, [userId, `%${organizationName}%`]);
-      return result.rows.map(cert => this.formatCertification(cert));
+      const certifications = await Promise.all(
+        result.rows.map(cert => this.formatCertification(cert))
+      );
+      return certifications;
     } catch (error) {
       console.error("❌ Error getting certifications by organization:", error);
       throw error;
@@ -265,7 +272,10 @@ class CertificationService {
       `;
 
       const result = await database.query(query, [userId]);
-      return result.rows.map(cert => this.formatCertification(cert));
+      const certifications = await Promise.all(
+        result.rows.map(cert => this.formatCertification(cert))
+      );
+      return certifications;
     } catch (error) {
       console.error("❌ Error getting expiring certifications:", error);
       throw error;
@@ -311,7 +321,10 @@ class CertificationService {
       `;
 
       const result = await database.query(query, [userId, `%${searchTerm}%`]);
-      return result.rows.map(cert => this.formatCertification(cert));
+      const certifications = await Promise.all(
+        result.rows.map(cert => this.formatCertification(cert))
+      );
+      return certifications;
     } catch (error) {
       console.error("❌ Error searching certifications:", error);
       throw error;
@@ -329,7 +342,10 @@ class CertificationService {
       `;
 
       const result = await database.query(query, [userId, category]);
-      return result.rows.map(cert => this.formatCertification(cert));
+      const certifications = await Promise.all(
+        result.rows.map(cert => this.formatCertification(cert))
+      );
+      return certifications;
     } catch (error) {
       console.error("❌ Error getting certifications by category:", error);
       throw error;
@@ -367,7 +383,27 @@ class CertificationService {
   }
 
   // Format certification data for response
-  formatCertification(cert) {
+  async formatCertification(cert) {
+    // Convert badge image path to URL if using cloud storage
+    let badgeImageUrl = cert.badge_image || null;
+    if (badgeImageUrl && !badgeImageUrl.startsWith("http")) {
+      try {
+        // Check if it's a cloud storage key (doesn't start with /uploads)
+        // or if cloud storage is enabled
+        if (fileUploadService.useCloudStorage || !badgeImageUrl.startsWith("/uploads")) {
+          badgeImageUrl = await fileUploadService.getFileUrl(badgeImageUrl, {
+            expiresIn: 7 * 24 * 60 * 60, // 7 days expiration for badge images
+          });
+        }
+      } catch (error) {
+        console.warn("Could not generate URL for badge image", {
+          badgeImage: cert.badge_image,
+          error: error.message,
+        });
+        // Keep original path if URL generation fails
+      }
+    }
+
     return {
       id: cert.id,
       user_id: cert.user_id,
@@ -377,7 +413,7 @@ class CertificationService {
       expiration_date: cert.expiration_date,
       never_expires: cert.never_expires,
       platform: cert.platform || null,
-      badge_image: cert.badge_image || null,
+      badge_image: badgeImageUrl,
       verification_url: cert.verification_url || null,
       category: cert.category || null,
       description: cert.description || null,

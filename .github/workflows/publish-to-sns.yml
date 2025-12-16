@@ -2,7 +2,7 @@ name: Publish to AWS SNS Topic
 
 on:
   workflow_run:
-    workflows: ["Deploy to Production"]
+    workflows: ["Deploy Production"]
     types: [completed]
 
 env:

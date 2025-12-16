@@ -605,8 +605,9 @@ app.use("/api/v1/geocoding", geocodingRoutes);
 app.use("/api/v1/salary-benchmarks", salaryBenchmarkRoutes);
 app.use("/api/v1/job-offers", jobOfferRoutes);
 app.use("/api/v1/optimization", optimizationRoutes);
+app.use("/api/v1/test", testRoutes);
 
-// Sentry debug endpoint (for testing)
+// Sentry debug endpoint (for testing) - kept for backward compatibility
 app.get("/debug-sentry", function mainHandler(req, res) {
   // Send a log before throwing the error
   Sentry.logger.info("User triggered test error", {

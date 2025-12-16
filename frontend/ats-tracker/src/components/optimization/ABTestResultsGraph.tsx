@@ -67,6 +67,14 @@ export function ABTestResultsGraph({ test, results, onClose }: ABTestResultsGrap
 
   const COLORS = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444'];
 
+  // Winner logic (highest offer rate)
+  const winner =
+    chartData.length > 0
+      ? chartData.reduce((best, current) =>
+          (current.offerRate || 0) > (best.offerRate || 0) ? current : best
+        )
+      : null;
+
   if (chartData.length === 0) {
     return (
       <div className="text-center py-8 bg-slate-50 rounded-lg border border-slate-200">
@@ -87,6 +95,18 @@ export function ABTestResultsGraph({ test, results, onClose }: ABTestResultsGrap
           >
             <Icon icon="mingcute:close-line" width={20} />
           </button>
+        </div>
+      )}
+
+      {/* Summary */}
+      {winner && (
+        <div className="bg-gradient-to-r from-violet-50 to-blue-50 rounded-lg p-4 border border-violet-200">
+          <p className="text-sm font-semibold text-slate-900">
+            Winner: {winner.name} ({winner.offerRate.toFixed(1)}% offer rate)
+          </p>
+          <p className="text-xs text-slate-600 mt-1">
+            Based on sample sizes provided. These are mock test results to illustrate the graph.
+          </p>
         </div>
       )}
 

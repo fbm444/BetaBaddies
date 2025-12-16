@@ -54,9 +54,11 @@ export function ABTestingCard({ dateRange }: ABTestingCardProps) {
   const fetchTestResults = async (testId: string) => {
     try {
       const response = await api.getABTestResults(testId);
-      if (response.ok && response.data) {
+      if (response.ok && response.data && response.data.results) {
         setTestResults({ ...testResults, [testId]: response.data.results });
         setExpandedTestId(testId);
+      } else {
+        console.error("Error fetching test results:", response.error);
       }
     } catch (err) {
       console.error("Error fetching test results:", err);
@@ -159,25 +161,23 @@ export function ABTestingCard({ dateRange }: ABTestingCardProps) {
               </div>
 
               {/* Results Graph for Completed Tests */}
-              {test.status === "completed" && (
-                <div className="mt-6 pt-6 border-t border-violet-200">
-                  {expandedTestId === test.id && testResults[test.id] ? (
-                    <ABTestResultsGraph
-                      test={test}
-                      results={testResults[test.id]}
-                      onClose={() => setExpandedTestId(null)}
-                    />
-                  ) : (
-                    <button
-                      onClick={() => fetchTestResults(test.id)}
-                      className="w-full px-4 py-2 bg-violet-100 text-violet-700 rounded-lg hover:bg-violet-200 transition-colors text-sm font-medium flex items-center justify-center gap-2"
-                    >
-                      <Icon icon="mingcute:chart-line" width={18} />
-                      View Detailed Results Graph
-                    </button>
-                  )}
-                </div>
-              )}
+              <div className="mt-6 pt-6 border-t border-violet-200">
+                {expandedTestId === test.id && testResults[test.id] ? (
+                  <ABTestResultsGraph
+                    test={test}
+                    results={testResults[test.id]}
+                    onClose={() => setExpandedTestId(null)}
+                  />
+                ) : (
+                  <button
+                    onClick={() => fetchTestResults(test.id)}
+                    className="w-full px-4 py-2 bg-violet-100 text-violet-700 rounded-lg hover:bg-violet-200 transition-colors text-sm font-medium flex items-center justify-center gap-2"
+                  >
+                    <Icon icon="mingcute:chart-line" width={18} />
+                    View Detailed Results Graph
+                  </button>
+                )}
+              </div>
 
               <div className="flex gap-2 mt-4">
                 {test.status === "draft" && (
@@ -210,14 +210,12 @@ export function ABTestingCard({ dateRange }: ABTestingCardProps) {
                     Complete Test
                   </button>
                 )}
-                {test.status === "completed" && (
-                  <button
-                    onClick={() => fetchTestResults(test.id)}
-                    className="px-3 py-1.5 bg-violet-600 text-white text-xs font-medium rounded hover:bg-violet-700 transition-colors"
-                  >
-                    {expandedTestId === test.id ? "Hide Graph" : "Show Graph"}
-                  </button>
-                )}
+                <button
+                  onClick={() => fetchTestResults(test.id)}
+                  className="px-3 py-1.5 bg-violet-600 text-white text-xs font-medium rounded hover:bg-violet-700 transition-colors"
+                >
+                  {expandedTestId === test.id ? "Hide Graph" : "Show Graph"}
+                </button>
               </div>
             </div>
           ))}

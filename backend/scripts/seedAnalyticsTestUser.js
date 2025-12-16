@@ -877,6 +877,7 @@ const coverSystems = docIds["Cover Letter - Systems"];
 
   // Insert a batch of interviews (completed + scheduled) across stages
   const now = new Date();
+  const interviewIdsByJob = {};
   const interviewsData = [
     {
       jobKey: "google",
@@ -1039,7 +1040,7 @@ const coverSystems = docIds["Cover Letter - Systems"];
     const scheduledAt = new Date(now.getTime() - iv.daysAgo * 86400000);
     const scheduledISO = scheduledAt.toISOString();
 
-    await database.query(
+    const insertedInterview = await database.query(
       `INSERT INTO interviews (
         id, user_id, job_opportunity_id, title, company, type, format, scheduled_at, date, duration,
         status, outcome, is_practice, interviewer_name, interviewer_email,
@@ -1070,9 +1071,25 @@ const coverSystems = docIds["Cover Letter - Systems"];
         iv.notes || null,
       ]
     );
+    if (!interviewIdsByJob[iv.jobKey]) {
+      interviewIdsByJob[iv.jobKey] = insertedInterview.rows[0]?.id || null;
+    }
   }
 
   // Job offers (for Offer Comparison + richer A/B data)
+  // First, update job statuses to "Offer" for jobs that will have offers
+  const jobsWithOffers = ["stripe-eng", "google", "amazon"];
+  for (const jobKey of jobsWithOffers) {
+    const jobId = jobIds[jobKey];
+    if (jobId) {
+      await database.query(
+        `UPDATE job_opportunities SET status = 'Offer', status_updated_at = NOW() WHERE id = $1`,
+        [jobId]
+      );
+      console.log(`✅ Updated job ${jobKey} status to 'Offer'`);
+    }
+  }
+
   const offersData = [
     {
       jobKey: "stripe-eng",
@@ -1119,9 +1136,14 @@ const coverSystems = docIds["Cover Letter - Systems"];
   ];
 
   // Insert job offers so Offer Comparison has sample data
+  console.log("\n📋 Creating job offers...");
   for (const offer of offersData) {
     const jobId = jobIds[offer.jobKey];
-    if (!jobId) continue;
+    if (!jobId) {
+      console.warn(`⚠️  Job key "${offer.jobKey}" not found in jobIds, skipping offer`);
+      continue;
+    }
+    console.log(`  Creating offer for ${offer.company} (jobId: ${jobId})`);
 
     const offerDate = new Date();
     const decisionDeadline = new Date(Date.now() + 14 * 86400000);
@@ -1135,22 +1157,23 @@ const coverSystems = docIds["Cover Letter - Systems"];
     await database.query(
       `
       INSERT INTO job_offers (
-        id, user_id, job_opportunity_id,
+        id, user_id, job_opportunity_id, interview_id,
         company, position_title, offer_date, decision_deadline,
         base_salary, signing_bonus, annual_bonus, equity_type, equity_amount,
         location, remote_policy, col_index, col_adjusted_salary,
         negotiation_status, offer_status, notes
       ) VALUES (
-        gen_random_uuid(), $1, $2,
-        $3, $4, $5, $6,
-        $7, $8, $9, $10, $11,
-        $12, $13, $14, $15,
-        $16, $17, $18
+        gen_random_uuid(), $1, $2, $3,
+        $4, $5, $6, $7,
+        $8, $9, $10, $11, $12,
+        $13, $14, $15, $16,
+        $17, $18, $19
       )
     `,
       [
         userId,
         jobId,
+        interviewIdsByJob[offer.jobKey] || null,
         offer.company,
         offer.title,
         offerDate,
@@ -1169,7 +1192,9 @@ const coverSystems = docIds["Cover Letter - Systems"];
         offer.notes || null,
       ]
     );
+    console.log(`  ✅ Created offer for ${offer.company} linked to job_opportunity_id: ${jobId}`);
   }
+  console.log(`✅ Created ${offersData.length} job offers\n`);
 
   // Follow-up reminders seed (pending/snoozed/completed)
   const remindersData = [

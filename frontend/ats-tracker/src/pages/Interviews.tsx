@@ -1725,7 +1725,7 @@ export function Interviews() {
           {activeTab === "thank-you" && (
             <div role="tabpanel" id="tabpanel-thank-you" aria-labelledby="tab-thank-you">
               <div className="flex items-center justify-between mb-4">
-                <div>
+            <div>
                   <h2 className="text-2xl font-bold text-slate-900">Thank You Notes</h2>
                   <p className="text-slate-600 mt-2">
                     Generate and send thank-you notes after your interviews. Click on any interview to create or review a draft.
@@ -1866,8 +1866,8 @@ export function Interviews() {
                           <Icon icon="mingcute:loading-line" width={20} className="animate-spin" />
                           <span className="text-sm font-medium">Generating thank-you note...</span>
                         </div>
-                      </div>
-                    )}
+            </div>
+          )}
                   </div>
 
                   {/* Status Inquiry Template */}
@@ -1960,7 +1960,7 @@ export function Interviews() {
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
                         <Icon icon="mingcute:question-line" width={20} className="text-orange-500" />
-                        <div>
+            <div>
                           <p className="text-xs font-semibold uppercase text-orange-600 tracking-wide">
                             Status Inquiry
                           </p>
@@ -3065,7 +3065,7 @@ export function Interviews() {
                                           <span className="font-semibold text-slate-900 text-sm">
                                             {followUp.interview?.jobTitle || followUp.interview?.title || "Position"}
                                           </span>
-                                        </div>
+                          </div>
                                         {followUp.interview?.company && (
                                           <p className="text-xs text-slate-600 ml-6 mb-1">{followUp.interview.company}</p>
                                         )}
@@ -4100,11 +4100,11 @@ export function Interviews() {
           <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
             <div className="flex items-center gap-3 mb-4">
               <Icon icon="mingcute:calendar-line" width={32} className="text-blue-700" />
-              <h3 className="text-xl font-semibold text-slate-900">Connect Google Calendar</h3>
+                        <h3 className="text-xl font-semibold text-slate-900">Connect Google Calendar</h3>
             </div>
             <p className="text-slate-600 mb-6">
-              Sync your interviews with Google Calendar to get automatic reminders and updates
-            </p>
+                          Sync your interviews with Google Calendar to get automatic reminders and updates
+                        </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowCalendarModal(false)}
@@ -4118,7 +4118,7 @@ export function Interviews() {
               >
                 Connect
               </button>
-            </div>
+                      </div>
           </div>
         </div>
       )}

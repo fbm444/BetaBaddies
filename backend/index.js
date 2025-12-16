@@ -11,6 +11,38 @@ import {
 import scheduler from "./services/scheduler.js";
 import logger from "./utils/logger.js";
 
+// Set up global error handlers to catch unhandled errors (including startup errors)
+// These will catch errors that occur before Sentry is fully initialized
+process.on("uncaughtException", async (error) => {
+  logger.error("Uncaught Exception", error);
+  // Try to capture in Sentry if available
+  try {
+    const Sentry = await import("@sentry/node").catch(() => null);
+    if (Sentry && Sentry.default && Sentry.default.captureException) {
+      Sentry.default.captureException(error);
+      // Give Sentry time to send the error before exiting
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
+  } catch (sentryError) {
+    // Sentry not available, continue with exit
+  }
+  process.exit(1);
+});
+
+process.on("unhandledRejection", async (reason, promise) => {
+  logger.error("Unhandled Rejection", { reason, promise });
+  // Try to capture in Sentry if available
+  try {
+    const Sentry = await import("@sentry/node").catch(() => null);
+    if (Sentry && Sentry.default && Sentry.default.captureException) {
+      const error = reason instanceof Error ? reason : new Error(String(reason));
+      Sentry.default.captureException(error);
+    }
+  } catch (sentryError) {
+    // Sentry not available, continue
+  }
+});
+
 async function main() {
   dotenv.config();
   const port = process.env.SERVER_PORT || process.env.PORT || 3001;
@@ -67,11 +99,33 @@ async function main() {
     });
   } catch (error) {
     logger.error("Could not connect to PostgreSQL database", error);
+    // Try to capture in Sentry if available
+    try {
+      const Sentry = await import("@sentry/node").catch(() => null);
+      if (Sentry && Sentry.default && Sentry.default.captureException) {
+        Sentry.default.captureException(error);
+        // Give Sentry time to send the error
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      }
+    } catch (sentryError) {
+      // Sentry not available, continue with exit
+    }
     process.exit(1);
   }
 }
 
-main().catch((error) => {
+main().catch(async (error) => {
   logger.error("Fatal error in main", error);
+  // Try to capture in Sentry if available
+  try {
+    const Sentry = await import("@sentry/node").catch(() => null);
+    if (Sentry && Sentry.default && Sentry.default.captureException) {
+      Sentry.default.captureException(error);
+      // Give Sentry time to send the error
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
+  } catch (sentryError) {
+    // Sentry not available, continue with exit
+  }
   process.exit(1);
 });

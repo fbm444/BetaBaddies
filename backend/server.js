@@ -88,6 +88,7 @@ import apiMonitoringRoutes from "./routes/apiMonitoringRoutes.js";
 import geocodingRoutes from "./routes/geocodingRoutes.js";
 import salaryBenchmarkRoutes from "./routes/salaryBenchmarkRoutes.js";
 import jobOfferRoutes from "./routes/jobOfferRoutes.js";
+import testRoutes from "./routes/testRoutes.js";
 
 // Import middleware
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";

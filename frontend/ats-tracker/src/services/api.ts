@@ -5149,6 +5149,32 @@ class ApiService {
       `/optimization/response-time/benchmarks`
     );
   }
+
+  // Application Quality Scoring
+  async scoreApplicationQuality(
+    jobId: string,
+    payload?: { resumeDocumentId?: string; coverLetterDocumentId?: string; linkedinUrl?: string }
+  ) {
+    return this.request<ApiResponse<{ quality: any }>>(
+      `/optimization/quality/score/${jobId}`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload || {}),
+      }
+    );
+  }
+
+  async getApplicationQuality(jobId: string) {
+    return this.request<ApiResponse<{ quality: any }>>(
+      `/optimization/quality/latest/${jobId}`
+    );
+  }
+
+  async getApplicationQualityStats() {
+    return this.request<ApiResponse<{ stats: any }>>(
+      `/optimization/quality/stats`
+    );
+  }
 }
 
 export const api = new ApiService();

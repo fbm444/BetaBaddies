@@ -125,22 +125,34 @@ export function ApplicationSuccessOptimization() {
                     industry and role type.
                   </p>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
-                    {responseBenchmarks.slice(0, 6).map((b, idx) => (
-                      <div
-                        key={`${b.industry || 'Unknown'}-${b.job_type || 'role'}-${idx}`}
-                        className="border border-slate-200 rounded-lg p-3 bg-slate-50"
-                      >
-                        <p className="text-[11px] font-semibold text-slate-700 mb-1">
-                          {b.industry || "Unknown Industry"}
-                        </p>
-                        <p className="text-[11px] text-slate-500 mb-1">
-                          {b.job_type || "Role"} • {b.count} apps
-                        </p>
-                        <p className="text-sm font-bold text-slate-900">
-                          {b.avg_days ? `${b.avg_days.toFixed(1)} days` : "—"}
-                        </p>
-                      </div>
-                    ))}
+                    {responseBenchmarks.slice(0, 6).map((b, idx) => {
+                      const industry = b.industry || "Unknown Industry";
+                      const jobType = b.jobType || b.job_type || "Role";
+                      const count = typeof b.count === "number" ? b.count : Number(b.count) || 0;
+                      const avgRaw = typeof b.avgDays === "number"
+                        ? b.avgDays
+                        : b.avg_days != null
+                        ? Number(b.avg_days)
+                        : null;
+                      const hasAvg = typeof avgRaw === "number" && !Number.isNaN(avgRaw);
+
+                      return (
+                        <div
+                          key={`${industry}-${jobType}-${idx}`}
+                          className="border border-slate-200 rounded-lg p-3 bg-slate-50"
+                        >
+                          <p className="text-[11px] font-semibold text-slate-700 mb-1">
+                            {industry}
+                          </p>
+                          <p className="text-[11px] text-slate-500 mb-1">
+                            {jobType} • {count} apps
+                          </p>
+                          <p className="text-sm font-bold text-slate-900">
+                            {hasAvg ? `${avgRaw.toFixed(1)} days` : "—"}
+                          </p>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}

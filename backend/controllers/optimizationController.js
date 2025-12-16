@@ -7,6 +7,7 @@ import successMetricsService from "../services/successMetricsService.js";
 import optimizationRecommendationsService from "../services/optimizationRecommendationsService.js";
 import roleTypeAnalysisService from "../services/roleTypeAnalysisService.js";
 import responseTimePredictionService from "../services/responseTimePredictionService.js";
+import applicationQualityService from "../services/applicationQualityService.js";
 
 class OptimizationController {
   // ============================================================================
@@ -478,6 +479,83 @@ class OptimizationController {
     res.status(200).json({
       ok: true,
       data: { roleTypes }
+    });
+  });
+
+  // ============================================================================
+  // Application Quality Scoring
+  // ============================================================================
+
+  scoreApplicationQuality = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { jobId } = req.params;
+    const { resumeDocumentId, coverLetterDocumentId, linkedinUrl } = req.body || {};
+
+    if (!jobId) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: "VALIDATION_ERROR", message: "jobId is required" }
+      });
+    }
+
+    const quality = await applicationQualityService.scoreApplication(userId, jobId, {
+      resumeDocumentId,
+      coverLetterDocumentId,
+      linkedinUrl,
+    });
+
+    res.status(201).json({
+      ok: true,
+      data: { quality }
+    });
+  });
+
+  getApplicationQuality = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { jobId } = req.params;
+
+    if (!jobId) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: "VALIDATION_ERROR", message: "jobId is required" }
+      });
+    }
+
+    const quality = await applicationQualityService.getLatestScore(userId, jobId);
+
+    res.status(200).json({
+      ok: true,
+      data: { quality }
+    });
+  });
+
+  getApplicationQualityStats = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+
+    const stats = await applicationQualityService.getStats(userId);
+
+    res.status(200).json({
+      ok: true,
+      data: { stats }
+    });
+  });
+
+  getApplicationQualityHistory = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { jobId } = req.params;
+
+    if (!jobId) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: "VALIDATION_ERROR", message: "jobId is required" }
+      });
+    }
+
+    const history = await applicationQualityService.getHistory(userId, jobId);
+
+    res.status(200).json({
+      ok: true,
+      data: { history }
     });
   });
 }

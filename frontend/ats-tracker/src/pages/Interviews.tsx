@@ -737,24 +737,24 @@ export function Interviews() {
           <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4">
             Interviews
           </h1>
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <p className="text-slate-600">
               View and manage your interviews. Schedule new interviews, view upcoming ones, and access all interview details.
             </p>
-            <div className="flex items-center gap-3 flex-shrink-0">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-shrink-0 w-full sm:w-auto">
             <button
                 onClick={() => navigate(ROUTES.INTERVIEW_SCHEDULING)}
-                className="px-6 py-3 rounded-full bg-blue-700 text-white text-sm font-medium inline-flex items-center gap-2 shadow-md hover:bg-blue-800 transition-all"
+                className="px-4 py-2.5 sm:px-6 sm:py-3 rounded-full bg-blue-700 text-white text-xs sm:text-sm font-medium inline-flex items-center justify-center gap-2 shadow-md hover:bg-blue-800 transition-all"
               >
-                <Icon icon="mingcute:calendar-line" width={20} />
-                Interview Calendar
+                <Icon icon="mingcute:calendar-line" width={18} className="sm:w-5" />
+                <span className="whitespace-nowrap">Interview Calendar</span>
               </button>
               {!calendarConnected ? (
                 <button
                   onClick={handleConnectCalendar}
-                  className="px-6 py-3 rounded-full border-2 border-blue-500 text-blue-700 text-sm font-medium inline-flex items-center gap-2 hover:bg-blue-50 transition-all"
+                  className="px-4 py-2.5 sm:px-6 sm:py-3 rounded-full border-2 border-blue-500 text-blue-700 text-xs sm:text-sm font-medium inline-flex items-center justify-center gap-2 hover:bg-blue-50 transition-all"
                 >
-                  Connect Google Calendar
+                  <span className="whitespace-nowrap">Connect Google Calendar</span>
                 </button>
               ) : (
                 <button
@@ -767,10 +767,10 @@ export function Interviews() {
                       showMessage(err.message || "Failed to disconnect", "error");
                     }
                   }}
-                  className="px-6 py-3 rounded-full border-2 border-green-500 text-green-700 text-sm font-medium inline-flex items-center gap-2 hover:bg-green-50 transition-all"
+                  className="px-4 py-2.5 sm:px-6 sm:py-3 rounded-full border-2 border-green-500 text-green-700 text-xs sm:text-sm font-medium inline-flex items-center justify-center gap-2 hover:bg-green-50 transition-all"
                 >
-                  <Icon icon="mingcute:check-circle-line" width={20} />
-                  Connected
+                  <Icon icon="mingcute:check-circle-line" width={18} className="sm:w-5" />
+                  <span className="whitespace-nowrap">Connected</span>
             </button>
           )}
             </div>

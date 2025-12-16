@@ -11,6 +11,8 @@ import type {
   QuestionType,
   TagType,
   OutcomeType,
+} from "../types";
+import {
   QUESTION_TYPE_LABELS,
   TAG_TYPE_LABELS,
   OUTCOME_TYPE_LABELS,
@@ -49,10 +51,13 @@ export function InterviewResponseLibrary() {
       setError(null);
       const response = await api.getInterviewResponses();
       if (response.ok && response.data) {
-        setResponses(response.data.responses);
+        setResponses(Array.isArray(response.data.responses) ? response.data.responses : []);
+      } else {
+        setError(response.error?.message || "Failed to load responses");
       }
     } catch (err: any) {
-      setError(err.message || "Failed to load responses");
+      console.error("Error fetching responses:", err);
+      setError(err.message || "Failed to load responses. Please ensure the database tables are created.");
     } finally {
       setIsLoading(false);
     }
@@ -70,6 +75,11 @@ export function InterviewResponseLibrary() {
   };
 
   const filterResponses = () => {
+    if (!Array.isArray(responses) || responses.length === 0) {
+      setFilteredResponses([]);
+      return;
+    }
+
     let filtered = [...responses];
 
     if (questionTypeFilter !== "all") {
@@ -80,9 +90,9 @@ export function InterviewResponseLibrary() {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(
         (r) =>
-          r.questionText.toLowerCase().includes(term) ||
-          r.currentVersion.responseText.toLowerCase().includes(term) ||
-          r.tags.some((t) => t.tagValue.toLowerCase().includes(term))
+          r.questionText?.toLowerCase().includes(term) ||
+          r.currentVersion?.responseText?.toLowerCase().includes(term) ||
+          (Array.isArray(r.tags) && r.tags.some((t) => t.tagValue?.toLowerCase().includes(term)))
       );
     }
 
@@ -362,7 +372,7 @@ function ResponseCard({
   );
 }
 
-function ResponseFormModal({ onClose }: { onClose: () => void }) {
+function ResponseFormModal({ onClose, onSuccess }: { onClose: () => void; onSuccess?: () => void }) {
   const [formData, setFormData] = useState<InterviewResponseInput>({
     questionText: "",
     questionType: "behavioral",
@@ -381,10 +391,18 @@ function ResponseFormModal({ onClose }: { onClose: () => void }) {
 
     try {
       setIsSubmitting(true);
-      await api.createInterviewResponse(formData);
-      onClose();
+      const response = await api.createInterviewResponse(formData);
+      if (response.ok) {
+        onClose();
+      } else {
+        const errorMsg = response.error?.message || "Failed to create response";
+        alert(errorMsg);
+        console.error("Create response error:", response.error);
+      }
     } catch (err: any) {
-      alert(err.message || "Failed to create response");
+      console.error("Error creating response:", err);
+      const errorMsg = err.message || err.detail || "Failed to create response. Please ensure the database tables are created by running the migration.";
+      alert(errorMsg);
     } finally {
       setIsSubmitting(false);
     }

@@ -4966,6 +4966,176 @@ class ApiService {
       body: JSON.stringify({ offer_ids: offerIds, userPreferences }),
     });
   }
+
+  // ============================================================================
+  // Application Success Optimization API
+  // ============================================================================
+
+  // Success Metrics
+  async getOptimizationMetrics(period?: string) {
+    const query = period ? `?period=${period}` : "";
+    return this.request<ApiResponse<any>>(`/optimization/metrics${query}`);
+  }
+
+  async getOptimizationTrends(metric?: string, periodType?: string, limit?: number) {
+    const params = new URLSearchParams();
+    if (metric) params.append("metric", metric);
+    if (periodType) params.append("periodType", periodType);
+    if (limit) params.append("limit", limit.toString());
+    const query = params.toString() ? `?${params.toString()}` : "";
+    return this.request<ApiResponse<any>>(`/optimization/metrics/trends${query}`);
+  }
+
+  async getOptimizationSnapshots(periodType?: string, limit?: number) {
+    const params = new URLSearchParams();
+    if (periodType) params.append("periodType", periodType);
+    if (limit) params.append("limit", limit.toString());
+    const query = params.toString() ? `?${params.toString()}` : "";
+    return this.request<ApiResponse<any>>(`/optimization/metrics/snapshots${query}`);
+  }
+
+  async createOptimizationSnapshot(date?: string, periodType?: string) {
+    return this.request<ApiResponse<any>>("/optimization/metrics/snapshots", {
+      method: "POST",
+      body: JSON.stringify({ date, periodType }),
+    });
+  }
+
+  // Application Strategy
+  async trackApplicationStrategy(jobOpportunityId: string, strategyData: any) {
+    return this.request<ApiResponse<any>>("/optimization/strategies/track", {
+      method: "POST",
+      body: JSON.stringify({ jobOpportunityId, ...strategyData }),
+    });
+  }
+
+  async getStrategyPerformance(filters?: { applicationMethod?: string; startDate?: string; endDate?: string }) {
+    const params = new URLSearchParams();
+    if (filters?.applicationMethod) params.append("applicationMethod", filters.applicationMethod);
+    if (filters?.startDate) params.append("startDate", filters.startDate);
+    if (filters?.endDate) params.append("endDate", filters.endDate);
+    const query = params.toString() ? `?${params.toString()}` : "";
+    return this.request<ApiResponse<any>>(`/optimization/strategies/performance${query}`);
+  }
+
+  async getBestStrategies(limit?: number) {
+    const query = limit ? `?limit=${limit}` : "";
+    return this.request<ApiResponse<any>>(`/optimization/strategies/best${query}`);
+  }
+
+  async compareStrategies(strategy1: any, strategy2: any) {
+    return this.request<ApiResponse<any>>("/optimization/strategies/compare", {
+      method: "POST",
+      body: JSON.stringify({ strategy1, strategy2 }),
+    });
+  }
+
+  // Document Performance
+  async registerDocumentVersion(documentData: any) {
+    return this.request<ApiResponse<any>>("/optimization/documents/register", {
+      method: "POST",
+      body: JSON.stringify(documentData),
+    });
+  }
+
+  async getDocumentPerformance(documentId: string) {
+    return this.request<ApiResponse<any>>(`/optimization/documents/${documentId}/performance`);
+  }
+
+  async compareDocuments(documentType: string) {
+    return this.request<ApiResponse<any>>(`/optimization/documents/compare?documentType=${documentType}`);
+  }
+
+  async getBestDocuments(documentType?: string) {
+    const query = documentType ? `?documentType=${documentType}` : "";
+    return this.request<ApiResponse<any>>(`/optimization/documents/best${query}`);
+  }
+
+  async setPrimaryDocument(documentId: string) {
+    return this.request<ApiResponse<any>>(`/optimization/documents/${documentId}/set-primary`, {
+      method: "PUT",
+    });
+  }
+
+  // Timing Analysis
+  async getOptimalTiming() {
+    return this.request<ApiResponse<any>>("/optimization/timing/optimal");
+  }
+
+  async getDayOfWeekPerformance() {
+    return this.request<ApiResponse<any>>("/optimization/timing/day-of-week");
+  }
+
+  async getHourOfDayPerformance() {
+    return this.request<ApiResponse<any>>("/optimization/timing/hour-of-day");
+  }
+
+  async getTimeOfDayPerformance() {
+    return this.request<ApiResponse<any>>("/optimization/timing/time-of-day");
+  }
+
+  // A/B Testing
+  async createABTest(testData: any) {
+    return this.request<ApiResponse<any>>("/optimization/ab-tests", {
+      method: "POST",
+      body: JSON.stringify(testData),
+    });
+  }
+
+  async getABTests(status?: string) {
+    const query = status ? `?status=${status}` : "";
+    return this.request<ApiResponse<any>>(`/optimization/ab-tests${query}`);
+  }
+
+  async getABTestResults(testId: string) {
+    return this.request<ApiResponse<any>>(`/optimization/ab-tests/${testId}/results`);
+  }
+
+  async startABTest(testId: string) {
+    return this.request<ApiResponse<any>>(`/optimization/ab-tests/${testId}/start`, {
+      method: "PUT",
+    });
+  }
+
+  async completeABTest(testId: string) {
+    return this.request<ApiResponse<any>>(`/optimization/ab-tests/${testId}/complete`, {
+      method: "PUT",
+    });
+  }
+
+  // Recommendations
+  async getOptimizationRecommendations(limit?: number) {
+    const query = limit ? `?limit=${limit}` : "";
+    return this.request<ApiResponse<any>>(`/optimization/recommendations${query}`);
+  }
+
+  async acknowledgeRecommendation(recommendationId: string) {
+    return this.request<ApiResponse<any>>(`/optimization/recommendations/${recommendationId}/acknowledge`, {
+      method: "PUT",
+    });
+  }
+
+  async completeRecommendation(recommendationId: string) {
+    return this.request<ApiResponse<any>>(`/optimization/recommendations/${recommendationId}/complete`, {
+      method: "PUT",
+    });
+  }
+
+  async dismissRecommendation(recommendationId: string) {
+    return this.request<ApiResponse<any>>(`/optimization/recommendations/${recommendationId}/dismiss`, {
+      method: "PUT",
+    });
+  }
+
+  // Role Type Analysis
+  async getRoleTypePerformance() {
+    return this.request<ApiResponse<any>>("/optimization/role-types/performance");
+  }
+
+  async getBestRoleTypes(limit?: number) {
+    const query = limit ? `?limit=${limit}` : "";
+    return this.request<ApiResponse<any>>(`/optimization/role-types/best${query}`);
+  }
 }
 
 export const api = new ApiService();

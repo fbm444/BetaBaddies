@@ -52,6 +52,7 @@ export const ROUTES = {
   NETWORK_REFERRALS: "/network/referrals",
   FOLLOW_UP_REMINDERS: "/follow-up-reminders",
   API_MONITORING: "/admin/api-monitoring",
+  APPLICATION_OPTIMIZATION: "/application-optimization",
 } as const;
 
 // Navigation item type

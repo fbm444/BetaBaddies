@@ -204,9 +204,67 @@ app.use(
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Cookie"],
+    exposedHeaders: ["Set-Cookie"],
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
   })
 );
+
+// Explicit OPTIONS handler for CORS preflight - must be before routes
+app.options("*", (req, res) => {
+  const origin = req.headers.origin;
+  
+  logger.debug("OPTIONS preflight request", {
+    origin,
+    path: req.path,
+    allowedOrigins: corsOrigins,
+  });
+  
+  // Check if origin is allowed
+  const isAllowed = !origin || corsOrigins.some((allowed) => {
+    const allowedLower = allowed.toLowerCase();
+    const originLower = origin?.toLowerCase();
+    
+    // Exact match
+    if (allowedLower === originLower) return true;
+    
+    // Wildcard pattern match (e.g., *.vercel.app)
+    if (allowedLower.includes("*")) {
+      const pattern = allowedLower.replace(/\*/g, ".*");
+      const regex = new RegExp(`^${pattern}$`);
+      return regex.test(originLower);
+    }
+    
+    return false;
+  });
+  
+  if (isAllowed) {
+    if (origin) {
+      res.header("Access-Control-Allow-Origin", origin);
+    } else {
+      res.header("Access-Control-Allow-Origin", "*");
+    }
+    res.header("Access-Control-Allow-Credentials", "true");
+    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Cookie");
+    res.header("Access-Control-Max-Age", "86400"); // 24 hours
+    logger.debug("OPTIONS preflight allowed", { origin });
+  } else {
+    logger.warn("OPTIONS preflight blocked", { origin, allowedOrigins: corsOrigins });
+  }
+  
+  res.sendStatus(204);
+});
+
+// Handle OPTIONS requests explicitly for CORS preflight
+app.options("*", (req, res) => {
+  res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Cookie");
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.sendStatus(204);
+});
 
 // Rate limiting
 const rateLimitWindowMs =

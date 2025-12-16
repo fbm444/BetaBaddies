@@ -2,19 +2,7 @@ import { useState, useEffect } from "react";
 import { Icon } from "@iconify/react";
 import { api } from "../../services/api";
 import { ABTestFormModal } from "./ABTestFormModal";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  Cell,
-  PieChart,
-  Pie,
-} from "recharts";
+import { ABTestResultsGraph } from "./ABTestResultsGraph";
 
 interface ABTestingCardProps {
   dateRange?: { startDate?: string; endDate?: string };
@@ -75,48 +63,6 @@ export function ABTestingCard({ dateRange }: ABTestingCardProps) {
     }
   };
 
-  const prepareChartData = (test: any, results: any) => {
-    const data = [];
-    
-    // Control group
-    if (test.controlGroupConfig || results?.control) {
-      const control = results?.control || test.results?.control || {};
-      data.push({
-        name: test.controlGroupConfig?.name || "Control",
-        responseRate: (control.responseRate || 0) * 100,
-        interviewRate: (control.interviewRate || 0) * 100,
-        offerRate: (control.offerRate || 0) * 100,
-        sampleSize: control.sampleSize || control.applicationCount || 0,
-      });
-    }
-
-    // Variant groups
-    if (test.variantGroups && Array.isArray(test.variantGroups)) {
-      test.variantGroups.forEach((variant: any, index: number) => {
-        const variantKey = `variant_${String.fromCharCode(65 + index).toLowerCase()}`;
-        const variantData = results?.[variantKey] || test.results?.[variantKey] || {};
-        data.push({
-          name: variant.name || `Variant ${String.fromCharCode(65 + index)}`,
-          responseRate: (variantData.responseRate || 0) * 100,
-          interviewRate: (variantData.interviewRate || 0) * 100,
-          offerRate: (variantData.offerRate || 0) * 100,
-          sampleSize: variantData.sampleSize || variantData.applicationCount || 0,
-        });
-      });
-    } else if (results?.variant_a || test.results?.variantA) {
-      // Fallback for variant_a format
-      const variantA = results?.variant_a || test.results?.variantA || {};
-      data.push({
-        name: "Variant A",
-        responseRate: (variantA.responseRate || 0) * 100,
-        interviewRate: (variantA.interviewRate || 0) * 100,
-        offerRate: (variantA.offerRate || 0) * 100,
-        sampleSize: variantA.sampleSize || variantA.applicationCount || 0,
-      });
-    }
-
-    return data;
-  };
 
   if (isLoading) {
     return (

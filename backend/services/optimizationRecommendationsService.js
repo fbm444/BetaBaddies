@@ -39,43 +39,6 @@ class OptimizationRecommendationsService {
     }
   }
 
-  /**
-   * Generate strategy-based recommendations
-   */
-  async generateStrategyRecommendations(userId) {
-    try {
-      const recommendations = [];
-      const bestStrategies = await applicationStrategyService.getBestPerformingStrategies(userId, 3);
-      const allPerformance = await applicationStrategyService.getStrategyPerformance(userId);
-
-      if (bestStrategies.length > 0) {
-        const best = bestStrategies[0];
-        const avgOfferRate = allPerformance.reduce((sum, s) => sum + (s.offer_rate || 0), 0) / allPerformance.length;
-
-        if (best.offer_rate > avgOfferRate * 1.2) {
-          recommendations.push({
-            recommendationType: 'strategy',
-            priority: 'high',
-            title: `Focus on ${best.application_method} applications`,
-            description: `Your ${best.application_method} applications have a ${best.offer_rate}% offer rate, which is significantly higher than your average. Consider increasing your use of this method.`,
-            rationale: `Based on ${best.total_applications} applications, ${best.application_method} shows ${((best.offer_rate / avgOfferRate - 1) * 100).toFixed(0)}% better performance than average.`,
-            actionItems: [
-              `Increase applications via ${best.application_method}`,
-              `Identify what makes ${best.application_method} successful for you`,
-              `Replicate successful elements in other application methods`
-            ],
-            expectedImpact: 'high',
-            estimatedImprovement: ((best.offer_rate - avgOfferRate) / avgOfferRate * 100).toFixed(1)
-          });
-        }
-      }
-
-      return recommendations;
-    } catch (error) {
-      console.error("❌ Error generating strategy recommendations:", error);
-      return [];
-    }
-  }
 
   /**
    * Generate document-based recommendations
@@ -85,54 +48,86 @@ class OptimizationRecommendationsService {
       const recommendations = [];
 
       // Check resume performance
-      const resumeVersions = await documentPerformanceService.compareDocumentVersions(userId, 'resume');
-      if (resumeVersions.length > 1) {
-        const sorted = resumeVersions.sort((a, b) => (b.offer_rate || 0) - (a.offer_rate || 0));
-        const best = sorted[0];
-        const second = sorted[1];
+      try {
+        const resumeVersions = await documentPerformanceService.compareDocumentVersions(userId, 'resume');
+        if (resumeVersions && resumeVersions.length > 1) {
+          const sorted = resumeVersions.sort((a, b) => (parseFloat(b.offer_rate) || 0) - (parseFloat(a.offer_rate) || 0));
+          const best = sorted[0];
+          const second = sorted[1] || sorted[0];
 
-        if (best.offer_rate > (second.offer_rate || 0) * 1.15 && best.total_uses >= 5) {
-          if (!best.is_primary) {
+          const bestRate = (parseFloat(best.offer_rate) || 0) / 100;
+          const secondRate = (parseFloat(second.offer_rate) || 0) / 100;
+          const bestUses = parseInt(best.total_uses) || 0;
+
+          if (bestRate > secondRate * 1.15 && bestUses >= 2) {
+            const improvement = ((bestRate - secondRate) / (secondRate || 0.01) * 100).toFixed(1);
             recommendations.push({
               recommendationType: 'document',
-              priority: 'high',
-              title: `Switch to ${best.document_name} as your primary resume`,
-              description: `${best.document_name} has a ${best.offer_rate}% offer rate compared to ${second.offer_rate || 0}% for your current primary resume.`,
-              rationale: `Based on ${best.total_uses} uses, this version performs significantly better.`,
+              category: 'Resume Optimization',
+              priority: bestRate > secondRate * 1.3 ? 'high' : 'medium',
+              title: `Switch to "${best.document_name || 'Best Performing Resume'}" as your primary resume`,
+              description: `"${best.document_name || 'This version'}" has a ${(bestRate * 100).toFixed(1)}% offer rate compared to ${(secondRate * 100).toFixed(1)}% for other versions.`,
+              reasoning: `Based on ${bestUses} applications, this resume version performs ${improvement}% better.`,
               actionItems: [
-                `Set ${best.document_name} as your primary resume`,
-                `Use this version for future applications`
+                `Set "${best.document_name}" as your primary resume`,
+                `Use this version for future applications`,
+                `Analyze what makes this version successful`
               ],
-              expectedImpact: 'medium',
-              estimatedImprovement: ((best.offer_rate - (second.offer_rate || 0)) / (second.offer_rate || 1) * 100).toFixed(1)
+              expectedImpact: `Could improve offer rate by ${improvement}%`,
+              estimatedImprovement: improvement,
+              supportingData: {
+                bestVersion: best.document_name,
+                bestRate: bestRate,
+                secondRate: secondRate,
+                usageCount: bestUses,
+                responseRate: (parseFloat(best.response_rate) || 0) / 100,
+                interviewRate: (parseFloat(best.interview_rate) || 0) / 100
+              }
             });
           }
         }
+      } catch (err) {
+        console.log("No resume data available for recommendations");
       }
 
       // Check cover letter performance
-      const coverLetterVersions = await documentPerformanceService.compareDocumentVersions(userId, 'cover_letter');
-      if (coverLetterVersions.length > 1) {
-        const sorted = coverLetterVersions.sort((a, b) => (b.offer_rate || 0) - (a.offer_rate || 0));
-        const best = sorted[0];
-        const second = sorted[1];
+      try {
+        const coverLetterVersions = await documentPerformanceService.compareDocumentVersions(userId, 'cover_letter');
+        if (coverLetterVersions && coverLetterVersions.length > 1) {
+          const sorted = coverLetterVersions.sort((a, b) => (parseFloat(b.offer_rate) || 0) - (parseFloat(a.offer_rate) || 0));
+          const best = sorted[0];
+          const second = sorted[1] || sorted[0];
 
-        if (best.offer_rate > (second.offer_rate || 0) * 1.15 && best.total_uses >= 5) {
-          if (!best.is_primary) {
+          const bestRate = (parseFloat(best.offer_rate) || 0) / 100;
+          const secondRate = (parseFloat(second.offer_rate) || 0) / 100;
+          const bestUses = parseInt(best.total_uses) || 0;
+
+          if (bestRate > secondRate * 1.15 && bestUses >= 2) {
+            const improvement = ((bestRate - secondRate) / (secondRate || 0.01) * 100).toFixed(1);
             recommendations.push({
               recommendationType: 'document',
+              category: 'Cover Letter Optimization',
               priority: 'medium',
-              title: `Switch to ${best.document_name} as your primary cover letter`,
-              description: `${best.document_name} shows better performance.`,
-              rationale: `Based on ${best.total_uses} uses, this version performs better.`,
+              title: `Switch to "${best.document_name || 'Best Performing Cover Letter'}" as your primary cover letter`,
+              description: `"${best.document_name || 'This version'}" shows ${(bestRate * 100).toFixed(1)}% offer rate vs ${(secondRate * 100).toFixed(1)}% for others.`,
+              reasoning: `Based on ${bestUses} applications, this cover letter version performs ${improvement}% better.`,
               actionItems: [
-                `Set ${best.document_name} as your primary cover letter`
+                `Set "${best.document_name}" as your primary cover letter`,
+                `Use this version for future applications`
               ],
-              expectedImpact: 'medium',
-              estimatedImprovement: ((best.offer_rate - (second.offer_rate || 0)) / (second.offer_rate || 1) * 100).toFixed(1)
+              expectedImpact: `Could improve offer rate by ${improvement}%`,
+              estimatedImprovement: improvement,
+              supportingData: {
+                bestVersion: best.document_name,
+                bestRate: bestRate,
+                secondRate: secondRate,
+                usageCount: bestUses
+              }
             });
           }
         }
+      } catch (err) {
+        console.log("No cover letter data available for recommendations");
       }
 
       return recommendations;
@@ -148,17 +143,70 @@ class OptimizationRecommendationsService {
   async generateTimingRecommendations(userId) {
     try {
       const recommendations = [];
-      const timingRecs = await timingAnalysisService.getTimingRecommendations(userId);
-
-      for (const rec of timingRecs) {
-        recommendations.push({
-          recommendationType: 'timing',
-          priority: rec.priority,
-          title: rec.title,
-          description: rec.description,
-          actionItems: rec.actionItems,
-          expectedImpact: rec.expectedImpact
-        });
+      
+      // Get timing analysis
+      const optimalTiming = await timingAnalysisService.analyzeOptimalTiming(userId);
+      const dayOfWeek = optimalTiming?.dayOfWeek || [];
+      const hourOfDay = optimalTiming?.hourOfDay || [];
+      
+      if (dayOfWeek.length > 0) {
+        const bestDay = dayOfWeek.reduce((best, current) => 
+          (current.offerRate || 0) > (best.offerRate || 0) ? current : best
+        );
+        
+        if (bestDay.offerRate > 0 && bestDay.applicationCount >= 3) {
+          const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+          const dayName = dayNames[bestDay.dayOfWeek - 1] || `Day ${bestDay.dayOfWeek}`;
+          
+          recommendations.push({
+            recommendationType: 'timing',
+            category: 'Application Timing',
+            priority: 'medium',
+            title: `Apply more on ${dayName}s`,
+            description: `Applications submitted on ${dayName}s show a ${(bestDay.offerRate * 100).toFixed(1)}% offer rate, which is higher than other days.`,
+            reasoning: `Based on ${bestDay.applicationCount} applications, ${dayName} is your best performing day.`,
+            actionItems: [
+              `Schedule application submissions for ${dayName}s`,
+              `Prepare applications earlier in the week to submit on ${dayName}`,
+              `Track results to confirm this pattern`
+            ],
+            expectedImpact: 'medium',
+            supportingData: {
+              bestDay: dayName,
+              offerRate: bestDay.offerRate,
+              responseRate: bestDay.responseRate,
+              applicationCount: bestDay.applicationCount
+            }
+          });
+        }
+      }
+      
+      if (hourOfDay.length > 0) {
+        const bestHour = hourOfDay.reduce((best, current) =>
+          (current.offerRate || 0) > (best.offerRate || 0) ? current : best
+        );
+        
+        if (bestHour.offerRate > 0 && bestHour.applicationCount >= 3) {
+          recommendations.push({
+            recommendationType: 'timing',
+            category: 'Application Timing',
+            priority: 'low',
+            title: `Submit applications around ${bestHour.hourOfDay}:00`,
+            description: `Applications submitted at ${bestHour.hourOfDay}:00 show a ${(bestHour.offerRate * 100).toFixed(1)}% offer rate.`,
+            reasoning: `Based on ${bestHour.applicationCount} applications, this time slot performs best.`,
+            actionItems: [
+              `Schedule application submissions for ${bestHour.hourOfDay}:00`,
+              `Set reminders to submit at optimal times`
+            ],
+            expectedImpact: 'low',
+            supportingData: {
+              bestHour: bestHour.hourOfDay,
+              offerRate: bestHour.offerRate,
+              responseRate: bestHour.responseRate,
+              applicationCount: bestHour.applicationCount
+            }
+          });
+        }
       }
 
       return recommendations;
@@ -172,8 +220,42 @@ class OptimizationRecommendationsService {
    * Generate role type recommendations
    */
   async generateRoleTypeRecommendations(userId) {
-    // Placeholder - would need role type analysis service
-    return [];
+    try {
+      const recommendations = [];
+      const roleTypeAnalysisService = (await import('./roleTypeAnalysisService.js')).default;
+      const bestRoles = await roleTypeAnalysisService.getBestPerformingRoleTypes(userId, 3);
+      
+      if (bestRoles.length > 0) {
+        const best = bestRoles[0];
+        if (best.offerRate > 0.1 && best.applicationCount >= 3) {
+          recommendations.push({
+            recommendationType: 'role_type',
+            category: 'Role Targeting',
+            priority: 'medium',
+            title: `Focus on ${best.roleType || 'your best performing role types'}`,
+            description: `${best.roleType || 'This role type'} shows a ${(best.offerRate * 100).toFixed(1)}% offer rate with ${best.applicationCount} applications.`,
+            reasoning: `This role type consistently performs better than others in your portfolio.`,
+            actionItems: [
+              `Apply to more ${best.roleType || 'similar'} positions`,
+              `Tailor your applications to match this role type`,
+              `Identify what makes you successful in these roles`
+            ],
+            expectedImpact: 'medium',
+            supportingData: {
+              roleType: best.roleType,
+              offerRate: best.offerRate,
+              responseRate: best.responseRate,
+              applicationCount: best.applicationCount
+            }
+          });
+        }
+      }
+      
+      return recommendations;
+    } catch (error) {
+      console.error("❌ Error generating role type recommendations:", error);
+      return [];
+    }
   }
 
   /**
@@ -183,10 +265,12 @@ class OptimizationRecommendationsService {
     try {
       const {
         recommendationType,
+        category,
         priority = 'medium',
         title,
         description,
         rationale,
+        reasoning,
         actionItems = [],
         expectedImpact,
         estimatedImprovement,
@@ -205,6 +289,12 @@ class OptimizationRecommendationsService {
         return existing.rows[0].id;
       }
 
+      // Include category in supporting_data if provided
+      const finalSupportingData = {
+        ...(supportingData || {}),
+        ...(category ? { category } : {})
+      };
+      
       const insertQuery = `
         INSERT INTO optimization_recommendations (
           user_id, recommendation_type, priority, title, description, rationale,
@@ -213,20 +303,22 @@ class OptimizationRecommendationsService {
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'pending')
         RETURNING *
       `;
-
-      const result = await database.query(insertQuery, [
+      
+      const insertParams = [
         userId,
         recommendationType,
         priority,
         title,
         description,
-        rationale || null,
-        JSON.stringify(actionItems),
+        rationale || reasoning || null,
+        JSON.stringify(actionItems || []),
         expectedImpact || null,
         estimatedImprovement ? parseFloat(estimatedImprovement) : null,
         relatedAbTestId || null,
-        supportingData ? JSON.stringify(supportingData) : null
-      ]);
+        Object.keys(finalSupportingData).length > 0 ? JSON.stringify(finalSupportingData) : null
+      ];
+
+      const result = await database.query(insertQuery, insertParams);
 
       return result.rows[0];
     } catch (error) {
@@ -236,7 +328,7 @@ class OptimizationRecommendationsService {
   }
 
   /**
-   * Get recommendations for a user
+   * Get recommendations for a user (auto-generates if none exist)
    */
   async getRecommendations(userId, filters = {}) {
     try {
@@ -277,7 +369,22 @@ class OptimizationRecommendationsService {
       `;
 
       const result = await database.query(query, params);
-      return result.rows;
+      
+      // If no recommendations exist, generate them automatically
+      if (result.rows.length === 0) {
+        try {
+          await this.generateRecommendations(userId);
+          // Fetch again after generation
+          const newResult = await database.query(query, params);
+          return this.formatRecommendations(newResult.rows);
+        } catch (genError) {
+          console.error("❌ Error auto-generating recommendations:", genError);
+          // Return empty array if generation fails
+          return [];
+        }
+      }
+      
+      return this.formatRecommendations(result.rows);
     } catch (error) {
       console.error("❌ Error getting recommendations:", error);
       throw error;
@@ -328,6 +435,28 @@ class OptimizationRecommendationsService {
       console.error("❌ Error completing recommendation:", error);
       throw error;
     }
+  }
+
+  /**
+   * Format recommendations for frontend
+   */
+  formatRecommendations(rows) {
+    return rows.map(row => {
+      const supportingData = typeof row.supporting_data === 'string' 
+        ? JSON.parse(row.supporting_data) 
+        : row.supporting_data;
+      
+      return {
+        ...row,
+        category: supportingData?.category || null,
+        supportingData: supportingData,
+        supporting_data: supportingData, // Keep both for compatibility
+        actionItems: typeof row.action_items === 'string' 
+          ? JSON.parse(row.action_items) 
+          : row.action_items,
+        reasoning: row.rationale, // Map rationale to reasoning for frontend
+      };
+    });
   }
 
   /**

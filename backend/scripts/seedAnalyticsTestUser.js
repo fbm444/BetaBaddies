@@ -71,6 +71,7 @@ async function seed() {
     await database.query(`DELETE FROM interviews WHERE user_id = $1`, [uid]).catch(() => {});
     await database.query(`DELETE FROM salary_progression_history WHERE user_id = $1`, [uid]).catch(() => {});
     await database.query(`DELETE FROM salary_negotiations WHERE user_id = $1`, [uid]).catch(() => {});
+    await database.query(`DELETE FROM job_offers WHERE user_id = $1`, [uid]).catch(() => {});
     await database.query(`DELETE FROM writing_practice_sessions WHERE user_id = $1`, [uid]).catch(() => {});
     await database.query(`DELETE FROM resume WHERE user_id = $1`, [uid]).catch(() => {});
     await database.query(`DELETE FROM coverletter WHERE user_id = $1`, [uid]).catch(() => {});
@@ -1117,7 +1118,58 @@ const coverSystems = docIds["Cover Letter - Systems"];
     },
   ];
 
-  // Job offers insertion skipped if schema differs; enable and adjust columns if your job_offers table supports them.
+  // Insert job offers so Offer Comparison has sample data
+  for (const offer of offersData) {
+    const jobId = jobIds[offer.jobKey];
+    if (!jobId) continue;
+
+    const offerDate = new Date();
+    const decisionDeadline = new Date(Date.now() + 14 * 86400000);
+    const baseSalary = offer.base || 0;
+    const signingBonus = offer.bonus || 0;
+    const annualBonus = 0;
+    const equityAmount = offer.equity || 0;
+    const colIndex = offer.colIndex || 120;
+    const colAdjusted = colIndex ? Number((baseSalary * (100 / colIndex)).toFixed(2)) : baseSalary;
+
+    await database.query(
+      `
+      INSERT INTO job_offers (
+        id, user_id, job_opportunity_id,
+        company, position_title, offer_date, decision_deadline,
+        base_salary, signing_bonus, annual_bonus, equity_type, equity_amount,
+        location, remote_policy, col_index, col_adjusted_salary,
+        negotiation_status, offer_status, notes
+      ) VALUES (
+        gen_random_uuid(), $1, $2,
+        $3, $4, $5, $6,
+        $7, $8, $9, $10, $11,
+        $12, $13, $14, $15,
+        $16, $17, $18
+      )
+    `,
+      [
+        userId,
+        jobId,
+        offer.company,
+        offer.title,
+        offerDate,
+        decisionDeadline,
+        baseSalary,
+        signingBonus,
+        annualBonus,
+        "RSU",
+        equityAmount,
+        offer.location,
+        offer.remotePolicy || "Hybrid",
+        colIndex,
+        colAdjusted,
+        offer.negotiationStatus || "received",
+        offer.status || "active",
+        offer.notes || null,
+      ]
+    );
+  }
 
   // Follow-up reminders seed (pending/snoozed/completed)
   const remindersData = [

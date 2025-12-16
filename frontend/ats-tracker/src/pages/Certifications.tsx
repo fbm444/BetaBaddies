@@ -730,8 +730,8 @@ export function Certifications() {
 
       {/* Add/Edit Modal */}
       {(showAddModal || showEditModal) && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 pt-24 md:pt-28">
+          <div className="bg-white rounded-2xl p-6 md:p-8 max-w-2xl w-full max-h-[85vh] overflow-y-auto mt-4">
             <h2 className="text-2xl font-bold text-slate-900 mb-6">
               {showAddModal ? "Add New Certification" : "Edit Certification"}
             </h2>

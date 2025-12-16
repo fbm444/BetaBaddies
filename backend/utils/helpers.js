@@ -22,6 +22,8 @@ export const sanitizeInput = (input) => {
   if (typeof input !== "string") return input;
   return input
     .replace(/[<>]/g, "") // Remove < and >
+    .replace(/on\w+\s*=/gi, "") // Remove event handlers like onerror=, onclick=, etc.
+    .replace(/javascript:/gi, "") // Remove javascript: protocol
     .trim();
 };
 

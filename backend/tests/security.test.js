@@ -254,10 +254,12 @@ async function testRateLimiting() {
   console.log("\n=== Rate Limiting Tests ===");
 
   // Test login rate limiting
-  const maxAttempts = 10; // Based on authRateLimit config
+  // The actual rate limit is 100 attempts per 15 minutes (see userRoutes.js)
+  // We'll try 101 attempts to trigger the rate limit
+  const maxAttempts = 100;
   let rateLimited = false;
 
-  for (let i = 0; i < maxAttempts + 5; i++) {
+  for (let i = 0; i < maxAttempts + 1; i++) {
     const res = await request(app)
       .post("/api/v1/users/login")
       .send({ email: "nonexistent@example.com", password: "wrong" });
@@ -287,13 +289,14 @@ async function testAuthorization() {
   }
 
   // Create a resource as test user
+  // Jobs require: title, company, and startDate
   const createRes = await request(app)
     .post("/api/v1/jobs")
     .set("Cookie", sessionCookie)
     .send({
       title: "Test Job",
       company: "Test Company",
-      status: "applied",
+      startDate: "2024-01-01",
     });
 
   if (createRes.status === 201 && createRes.body.data?.job?.id) {

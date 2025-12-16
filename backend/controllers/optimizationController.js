@@ -8,6 +8,7 @@ import optimizationRecommendationsService from "../services/optimizationRecommen
 import roleTypeAnalysisService from "../services/roleTypeAnalysisService.js";
 import responseTimePredictionService from "../services/responseTimePredictionService.js";
 import applicationQualityService from "../services/applicationQualityService.js";
+import competitiveAnalysisService from "../services/competitiveAnalysisService.js";
 
 class OptimizationController {
   // ============================================================================
@@ -556,6 +557,78 @@ class OptimizationController {
     res.status(200).json({
       ok: true,
       data: { history }
+    });
+  });
+
+  // ============================================================================
+  // Competitive Analysis
+  // ============================================================================
+
+  analyzeCompetitiveness = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { jobId } = req.params;
+
+    if (!jobId) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: "VALIDATION_ERROR", message: "jobId is required" }
+      });
+    }
+
+    const analysis = await competitiveAnalysisService.analyzeCompetitiveness(userId, jobId);
+
+    res.status(200).json({
+      ok: true,
+      data: { analysis }
+    });
+  });
+
+  getPrioritizedApplications = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+
+    const prioritized = await competitiveAnalysisService.prioritizeApplications(userId);
+
+    res.status(200).json({
+      ok: true,
+      data: { prioritized }
+    });
+  });
+
+  compareToHiredProfile = asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const { jobId } = req.params;
+
+    if (!jobId) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: "VALIDATION_ERROR", message: "jobId is required" }
+      });
+    }
+
+    // Get user profile
+    const userProfile = await competitiveAnalysisService.getUserProfile(userId);
+
+    // Get job
+    const jobRes = await database.query(
+      `SELECT * FROM job_opportunities WHERE id = $1 AND user_id = $2 LIMIT 1`,
+      [jobId, userId]
+    );
+
+    if (jobRes.rows.length === 0) {
+      return res.status(404).json({
+        ok: false,
+        error: { code: "NOT_FOUND", message: "Job opportunity not found" }
+      });
+    }
+
+    const comparison = await competitiveAnalysisService.compareToTypicalHiredProfile(
+      userProfile,
+      jobRes.rows[0]
+    );
+
+    res.status(200).json({
+      ok: true,
+      data: { comparison }
     });
   });
 }

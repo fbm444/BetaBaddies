@@ -5175,6 +5175,34 @@ class ApiService {
       `/optimization/quality/stats`
     );
   }
+
+  async getApplicationQualityHistory(jobId: string) {
+    return this.request<ApiResponse<{ history: any[] }>>(
+      `/optimization/quality/history/${jobId}`
+    );
+  }
+
+  // ============================================================================
+  // COMPETITIVE ANALYSIS
+  // ============================================================================
+
+  async analyzeCompetitiveness(jobId: string) {
+    return this.request<ApiResponse<{ analysis: any }>>(
+      `/optimization/competitive/analyze/${jobId}`
+    );
+  }
+
+  async getPrioritizedApplications() {
+    return this.request<ApiResponse<{ prioritized: any[] }>>(
+      `/optimization/competitive/prioritize`
+    );
+  }
+
+  async compareToHiredProfile(jobId: string) {
+    return this.request<ApiResponse<{ comparison: any }>>(
+      `/optimization/competitive/compare/${jobId}`
+    );
+  }
 }
 
 export const api = new ApiService();

@@ -62,9 +62,17 @@ export function JobOpportunityDetailModal({
   const [predictionError, setPredictionError] = useState<string | null>(null);
   const [quality, setQuality] = useState<any | null>(null);
   const [qualityStats, setQualityStats] = useState<any | null>(null);
+  const [qualityHistory, setQualityHistory] = useState<any[]>([]);
   const [isLoadingQuality, setIsLoadingQuality] = useState(false);
   const [isScoringQuality, setIsScoringQuality] = useState(false);
   const [qualityError, setQualityError] = useState<string | null>(null);
+  const [linkedinUrl, setLinkedinUrl] = useState<string>("");
+  const [showQualityDetails, setShowQualityDetails] = useState(false);
+  const QUALITY_THRESHOLD = 70; // Minimum score to allow "Applied" status
+  const [competitiveAnalysis, setCompetitiveAnalysis] = useState<any | null>(null);
+  const [isLoadingCompetitive, setIsLoadingCompetitive] = useState(false);
+  const [competitiveError, setCompetitiveError] = useState<string | null>(null);
+  const [showCompetitiveDetails, setShowCompetitiveDetails] = useState(false);
 
   const handleScheduleInterview = () => {
     navigate(`${ROUTES.INTERVIEW_SCHEDULING}?jobOpportunityId=${opportunity.id}`);
@@ -161,19 +169,22 @@ export function JobOpportunityDetailModal({
     loadPrediction();
   }, [opportunity.id]);
 
-  // Load application quality (latest + stats)
+  // Load application quality (latest + stats + history)
   useEffect(() => {
     const loadQuality = async () => {
       if (!opportunity.id) return;
       try {
         setIsLoadingQuality(true);
         setQualityError(null);
-        const [qRes, statsRes] = await Promise.all([
+        const [qRes, statsRes, historyRes] = await Promise.all([
           api.getApplicationQuality(opportunity.id),
           api.getApplicationQualityStats(),
+          api.getApplicationQualityHistory(opportunity.id),
         ]);
         if (qRes.ok && qRes.data) {
-          setQuality(qRes.data.quality || null);
+          const q = qRes.data.quality || null;
+          setQuality(q);
+          if (q?.linkedin_url) setLinkedinUrl(q.linkedin_url);
         } else {
           setQuality(null);
         }
@@ -181,6 +192,11 @@ export function JobOpportunityDetailModal({
           setQualityStats(statsRes.data.stats || null);
         } else {
           setQualityStats(null);
+        }
+        if (historyRes.ok && historyRes.data) {
+          setQualityHistory(historyRes.data.history || []);
+        } else {
+          setQualityHistory([]);
         }
       } catch (err: any) {
         console.error("Error loading application quality:", err);
@@ -192,6 +208,35 @@ export function JobOpportunityDetailModal({
     };
 
     loadQuality();
+  }, [opportunity.id]);
+
+  // Load competitive analysis
+  useEffect(() => {
+    const loadCompetitive = async () => {
+      if (!opportunity.id) return;
+      try {
+        setIsLoadingCompetitive(true);
+        setCompetitiveError(null);
+        const res = await api.analyzeCompetitiveness(opportunity.id);
+        if (res.ok && res.data && res.data.analysis) {
+          setCompetitiveAnalysis(res.data.analysis);
+        } else if (res.ok && res.data) {
+          // handle fallback payload shape
+          setCompetitiveAnalysis(res.data);
+        } else {
+          setCompetitiveAnalysis(null);
+          setCompetitiveError(res.error || "Competitive analysis not available yet.");
+        }
+      } catch (err: any) {
+        console.error("Error loading competitive analysis:", err);
+        setCompetitiveError("Competitive analysis not available yet.");
+        setCompetitiveAnalysis(null);
+      } finally {
+        setIsLoadingCompetitive(false);
+      }
+    };
+
+    loadCompetitive();
   }, [opportunity.id]);
 
   const fetchTeams = async () => {
@@ -297,6 +342,18 @@ export function JobOpportunityDetailModal({
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    
+    // Quality threshold check: if changing to "Applied" and score is below threshold
+    if (formData.status === "Applied" && quality && quality.overall_score < QUALITY_THRESHOLD) {
+      const proceed = confirm(
+        `Your application quality score is ${Math.round(quality.overall_score)}/100, which is below the recommended threshold of ${QUALITY_THRESHOLD}.\n\n` +
+        `We recommend improving your application before submitting. Would you like to proceed anyway?`
+      );
+      if (!proceed) {
+        return;
+      }
+    }
+    
     setIsSaving(true);
     try {
       // Ensure recruiter fields are included even if empty (backend will convert empty strings to null)
@@ -802,36 +859,36 @@ export function JobOpportunityDetailModal({
               <p className="text-lg text-slate-600">{opportunity.company}</p>
             )}
           </div>
-          <div className="flex gap-1.5 flex-wrap justify-end">
+          <div className="flex gap-2 flex-wrap justify-end">
             {!isEditMode && (
               <>
                 {!opportunity.archived && (
                   <button
                     onClick={handleScheduleInterview}
-                    className="px-2 py-0.5 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors flex items-center gap-0.5 text-[10px] font-medium"
+                    className="px-2.5 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors flex items-center gap-1 text-xs font-medium"
                   >
-                    <Icon icon="mingcute:calendar-line" width={12} />
+                    <Icon icon="mingcute:calendar-line" width={14} />
                     Schedule Interview
                   </button>
                 )}
                 {opportunity.jobPostingUrl && (
                   <button
                     onClick={() => setShowCompanyInfo(true)}
-                    className="px-2 py-0.5 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition-colors flex items-center gap-0.5 text-[10px] font-medium"
+                    className="px-2.5 py-1 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition-colors flex items-center gap-1 text-xs font-medium"
                   >
-                    <Icon icon="mingcute:building-line" width={12} />
+                    <Icon icon="mingcute:building-line" width={14} />
                     Company Info
                   </button>
                 )}
                 {teams.length > 0 && (
                   <button
                     onClick={() => setShowShareModal(true)}
-                    className="px-2 py-0.5 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors flex items-center gap-0.5 text-[10px] font-medium"
+                    className="px-2.5 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors flex items-center gap-1 text-xs font-medium"
                   >
-                    <Icon icon="lucide:share-2" width={12} />
+                    <Icon icon="lucide:share-2" width={14} />
                     Share
                     {sharedTeams.length > 0 && (
-                      <span className="ml-0.5 bg-white/20 rounded-full px-1 text-[9px]">
+                      <span className="ml-1 bg-white/20 rounded-full px-1.5 text-xs">
                         {sharedTeams.length}
                       </span>
                     )}
@@ -840,35 +897,35 @@ export function JobOpportunityDetailModal({
                 {!opportunity.archived && (
                   <button
                     onClick={() => setIsEditMode(true)}
-                    className="px-2 py-0.5 bg-blue-700 text-white rounded-md hover:bg-blue-800 transition-colors flex items-center gap-0.5 text-[10px] font-medium"
+                    className="px-2.5 py-1 bg-blue-700 text-white rounded-md hover:bg-blue-800 transition-colors flex items-center gap-1 text-xs font-medium"
                   >
-                    <Icon icon="mingcute:edit-line" width={12} />
+                    <Icon icon="mingcute:edit-line" width={14} />
                     Edit
                   </button>
                 )}
                 {opportunity.archived && onUnarchive && (
                   <button
                     onClick={onUnarchive}
-                    className="px-2 py-0.5 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors flex items-center gap-0.5 text-[10px] font-medium"
+                    className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center gap-2"
                   >
-                    <Icon icon="mingcute:refresh-line" width={12} />
+                    <Icon icon="mingcute:refresh-line" width={18} />
                     Restore
                   </button>
                 )}
                 {!opportunity.archived && onArchive && (
                   <button
                     onClick={() => onArchive()}
-                    className="px-2 py-0.5 bg-[#EC85CA] text-white rounded-md hover:bg-[#D468B1] transition-colors flex items-center gap-0.5 text-[10px] font-medium"
+                    className="px-2.5 py-1 bg-[#EC85CA] text-white rounded-md hover:bg-[#D468B1] transition-colors flex items-center gap-1 text-xs font-medium"
                   >
-                    <Icon icon="mingcute:archive-line" width={12} />
+                    <Icon icon="mingcute:archive-line" width={14} />
                     Archive
                   </button>
                 )}
                 <button
                   onClick={onDelete}
-                  className="px-2 py-0.5 border border-red-500 text-red-500 rounded-md hover:bg-red-50 transition-colors flex items-center gap-0.5 text-[10px] font-medium"
+                  className="px-2.5 py-1 border border-red-500 text-red-500 rounded-md hover:bg-red-50 transition-colors flex items-center gap-1 text-xs font-medium"
                 >
-                  <Icon icon="mingcute:delete-line" width={12} />
+                  <Icon icon="mingcute:delete-line" width={14} />
                   Delete
                 </button>
               </>
@@ -998,12 +1055,23 @@ export function JobOpportunityDetailModal({
                   {isEditMode ? (
                     <select
                       value={formData.status}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        const newStatus = e.target.value as JobStatus;
+                        // Warn if changing to "Applied" with low quality score
+                        if (newStatus === "Applied" && quality && quality.overall_score < QUALITY_THRESHOLD) {
+                          const proceed = confirm(
+                            `Your application quality score is ${Math.round(quality.overall_score)}/100, which is below the recommended threshold of ${QUALITY_THRESHOLD}.\n\n` +
+                            `We recommend improving your application before submitting. Would you like to proceed anyway?`
+                          );
+                          if (!proceed) {
+                            return; // Don't change status
+                          }
+                        }
                         setFormData({
                           ...formData,
-                          status: e.target.value as JobStatus,
-                        })
-                      }
+                          status: newStatus,
+                        });
+                      }}
                       className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     >
                       {JOB_STATUSES.map((status) => (
@@ -1595,131 +1663,669 @@ export function JobOpportunityDetailModal({
                   <h3 className="text-sm font-semibold text-slate-900">
                     Application Quality
                   </h3>
-                </div>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (!opportunity.id) return;
-                    try {
-                      setIsScoringQuality(true);
-                      setQualityError(null);
-                      const res = await api.scoreApplicationQuality(opportunity.id);
-                      if (res.ok && res.data) {
-                        setQuality(res.data.quality || null);
-                      }
-                      // Refresh stats too
-                      const statsRes = await api.getApplicationQualityStats();
-                      if (statsRes.ok && statsRes.data) {
-                        setQualityStats(statsRes.data.stats || null);
-                      }
-                    } catch (err: any) {
-                      console.error("Error scoring application quality:", err);
-                      setQualityError("Failed to score application. Try again.");
-                    } finally {
-                      setIsScoringQuality(false);
-                    }
-                  }}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700 hover:bg-purple-100 transition-colors disabled:opacity-50"
-                  disabled={isScoringQuality}
-                >
-                  {isScoringQuality ? (
-                    <>
-                      <Icon icon="mingcute:loading-line" className="animate-spin" width={14} />
-                      Scoring...
-                    </>
-                  ) : (
-                    <>
-                      <Icon icon="mingcute:sparkles-line" width={14} />
-                      Re-score
-                    </>
+                  {quality && quality.overall_score < QUALITY_THRESHOLD && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 text-red-700 text-[10px] font-medium">
+                      <Icon icon="mingcute:alert-line" width={12} />
+                      Below Threshold ({QUALITY_THRESHOLD})
+                    </span>
                   )}
-                </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowQualityDetails(!showQualityDetails)}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-50 text-slate-700 hover:bg-slate-100 transition-colors"
+                  >
+                    <Icon icon={showQualityDetails ? "mingcute:up-line" : "mingcute:down-line"} width={14} />
+                    {showQualityDetails ? "Less" : "Details"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!opportunity.id) return;
+                      try {
+                        setIsScoringQuality(true);
+                        setQualityError(null);
+                        const payload: any = {};
+                        if (linkedinUrl) payload.linkedinUrl = linkedinUrl;
+                        const res = await api.scoreApplicationQuality(opportunity.id, payload);
+                        if (res.ok && res.data) {
+                          setQuality(res.data.quality || null);
+                        }
+                        // Refresh stats and history
+                        const [statsRes, historyRes] = await Promise.all([
+                          api.getApplicationQualityStats(),
+                          api.getApplicationQualityHistory(opportunity.id),
+                        ]);
+                        if (statsRes.ok && statsRes.data) {
+                          setQualityStats(statsRes.data.stats || null);
+                        }
+                        if (historyRes.ok && historyRes.data) {
+                          setQualityHistory(historyRes.data.history || []);
+                        }
+                      } catch (err: any) {
+                        console.error("Error scoring application quality:", err);
+                        setQualityError("Failed to score application. Try again.");
+                      } finally {
+                        setIsScoringQuality(false);
+                      }
+                    }}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700 hover:bg-purple-100 transition-colors disabled:opacity-50"
+                    disabled={isScoringQuality}
+                  >
+                    {isScoringQuality ? (
+                      <>
+                        <Icon icon="mingcute:loading-line" className="animate-spin" width={14} />
+                        Scoring...
+                      </>
+                    ) : (
+                      <>
+                        <Icon icon="mingcute:sparkles-line" width={14} />
+                        Re-score
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
+
+              {/* LinkedIn URL Input */}
+              <div className="mb-3">
+                <label className="block text-xs font-medium text-slate-700 mb-1">
+                  LinkedIn Profile URL (optional, for better analysis)
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={linkedinUrl}
+                    onChange={(e) => setLinkedinUrl(e.target.value)}
+                    placeholder="https://linkedin.com/in/yourprofile"
+                    className="flex-1 px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
               {isLoadingQuality ? (
                 <p className="text-xs text-slate-500">Loading quality score...</p>
               ) : quality ? (
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="flex flex-col items-start">
-                      <span className="text-[11px] uppercase tracking-wide text-slate-500">
-                        Overall Score
-                      </span>
-                      <span
-                        className={`text-2xl font-bold ${
-                          quality.overall_score >= 80
-                            ? "text-emerald-600"
-                            : quality.overall_score >= 70
-                            ? "text-amber-600"
-                            : "text-red-600"
-                        }`}
-                      >
-                        {Math.round(quality.overall_score)} / 100
-                      </span>
-                      {qualityStats && typeof qualityStats.avg_score === "number" && (
-                        <span className="mt-1 text-[11px] text-slate-500">
-                          Your avg: {Math.round(qualityStats.avg_score)} · Top:{" "}
-                          {typeof qualityStats.p90_score === "number"
-                            ? Math.round(qualityStats.p90_score)
-                            : "—"}
+                <div className="space-y-4">
+                  {/* Overall Score & Sub-scores */}
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="flex flex-col items-start">
+                        <span className="text-[11px] uppercase tracking-wide text-slate-500">
+                          Overall Score
                         </span>
+                        <span
+                          className={`text-2xl font-bold ${
+                            quality.overall_score >= 80
+                              ? "text-emerald-600"
+                              : quality.overall_score >= 70
+                              ? "text-amber-600"
+                              : "text-red-600"
+                          }`}
+                        >
+                          {Math.round(quality.overall_score)} / 100
+                        </span>
+                        {qualityStats && typeof qualityStats.avg_score === "number" && (
+                          <span className="mt-1 text-[11px] text-slate-500">
+                            Your avg: {Math.round(qualityStats.avg_score)} · Top:{" "}
+                            {typeof qualityStats.p90_score === "number"
+                              ? Math.round(qualityStats.p90_score)
+                              : "—"}
+                          </span>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-1 gap-1 text-[11px] text-slate-600">
+                        <span>
+                          Alignment:{" "}
+                          <strong>
+                            {quality.alignment_score != null
+                              ? Math.round(quality.alignment_score)
+                              : "—"}
+                          </strong>
+                        </span>
+                        <span>
+                          Formatting:{" "}
+                          <strong>
+                            {quality.format_score != null
+                              ? Math.round(quality.format_score)
+                              : "—"}
+                          </strong>
+                        </span>
+                        <span>
+                          Consistency:{" "}
+                          <strong>
+                            {quality.consistency_score != null
+                              ? Math.round(quality.consistency_score)
+                              : "—"}
+                          </strong>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Expanded Details */}
+                  {showQualityDetails && (
+                    <div className="space-y-3 pt-3 border-t border-slate-200">
+                      {/* Missing Keywords */}
+                      {Array.isArray(quality.missing_keywords) && quality.missing_keywords.length > 0 && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Icon icon="mingcute:search-line" width={14} className="text-amber-700" />
+                            <p className="text-xs font-semibold text-amber-900">Missing Keywords</p>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {quality.missing_keywords.map((kw: any, idx: number) => (
+                              <span
+                                key={idx}
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium ${
+                                  kw.importance === "high"
+                                    ? "bg-red-100 text-red-800"
+                                    : kw.importance === "medium"
+                                    ? "bg-amber-100 text-amber-800"
+                                    : "bg-slate-100 text-slate-700"
+                                }`}
+                              >
+                                {kw.keyword}
+                                {kw.importance === "high" && (
+                                  <Icon icon="mingcute:alert-fill" width={10} />
+                                )}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Missing Skills */}
+                      {Array.isArray(quality.missing_skills) && quality.missing_skills.length > 0 && (
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Icon icon="mingcute:code-line" width={14} className="text-blue-700" />
+                            <p className="text-xs font-semibold text-blue-900">Missing Skills</p>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {quality.missing_skills.map((skill: any, idx: number) => (
+                              <span
+                                key={idx}
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium ${
+                                  skill.importance === "high"
+                                    ? "bg-red-100 text-red-800"
+                                    : skill.importance === "medium"
+                                    ? "bg-amber-100 text-amber-800"
+                                    : "bg-slate-100 text-slate-700"
+                                }`}
+                              >
+                                {skill.skill}
+                                {skill.importance === "high" && (
+                                  <Icon icon="mingcute:alert-fill" width={10} />
+                                )}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Formatting Issues */}
+                      {Array.isArray(quality.issues) && quality.issues.length > 0 && (
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Icon icon="mingcute:file-warning-line" width={14} className="text-red-700" />
+                            <p className="text-xs font-semibold text-red-900">Formatting Issues & Typos</p>
+                          </div>
+                          <ul className="space-y-1.5">
+                            {quality.issues.map((issue: any, idx: number) => (
+                              <li key={idx} className="text-[11px] text-red-800">
+                                <div className="flex items-start gap-2">
+                                  <span
+                                    className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                      issue.severity === "high"
+                                        ? "bg-red-200 text-red-900"
+                                        : issue.severity === "medium"
+                                        ? "bg-amber-200 text-amber-900"
+                                        : "bg-slate-200 text-slate-700"
+                                    }`}
+                                  >
+                                    {issue.severity || "low"}
+                                  </span>
+                                  <div className="flex-1">
+                                    <span className="font-medium">{issue.type}:</span> {issue.description}
+                                    {issue.location && (
+                                      <span className="text-red-600 ml-1">({issue.location})</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Prioritized Suggestions */}
+                      {Array.isArray(quality.suggestions) && quality.suggestions.length > 0 && (
+                        <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                          <p className="text-xs font-semibold text-slate-700 mb-2">
+                            Improvement Suggestions (Prioritized)
+                          </p>
+                          <ul className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                            {quality.suggestions
+                              .sort((a: any, b: any) => {
+                                const priorityOrder = { high: 3, medium: 2, low: 1 };
+                                return (
+                                  (priorityOrder[b.priority as keyof typeof priorityOrder] || 0) -
+                                  (priorityOrder[a.priority as keyof typeof priorityOrder] || 0)
+                                );
+                              })
+                              .map((s: any, idx: number) => (
+                                <li key={s.id || idx} className="text-[11px] text-slate-700">
+                                  <div className="flex items-start gap-2">
+                                    <span
+                                      className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                        s.priority === "high"
+                                          ? "bg-red-100 text-red-800"
+                                          : s.priority === "medium"
+                                          ? "bg-amber-100 text-amber-800"
+                                          : "bg-slate-200 text-slate-700"
+                                      }`}
+                                    >
+                                      {s.priority || "low"}
+                                    </span>
+                                    <div className="flex-1">
+                                      <span className="font-semibold">
+                                        {s.title || `Suggestion ${idx + 1}`}:
+                                      </span>{" "}
+                                      {s.description}
+                                      {s.estimatedImpact && (
+                                        <span className="text-slate-500 ml-1">
+                                          (+{s.estimatedImpact} pts)
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </li>
+                              ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Score History */}
+                      {qualityHistory.length > 0 && (
+                        <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Icon icon="mingcute:chart-line" width={14} className="text-purple-700" />
+                            <p className="text-xs font-semibold text-purple-900">Score History</p>
+                          </div>
+                          <div className="space-y-1.5">
+                            {qualityHistory.slice(-5).reverse().map((h: any, idx: number) => {
+                              const prevScore = idx < qualityHistory.length - 1 
+                                ? qualityHistory[qualityHistory.length - 2 - idx]?.overall_score 
+                                : null;
+                              const improvement = prevScore ? h.overall_score - prevScore : 0;
+                              return (
+                                <div
+                                  key={h.id || idx}
+                                  className="flex items-center justify-between text-[11px]"
+                                >
+                                  <span className="text-slate-600">
+                                    {new Date(h.created_at).toLocaleDateString()}
+                                  </span>
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-semibold">
+                                      {Math.round(h.overall_score)}/100
+                                    </span>
+                                    {improvement !== 0 && (
+                                      <span
+                                        className={`text-[10px] ${
+                                          improvement > 0 ? "text-emerald-600" : "text-red-600"
+                                        }`}
+                                      >
+                                        {improvement > 0 ? "↑" : "↓"} {Math.abs(Math.round(improvement))}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
                       )}
                     </div>
-                    <div className="grid grid-cols-1 gap-1 text-[11px] text-slate-600">
-                      <span>
-                        Alignment:{" "}
-                        <strong>
-                          {quality.alignment_score != null
-                            ? Math.round(quality.alignment_score)
-                            : "—"}
-                        </strong>
-                      </span>
-                      <span>
-                        Formatting:{" "}
-                        <strong>
-                          {quality.format_score != null
-                            ? Math.round(quality.format_score)
-                            : "—"}
-                        </strong>
-                      </span>
-                      <span>
-                        Consistency:{" "}
-                        <strong>
-                          {quality.consistency_score != null
-                            ? Math.round(quality.consistency_score)
-                            : "—"}
-                        </strong>
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex-1">
-                    {Array.isArray(quality.suggestions) && quality.suggestions.length > 0 ? (
-                      <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-                        <p className="text-[11px] font-semibold text-slate-700 mb-1">
-                          Top Suggestions
+                  )}
+
+                  {/* Collapsed View - Top Suggestions */}
+                  {!showQualityDetails && (
+                    <div className="flex-1">
+                      {Array.isArray(quality.suggestions) && quality.suggestions.length > 0 ? (
+                        <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                          <p className="text-[11px] font-semibold text-slate-700 mb-1">
+                            Top Suggestions
+                          </p>
+                          <ul className="space-y-1 max-h-28 overflow-y-auto pr-1">
+                            {quality.suggestions
+                              .sort((a: any, b: any) => {
+                                const priorityOrder = { high: 3, medium: 2, low: 1 };
+                                return (
+                                  (priorityOrder[b.priority as keyof typeof priorityOrder] || 0) -
+                                  (priorityOrder[a.priority as keyof typeof priorityOrder] || 0)
+                                );
+                              })
+                              .slice(0, 3)
+                              .map((s: any, idx: number) => (
+                                <li key={s.id || idx} className="text-[11px] text-slate-600">
+                                  <span className="font-medium">
+                                    {s.title || `Suggestion ${idx + 1}`}:
+                                  </span>{" "}
+                                  {s.description}
+                                </li>
+                              ))}
+                          </ul>
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-slate-500">
+                          No specific suggestions yet. Re-score after updating your resume or cover
+                          letter.
                         </p>
-                        <ul className="space-y-1 max-h-28 overflow-y-auto pr-1">
-                          {quality.suggestions.slice(0, 3).map((s: any, idx: number) => (
-                            <li key={s.id || idx} className="text-[11px] text-slate-600">
-                              <span className="font-medium">
-                                {s.title || `Suggestion ${idx + 1}`}:
-                              </span>{" "}
-                              {s.description}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ) : (
-                      <p className="text-[11px] text-slate-500">
-                        No specific suggestions yet. Re-score after updating your resume or cover
-                        letter.
-                      </p>
-                    )}
-                  </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ) : (
                 <p className="text-xs text-slate-500">
                   {qualityError ||
                     "No quality score yet. Click Re-score to analyze this application before submitting."}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Competitive Analysis */}
+          {!isEditMode && (
+            <div className="mt-8 pt-6 border-t border-slate-200">
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <div className="flex items-center gap-2">
+                  <Icon icon="mingcute:target-line" width={18} className="text-blue-600" />
+                  <h3 className="text-sm font-semibold text-slate-900">
+                    Competitive Analysis
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCompetitiveDetails(!showCompetitiveDetails)}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-50 text-slate-700 hover:bg-slate-100 transition-colors"
+                >
+                  <Icon icon={showCompetitiveDetails ? "mingcute:up-line" : "mingcute:down-line"} width={14} />
+                  {showCompetitiveDetails ? "Less" : "Details"}
+                </button>
+              </div>
+              {isLoadingCompetitive ? (
+                <p className="text-xs text-slate-500">Analyzing competitiveness...</p>
+              ) : competitiveAnalysis ? (
+                <div className="space-y-4">
+                  {/* Competitive Score & Interview Likelihood */}
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="flex flex-col items-start">
+                        <span className="text-[11px] uppercase tracking-wide text-slate-500">
+                          Competitive Score
+                        </span>
+                        <span
+                          className={`text-2xl font-bold ${
+                            competitiveAnalysis.competitiveScore >= 80
+                              ? "text-emerald-600"
+                              : competitiveAnalysis.competitiveScore >= 60
+                              ? "text-amber-600"
+                              : "text-red-600"
+                          }`}
+                        >
+                          {competitiveAnalysis.competitiveScore} / 100
+                        </span>
+                        <span className="mt-1 text-[11px] text-slate-500">
+                          ~{competitiveAnalysis.applicantCount?.total || 0} estimated applicants
+                        </span>
+                      </div>
+                      <div className="flex flex-col items-start">
+                        <span className="text-[11px] uppercase tracking-wide text-slate-500">
+                          Interview Likelihood
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`text-xl font-bold ${
+                              competitiveAnalysis.interviewLikelihood?.level === "high"
+                                ? "text-emerald-600"
+                                : competitiveAnalysis.interviewLikelihood?.level === "medium"
+                                ? "text-amber-600"
+                                : "text-red-600"
+                            }`}
+                          >
+                            {competitiveAnalysis.interviewLikelihood?.percentage?.toFixed(1) || 0}%
+                          </span>
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                              competitiveAnalysis.interviewLikelihood?.level === "high"
+                                ? "bg-emerald-100 text-emerald-800"
+                                : competitiveAnalysis.interviewLikelihood?.level === "medium"
+                                ? "bg-amber-100 text-amber-800"
+                                : "bg-red-100 text-red-800"
+                            }`}
+                          >
+                            {competitiveAnalysis.interviewLikelihood?.level?.toUpperCase() || "LOW"}
+                          </span>
+                        </div>
+                        <span className="mt-1 text-[11px] text-slate-500">
+                          Confidence: {competitiveAnalysis.confidence || 50}%
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Expanded Details */}
+                  {showCompetitiveDetails && (
+                    <div className="space-y-3 pt-3 border-t border-slate-200">
+                      {/* Competitive Advantages */}
+                      {Array.isArray(competitiveAnalysis.advantages) &&
+                        competitiveAnalysis.advantages.length > 0 && (
+                          <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Icon icon="mingcute:check-circle-line" width={14} className="text-emerald-700" />
+                              <p className="text-xs font-semibold text-emerald-900">
+                                Competitive Advantages ({competitiveAnalysis.advantages.length})
+                              </p>
+                            </div>
+                            <ul className="space-y-2">
+                              {competitiveAnalysis.advantages.map((adv: any, idx: number) => (
+                                <li key={idx} className="text-[11px] text-emerald-800">
+                                  <div className="flex items-start gap-2">
+                                    <span
+                                      className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                        adv.impact === "high"
+                                          ? "bg-emerald-200 text-emerald-900"
+                                          : "bg-emerald-100 text-emerald-800"
+                                      }`}
+                                    >
+                                      {adv.impact}
+                                    </span>
+                                    <div className="flex-1">
+                                      <span className="font-semibold">{adv.title}:</span> {adv.description}
+                                    </div>
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                      {/* Competitive Disadvantages */}
+                      {Array.isArray(competitiveAnalysis.disadvantages) &&
+                        competitiveAnalysis.disadvantages.length > 0 && (
+                          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Icon icon="mingcute:alert-line" width={14} className="text-amber-700" />
+                              <p className="text-xs font-semibold text-amber-900">
+                                Areas to Improve ({competitiveAnalysis.disadvantages.length})
+                              </p>
+                            </div>
+                            <ul className="space-y-2">
+                              {competitiveAnalysis.disadvantages.map((dis: any, idx: number) => (
+                                <li key={idx} className="text-[11px] text-amber-800">
+                                  <div className="flex items-start gap-2">
+                                    <span
+                                      className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                        dis.severity === "high"
+                                          ? "bg-red-200 text-red-900"
+                                          : dis.severity === "medium"
+                                          ? "bg-amber-200 text-amber-900"
+                                          : "bg-amber-100 text-amber-800"
+                                      }`}
+                                    >
+                                      {dis.severity}
+                                    </span>
+                                    <div className="flex-1">
+                                      <span className="font-semibold">{dis.title}:</span> {dis.description}
+                                      {dis.mitigation && (
+                                        <div className="mt-1 text-[10px] text-amber-700 italic">
+                                          💡 {dis.mitigation}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                      {/* Differentiating Strategies */}
+                      {Array.isArray(competitiveAnalysis.strategies) &&
+                        competitiveAnalysis.strategies.length > 0 && (
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Icon icon="mingcute:lightbulb-line" width={14} className="text-blue-700" />
+                              <p className="text-xs font-semibold text-blue-900">
+                                Strategies to Stand Out
+                              </p>
+                            </div>
+                            <ul className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                              {competitiveAnalysis.strategies
+                                .sort((a: any, b: any) => {
+                                  const priorityOrder = { high: 3, medium: 2, low: 1 };
+                                  return (
+                                    (priorityOrder[b.priority as keyof typeof priorityOrder] || 0) -
+                                    (priorityOrder[a.priority as keyof typeof priorityOrder] || 0)
+                                  );
+                                })
+                                .map((strategy: any, idx: number) => (
+                                  <li key={idx} className="text-[11px] text-blue-800">
+                                    <div className="flex items-start gap-2">
+                                      <span
+                                        className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                          strategy.priority === "high"
+                                            ? "bg-blue-200 text-blue-900"
+                                            : "bg-blue-100 text-blue-800"
+                                        }`}
+                                      >
+                                        {strategy.priority}
+                                      </span>
+                                      <div className="flex-1">
+                                        <span className="font-semibold">{strategy.title}:</span>{" "}
+                                        {strategy.description}
+                                        {strategy.estimatedImpact && (
+                                          <span className="text-blue-600 ml-1">
+                                            (+{strategy.estimatedImpact} pts)
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </li>
+                                ))}
+                            </ul>
+                          </div>
+                        )}
+
+                      {/* Profile Comparison */}
+                      {competitiveAnalysis.profileComparison && (
+                        <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Icon icon="mingcute:user-compare-line" width={14} className="text-purple-700" />
+                            <p className="text-xs font-semibold text-purple-900">
+                              Profile Comparison
+                            </p>
+                          </div>
+                          <div className="space-y-2 text-[11px]">
+                            <div className="flex items-center justify-between">
+                              <span className="text-purple-700">Experience:</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold">
+                                  {competitiveAnalysis.profileComparison.experience?.user || 0} years
+                                </span>
+                                <span className="text-purple-500">vs</span>
+                                <span>
+                                  {competitiveAnalysis.profileComparison.experience?.typical || "N/A"}
+                                </span>
+                                {competitiveAnalysis.profileComparison.experience?.match ? (
+                                  <Icon icon="mingcute:check-line" width={14} className="text-emerald-600" />
+                                ) : (
+                                  <Icon icon="mingcute:close-line" width={14} className="text-red-600" />
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-purple-700">Education:</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold">
+                                  {competitiveAnalysis.profileComparison.education?.user || "None"}
+                                </span>
+                                <span className="text-purple-500">vs</span>
+                                <span>
+                                  {competitiveAnalysis.profileComparison.education?.typical || "N/A"}
+                                </span>
+                                {competitiveAnalysis.profileComparison.education?.match ? (
+                                  <Icon icon="mingcute:check-line" width={14} className="text-emerald-600" />
+                                ) : (
+                                  <Icon icon="mingcute:close-line" width={14} className="text-red-600" />
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-purple-700">Skills:</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold">
+                                  {competitiveAnalysis.profileComparison.skills?.user || 0} skills
+                                </span>
+                                <span className="text-purple-500">vs</span>
+                                <span>
+                                  {competitiveAnalysis.profileComparison.skills?.typical || "N/A"}
+                                </span>
+                                {competitiveAnalysis.profileComparison.skills?.match ? (
+                                  <Icon icon="mingcute:check-line" width={14} className="text-emerald-600" />
+                                ) : (
+                                  <Icon icon="mingcute:close-line" width={14} className="text-red-600" />
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Collapsed View - Quick Stats */}
+                  {!showCompetitiveDetails && (
+                    <div className="flex items-center gap-4 text-[11px] text-slate-600">
+                      <span>
+                        Advantages: <strong>{competitiveAnalysis.advantages?.length || 0}</strong>
+                      </span>
+                      <span>
+                        Areas to Improve: <strong>{competitiveAnalysis.disadvantages?.length || 0}</strong>
+                      </span>
+                      <span>
+                        Strategies: <strong>{competitiveAnalysis.strategies?.length || 0}</strong>
+                      </span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500">
+                  {competitiveError ||
+                    "Competitive analysis not available. This feature analyzes your competitiveness for this role."}
                 </p>
               )}
             </div>

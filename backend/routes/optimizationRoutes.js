@@ -96,5 +96,21 @@ router.get(
   optimizationController.getApplicationQualityHistory
 );
 
+// ============================================================================
+// Competitive Analysis Routes
+// ============================================================================
+router.get(
+  "/competitive/analyze/:jobId",
+  optimizationController.analyzeCompetitiveness
+);
+router.get(
+  "/competitive/prioritize",
+  optimizationController.getPrioritizedApplications
+);
+router.get(
+  "/competitive/compare/:jobId",
+  optimizationController.compareToHiredProfile
+);
+
 export default router;
 

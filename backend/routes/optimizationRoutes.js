@@ -41,6 +41,18 @@ router.get("/timing/hour-of-day", optimizationController.getHourOfDayPerformance
 router.get("/timing/time-of-day", optimizationController.getTimeOfDayPerformance);
 
 // ============================================================================
+// Response Time Prediction Routes
+// ============================================================================
+router.get(
+  "/response-time/prediction/:jobId",
+  optimizationController.getResponseTimePrediction
+);
+router.get(
+  "/response-time/benchmarks",
+  optimizationController.getResponseTimeBenchmarks
+);
+
+// ============================================================================
 // A/B Testing Routes
 // ============================================================================
 router.post("/ab-tests", optimizationController.createABTest);
@@ -63,6 +75,26 @@ router.put("/recommendations/:id/dismiss", optimizationController.dismissRecomme
 // ============================================================================
 router.get("/role-types/performance", optimizationController.getRoleTypePerformance);
 router.get("/role-types/best", optimizationController.getBestRoleTypes);
+
+// ============================================================================
+// Application Quality Scoring Routes
+// ============================================================================
+router.post(
+  "/quality/score/:jobId",
+  optimizationController.scoreApplicationQuality
+);
+router.get(
+  "/quality/latest/:jobId",
+  optimizationController.getApplicationQuality
+);
+router.get(
+  "/quality/stats",
+  optimizationController.getApplicationQualityStats
+);
+router.get(
+  "/quality/history/:jobId",
+  optimizationController.getApplicationQualityHistory
+);
 
 export default router;
 

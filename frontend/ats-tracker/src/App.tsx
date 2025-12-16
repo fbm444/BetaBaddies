@@ -50,6 +50,7 @@ import { FamilyInviteAccept } from "./pages/FamilyInviteAccept";
 import { FamilyOnlyDashboard } from "./pages/FamilyOnlyDashboard";
 import { ApiMonitoring } from "./pages/ApiMonitoring";
 import { FollowUpReminders } from "./pages/FollowUpReminders";
+import { ApplicationSuccessOptimization } from "./pages/ApplicationSuccessOptimization";
 import "./App.css";
 
 function App() {
@@ -148,6 +149,10 @@ function App() {
             <Route
               path={ROUTES.COMPANY_RESEARCH}
               element={<CompanyResearch />}
+            />
+            <Route
+              path={ROUTES.APPLICATION_OPTIMIZATION}
+              element={<ApplicationSuccessOptimization />}
             />
             <Route
               path={ROUTES.FOLLOW_UP_REMINDERS}

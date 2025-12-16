@@ -138,7 +138,7 @@ class ApplicationStrategyService {
    */
   async getBestPerformingStrategies(userId, limit = 5) {
     try {
-      const query = `
+      let query = `
         SELECT 
           s.application_method,
           s.application_channel,
@@ -162,8 +162,66 @@ class ApplicationStrategyService {
         LIMIT $2
       `;
 
-      const result = await database.query(query, [userId, limit]);
-      return result.rows;
+      let result = await database.query(query, [userId, limit]);
+      
+      // If no results, try to derive from job_opportunities directly
+      if (result.rows.length === 0) {
+        // Check if application_method or application_source column exists
+        const columnCheck = await database.query(`
+          SELECT column_name 
+          FROM information_schema.columns 
+          WHERE table_name = 'job_opportunities' 
+          AND column_name IN ('application_method', 'application_source')
+          LIMIT 1
+        `);
+        
+        if (columnCheck.rows.length > 0) {
+          const colName = columnCheck.rows[0].column_name;
+          query = `
+            SELECT 
+              COALESCE(jo.${colName}, 'direct') as application_method,
+              NULL as application_channel,
+              COUNT(DISTINCT jo.id) as total_applications,
+              COUNT(DISTINCT CASE WHEN jo.status IN ('Phone Screen', 'Interview', 'Offer') THEN jo.id END) as responses,
+              COUNT(DISTINCT CASE WHEN jo.status IN ('Interview', 'Offer') THEN jo.id END) as interviews,
+              COUNT(DISTINCT CASE WHEN jo.status = 'Offer' THEN jo.id END) as offers,
+              ROUND(
+                COUNT(DISTINCT CASE WHEN jo.status IN ('Interview', 'Offer') THEN jo.id END)::DECIMAL / 
+                NULLIF(COUNT(DISTINCT CASE WHEN jo.status IN ('Phone Screen', 'Interview', 'Offer') THEN jo.id END), 0) * 100,
+                2
+              ) as interview_conversion_rate,
+              ROUND(
+                COUNT(DISTINCT CASE WHEN jo.status = 'Offer' THEN jo.id END)::DECIMAL / 
+                NULLIF(COUNT(DISTINCT jo.id), 0) * 100,
+                2
+              ) as offer_rate,
+              ROUND(
+                COUNT(DISTINCT CASE WHEN jo.status IN ('Phone Screen', 'Interview', 'Offer') THEN jo.id END)::DECIMAL / 
+                NULLIF(COUNT(DISTINCT jo.id), 0) * 100,
+                2
+              ) as response_rate,
+              false as has_referral
+            FROM job_opportunities jo
+            WHERE jo.user_id = $1
+            GROUP BY jo.${colName}
+            HAVING COUNT(DISTINCT jo.id) >= 2
+            ORDER BY offer_rate DESC NULLS LAST, response_rate DESC NULLS LAST
+            LIMIT $2
+          `;
+          result = await database.query(query, [userId, limit]);
+        }
+      }
+      
+      return result.rows.map(row => ({
+        id: `${row.application_method}_${row.application_channel || 'default'}`,
+        applicationMethod: row.application_method,
+        applicationChannel: row.application_channel,
+        applicationCount: parseInt(row.total_applications) || 0,
+        responseRate: (parseFloat(row.response_rate) || 0) / 100,
+        interviewRate: (parseFloat(row.interview_conversion_rate) || 0) / 100,
+        offerRate: (parseFloat(row.offer_rate) || 0) / 100,
+        hasReferral: row.has_referral || false
+      }));
     } catch (error) {
       console.error("❌ Error getting best performing strategies:", error);
       throw error;

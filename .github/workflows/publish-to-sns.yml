@@ -2,7 +2,7 @@ name: Publish to AWS SNS Topic
 
 on:
   workflow_run:
-    workflows: ["Deploy Production"]
+    workflows: ["Deploy to Production"]
     types: [completed]
 
 env:
@@ -15,8 +15,8 @@ jobs:
   publish-to-sns:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # Only run if the deployment workflow completed (success or failure)
-    if: github.event.workflow_run.conclusion != ''
+    # Only run if the deployment workflow completed successfully
+    if: github.event.workflow_run.conclusion == 'success'
 
     steps:
       - name: Check if SNS is configured

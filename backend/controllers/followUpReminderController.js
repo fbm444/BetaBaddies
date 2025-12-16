@@ -7,7 +7,7 @@ class FollowUpReminderController {
    * Get all reminders for user (with optional filters)
    */
   getReminders = asyncHandler(async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.session.userId;
     const { status, jobOpportunityId, isActive, limit, offset } = req.query;
 
     const filters = {};
@@ -30,7 +30,7 @@ class FollowUpReminderController {
    * Get pending reminders (for notifications)
    */
   getPendingReminders = asyncHandler(async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.session.userId;
     const limit = parseInt(req.query.limit) || 10;
 
     const reminders = await followUpReminderService.getPendingReminders(userId, limit);
@@ -46,7 +46,7 @@ class FollowUpReminderController {
    * Get specific reminder details
    */
   getReminderById = asyncHandler(async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.session.userId;
     const { id } = req.params;
 
     const reminder = await followUpReminderService.getReminderById(id, userId);
@@ -72,7 +72,7 @@ class FollowUpReminderController {
    * Create custom reminder
    */
   createReminder = asyncHandler(async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.session.userId;
     const { jobOpportunityId, reminderType, scheduledDate, dueDate, customMessage, daysAfterEvent } = req.body;
 
     if (!jobOpportunityId) {
@@ -104,7 +104,7 @@ class FollowUpReminderController {
    * Mark reminder as completed
    */
   completeReminder = asyncHandler(async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.session.userId;
     const { id } = req.params;
     const { responseType } = req.body;
 
@@ -121,7 +121,7 @@ class FollowUpReminderController {
    * Snooze reminder
    */
   snoozeReminder = asyncHandler(async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.session.userId;
     const { id } = req.params;
     const { days } = req.body;
 
@@ -148,7 +148,7 @@ class FollowUpReminderController {
    * Dismiss reminder
    */
   dismissReminder = asyncHandler(async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.session.userId;
     const { id } = req.params;
 
     const reminder = await followUpReminderService.dismissReminder(id, userId);
@@ -164,7 +164,7 @@ class FollowUpReminderController {
    * Delete reminder
    */
   deleteReminder = asyncHandler(async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.session.userId;
     const { id } = req.params;
 
     // Verify reminder belongs to user
@@ -193,7 +193,7 @@ class FollowUpReminderController {
    * Get generated email template for reminder
    */
   getEmailTemplate = asyncHandler(async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.session.userId;
     const { id } = req.params;
 
     const reminder = await followUpReminderService.getReminderById(id, userId);

@@ -398,7 +398,9 @@ export function JobOpportunitiesMapView({
         {/* Main Content: Sidebar + Map */}
         <div className="flex-1 flex overflow-hidden">
           {/* Sidebar - Filters + Job List */}
-          <div className="w-80 border-r bg-slate-50 overflow-y-auto flex flex-col">
+          <div className="w-80 border-r bg-slate-50 flex flex-col overflow-hidden">
+            {/* Scrollable Content Container */}
+            <div className="flex-1 overflow-y-auto">
             {/* Filters Section */}
             <div className="p-4 border-b bg-white">
               <h4 className="font-semibold text-slate-900 mb-3">Filters</h4>
@@ -551,7 +553,7 @@ export function JobOpportunitiesMapView({
               </p>
             </div>
             {/* Job List */}
-            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+            <div className="p-2 space-y-1">
               {filteredJobs.map((opportunity) => {
                 const jobId = opportunity.id;
                 const coords = jobLocations.get(jobId);
@@ -646,6 +648,7 @@ export function JobOpportunitiesMapView({
                   No jobs match the current filters
                 </div>
               )}
+            </div>
             </div>
           </div>
 

@@ -802,36 +802,36 @@ export function JobOpportunityDetailModal({
               <p className="text-lg text-slate-600">{opportunity.company}</p>
             )}
           </div>
-          <div className="flex gap-2 flex-wrap justify-end">
+          <div className="flex gap-1.5 flex-wrap justify-end">
             {!isEditMode && (
               <>
                 {!opportunity.archived && (
                   <button
                     onClick={handleScheduleInterview}
-                    className="px-2.5 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors flex items-center gap-1 text-xs font-medium"
+                    className="px-2 py-0.5 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors flex items-center gap-0.5 text-[10px] font-medium"
                   >
-                    <Icon icon="mingcute:calendar-line" width={14} />
+                    <Icon icon="mingcute:calendar-line" width={12} />
                     Schedule Interview
                   </button>
                 )}
                 {opportunity.jobPostingUrl && (
                   <button
                     onClick={() => setShowCompanyInfo(true)}
-                    className="px-2.5 py-1 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition-colors flex items-center gap-1 text-xs font-medium"
+                    className="px-2 py-0.5 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition-colors flex items-center gap-0.5 text-[10px] font-medium"
                   >
-                    <Icon icon="mingcute:building-line" width={14} />
+                    <Icon icon="mingcute:building-line" width={12} />
                     Company Info
                   </button>
                 )}
                 {teams.length > 0 && (
                   <button
                     onClick={() => setShowShareModal(true)}
-                    className="px-2.5 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors flex items-center gap-1 text-xs font-medium"
+                    className="px-2 py-0.5 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors flex items-center gap-0.5 text-[10px] font-medium"
                   >
-                    <Icon icon="lucide:share-2" width={14} />
+                    <Icon icon="lucide:share-2" width={12} />
                     Share
                     {sharedTeams.length > 0 && (
-                      <span className="ml-1 bg-white/20 rounded-full px-1.5 text-xs">
+                      <span className="ml-0.5 bg-white/20 rounded-full px-1 text-[9px]">
                         {sharedTeams.length}
                       </span>
                     )}
@@ -840,35 +840,35 @@ export function JobOpportunityDetailModal({
                 {!opportunity.archived && (
                   <button
                     onClick={() => setIsEditMode(true)}
-                    className="px-2.5 py-1 bg-blue-700 text-white rounded-md hover:bg-blue-800 transition-colors flex items-center gap-1 text-xs font-medium"
+                    className="px-2 py-0.5 bg-blue-700 text-white rounded-md hover:bg-blue-800 transition-colors flex items-center gap-0.5 text-[10px] font-medium"
                   >
-                    <Icon icon="mingcute:edit-line" width={14} />
+                    <Icon icon="mingcute:edit-line" width={12} />
                     Edit
                   </button>
                 )}
                 {opportunity.archived && onUnarchive && (
                   <button
                     onClick={onUnarchive}
-                    className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center gap-2"
+                    className="px-2 py-0.5 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors flex items-center gap-0.5 text-[10px] font-medium"
                   >
-                    <Icon icon="mingcute:refresh-line" width={18} />
+                    <Icon icon="mingcute:refresh-line" width={12} />
                     Restore
                   </button>
                 )}
                 {!opportunity.archived && onArchive && (
                   <button
                     onClick={() => onArchive()}
-                    className="px-2.5 py-1 bg-[#EC85CA] text-white rounded-md hover:bg-[#D468B1] transition-colors flex items-center gap-1 text-xs font-medium"
+                    className="px-2 py-0.5 bg-[#EC85CA] text-white rounded-md hover:bg-[#D468B1] transition-colors flex items-center gap-0.5 text-[10px] font-medium"
                   >
-                    <Icon icon="mingcute:archive-line" width={14} />
+                    <Icon icon="mingcute:archive-line" width={12} />
                     Archive
                   </button>
                 )}
                 <button
                   onClick={onDelete}
-                  className="px-2.5 py-1 border border-red-500 text-red-500 rounded-md hover:bg-red-50 transition-colors flex items-center gap-1 text-xs font-medium"
+                  className="px-2 py-0.5 border border-red-500 text-red-500 rounded-md hover:bg-red-50 transition-colors flex items-center gap-0.5 text-[10px] font-medium"
                 >
-                  <Icon icon="mingcute:delete-line" width={14} />
+                  <Icon icon="mingcute:delete-line" width={12} />
                   Delete
                 </button>
               </>

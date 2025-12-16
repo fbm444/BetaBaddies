@@ -15,11 +15,8 @@ import type {
   InterviewAnalytics,
 } from "../types";
 import { InterviewPredictionTab } from "../components/interviews/InterviewPredictionTab";
-<<<<<<< HEAD
 import { OfferComparisonTab } from "../components/interviews/OfferComparisonTab";
-=======
 import { InterviewResponseLibrary } from "../components/InterviewResponseLibrary";
->>>>>>> jaiman-sprint4
 import {
   INTERVIEW_STATUSES,
   INTERVIEW_STATUS_LABELS,
@@ -37,11 +34,7 @@ import {
   Area,
 } from "recharts";
 
-<<<<<<< HEAD
-type TabType = "schedule" | "preparation" | "reminders" | "thank-you" | "follow-ups" | "analytics" | "predictions" | "offers";
-=======
-type TabType = "schedule" | "preparation" | "reminders" | "thank-you" | "follow-ups" | "analytics" | "predictions" | "responses";
->>>>>>> jaiman-sprint4
+type TabType = "schedule" | "preparation" | "reminders" | "thank-you" | "follow-ups" | "analytics" | "predictions" | "offers" | "responses";
 
 export function Interviews() {
   const navigate = useNavigate();

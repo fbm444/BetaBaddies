@@ -1,12 +1,12 @@
--- Migration: Create Application Success Optimization Dashboard Tables
+-- Migration: Create Application Success Optimization Dashboard Tables 
 -- Description: Creates tables for tracking application strategies, document performance, A/B tests, metrics, and recommendations
 
 -- ============================================================================
--- 1. Application Strategy Tracking Table
+-- 1. Application Strategy Tracking Table 
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS application_strategies (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL,
+CREATE TABLE IF NOT EXISTS application_strategies ( 
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(), 
+  user_id UUID NOT NULL, 
   job_opportunity_id UUID NOT NULL,
   
   -- Strategy Details

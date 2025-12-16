@@ -21,42 +21,79 @@ interface ABTestResultsGraphProps {
 
 export function ABTestResultsGraph({ test, results, onClose }: ABTestResultsGraphProps) {
   // Prepare chart data
-  const chartData: any[] = [];
-  
-  // Control group
-  if (test.controlGroupConfig || results?.control) {
-    const control = results?.control || test.results?.control || {};
-    chartData.push({
-      name: test.controlGroupConfig?.name || "Control",
-      responseRate: (control.responseRate || 0) * 100,
-      interviewRate: (control.interviewRate || 0) * 100,
-      offerRate: (control.offerRate || 0) * 100,
-      sampleSize: control.sampleSize || control.applicationCount || 0,
-    });
-  }
+  let chartData: any[] = [];
 
-  // Variant groups
-  if (test.variantGroups && Array.isArray(test.variantGroups)) {
-    test.variantGroups.forEach((variant: any, index: number) => {
-      const variantKey = `variant_${String.fromCharCode(97 + index)}`;
-      const variantData = results?.[variantKey] || test.results?.[variantKey] || {};
+  // New path: backend returns results as an array of group rows
+  const rowsArray: any[] = Array.isArray(results)
+    ? results
+    : Array.isArray(results?.results)
+    ? results.results
+    : [];
+
+  const resolveGroupName = (groupKey: string) => {
+    if (groupKey === "control") {
+      return test.controlGroupConfig?.name || "Control";
+    }
+    if (groupKey.startsWith("variant_")) {
+      const letter = groupKey.slice(-1);
+      const index = letter.charCodeAt(0) - "a".charCodeAt(0);
+      const variant = test.variantGroups && test.variantGroups[index];
+      return variant?.name || `Variant ${letter.toUpperCase()}`;
+    }
+    return groupKey || "Group";
+  };
+
+  if (rowsArray && rowsArray.length > 0) {
+    chartData = rowsArray.map((row) => {
+      const groupKey = row.ab_test_group || row.group || "control";
+      const responseRate = Number(row.response_rate ?? row.responseRate ?? 0); // already 0-100
+      const offerRate = Number(row.offer_rate ?? row.offerRate ?? 0);
+      const interviewRate = Number(row.interview_rate ?? row.interviewRate ?? 0);
+      const sampleSize = Number(row.sample_size ?? row.sampleSize ?? 0);
+
+      return {
+        name: resolveGroupName(groupKey),
+        responseRate,
+        interviewRate,
+        offerRate,
+        sampleSize,
+      };
+    });
+  } else {
+    // Legacy fallback: object keyed by control / variant_a / ...
+    if (test.controlGroupConfig || results?.control) {
+      const control = results?.control || test.results?.control || {};
       chartData.push({
-        name: variant.name || `Variant ${String.fromCharCode(65 + index)}`,
-        responseRate: (variantData.responseRate || 0) * 100,
-        interviewRate: (variantData.interviewRate || 0) * 100,
-        offerRate: (variantData.offerRate || 0) * 100,
-        sampleSize: variantData.sampleSize || variantData.applicationCount || 0,
+        name: test.controlGroupConfig?.name || "Control",
+        responseRate: (control.responseRate || 0) * 100,
+        interviewRate: (control.interviewRate || 0) * 100,
+        offerRate: (control.offerRate || 0) * 100,
+        sampleSize: control.sampleSize || control.applicationCount || 0,
       });
-    });
-  } else if (results?.variant_a || test.results?.variantA) {
-    const variantA = results?.variant_a || test.results?.variantA || {};
-    chartData.push({
-      name: "Variant A",
-      responseRate: (variantA.responseRate || 0) * 100,
-      interviewRate: (variantA.interviewRate || 0) * 100,
-      offerRate: (variantA.offerRate || 0) * 100,
-      sampleSize: variantA.sampleSize || variantA.applicationCount || 0,
-    });
+    }
+
+    if (test.variantGroups && Array.isArray(test.variantGroups)) {
+      test.variantGroups.forEach((variant: any, index: number) => {
+        const variantKey = `variant_${String.fromCharCode(97 + index)}`;
+        const variantData = results?.[variantKey] || test.results?.[variantKey] || {};
+        chartData.push({
+          name: variant.name || `Variant ${String.fromCharCode(65 + index)}`,
+          responseRate: (variantData.responseRate || 0) * 100,
+          interviewRate: (variantData.interviewRate || 0) * 100,
+          offerRate: (variantData.offerRate || 0) * 100,
+          sampleSize: variantData.sampleSize || variantData.applicationCount || 0,
+        });
+      });
+    } else if (results?.variant_a || test.results?.variantA) {
+      const variantA = results?.variant_a || test.results?.variantA || {};
+      chartData.push({
+        name: "Variant A",
+        responseRate: (variantA.responseRate || 0) * 100,
+        interviewRate: (variantA.interviewRate || 0) * 100,
+        offerRate: (variantA.offerRate || 0) * 100,
+        sampleSize: variantA.sampleSize || variantA.applicationCount || 0,
+      });
+    }
   }
 
   // Pie chart data for sample size distribution

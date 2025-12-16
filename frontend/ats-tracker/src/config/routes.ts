@@ -123,8 +123,8 @@ export const navigationGroups: NavigationGroup[] = [
       },
       {
         id: "application-optimization",
-        label: "Application Optimization",
-        icon: "mingcute:line-chart-line",
+        label: "Optimization Stats",
+        icon: "mingcute:dashboard-line",
         path: ROUTES.APPLICATION_OPTIMIZATION,
       },
     ],

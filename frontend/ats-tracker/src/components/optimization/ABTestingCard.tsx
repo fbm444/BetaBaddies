@@ -26,7 +26,36 @@ export function ABTestingCard({ dateRange }: ABTestingCardProps) {
       setError(null);
       const response = await api.getABTests();
       if (response.ok && response.data) {
-        setAbTests(response.data.tests || []);
+        const rawTests = response.data.tests || [];
+        // Normalize snake_case from backend into camelCase and parse JSON fields
+        const normalized = rawTests.map((t: any) => {
+          const control =
+            typeof t.control_group_config === "string"
+              ? JSON.parse(t.control_group_config)
+              : t.control_group_config || {};
+          const variants =
+            typeof t.variant_groups === "string"
+              ? JSON.parse(t.variant_groups)
+              : t.variant_groups || [];
+          const trafficSplit =
+            typeof t.traffic_split === "string"
+              ? JSON.parse(t.traffic_split)
+              : t.traffic_split || {};
+
+          return {
+            ...t,
+            testName: t.test_name || t.testName,
+            testType: t.test_type || t.testType,
+            createdAt: t.created_at || t.createdAt,
+            startDate: t.start_date || t.startDate,
+            endDate: t.end_date || t.endDate,
+            sampleSize: t.sample_size || t.sampleSize,
+            controlGroupConfig: control,
+            variantGroups: variants,
+            trafficSplit,
+          };
+        });
+        setAbTests(normalized);
       } else {
         setError(response.error?.message || "Failed to load A/B tests");
       }
@@ -36,6 +65,13 @@ export function ABTestingCard({ dateRange }: ABTestingCardProps) {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const formatDate = (value?: string) => {
+    if (!value) return "—";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
   };
 
   const getStatusColor = (status: string) => {
@@ -90,9 +126,9 @@ export function ABTestingCard({ dateRange }: ABTestingCardProps) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">A/B Test Results</h2>
-          <p className="text-slate-600">
-            Show A/B test results for different application strategies
+          <h2 className="text-2xl font-bold text-slate-900 mb-1">A/B Testing Dashboard</h2>
+          <p className="text-slate-600 text-sm">
+            Compare how different versions of your resume, cover letter, or strategies perform.
           </p>
         </div>
         <button
@@ -100,13 +136,32 @@ export function ABTestingCard({ dateRange }: ABTestingCardProps) {
           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium flex items-center gap-2"
         >
           <Icon icon="mingcute:add-line" width={18} />
-          Create A/B Test
+          New A/B Test
         </button>
       </div>
 
       {abTests.length > 0 ? (
         <div className="space-y-4">
-          {abTests.map((test) => (
+          {abTests.map((test) => {
+            const typeLabel =
+              test.testType === "resume"
+                ? "Resume"
+                : test.testType === "cover_letter"
+                ? "Cover Letter"
+                : test.testType === "application_method"
+                ? "Application Method"
+                : (test.testType || "General");
+
+            const totalSample =
+              test.sampleSize ||
+              test.sample_size ||
+              testResults[test.id]?.groups?.reduce(
+                (sum: number, g: any) => sum + (g.sampleSize || g.sample_size || 0),
+                0
+              ) ||
+              null;
+
+            return (
             <div
               key={test.id}
               className="bg-gradient-to-r from-violet-50 to-purple-50 rounded-lg p-6 border border-violet-200 hover:shadow-md transition-shadow"
@@ -121,33 +176,38 @@ export function ABTestingCard({ dateRange }: ABTestingCardProps) {
                     >
                       {test.status || "Draft"}
                     </span>
-                    <h4 className="text-lg font-semibold text-slate-900">{test.testName}</h4>
+                    <span className="px-2 py-1 text-[11px] font-medium rounded-full bg-violet-100 text-violet-700 border border-violet-200">
+                      {typeLabel}
+                    </span>
+                    <h4 className="text-lg font-semibold text-slate-900 truncate max-w-xs">
+                      {test.testName || test.test_name || "Untitled A/B Test"}
+                    </h4>
                   </div>
                   {test.description && (
-                    <p className="text-sm text-slate-700 mb-3">{test.description}</p>
+                    <p className="text-sm text-slate-700 mb-3 line-clamp-2">{test.description}</p>
                   )}
-                  <div className="grid grid-cols-2 gap-4 mt-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 text-xs">
                     <div>
-                      <p className="text-xs text-slate-600 mb-1">Variant A</p>
-                      <p className="text-sm font-semibold text-slate-900">
-                        {test.variantA?.name || "Control"}
-                      </p>
-                      {test.results?.variantA && (
-                        <p className="text-xs text-slate-600 mt-1">
-                          Response: {test.results.variantA.responseRate?.toFixed(1)}%
-                        </p>
-                      )}
+                      <p className="text-slate-500 mb-0.5">Created</p>
+                      <p className="font-medium text-slate-900">{formatDate(test.createdAt)}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-slate-600 mb-1">Variant B</p>
-                      <p className="text-sm font-semibold text-slate-900">
-                        {test.variantB?.name || "Test"}
+                      <p className="text-slate-500 mb-0.5">Test Window</p>
+                      <p className="font-medium text-slate-900">
+                        {formatDate(test.startDate)} – {formatDate(test.endDate)}
                       </p>
-                      {test.results?.variantB && (
-                        <p className="text-xs text-slate-600 mt-1">
-                          Response: {test.results.variantB.responseRate?.toFixed(1)}%
-                        </p>
-                      )}
+                    </div>
+                    <div>
+                      <p className="text-slate-500 mb-0.5">Total Sample Size</p>
+                      <p className="font-medium text-slate-900">
+                        {totalSample !== null ? totalSample : "—"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-slate-500 mb-0.5">Winner</p>
+                      <p className="font-medium text-slate-900">
+                        {test.winner ? test.winner : "Not determined yet"}
+                      </p>
                     </div>
                   </div>
                   {test.winner && (
@@ -218,7 +278,8 @@ export function ABTestingCard({ dateRange }: ABTestingCardProps) {
                 </button>
               </div>
             </div>
-          ))}
+          );
+          })}
         </div>
       ) : (
         <div className="text-center py-12 bg-slate-50 rounded-lg border border-slate-200">

@@ -390,15 +390,22 @@ Keep numbers realistic and ensure that differences between groups are moderate (
     }
 
     // Normalize to match DB result shape
-    return parsed.groups.map((g) => ({
-      ab_test_group: g.ab_test_group || g.group || "control",
-      sample_size: g.sample_size || g.n || 40,
-      responses: Math.round((g.response_rate || 0.3) * (g.sample_size || 40)),
-      interviews: Math.round((g.interview_rate || 0.15) * (g.sample_size || 40)),
-      offers: Math.round((g.offer_rate || 0.08) * (g.sample_size || 40)),
-      response_rate: ((g.response_rate || 0.3) * 100).toFixed(2),
-      offer_rate: ((g.offer_rate || 0.08) * 100).toFixed(2),
-    }));
+    return parsed.groups.map((g) => {
+      const sampleSize = g.sample_size || g.n || 40;
+      const responseRateDec = g.response_rate ?? 0.3;
+      const interviewRateDec = g.interview_rate ?? 0.15;
+      const offerRateDec = g.offer_rate ?? 0.08;
+
+      return {
+        ab_test_group: g.ab_test_group || g.group || "control",
+        sample_size: sampleSize,
+        responses: Math.round(responseRateDec * sampleSize),
+        interviews: Math.round(interviewRateDec * sampleSize),
+        offers: Math.round(offerRateDec * sampleSize),
+        response_rate: Number((responseRateDec * 100).toFixed(2)),
+        offer_rate: Number((offerRateDec * 100).toFixed(2)),
+      };
+    });
   }
 
   /**

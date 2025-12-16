@@ -33,10 +33,10 @@ export function ApplicationSuccessOptimization() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-4xl font-bold text-slate-900 mb-2">
-                Application Success Optimization
+                Optimization Dashboard
               </h1>
               <p className="text-slate-600">
-                Optimize your application strategy with data-driven insights
+                Monitor and optimize how your applications, documents, and strategies perform.
               </p>
             </div>
           </div>

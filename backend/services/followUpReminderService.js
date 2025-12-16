@@ -192,8 +192,13 @@ class FollowUpReminderService {
       `;
 
       const result = await database.query(query, [userId, limit]);
-      return result.rows;
+      return result.rows || [];
     } catch (error) {
+      // If tables don't exist yet, return empty array instead of throwing
+      if (error.message && error.message.includes('does not exist')) {
+        console.warn("⚠️ Follow-up reminders tables not found. Run migrations first.");
+        return [];
+      }
       console.error("❌ Error getting pending reminders:", error);
       throw error;
     }
@@ -252,8 +257,13 @@ class FollowUpReminderService {
       }
 
       const result = await database.query(query, params);
-      return result.rows;
+      return result.rows || [];
     } catch (error) {
+      // If tables don't exist yet, return empty array instead of throwing
+      if (error.message && error.message.includes('does not exist')) {
+        console.warn("⚠️ Follow-up reminders tables not found. Run migrations first.");
+        return [];
+      }
       console.error("❌ Error getting reminders:", error);
       throw error;
     }

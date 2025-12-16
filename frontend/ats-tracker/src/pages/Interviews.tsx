@@ -738,7 +738,7 @@ export function Interviews() {
               View and manage your interviews. Schedule new interviews, view upcoming ones, and access all interview details.
             </p>
             <div className="flex items-center gap-3 flex-shrink-0">
-              <button
+            <button
                 onClick={() => navigate(ROUTES.INTERVIEW_SCHEDULING)}
                 className="px-6 py-3 rounded-full bg-blue-500 text-white text-sm font-medium inline-flex items-center gap-2 shadow-md hover:bg-blue-600 transition-all"
               >
@@ -767,8 +767,8 @@ export function Interviews() {
                 >
                   <Icon icon="mingcute:check-circle-line" width={20} />
                   Connected
-                </button>
-              )}
+            </button>
+          )}
             </div>
           </div>
         </div>
@@ -1447,11 +1447,11 @@ export function Interviews() {
                           )}
                         </div>
                         <div className="flex items-center gap-2 ml-4">
-                          {companyData.metadata?.fromCache && (
-                            <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
-                              Cached
-                            </span>
-                          )}
+                        {companyData.metadata?.fromCache && (
+                          <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                            Cached
+                          </span>
+                        )}
                           <button
                             onClick={() => toggleCard(companyKey)}
                             className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
@@ -3013,7 +3013,7 @@ export function Interviews() {
                           <Icon icon="mingcute:eye-line" width={18} className="text-blue-500" />
                         </button>
                       )}
-                      <div className="flex-1">
+                        <div className="flex-1">
                                     {/* Interview Context - Position, Company, Date */}
                                     {(followUp.interview?.jobTitle || followUp.interview?.company || followUp.interview?.scheduledAt) && (
                                       <div className="mb-3 pb-3 border-b border-slate-200">
@@ -3049,12 +3049,12 @@ export function Interviews() {
                           {followUp.notes && (
                             <p className="text-xs text-slate-600 mb-3 line-clamp-2">{followUp.notes}</p>
                           )}
-                      </div>
+                        </div>
                       <div className="flex flex-col gap-2 mt-auto pt-3 border-t border-slate-100">
                                     {hasDraft ? (
-                                      <button
-                                        onClick={async () => {
-                                          try {
+                        <button
+                          onClick={async () => {
+                            try {
                                             setDraftLoadingId(followUp.id);
                                             const interviewId = followUp.interviewId || followUp.interview_id;
                                             const response = await api.getFollowUpEmailDraft(
@@ -3195,13 +3195,13 @@ export function Interviews() {
                         >
                           Mark Complete
                         </button>
-                                  </div>
+                      </div>
                     </div>
                   );
                   })}
                           </div>
                 </div>
-                      )}
+              )}
 
                       {/* Completed Follow-ups Section */}
                       {completedFollowUps.length > 0 && (
@@ -3231,9 +3231,9 @@ export function Interviews() {
                                             {formatDate(followUp.interview.scheduledAt)}
                                           </p>
                                         )}
-                                      </div>
-                                    )}
-                                    
+            </div>
+          )}
+
                                     {/* Action Type */}
                                     <div className="flex items-center gap-2 mb-2">
                                       <Icon icon="mingcute:check-circle-line" width={18} className="text-green-500" />
@@ -3265,7 +3265,7 @@ export function Interviews() {
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-40 px-4">
             <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-6 font-poppins">
               <div className="flex items-center justify-between mb-4">
-                <div>
+            <div>
                   <h3 className="text-lg font-semibold text-slate-900">
                     Follow-up Email Draft
                   </h3>
@@ -3274,7 +3274,7 @@ export function Interviews() {
                       Generated by {activeFollowUpDraft.generatedBy === "openai" ? "AI" : "template"}
                     </p>
                   )}
-                </div>
+                  </div>
                 <button
                   onClick={() => setActiveFollowUpDraft(null)}
                   className="text-slate-400 hover:text-slate-600"
@@ -3345,7 +3345,7 @@ export function Interviews() {
                           )}
                         </div>
                       )}
-                      <div>
+                  <div>
                         <div className="flex items-center justify-between mb-1">
                           <label className="block text-xs font-medium text-slate-500">
                             Subject
@@ -3447,12 +3447,12 @@ export function Interviews() {
                     </>
                   );
                 })()}
-              </div>
+                    </div>
 
               <div className="mt-4 flex justify-between items-center">
                 {isEditingDraft ? (
                   <>
-                    <button
+                      <button
                       onClick={() => {
                         setIsEditingDraft(false);
                         const draftKey = `modal-${activeFollowUpDraft.id}`;
@@ -3510,10 +3510,10 @@ export function Interviews() {
                       className="px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded-lg hover:bg-blue-600 transition"
                     >
                       Save Changes
-                    </button>
+                      </button>
                   </>
                 ) : (
-                  <button
+                      <button
                     onClick={() => {
                       setActiveFollowUpDraft(null);
                       setIsEditingDraft(false);
@@ -3529,10 +3529,10 @@ export function Interviews() {
                     className="px-4 py-2 text-sm font-medium text-slate-700 hover:text-slate-900"
                   >
                     Close
-                  </button>
+                      </button>
                 )}
-              </div>
-            </div>
+                    </div>
+                  </div>
           </div>
               )}
             </div>
@@ -3944,13 +3944,13 @@ export function Interviews() {
                                     <div className="border border-slate-300 rounded-lg p-3">
                                       <h4 className="font-semibold text-slate-700 mb-2" style={{ fontFamily: 'Poppins' }}>Practice Interviews</h4>
                                       <div className="space-y-2">
-                                        <div>
+                  <div>
                                           <span className="text-sm text-slate-600" style={{ fontFamily: 'Poppins' }}>Conversion Rate: </span>
                                           <span className="font-bold text-slate-900" style={{ fontFamily: 'Poppins' }}>
                                             {analytics.practiceVsRealComparison.practice.conversionRate.toFixed(1)}%
                                           </span>
                                         </div>
-                                        <div>
+                      <div>
                                           <span className="text-sm text-slate-600" style={{ fontFamily: 'Poppins' }}>Completed: </span>
                                           <span className="font-medium text-slate-900" style={{ fontFamily: 'Poppins' }}>
                                             {analytics.practiceVsRealComparison.practice.completed}
@@ -4044,11 +4044,11 @@ export function Interviews() {
           <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
             <div className="flex items-center gap-3 mb-4">
               <Icon icon="mingcute:calendar-line" width={32} className="text-blue-500" />
-              <h3 className="text-xl font-semibold text-slate-900">Connect Google Calendar</h3>
+                        <h3 className="text-xl font-semibold text-slate-900">Connect Google Calendar</h3>
             </div>
             <p className="text-slate-600 mb-6">
-              Sync your interviews with Google Calendar to get automatic reminders and updates
-            </p>
+                          Sync your interviews with Google Calendar to get automatic reminders and updates
+                        </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowCalendarModal(false)}
@@ -4062,7 +4062,7 @@ export function Interviews() {
               >
                 Connect
               </button>
-            </div>
+                      </div>
           </div>
         </div>
       )}
@@ -4075,8 +4075,8 @@ export function Interviews() {
               <div className="flex items-center gap-3">
                 <Icon icon="mingcute:mail-line" width={32} className="text-blue-500" />
                 <h3 className="text-xl font-semibold text-slate-900">Create Thank You Note</h3>
-              </div>
-              <button
+                    </div>
+                    <button
                 onClick={() => {
                   setShowCreateThankYouModal(false);
                   setSelectedInterviewForThankYou("");
@@ -4085,8 +4085,8 @@ export function Interviews() {
                 className="text-slate-400 hover:text-slate-600"
               >
                 <Icon icon="mingcute:close-line" width={24} />
-              </button>
-            </div>
+                    </button>
+                  </div>
 
             <div className="space-y-4">
               {/* Interview Selection */}
@@ -4156,9 +4156,9 @@ export function Interviews() {
                 {loadingThankYou ? "Generating..." : "Generate Note"}
               </button>
             </div>
-          </div>
-        </div>
-      )}
+              </div>
+            </div>
+          )}
 
       {/* Create Follow-up Modal */}
       {showCreateFollowUpModal && (
@@ -4168,7 +4168,7 @@ export function Interviews() {
               <div className="flex items-center gap-3">
                 <Icon icon="mingcute:task-line" width={32} className="text-blue-500" />
                 <h3 className="text-xl font-semibold text-slate-900">Create Follow-up Action</h3>
-              </div>
+        </div>
               <button
                 onClick={() => {
                   setShowCreateFollowUpModal(false);

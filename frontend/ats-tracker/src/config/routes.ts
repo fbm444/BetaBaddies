@@ -50,6 +50,7 @@ export const ROUTES = {
   NETWORK_CONTACTS: "/network/contacts",
   NETWORK_EVENTS: "/network/events",
   NETWORK_REFERRALS: "/network/referrals",
+  FOLLOW_UP_REMINDERS: "/follow-up-reminders",
   API_MONITORING: "/admin/api-monitoring",
 } as const;
 
@@ -118,6 +119,12 @@ export const navigationGroups: NavigationGroup[] = [
         label: "Company Research",
         icon: "mdi:office-building",
         path: ROUTES.COMPANY_RESEARCH,
+      },
+      {
+        id: "follow-up-reminders",
+        label: "Follow-Up Reminders",
+        icon: "mingcute:notification-line",
+        path: ROUTES.FOLLOW_UP_REMINDERS,
       },
     ],
   },

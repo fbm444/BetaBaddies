@@ -1,6 +1,7 @@
 import database from "./database.js";
 import axios from "axios";
 import { wrapApiCall } from "../utils/apiCallWrapper.js";
+import salaryMarketResearchService from "./salaryMarketResearchService.js";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -13,6 +14,7 @@ class SalaryBenchmarkService {
     
     // Job title to BLS SOC code mapping (common tech roles)
     // BLS uses Standard Occupational Classification codes
+    // Note: If a job title doesn't match, the service will use AI fallback
     this.jobTitleToSocMapping = {
       "software engineer": "15113200",
       "software developer": "15113200",
@@ -36,6 +38,15 @@ class SalaryBenchmarkService {
       "full stack developer": "15113200",
       "mobile developer": "15113200",
       "web developer": "15113200",
+      // Additional common titles
+      "engineer": "15113200",
+      "developer": "15113200",
+      "programmer": "15113200",
+      "analyst": "15204100",
+      "scientist": "15204100",
+      "manager": "11302100",
+      "designer": "27102400",
+      "administrator": "15114200",
     };
   }
 
@@ -109,10 +120,25 @@ class SalaryBenchmarkService {
 
   /**
    * Get BLS SOC code for a job title
+   * Tries exact match first, then partial matches
    */
   getSocCodeForJobTitle(jobTitle) {
     const normalized = this.normalizeJobTitle(jobTitle);
-    return this.jobTitleToSocMapping[normalized] || null;
+    if (!normalized) return null;
+    
+    // Try exact match first
+    if (this.jobTitleToSocMapping[normalized]) {
+      return this.jobTitleToSocMapping[normalized];
+    }
+    
+    // Try partial matches (e.g., "senior software engineer" -> "software engineer")
+    for (const [key, code] of Object.entries(this.jobTitleToSocMapping)) {
+      if (normalized.includes(key) || key.includes(normalized)) {
+        return code;
+      }
+    }
+    
+    return null;
   }
 
   /**
@@ -415,8 +441,81 @@ class SalaryBenchmarkService {
   }
 
   /**
+   * Generate fallback salary estimates using AI or simple calculations
+   */
+  async generateFallbackEstimate(jobTitle, location) {
+    try {
+      console.log(`🔄 Generating fallback salary estimate for ${jobTitle} in ${location}`);
+      
+      // Try AI-based market research first
+      try {
+        const marketData = await salaryMarketResearchService.researchMarketSalary(
+          jobTitle,
+          location,
+          3, // Default to 3 years experience if not specified
+          null // No specific industry
+        );
+        
+        if (marketData && marketData.percentile50) {
+          return {
+            percentile25: marketData.percentile25,
+            percentile50: marketData.percentile50,
+            percentile75: marketData.percentile75,
+            source: marketData.source || "AI-generated estimate",
+            dataYear: new Date().getFullYear(),
+            lastUpdated: new Date().toISOString(),
+            cached: false
+          };
+        }
+      } catch (aiError) {
+        console.log(`⚠️ AI fallback failed, using simple estimate: ${aiError.message}`);
+      }
+      
+      // Simple fallback based on job title keywords
+      const normalizedTitle = this.normalizeJobTitle(jobTitle);
+      let baseSalary = 70000; // Default base
+      
+      // Adjust based on common role keywords
+      if (normalizedTitle.includes("senior") || normalizedTitle.includes("lead") || normalizedTitle.includes("principal")) {
+        baseSalary = 120000;
+      } else if (normalizedTitle.includes("junior") || normalizedTitle.includes("entry") || normalizedTitle.includes("associate")) {
+        baseSalary = 55000;
+      } else if (normalizedTitle.includes("manager") || normalizedTitle.includes("director")) {
+        baseSalary = 130000;
+      } else if (normalizedTitle.includes("engineer") || normalizedTitle.includes("developer") || normalizedTitle.includes("programmer")) {
+        baseSalary = 95000;
+      } else if (normalizedTitle.includes("analyst")) {
+        baseSalary = 65000;
+      } else if (normalizedTitle.includes("scientist") || normalizedTitle.includes("researcher")) {
+        baseSalary = 110000;
+      }
+      
+      // Adjust for high-cost locations
+      const normalizedLocation = this.normalizeLocation(location);
+      const highCostLocations = ["san francisco", "new york", "seattle", "boston", "los angeles", "washington", "dc"];
+      if (highCostLocations.some(loc => normalizedLocation.includes(loc))) {
+        baseSalary = Math.round(baseSalary * 1.3);
+      }
+      
+      return {
+        percentile25: Math.round(baseSalary * 0.75),
+        percentile50: baseSalary,
+        percentile75: Math.round(baseSalary * 1.35),
+        source: "Estimated based on role and location",
+        dataYear: new Date().getFullYear(),
+        lastUpdated: new Date().toISOString(),
+        cached: false
+      };
+    } catch (error) {
+      console.error("❌ Error generating fallback estimate:", error);
+      return null;
+    }
+  }
+
+  /**
    * Get salary benchmark for a job title and location
    * Checks cache first, then fetches from API if needed
+   * Falls back to AI-generated estimates if BLS data unavailable
    */
   async getSalaryBenchmark(jobTitle, location) {
     try {
@@ -427,7 +526,7 @@ class SalaryBenchmarkService {
         return cached;
       }
 
-      // If not cached or expired, fetch from API
+      // If not cached or expired, try BLS API first
       console.log(`📡 Fetching salary benchmark from BLS API for ${jobTitle} in ${location}`);
       
       try {
@@ -441,14 +540,35 @@ class SalaryBenchmarkService {
           cached: false
         };
       } catch (apiError) {
-        console.error(`❌ Error fetching from BLS API: ${apiError.message}`);
+        console.log(`⚠️ BLS API not available (${apiError.message}), trying fallback estimate...`);
         
-        // Return null if API fails - we'll handle gracefully in the controller
+        // Fallback to AI-generated or estimated data
+        const fallbackData = await this.generateFallbackEstimate(jobTitle, location);
+        
+        if (fallbackData) {
+          // Cache the fallback estimate (with shorter TTL)
+          try {
+            await this.cacheBenchmark(jobTitle, location, fallbackData);
+          } catch (cacheError) {
+            console.warn("⚠️ Failed to cache fallback estimate:", cacheError.message);
+          }
+          
+          return fallbackData;
+        }
+        
+        // If all else fails, return null
         return null;
       }
     } catch (error) {
       console.error("❌ Error in getSalaryBenchmark:", error);
-      return null;
+      
+      // Last resort: try fallback
+      try {
+        return await this.generateFallbackEstimate(jobTitle, location);
+      } catch (fallbackError) {
+        console.error("❌ Fallback also failed:", fallbackError);
+        return null;
+      }
     }
   }
 }

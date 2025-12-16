@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import database from "./database.js";
 import geocodingService from "./geocodingService.js";
+import followUpReminderService from "./followUpReminderService.js";
 
 function parseJsonArray(rawValue) {
   if (!rawValue) {
@@ -1186,7 +1187,32 @@ class JobOpportunityService {
       const result = await database.query(query, values);
       const row = result.rows[0];
 
-      return this.mapRowToJobOpportunity(row);
+      const updatedOpportunity = this.mapRowToJobOpportunity(row);
+
+      // Create follow-up reminder if status changed
+      if (updatePayload.status !== undefined && updatePayload.status !== existing.status) {
+        try {
+          const eventDate = new Date(); // Use current time as event date
+          
+          // Create reminder for new status
+          await followUpReminderService.createReminderForStatusChange(
+            opportunityId,
+            updatePayload.status,
+            eventDate,
+            userId
+          );
+
+          // Auto-disable reminders if rejected
+          if (updatePayload.status === 'Rejected' || updatePayload.status === 'Withdrawn') {
+            await followUpReminderService.handleRejectedApplication(opportunityId);
+          }
+        } catch (reminderError) {
+          // Log but don't fail the update if reminder creation fails
+          console.error("⚠️ Failed to create follow-up reminder:", reminderError);
+        }
+      }
+
+      return updatedOpportunity;
     } catch (error) {
       console.error("❌ Error updating job opportunity:", error);
       throw error;

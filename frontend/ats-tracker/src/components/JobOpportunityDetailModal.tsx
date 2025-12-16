@@ -980,17 +980,6 @@ export function JobOpportunityDetailModal({
                   )}
                 </div>
 
-                {/* Salary Benchmark */}
-                {!isEditMode && opportunity.title && opportunity.location && (
-                  <div className="mt-4">
-                    <SalaryBenchmark
-                      jobTitle={opportunity.title}
-                      location={opportunity.location}
-                      jobSalaryMin={opportunity.salaryMin}
-                      jobSalaryMax={opportunity.salaryMax}
-                    />
-                  </div>
-                )}
 
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -1518,6 +1507,18 @@ export function JobOpportunityDetailModal({
               </div>
             </section>
           </div>
+
+          {/* Salary Benchmark - At the bottom */}
+          {!isEditMode && opportunity.title && opportunity.location && (
+            <div className="mt-8 pt-6 border-t border-slate-200">
+              <SalaryBenchmark
+                jobTitle={opportunity.title}
+                location={opportunity.location}
+                jobSalaryMin={opportunity.salaryMin}
+                jobSalaryMax={opportunity.salaryMax}
+              />
+            </div>
+          )}
 
           {/* Footer Actions */}
           {isEditMode && (

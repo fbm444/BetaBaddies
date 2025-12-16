@@ -1985,12 +1985,15 @@ export function SupportGroups() {
               }
               className="p-3 border border-slate-300 rounded-xl"
             />
+            <label htmlFor="category-filter-select" className="sr-only">Filter by category</label>
             <select
+              id="category-filter-select"
               value={filters.category}
               onChange={(e) =>
                 setFilters({ ...filters, category: e.target.value })
               }
               className="p-3 border border-slate-300 rounded-xl"
+              aria-label="Filter by category"
             >
               <option value="">All Categories</option>
               <option value="industry">Industry</option>
@@ -2070,9 +2073,9 @@ export function SupportGroups() {
                     />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-lg text-white mb-1 line-clamp-1 drop-shadow-lg">
+                    <h2 className="font-bold text-lg text-white mb-1 line-clamp-1 drop-shadow-lg">
                       {group.name}
-                    </h3>
+                    </h2>
                     {group.category && (
                       <span className="inline-block px-2 py-0.5 bg-white/20 backdrop-blur-sm text-white rounded-full text-xs font-medium capitalize border border-white/30">
                         {group.category}
@@ -2096,21 +2099,21 @@ export function SupportGroups() {
                     <Icon
                       icon="mingcute:user-line"
                       width={16}
-                      className="text-slate-400"
+                      className="text-slate-600"
                     />
                     <span className="font-medium">
                       {group.member_count || 0}
                     </span>
-                    <span className="text-slate-400">members</span>
+                    <span className="text-slate-600">members</span>
                   </span>
                   <span className="flex items-center gap-1.5">
                     <Icon
                       icon="mingcute:chat-line"
                       width={16}
-                      className="text-slate-400"
+                      className="text-slate-600"
                     />
                     <span className="font-medium">{group.post_count || 0}</span>
-                    <span className="text-slate-400">posts</span>
+                    <span className="text-slate-600">posts</span>
                   </span>
                 </div>
 

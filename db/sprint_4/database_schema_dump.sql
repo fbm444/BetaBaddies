@@ -1,3 +1,4 @@
+
 --
 -- PostgreSQL database dump
 --
@@ -13067,4 +13068,3 @@ ALTER TABLE ONLY public.writing_progress_tracking
 --
 -- PostgreSQL database dump complete
 --
-

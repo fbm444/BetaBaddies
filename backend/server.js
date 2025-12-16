@@ -85,6 +85,7 @@ import githubRoutes from "./routes/githubRoutes.js";
 import apiMonitoringRoutes from "./routes/apiMonitoringRoutes.js";
 import geocodingRoutes from "./routes/geocodingRoutes.js";
 import salaryBenchmarkRoutes from "./routes/salaryBenchmarkRoutes.js";
+import jobOfferRoutes from "./routes/jobOfferRoutes.js";
 
 // Import middleware
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
@@ -599,6 +600,7 @@ app.use("/api/v1/github", githubRoutes);
 app.use("/api/v1/admin/api-monitoring", apiMonitoringRoutes);
 app.use("/api/v1/geocoding", geocodingRoutes);
 app.use("/api/v1/salary-benchmarks", salaryBenchmarkRoutes);
+app.use("/api/v1/job-offers", jobOfferRoutes);
 
 // Sentry debug endpoint (for testing)
 app.get("/debug-sentry", function mainHandler(req, res) {

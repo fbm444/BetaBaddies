@@ -4625,7 +4625,7 @@ class ApiService {
   }
 
   // ============================================
-  // Follow-Up Reminders
+  // Follow-Up Reminders (UC-128)
   // ============================================
   async getFollowUpReminders(filters?: {
     status?: string;
@@ -4725,6 +4725,104 @@ class ApiService {
     return this.request<ApiResponse<{ tips: string[] }>>(
       `/follow-up-reminders/etiquette-tips?${params.toString()}`
     );
+  }
+
+  // ============================================================================
+  // JOB OFFERS (UC-127: Offer Evaluation & Comparison Tool)
+  // ============================================================================
+
+  async createJobOffer(offerData: any) {
+    return this.request<ApiResponse<any>>("/job-offers", {
+      method: "POST",
+      body: JSON.stringify(offerData),
+    });
+  }
+
+  async getJobOffers(filters?: { offer_status?: string; negotiation_status?: string; company?: string }) {
+    const queryParams = new URLSearchParams();
+    if (filters?.offer_status) queryParams.append("offer_status", filters.offer_status);
+    if (filters?.negotiation_status) queryParams.append("negotiation_status", filters.negotiation_status);
+    if (filters?.company) queryParams.append("company", filters.company);
+    
+    const queryString = queryParams.toString();
+    return this.request<ApiResponse<any[]>>(
+      `/job-offers${queryString ? `?${queryString}` : ""}`
+    );
+  }
+
+  async getJobOfferById(offerId: string) {
+    return this.request<ApiResponse<any>>(`/job-offers/${offerId}`);
+  }
+
+  async updateJobOffer(offerId: string, updateData: any) {
+    return this.request<ApiResponse<any>>(`/job-offers/${offerId}`, {
+      method: "PUT",
+      body: JSON.stringify(updateData),
+    });
+  }
+
+  async deleteJobOffer(offerId: string) {
+    return this.request<ApiResponse<{ message: string }>>(`/job-offers/${offerId}`, {
+      method: "DELETE",
+    });
+  }
+
+  async acceptJobOffer(offerId: string) {
+    return this.request<ApiResponse<any>>(`/job-offers/${offerId}/accept`, {
+      method: "POST",
+    });
+  }
+
+  async declineJobOffer(offerId: string, reason?: string) {
+    return this.request<ApiResponse<any>>(`/job-offers/${offerId}/decline`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    });
+  }
+
+  async addOfferScenario(offerId: string, scenario: any) {
+    return this.request<ApiResponse<any>>(`/job-offers/${offerId}/scenarios`, {
+      method: "POST",
+      body: JSON.stringify(scenario),
+    });
+  }
+
+  async deleteOfferScenario(offerId: string, scenarioId: string) {
+    return this.request<ApiResponse<any>>(`/job-offers/${offerId}/scenarios/${scenarioId}`, {
+      method: "DELETE",
+    });
+  }
+
+  async addOfferNegotiationEntry(offerId: string, entry: any) {
+    return this.request<ApiResponse<any>>(`/job-offers/${offerId}/negotiation`, {
+      method: "POST",
+      body: JSON.stringify(entry),
+    });
+  }
+
+  async generateOfferNegotiationRecommendations(offerId: string) {
+    return this.request<ApiResponse<any[]>>(`/job-offers/${offerId}/negotiation/recommendations`);
+  }
+
+  async compareJobOffers(offerIds: string[], weights?: any) {
+    return this.request<ApiResponse<any>>("/job-offers/compare", {
+      method: "POST",
+      body: JSON.stringify({ offer_ids: offerIds, weights }),
+    });
+  }
+
+  async generateCareerSimulation(offerId: string, userPreferences?: any) {
+    return this.request<ApiResponse<any>>(`/job-offers/${offerId}/career-simulation`, {
+      method: "POST",
+      body: JSON.stringify({ userPreferences }),
+    });
+  }
+
+  async compareCareerPaths(offerIds: string[], userPreferences?: any) {
+    return this.request<ApiResponse<any>>("/job-offers/career-comparison", {
+      method: "POST",
+      body: JSON.stringify({ offer_ids: offerIds, userPreferences }),
+    });
   }
 }
 

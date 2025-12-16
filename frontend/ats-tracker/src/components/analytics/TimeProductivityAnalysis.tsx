@@ -141,19 +141,19 @@ export function TimeProductivityAnalysis({ dateRange }: TimeProductivityAnalysis
           </h4>
           <div className="grid grid-cols-3 gap-2 flex-1 items-center">
             <div className="text-center p-2.5 rounded-lg bg-[#F8F9FF] flex flex-col justify-center">
-              <p className="text-xs text-[#6D7A99] mb-1">Total</p>
+              <p className="text-xs text-slate-600 mb-1">Total</p>
               <p className="text-2xl font-bold text-[#0F1D3A]">
                 {productivityData.taskMetrics.totalTasks}
               </p>
             </div>
             <div className="text-center p-2.5 rounded-lg bg-[#F8F9FF] flex flex-col justify-center">
-              <p className="text-xs text-[#6D7A99] mb-1">Done</p>
+              <p className="text-xs text-slate-600 mb-1">Done</p>
               <p className="text-2xl font-bold text-[#3351FD]">
                 {productivityData.taskMetrics.completedTasks}
               </p>
             </div>
             <div className="text-center p-2.5 rounded-lg bg-[#F8F9FF] flex flex-col justify-center">
-              <p className="text-xs text-[#6D7A99] mb-1">Rate</p>
+              <p className="text-xs text-slate-600 mb-1">Rate</p>
               <p className="text-2xl font-bold text-[#3351FD]">
                 {productivityData.taskMetrics.completionRate}%
               </p>
@@ -249,7 +249,7 @@ export function TimeProductivityAnalysis({ dateRange }: TimeProductivityAnalysis
                 >
                   <p className="text-xs font-semibold text-[#0F1D3A] mb-1">{day.day}</p>
                   <p className="text-lg font-bold text-[#3351FD]">{day.tasksCompleted}</p>
-                  <p className="text-xs text-[#6D7A99]">{day.hours}hrs</p>
+                  <p className="text-xs text-slate-600">{day.hours}hrs</p>
                   <div className="mt-2 text-xs">
                     <span className={`px-2 py-0.5 rounded-full ${
                       day.efficiency > 50 ? 'bg-green-100 text-green-700' :

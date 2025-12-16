@@ -71,7 +71,7 @@ export function PatternRecommendationsCard({ recommendations }: PatternRecommend
                   <div className="text-xs font-semibold text-[#0F1D3A] mb-1">
                     Action Item:
                   </div>
-                  <p className="text-xs text-[#6D7A99]">{rec.actionable}</p>
+                  <p className="text-xs text-slate-600">{rec.actionable}</p>
                 </div>
                 {rec.impact && (
                   <div className="flex items-center gap-1 text-xs text-[#6D7A99]">

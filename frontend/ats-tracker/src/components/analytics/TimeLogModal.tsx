@@ -131,7 +131,7 @@ export function TimeLogModal({ isOpen, onClose, onLogSuccess, prefilledJobId }: 
               Related Job Opportunity (Optional)
             </label>
             {loadingJobs ? (
-              <div className="w-full px-4 py-2 border border-slate-300 rounded-lg bg-[#F8F9FF] text-[#6D7A99] flex items-center gap-2">
+              <div className="w-full px-4 py-2 border border-slate-300 rounded-lg bg-[#F8F9FF] text-slate-600 flex items-center gap-2">
                 <div className="w-4 h-4 border-2 border-[#3351FD] border-t-transparent rounded-full animate-spin" />
                 Loading jobs...
               </div>
@@ -220,16 +220,18 @@ export function TimeLogModal({ isOpen, onClose, onLogSuccess, prefilledJobId }: 
 
           {/* Date */}
           <div>
-            <label className="block text-sm font-medium text-[#0F1D3A] mb-2">
+            <label htmlFor="activity-date-input" className="block text-sm font-medium text-[#0F1D3A] mb-2">
               Date
             </label>
             <input
+              id="activity-date-input"
               type="date"
               value={formData.activityDate}
               onChange={(e) => setFormData({ ...formData, activityDate: e.target.value })}
               max={new Date().toISOString().split('T')[0]}
               className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3351FD]/20"
               required
+              aria-label="Activity date"
             />
           </div>
 

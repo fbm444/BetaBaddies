@@ -517,7 +517,7 @@ export function SalaryNegotiation() {
                               </span>
                             )}
                             {negotiation.finalCompensation?.totalCompensation && (
-                              <span className="text-green-600 font-medium">
+                              <span className="text-green-700 font-medium">
                                 Final: ${negotiation.finalCompensation.totalCompensation.toLocaleString()}
                               </span>
                             )}
@@ -1058,11 +1058,11 @@ export function SalaryNegotiation() {
                                         <Icon 
                                           icon={increase > 0 ? "mingcute:arrow-up-line" : "mingcute:arrow-down-line"} 
                                           width={16} 
-                                          className={increase > 0 ? "text-green-600" : "text-red-600"}
+                                          className={increase > 0 ? "text-green-700" : "text-red-600"}
                                         />
                                         <p
                                           className={`text-sm font-semibold ${
-                                            increase > 0 ? "text-green-600" : "text-red-600"
+                                            increase > 0 ? "text-green-700" : "text-red-600"
                                           }`}
                                         >
                                           {increase > 0 ? "+" : ""}${increase.toLocaleString()} (
@@ -1424,7 +1424,7 @@ export function SalaryNegotiation() {
                 {formData.targetCompensation.baseSalary && (
                   <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
                     <p className="text-sm text-slate-600 mb-1">Total Target Compensation:</p>
-                    <p className="text-2xl font-bold text-green-600">
+                    <p className="text-2xl font-bold text-green-700">
                       ${(
                         (parseFloat(formData.targetCompensation.baseSalary) || 0) +
                         (parseFloat(formData.targetCompensation.bonus) || 0) +

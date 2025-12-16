@@ -214,7 +214,7 @@ export function JobSearchPerformance({ dateRange }: JobSearchPerformanceProps) {
           <h3 className="text-[25px] font-normal text-[#0F1D3A] mb-4">Industry Benchmarks</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="text-center p-4 rounded-xl bg-[#F8F9FF]">
-              <p className="text-xs text-[#6D7A99] mb-1">Your Response Rate</p>
+              <p className="text-xs text-slate-600 mb-1">Your Response Rate</p>
               <p className="text-2xl font-semibold text-[#3351FD]">
                 {keyMetrics.applicationsSent > 0
                   ? Math.round(
@@ -223,21 +223,21 @@ export function JobSearchPerformance({ dateRange }: JobSearchPerformanceProps) {
                   : 0}
                 %
               </p>
-              <p className="text-xs text-[#6D7A99] mt-1">Industry Avg: {benchmarks.responseRate}%</p>
+              <p className="text-xs text-slate-600 mt-1">Industry Avg: {benchmarks.responseRate}%</p>
             </div>
             <div className="text-center p-4 rounded-xl bg-[#F8F9FF]">
-              <p className="text-xs text-[#6D7A99] mb-1">Your Interview Rate</p>
+              <p className="text-xs text-slate-600 mb-1">Your Interview Rate</p>
               <p className="text-2xl font-semibold text-[#3351FD]">
                 {conversionRates.applicationToInterview}%
               </p>
-              <p className="text-xs text-[#6D7A99] mt-1">Industry Avg: {benchmarks.interviewRate}%</p>
+              <p className="text-xs text-slate-600 mt-1">Industry Avg: {benchmarks.interviewRate}%</p>
             </div>
             <div className="text-center p-4 rounded-xl bg-[#F8F9FF]">
-              <p className="text-xs text-[#6D7A99] mb-1">Your Offer Rate</p>
+              <p className="text-xs text-slate-600 mb-1">Your Offer Rate</p>
               <p className="text-2xl font-semibold text-[#3351FD]">
                 {conversionRates.overallSuccess}%
               </p>
-              <p className="text-xs text-[#6D7A99] mt-1">Industry Avg: {benchmarks.offerRate}%</p>
+              <p className="text-xs text-slate-600 mt-1">Industry Avg: {benchmarks.offerRate}%</p>
             </div>
           </div>
         </div>

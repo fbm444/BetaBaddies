@@ -161,7 +161,7 @@ export default function BasicInformation() {
 
   if (loading) {
     return (
-      <div className="p-10 max-w-[1400px] mx-auto bg-white font-sans min-h-full">
+      <div className="p-4 sm:p-6 lg:p-10 max-w-[1400px] mx-auto bg-white font-sans min-h-full">
         <div className="text-center py-20">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading profile...</p>
@@ -171,10 +171,10 @@ export default function BasicInformation() {
   }
 
   return (
-    <div className="p-10 max-w-[1400px] mx-auto bg-white font-sans min-h-full">
+    <div className="p-4 sm:p-6 lg:p-10 max-w-[1400px] mx-auto bg-white font-sans min-h-full">
       <div className="mb-8">
-        <h1 className="text-4xl font-bold text-gray-800 mb-4">Basic Information</h1>
-        <p className="text-lg text-gray-600">Manage your personal details and contact information</p>
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-800 mb-4">Basic Information</h1>
+        <p className="text-base sm:text-lg text-gray-600">Manage your personal details and contact information</p>
       </div>
 
       {/* Message Display */}

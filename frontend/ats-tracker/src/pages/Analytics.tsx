@@ -84,7 +84,7 @@ export function Analytics() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-[#0F1D3A] mb-2">Analytics Dashboard</h1>
-          <p className="text-sm text-[#6D7A99]">
+          <p className="text-sm text-slate-600">
             Comprehensive insights into your job search performance
           </p>
         </div>
@@ -92,26 +92,32 @@ export function Analytics() {
         {/* Date Range Filter */}
         <div className="mb-6 flex flex-wrap gap-4 items-center">
           <div className="flex items-center gap-2">
-            <Icon icon="mingcute:calendar-line" className="text-[#6D7A99]" width={20} />
+            <Icon icon="mingcute:calendar-line" className="text-slate-600" width={20} />
             <span className="text-sm font-medium text-[#0F1D3A]">Date Range:</span>
           </div>
+          <label htmlFor="start-date-input" className="sr-only">Start date</label>
           <input
+            id="start-date-input"
             type="date"
             value={dateRange.startDate || ""}
             onChange={(e) => handleDateRangeChange(e.target.value, dateRange.endDate)}
             className="px-3 py-2 border border-[#E4E8F5] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3351FD]/20"
+            aria-label="Start date"
           />
-          <span className="text-[#6D7A99]">to</span>
+          <span className="text-slate-600">to</span>
+          <label htmlFor="end-date-input" className="sr-only">End date</label>
           <input
+            id="end-date-input"
             type="date"
             value={dateRange.endDate || ""}
             onChange={(e) => handleDateRangeChange(dateRange.startDate, e.target.value)}
             className="px-3 py-2 border border-[#E4E8F5] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3351FD]/20"
+            aria-label="End date"
           />
           {(dateRange.startDate || dateRange.endDate) && (
             <button
               onClick={() => setDateRange({})}
-              className="px-3 py-2 text-sm text-[#6D7A99] hover:text-[#0F1D3A] transition-colors"
+              className="px-3 py-2 text-sm text-slate-600 hover:text-[#0F1D3A] transition-colors"
             >
               Clear
             </button>

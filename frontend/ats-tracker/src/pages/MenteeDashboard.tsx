@@ -701,9 +701,9 @@ export function MenteeDashboard() {
               width={48}
               className="mx-auto text-slate-300 mb-3"
             />
-            <h3 className="text-lg font-semibold text-slate-900 mb-1">
+            <h2 className="text-lg font-semibold text-slate-900 mb-1">
               No Mentor Assigned
-            </h3>
+            </h2>
             <p className="text-slate-600 text-sm mb-4">
               Mentor relationships are created when you join a team with
               mentors, or when mentors join your team.
@@ -774,9 +774,9 @@ export function MenteeDashboard() {
               {/* Job Applications */}
               <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-5">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-medium text-slate-600">
+                  <h2 className="text-sm font-medium text-slate-600">
                     Job Applications
-                  </h3>
+                  </h2>
                   <Icon
                     icon="mingcute:briefcase-line"
                     width={24}
@@ -794,7 +794,7 @@ export function MenteeDashboard() {
               {/* Tasks */}
               <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-5">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-medium text-slate-600">Tasks</h3>
+                  <h2 className="text-sm font-medium text-slate-600">Tasks</h2>
                   <Icon
                     icon="mingcute:task-line"
                     width={24}
@@ -813,9 +813,9 @@ export function MenteeDashboard() {
               {/* Engagement Score */}
               <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-5">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-medium text-slate-600">
+                  <h2 className="text-sm font-medium text-slate-600">
                     Engagement
-                  </h3>
+                  </h2>
                   <Icon
                     icon="mingcute:fire-line"
                     width={24}
@@ -831,9 +831,9 @@ export function MenteeDashboard() {
               {/* Feedback Received */}
               <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-5">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-medium text-slate-600">
+                  <h2 className="text-sm font-medium text-slate-600">
                     Feedback
-                  </h3>
+                  </h2>
                   <Icon
                     icon="mingcute:chat-3-line"
                     width={24}
@@ -1136,6 +1136,16 @@ export function MenteeDashboard() {
       {/* Feedback Tab */}
       {activeTab === "feedback" && (
         <div className="space-y-4">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-2xl font-bold text-slate-900 mb-1">
+                Feedback
+              </h2>
+              <p className="text-sm text-slate-500">
+                Feedback and recommendations from your mentor
+              </p>
+            </div>
+          </div>
           {feedback.length > 0 ? (
             feedback.map((item) => (
               <div

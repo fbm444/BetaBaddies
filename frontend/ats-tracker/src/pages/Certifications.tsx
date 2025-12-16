@@ -318,7 +318,7 @@ export function Certifications() {
 
   if (isLoading) {
     return (
-      <div className="p-10 max-w-[1400px] mx-auto bg-white font-sans min-h-full flex items-center justify-center">
+      <div className="p-4 sm:p-6 lg:p-10 max-w-[1400px] mx-auto bg-white font-sans min-h-full flex items-center justify-center">
         <div className="text-center">
           <div className="text-2xl font-semibold text-slate-900 mb-2">
             Loading certifications...
@@ -330,14 +330,14 @@ export function Certifications() {
   }
 
   return (
-    <div className="p-10 max-w-[1400px] mx-auto bg-white font-sans min-h-full">
+    <div className="p-4 sm:p-6 lg:p-10 max-w-[1400px] mx-auto bg-white font-sans min-h-full">
       {/* Header */}
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
-          <h1 className="text-4xl font-bold text-slate-900 mb-2">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900 mb-2">
             Certifications
           </h1>
-          <p className="text-lg text-slate-600">
+          <p className="text-base sm:text-lg text-slate-600">
             Manage your professional certifications and credentials
           </p>
         </div>

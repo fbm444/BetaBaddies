@@ -1,7 +1,18 @@
 import database from "./database.js";
+import OpenAI from "openai";
 
 class CompetitiveAnalysisService {
   constructor() {
+    // Initialize OpenAI client
+    const apiKey = process.env.OPENAI_API_KEY;
+    const baseURL = process.env.OPENAI_API_URL;
+    this.openai = apiKey
+      ? new OpenAI({
+          apiKey,
+          ...(baseURL && { baseURL }),
+        })
+      : null;
+    this.model = process.env.OPENAI_MODEL || "gpt-4o-mini";
     // Rare skills that give competitive advantage (held by <10% of applicants)
     this.rareSkills = [
       "Kubernetes",
@@ -83,7 +94,7 @@ class CompetitiveAnalysisService {
       job
     );
     const advantages = this.identifyAdvantages(userProfile, job);
-    const disadvantages = this.identifyDisadvantages(userProfile, job);
+    const disadvantages = await this.identifyDisadvantages(userProfile, job);
     const interviewLikelihood = this.estimateInterviewLikelihood(
       competitiveScore,
       applicantCount,
@@ -91,7 +102,7 @@ class CompetitiveAnalysisService {
       disadvantages,
       job
     );
-    const strategies = this.generateDifferentiatingStrategies(
+    const strategies = await this.generateDifferentiatingStrategies(
       job,
       advantages,
       disadvantages,
@@ -194,7 +205,7 @@ class CompetitiveAnalysisService {
    * Calculate competitive score (0-100)
    */
   async calculateCompetitiveScore(userProfile, job) {
-    // Skills match (40%)
+    // Skills match (40%) - now uses AI extraction
     const skillsMatch = await this.calculateSkillsMatch(userProfile, job);
     const skillsScore = (skillsMatch.matchPercentage / 100) * 40;
 
@@ -221,30 +232,40 @@ class CompetitiveAnalysisService {
    * Calculate skills match percentage
    */
   async calculateSkillsMatch(userProfile, job) {
-    // Extract skills from job description
-    const jobDesc = (job.job_description || "").toLowerCase();
-    const requiredSkills = this.extractSkillsFromDescription(jobDesc);
+    // Extract skills from job description using AI
+    const jobDesc = job.job_description || "";
+    const requiredSkills = await this.extractSkillsFromDescription(jobDesc, job.title);
 
     if (requiredSkills.length === 0) {
       return { matched: 0, total: 0, matchPercentage: 50 }; // Neutral if no skills found
     }
 
-    // Get user skills
+    // Normalize skills to lowercase for matching
+    const requiredSkillsLower = requiredSkills.map((s) => s.toLowerCase());
     const userSkills = userProfile.skills.map((s) => s.skill_name.toLowerCase());
 
-    // Match skills
-    const matched = requiredSkills.filter((reqSkill) =>
-      userSkills.some((userSkill) => userSkill.includes(reqSkill) || reqSkill.includes(userSkill))
+    // Match skills (fuzzy matching)
+    const matched = requiredSkillsLower.filter((reqSkill) =>
+      userSkills.some((userSkill) => {
+        // Exact match
+        if (userSkill === reqSkill) return true;
+        // Contains match
+        if (userSkill.includes(reqSkill) || reqSkill.includes(userSkill)) return true;
+        // Handle variations (e.g., "node.js" vs "nodejs")
+        const normalizedReq = reqSkill.replace(/[.\s-]/g, "");
+        const normalizedUser = userSkill.replace(/[.\s-]/g, "");
+        return normalizedUser.includes(normalizedReq) || normalizedReq.includes(normalizedUser);
+      })
     );
 
     const matchPercentage = (matched.length / requiredSkills.length) * 100;
 
-      return {
+    return {
       matched: matched.length,
       total: requiredSkills.length,
       matchPercentage,
       matchedSkills: matched,
-      missingSkills: requiredSkills.filter((s) => !matched.includes(s)),
+      missingSkills: requiredSkillsLower.filter((s) => !matched.includes(s)),
     };
   }
 

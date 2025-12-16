@@ -39,9 +39,24 @@ class GmailService {
           "http://localhost:3001"
         }/api/v1/gmail/auth/callback`;
 
+      // Use Gmail-specific client ID if available, fallback to Contacts, then general Google
+      const clientId =
+        process.env.GOOGLE_GMAIL_CLIENT_ID ||
+        process.env.GOOGLE_CONTACTS_CLIENT_ID ||
+        process.env.GOOGLE_CLIENT_ID;
+
+      const clientSecret =
+        process.env.GOOGLE_GMAIL_CLIENT_SECRET ||
+        process.env.GOOGLE_CONTACTS_CLIENT_SECRET ||
+        process.env.GOOGLE_CLIENT_SECRET;
+
+      if (!clientId || !clientSecret) {
+        throw new Error("Missing Google OAuth client credentials for Gmail.");
+      }
+
       const oauth2Client = new google.auth.OAuth2(
-        process.env.GOOGLE_CONTACTS_CLIENT_ID,
-        process.env.GOOGLE_CONTACTS_CLIENT_SECRET,
+        clientId,
+        clientSecret,
         redirectUri
       );
 
@@ -198,18 +213,65 @@ class GmailService {
       console.warn("   Current redirect URI:", redirectUri);
     }
 
+    // Use Gmail-specific client ID if available, fallback to Contacts, then general Google
+    const clientId =
+      process.env.GOOGLE_GMAIL_CLIENT_ID ||
+      process.env.GOOGLE_CONTACTS_CLIENT_ID ||
+      process.env.GOOGLE_CLIENT_ID;
+
+    const clientSecret =
+      process.env.GOOGLE_GMAIL_CLIENT_SECRET ||
+      process.env.GOOGLE_CONTACTS_CLIENT_SECRET ||
+      process.env.GOOGLE_CLIENT_SECRET;
+
+    if (!clientId || !clientSecret) {
+      throw new Error(
+        "Missing Google OAuth client credentials. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET (or GOOGLE_GMAIL_CLIENT_ID/SECRET)."
+      );
+    }
+
+    console.log("📧 Generating Gmail OAuth URL:", {
+      userId,
+      redirectUri,
+      clientId: clientId ? clientId.substring(0, 30) + "..." : "MISSING",
+      clientSecretSet: !!clientSecret,
+      envVars: {
+        hasGmailClientId: !!process.env.GOOGLE_GMAIL_CLIENT_ID,
+        hasContactsClientId: !!process.env.GOOGLE_CONTACTS_CLIENT_ID,
+        hasGoogleClientId: !!process.env.GOOGLE_CLIENT_ID,
+        backendUrl: process.env.BACKEND_URL,
+      },
+    });
+
+    // Validate redirect URI matches expected format
+    if (!redirectUri.includes("/api/v1/gmail/auth/callback")) {
+      console.error("❌ Invalid redirect URI format:", redirectUri);
+      throw new Error(
+        `Invalid redirect URI: ${redirectUri}. Must end with /api/v1/gmail/auth/callback`
+      );
+    }
+
     const oauth2Client = new google.auth.OAuth2(
-      process.env.GOOGLE_CONTACTS_CLIENT_ID,
-      process.env.GOOGLE_CONTACTS_CLIENT_SECRET,
+      clientId,
+      clientSecret,
       redirectUri
     );
 
-    return oauth2Client.generateAuthUrl({
+    const authUrl = oauth2Client.generateAuthUrl({
       access_type: "offline",
       scope: this.scopes,
       prompt: "consent",
       state: userId, // Pass user ID in state for callback
     });
+
+    console.log("📧 Gmail OAuth URL generated successfully");
+    console.log("   State (userId):", userId);
+    console.log("   Redirect URI:", redirectUri);
+    console.log(
+      "   Make sure this redirect URI is EXACTLY the same in Google Cloud Console"
+    );
+
+    return authUrl;
   }
 
   // Exchange authorization code for tokens
@@ -223,16 +285,75 @@ class GmailService {
           "http://localhost:3001"
         }/api/v1/gmail/auth/callback`;
 
+      // Use Gmail-specific client ID if available, fallback to Contacts, then general Google
+      const clientId =
+        process.env.GOOGLE_GMAIL_CLIENT_ID ||
+        process.env.GOOGLE_CONTACTS_CLIENT_ID ||
+        process.env.GOOGLE_CLIENT_ID;
+
+      const clientSecret =
+        process.env.GOOGLE_GMAIL_CLIENT_SECRET ||
+        process.env.GOOGLE_CONTACTS_CLIENT_SECRET ||
+        process.env.GOOGLE_CLIENT_SECRET;
+
+      if (!clientId || !clientSecret) {
+        throw new Error(
+          "Missing Google OAuth client credentials. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET (or GOOGLE_GMAIL_CLIENT_ID/SECRET)."
+        );
+      }
+
+      console.log("📧 Gmail OAuth token exchange:", {
+        redirectUri,
+        clientId: clientId ? clientId.substring(0, 30) + "..." : "MISSING",
+        clientSecretSet: !!clientSecret,
+        hasCode: !!code,
+      });
+
+      // Validate redirect URI matches expected format
+      if (!redirectUri.includes("/api/v1/gmail/auth/callback")) {
+        console.error("❌ Invalid redirect URI format:", redirectUri);
+        throw new Error(
+          `Invalid redirect URI: ${redirectUri}. Must end with /api/v1/gmail/auth/callback`
+        );
+      }
+
       const oauth2Client = new google.auth.OAuth2(
-        process.env.GOOGLE_CONTACTS_CLIENT_ID,
-        process.env.GOOGLE_CONTACTS_CLIENT_SECRET,
+        clientId,
+        clientSecret,
         redirectUri
       );
 
       const { tokens } = await oauth2Client.getToken(code);
+      console.log("✅ Gmail OAuth tokens received successfully");
       return tokens;
     } catch (error) {
-      console.error("Error getting tokens from code:", error);
+      console.error("❌ Error getting tokens from code:", error);
+      console.error("   Error details:", {
+        message: error.message,
+        code: error.code,
+        response: error.response?.data,
+      });
+
+      // Provide helpful error message for invalid_client
+      if (
+        error.message?.includes("invalid_client") ||
+        error.code === "invalid_client"
+      ) {
+        const helpfulError = new Error(
+          `OAuth invalid_client error. This means the Client ID or Client Secret doesn't match Google Cloud Console.\n` +
+            `Current Client ID: ${
+              clientId ? clientId.substring(0, 30) + "..." : "MISSING"
+            }\n` +
+            `Redirect URI: ${redirectUri}\n` +
+            `Please verify:\n` +
+            `1. GOOGLE_CLIENT_ID (or GOOGLE_CONTACTS_CLIENT_ID) matches the Client ID in Google Cloud Console\n` +
+            `2. GOOGLE_CLIENT_SECRET (or GOOGLE_CONTACTS_CLIENT_SECRET) matches the Client Secret\n` +
+            `3. The redirect URI "${redirectUri}" is EXACTLY listed in Google Cloud Console authorized redirect URIs`
+        );
+        helpfulError.code = "invalid_client";
+        throw helpfulError;
+      }
+
       throw error;
     }
   }

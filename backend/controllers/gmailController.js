@@ -27,7 +27,18 @@ class GmailController {
   // Handle OAuth callback
   handleCallback = asyncHandler(async (req, res) => {
     const { code, state } = req.query;
-    const userId = state || req.session.userId;
+    
+    // Log for debugging
+    console.log("📧 Gmail OAuth callback received:", {
+      hasCode: !!code,
+      hasState: !!state,
+      stateValue: state,
+      hasSession: !!req.session,
+      sessionUserId: req.session?.userId,
+    });
+
+    // Try to get userId from state first, then session
+    let userId = state || req.session?.userId;
 
     if (!code) {
       // Return HTML that closes the popup and signals success/error to parent
@@ -57,6 +68,9 @@ class GmailController {
     }
 
     if (!userId) {
+      console.error("❌ Gmail OAuth callback: No userId found in state or session");
+      console.error("   State:", state);
+      console.error("   Session:", req.session);
       return res.send(`
         <!DOCTYPE html>
         <html>
@@ -64,11 +78,11 @@ class GmailController {
             <title>Gmail Connection Error</title>
           </head>
           <body>
-            <p>Unauthorized. You can close this window now.</p>
+            <p>Unauthorized. Missing user ID. You can close this window now.</p>
             <script>
               try {
                 if (window.opener && !window.opener.closed) {
-                  window.opener.postMessage({ type: 'gmail_oauth', status: 'error', error: 'unauthorized' }, '*');
+                  window.opener.postMessage({ type: 'gmail_oauth', status: 'error', error: 'unauthorized', details: 'missing_user_id' }, '*');
                 }
                 setTimeout(function() {
                   window.close();
@@ -83,13 +97,21 @@ class GmailController {
     }
 
     try {
+      console.log("📧 Attempting to exchange OAuth code for tokens, userId:", userId);
       const tokens = await gmailService.getTokensFromCode(code);
+      
+      if (!tokens || !tokens.access_token || !tokens.refresh_token) {
+        throw new Error("Invalid tokens received from Google OAuth");
+      }
+      
+      console.log("✅ Tokens received, storing for userId:", userId);
       await gmailService.storeTokens(
         userId,
         tokens.access_token,
         tokens.refresh_token,
         tokens.expiry_date
       );
+      console.log("✅ Gmail tokens stored successfully for userId:", userId);
 
       // Return HTML that signals success to parent (parent will close popup)
       return res.send(`
@@ -150,7 +172,14 @@ class GmailController {
         </html>
       `);
     } catch (error) {
-      console.error("Error handling Gmail callback:", error);
+      console.error("❌ Error handling Gmail callback:", error);
+      console.error("   Error details:", {
+        message: error.message,
+        code: error.code,
+        userId: userId,
+        hasCode: !!code,
+        hasState: !!state,
+      });
       return res.send(`
         <!DOCTYPE html>
         <html>

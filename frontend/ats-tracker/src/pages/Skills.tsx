@@ -910,7 +910,7 @@ export function Skills() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="p-10 max-w-[1400px] mx-auto bg-white font-poppins min-h-full flex items-center justify-center">
+      <div className="p-4 sm:p-6 lg:p-10 max-w-[1400px] mx-auto bg-white font-poppins min-h-full flex items-center justify-center">
         <div className="text-center">
           <Icon
             icon="mingcute:loading-line"
@@ -928,14 +928,14 @@ export function Skills() {
   }
 
   return (
-    <div className="p-10 max-w-[1400px] mx-auto bg-white font-poppins min-h-full">
+    <div className="p-4 sm:p-6 lg:p-10 max-w-[1400px] mx-auto bg-white font-poppins min-h-full">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-4xl font-semibold text-slate-900 mb-2">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-semibold text-slate-900 mb-2">
             Skills Portfolio
           </h1>
-          <p className="text-slate-600">
+          <p className="text-sm sm:text-base text-slate-600">
             Manage your technical and professional skills • {skills.length}{" "}
             total
           </p>

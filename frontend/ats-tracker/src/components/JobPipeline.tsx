@@ -147,7 +147,7 @@ function PipelineCard({
     <div
       ref={setNodeRef}
       style={baseStyle}
-      className={`bg-white rounded-[11px] border border-[#D1D1D1] p-2 pl-3 w-[165px] min-h-[90px] mb-3 shadow-[1px_2px_4px_rgba(0,0,0,0.07)] cursor-grab active:cursor-grabbing transition-transform transition-colors ${
+      className={`bg-white rounded-[11px] border border-[#D1D1D1] p-2 pl-3 w-full sm:w-[165px] min-h-[90px] mb-3 shadow-[1px_2px_4px_rgba(0,0,0,0.07)] cursor-grab active:cursor-grabbing transition-transform transition-colors ${
         isDragging
           ? "scale-[1.01] shadow-[0_18px_40px_rgba(17,23,58,0.12)]"
           : "hover:-translate-y-1 hover:bg-[#F3F4F6] hover:border-[#B9B9B9] hover:shadow-[2px_4px_8px_rgba(0,0,0,0.1)]"
@@ -262,7 +262,7 @@ function PipelineColumn({
   return (
     <div
       ref={setNodeRef}
-      className="flex-1 min-w-[210px] max-w-[220px] bg-[#F8F8F8] rounded-3xl p-5 border border-[#F0F0F0] shadow-none flex flex-col"
+      className="flex-1 min-w-[200px] sm:min-w-[210px] sm:max-w-[220px] bg-[#F8F8F8] rounded-3xl p-3 sm:p-5 border border-[#F0F0F0] shadow-none flex flex-col"
     >
       <div className="flex items-center mb-4">
         <div className="flex items-center gap-2 flex-1 pr-1">
@@ -453,7 +453,7 @@ export function JobPipeline({
         onDragOver={handleDragOver}
       >
         <div
-          className="flex gap-2 overflow-x-auto pb-6 items-stretch"
+          className="flex gap-2 sm:gap-4 overflow-x-auto pb-6 items-stretch px-2 sm:px-0"
           style={{ minHeight: "calc(100vh - 260px)" }}
         >
           {JOB_STATUSES.map((status) => {

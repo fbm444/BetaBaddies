@@ -148,11 +148,11 @@ export function Employment() {
   // Loading State
   if (isLoading) {
     return (
-      <div className="p-10 max-w-[1400px] mx-auto font-poppins min-h-full flex items-center justify-center">
+      <div className="p-4 sm:p-6 lg:p-10 max-w-[1400px] mx-auto font-poppins min-h-full flex items-center justify-center">
         <div className="text-center">
           <Icon icon="mingcute:loading-line" className="animate-spin text-blue-700 mx-auto mb-4" width={48} />
-          <div className="text-2xl font-semibold text-slate-900 mb-2">Loading employment history...</div>
-          <div className="text-base text-slate-500">Please wait</div>
+          <div className="text-xl sm:text-2xl font-semibold text-slate-900 mb-2">Loading employment history...</div>
+          <div className="text-sm sm:text-base text-slate-500">Please wait</div>
         </div>
       </div>
     )
@@ -165,12 +165,12 @@ export function Employment() {
     : jobs
 
   return (
-    <div className="p-10 max-w-[1400px] mx-auto font-poppins min-h-full">
+    <div className="p-4 sm:p-6 lg:p-10 max-w-[1400px] mx-auto font-poppins min-h-full">
       {/* Header */}
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
-          <h1 className="text-4xl font-bold text-slate-900 mb-2">Employment History</h1>
-          <p className="text-slate-600">Manage your work experience and career timeline</p>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900 mb-2">Employment History</h1>
+          <p className="text-sm sm:text-base text-slate-600">Manage your work experience and career timeline</p>
         </div>
         <button
           onClick={() => setShowAddModal(true)}

@@ -669,7 +669,7 @@ export function JobOpportunities() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="p-10 max-w-[1400px] mx-auto bg-white font-poppins min-h-full flex items-center justify-center">
+      <div className="p-4 sm:p-6 lg:p-10 max-w-[1400px] mx-auto bg-white font-poppins min-h-full flex items-center justify-center">
         <div className="text-center">
           <Icon
             icon="mingcute:loading-line"
@@ -693,7 +693,7 @@ export function JobOpportunities() {
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500 mb-6">
-          <div className="flex items-center gap-3 flex-1 min-w-[240px] max-w-xl">
+          <div className="flex items-center gap-3 flex-1 min-w-0 sm:min-w-[240px] max-w-xl">
             <div className="flex flex-1 items-center gap-2">
               <div className="relative flex-1">
                 <Icon

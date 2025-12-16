@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { navigationGroups, navigationItems, ROUTES } from '@/config/routes'
 import { api } from '@/services/api'
+import { FollowUpReminderNotification } from '@/components/follow-up/FollowUpReminderNotification'
 import logo from '@/assets/logo.png'
 
 export function Navbar() {
@@ -392,7 +393,7 @@ export function Navbar() {
             </div>
           )}
 
-          {/* Right Side: Mobile Menu Button + User Profile */}
+          {/* Right Side: Mobile Menu Button + Notifications + User Profile */}
           <div className="flex items-center gap-2 md:gap-3">
             {/* Mobile Menu Button */}
             {isLoggedIn && (
@@ -409,6 +410,9 @@ export function Navbar() {
                 />
               </button>
             )}
+
+            {/* Follow-Up Reminder Notification */}
+            {isLoggedIn && <FollowUpReminderNotification />}
 
             {/* User Profile Area */}
             {isCheckingAuth || isLoggingOut ? (

@@ -49,6 +49,7 @@ import { Family } from "./pages/Family";
 import { FamilyInviteAccept } from "./pages/FamilyInviteAccept";
 import { FamilyOnlyDashboard } from "./pages/FamilyOnlyDashboard";
 import { ApiMonitoring } from "./pages/ApiMonitoring";
+import { FollowUpReminders } from "./pages/FollowUpReminders";
 import "./App.css";
 
 function App() {
@@ -147,6 +148,10 @@ function App() {
             <Route
               path={ROUTES.COMPANY_RESEARCH}
               element={<CompanyResearch />}
+            />
+            <Route
+              path={ROUTES.FOLLOW_UP_REMINDERS}
+              element={<FollowUpReminders />}
             />
             <Route path={ROUTES.INTERVIEWS} element={<Interviews />} />
             <Route

@@ -122,9 +122,9 @@ export function SalaryNegotiation() {
       console.log("Jobs response data:", jobsRes.data);
       console.log("Jobs response data.jobs:", jobsRes.data?.jobs);
 
-      if (progressionRes.ok && progressionRes.data?.progression) {
+      if (progressionRes.ok && Array.isArray(progressionRes.data?.progression)) {
         console.log("Setting progression entries:", progressionRes.data.progression);
-        setProgressionEntries(progressionRes.data.progression);
+        setProgressionEntries(progressionRes.data.progression as SalaryProgressionEntry[]);
       } else {
         setProgressionEntries([]);
       }
@@ -241,11 +241,12 @@ export function SalaryNegotiation() {
 
       const response = await api.createSalaryNegotiation(negotiationData);
       if (response.ok && response.data?.negotiation) {
-        // Check if negotiation already existed
-        if (response.data.alreadyExists) {
+        // Check if negotiation already existed (backend may return this as an optional property)
+        const responseData = response.data as { negotiation: SalaryNegotiation; message?: string; alreadyExists?: boolean };
+        if (responseData.alreadyExists) {
           showMessage(
-            response.data.message || "A negotiation already exists for this job opportunity. Showing existing negotiation.",
-            "info"
+            responseData.message || "A negotiation already exists for this job opportunity. Showing existing negotiation.",
+            "success"
           );
         } else {
           showMessage("Salary negotiation created successfully!", "success");
@@ -273,8 +274,8 @@ export function SalaryNegotiation() {
         await fetchNegotiations();
         
         // If negotiation already existed, select it and show detail view
-        if (response.data.alreadyExists && response.data.negotiation) {
-          setSelectedNegotiation(response.data.negotiation);
+        if (responseData.alreadyExists && responseData.negotiation) {
+          setSelectedNegotiation(responseData.negotiation);
           setShowDetailModal(true);
         }
       } else {

@@ -7,6 +7,7 @@ import rateLimit from "express-rate-limit";
 import passport from "./config/passport.js";
 import logger from "./utils/logger.js";
 import * as Sentry from "@sentry/node";
+import database from "./services/database.js";
 
 // Import routes
 import userRoutes from "./routes/userRoutes.js";

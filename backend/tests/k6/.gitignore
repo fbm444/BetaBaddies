@@ -1,0 +1,8 @@
+# k6 test results
+# Keep summary files but ignore detailed results
+results/*.json
+!results/.gitkeep
+*.log
+
+# Test credentials (if stored locally)
+.env.k6
